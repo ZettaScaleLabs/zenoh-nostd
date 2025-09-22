@@ -1,4 +1,3 @@
-
 use zenoh_protocol::{
     core::{EndPoint, Resolution, WhatAmI, ZenohIdProto},
     transport::BatchSize,
@@ -6,8 +5,9 @@ use zenoh_protocol::{
 use zenoh_result::ZResult;
 
 use crate::unicast::{
+    link::TransportLinkUnicast,
     open::{RecvOpenAckOut, SendOpenSynOut},
-    TransportLinkUnicast, TransportManagerUnicast,
+    TransportManagerUnicast,
 };
 
 pub mod common;

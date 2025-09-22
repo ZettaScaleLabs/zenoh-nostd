@@ -1,3 +1,5 @@
+#![cfg_attr(not(feature = "arch-std"), no_std)]
+
 use core::str::FromStr;
 
 use zenoh_link_commons::LocatorInspector;

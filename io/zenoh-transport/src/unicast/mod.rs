@@ -1,20 +1,23 @@
-mod link;
-use std::time::Duration;
+use core::time::Duration;
 
 use embassy_futures::select::select;
 use embassy_time::Timer;
-pub use link::*;
 
-mod establishment;
 pub use establishment::*;
 use zenoh_link::unicast::LinkManagerUnicast;
 use zenoh_protocol::core::EndPoint;
 use zenoh_result::{zerror, ZResult};
 
 use crate::{
-    unicast::open::{RecvOpenAckOut, SendOpenSynOut},
+    unicast::{
+        link::TransportLinkUnicast,
+        open::{RecvOpenAckOut, SendOpenSynOut},
+    },
     TransportManager,
 };
+
+pub mod establishment;
+pub mod link;
 
 #[derive(Debug, Clone)]
 pub struct TransportManagerUnicast {
@@ -51,7 +54,7 @@ impl TransportManagerUnicast {
             let lm = LinkManagerUnicast::new(endpoint)?;
             let link = lm.new_link(endpoint).await?;
 
-            establishment::open::open_link(endpoint, link, tm).await
+            establishment::open::open_link(link, tm).await
         })
         .await
         {

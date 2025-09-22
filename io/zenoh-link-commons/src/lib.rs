@@ -4,6 +4,7 @@ use zenoh_protocol::{
     core::{Locator, PriorityRange, Reliability},
     transport::BatchSize,
 };
+
 use zenoh_result::ZResult;
 
 #[derive(Clone, Debug, Hash, PartialEq, Eq)]

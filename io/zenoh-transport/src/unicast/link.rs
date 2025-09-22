@@ -1,21 +1,6 @@
-//
-// Copyright (c) 2023 ZettaScale Technology
-//
-// This program and the accompanying materials are made available under the
-// terms of the Eclipse Public License 2.0 which is available at
-// http://www.eclipse.org/legal/epl-2.0, or the Apache License, Version 2.0
-// which is available at https://www.apache.org/licenses/LICENSE-2.0.
-//
-// SPDX-License-Identifier: EPL-2.0 OR Apache-2.0
-//
-// Contributors:
-//   ZettaScale Zenoh Team, <zenoh@zettascale.tech>
-//
-use std::sync::Arc;
-
 use zenoh_buffers::{BBuf, ZSlice, ZSliceBuffer};
 use zenoh_link::unicast::LinkUnicast;
-use zenoh_protocol::transport::{BatchSize, OpenAck, TransportMessage};
+use zenoh_protocol::transport::{BatchSize, TransportMessage};
 use zenoh_result::{zerror, ZResult};
 
 use crate::common::batch::{BatchConfig, Decode, Encode, Finalize, RBatch, WBatch};
@@ -28,7 +13,6 @@ pub enum TransportLinkUnicastDirection {
 
 #[derive(Clone, Debug)]
 pub struct TransportLinkUnicastConfig {
-    pub(crate) direction: TransportLinkUnicastDirection,
     pub(crate) mtu: u16,
     pub(crate) is_streamed: bool,
 }
@@ -117,10 +101,12 @@ impl TransportLinkUnicast {
             self.link.read(into.as_mut()).await?
         };
 
-        // tracing::trace!("RBytes: {:02x?}", &into.as_slice()[0..end]);
+        let buffer = {
+            use std::sync::Arc;
+            ZSlice::new(Arc::new(into), 0, end)
+                .map_err(|_| zerror!("{ERR}. ZSlice index(es) out of bounds"))?
+        };
 
-        let buffer = ZSlice::new(Arc::new(into), 0, end)
-            .map_err(|_| zerror!("{ERR}. ZSlice index(es) out of bounds"))?;
         let mut batch = RBatch::new(
             BatchConfig {
                 mtu: self.config.mtu,
@@ -129,8 +115,6 @@ impl TransportLinkUnicast {
             buffer,
         );
         batch.initialize(buff).map_err(|e| zerror!("{ERR}. {e}."))?;
-
-        // tracing::trace!("RBatch: {:?}", batch);
 
         Ok(batch)
     }
@@ -144,49 +128,5 @@ impl TransportLinkUnicast {
             .decode()
             .map_err(|_| zerror!("Decode error on link"))?;
         Ok(msg)
-    }
-}
-
-pub(crate) struct MaybeOpenAck {
-    link: TransportLinkUnicast,
-    open_ack: Option<OpenAck>,
-}
-
-impl MaybeOpenAck {
-    pub(crate) fn new(link: TransportLinkUnicast, open_ack: Option<OpenAck>) -> Self {
-        Self {
-            link: link,
-            open_ack,
-        }
-    }
-
-    pub(crate) async fn send_open_ack(mut self) -> ZResult<()> {
-        if let Some(msg) = self.open_ack {
-            self.link.send(&msg.into()).await?;
-        }
-        Ok(())
-    }
-}
-
-pub(crate) struct LinkUnicastWithOpenAck {
-    pub(crate) link: TransportLinkUnicast,
-    ack: Option<OpenAck>,
-}
-
-impl LinkUnicastWithOpenAck {
-    pub(crate) fn new(link: TransportLinkUnicast, ack: Option<OpenAck>) -> Self {
-        Self { link, ack }
-    }
-
-    pub(crate) fn inner_config(&self) -> &TransportLinkUnicastConfig {
-        &self.link.config
-    }
-
-    pub(crate) fn unpack(self) -> MaybeOpenAck {
-        MaybeOpenAck::new(self.link, self.ack)
-    }
-
-    pub(crate) fn fail(self) -> TransportLinkUnicast {
-        self.link
     }
 }

@@ -9,8 +9,8 @@ use zenoh_protocol::{
 use zenoh_result::{zerror, ZResult};
 use zenoh_transport::{
     unicast::{
+        link::TransportLinkUnicast,
         open::{RecvOpenAckOut, SendOpenSynOut},
-        TransportLinkUnicast,
     },
     TransportManager,
 };
@@ -31,8 +31,6 @@ async fn link_task(
     let keep_alive_timeout = tm.unicast.lease / (tm.unicast.keep_alive as u32);
     let other_lease = recv_open_ack.other_lease;
 
-    println!("Link established with lease: {:?}", other_lease);
-
     let mut last_read_time = embassy_time::Instant::now();
     let mut last_write_time = embassy_time::Instant::now();
 
@@ -51,13 +49,16 @@ async fn link_task(
 
                 match read_task {
                     embassy_futures::select::Either::First(_) => {
+                        println!("Keep-alive timeout, closing link");
                         break 'main;
                     }
                     embassy_futures::select::Either::Second(msg) => match msg {
                         Ok(msg) => {
+                            println!("Received message from link, forwarding to session");
                             TRANSPORT_TO_SESSION.send(msg).await;
                         }
-                        Err(_) => {
+                        Err(e) => {
+                            println!("Error receiving message from link: {}", e);
                             break 'main;
                         }
                     },
@@ -68,13 +69,16 @@ async fn link_task(
 
                 match write_task {
                     embassy_futures::select::Either::First(_) => {
-                        if let Err(_) = link.send(&KeepAlive.into()).await {
+                        println!("Sending keep-alive");
+                        if let Err(e) = link.send(&KeepAlive.into()).await {
+                            println!("Error sending keep-alive to link: {}", e);
                             break 'main;
                         }
                     }
                     embassy_futures::select::Either::Second(msg) => {
-                        if let Err(_) = link.send(&msg).await {
-                            // debug: send error
+                        println!("Sending message from session to link");
+                        if let Err(e) = link.send(&msg).await {
+                            println!("Error sending message to link: {}", e);
                             break 'main;
                         }
                     }
