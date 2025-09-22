@@ -11,18 +11,14 @@
 // Contributors:
 //   ZettaScale Zenoh Team, <zenoh@zettascale.tech>
 //
-use alloc::sync::Arc;
-use core::{fmt, time::Duration};
+use std::sync::Arc;
 
 use zenoh_buffers::{BBuf, ZSlice, ZSliceBuffer};
-use zenoh_link_commons::{Link, LinkUnicast};
-use zenoh_protocol::{
-    core::{Bits, PriorityRange, Reliability, WhatAmI, ZenohIdProto},
-    transport::{BatchSize, Close, OpenAck, TransportMessage, TransportSn},
-};
+use zenoh_link::unicast::LinkUnicast;
+use zenoh_protocol::transport::{BatchSize, OpenAck, TransportMessage};
 use zenoh_result::{zerror, ZResult};
 
-use crate::common::{BatchConfig, Decode, Encode, Finalize, RBatch, WBatch};
+use crate::common::batch::{BatchConfig, Decode, Encode, Finalize, RBatch, WBatch};
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum TransportLinkUnicastDirection {
@@ -32,120 +28,40 @@ pub enum TransportLinkUnicastDirection {
 
 #[derive(Clone, Debug)]
 pub struct TransportLinkUnicastConfig {
-    pub direction: TransportLinkUnicastDirection,
-    pub batch: BatchConfig,
-    pub priorities: Option<PriorityRange>,
-    pub reliability: Option<Reliability>,
-    pub sn_resolution: Option<Bits>,
-    pub tx_initial_sn: Option<TransportSn>,
-    pub zid: Option<ZenohIdProto>,
-    pub whatami: Option<WhatAmI>,
-    pub mine_lease: Option<Duration>,
-    pub other_lease: Option<Duration>,
+    pub(crate) direction: TransportLinkUnicastDirection,
+    pub(crate) mtu: u16,
+    pub(crate) is_streamed: bool,
 }
 
-#[derive(Clone)]
 pub struct TransportLinkUnicast {
     pub link: LinkUnicast,
     pub config: TransportLinkUnicastConfig,
+    pub buffer: Option<BBuf>,
 }
 
 impl TransportLinkUnicast {
     pub fn new(link: LinkUnicast, config: TransportLinkUnicastConfig) -> Self {
-        Self::init(link, config)
-    }
-
-    pub fn reconfigure(self, new_config: TransportLinkUnicastConfig) -> Self {
-        Self::init(self.link, new_config)
-    }
-
-    fn init(link: LinkUnicast, mut config: TransportLinkUnicastConfig) -> Self {
-        config.batch.mtu = link.get_mtu().min(config.batch.mtu);
-        Self { link, config }
-    }
-
-    pub fn link(&self) -> Link {
-        Link::new_unicast(
-            &self.link,
-            self.config.priorities.clone(),
-            self.config.reliability,
-        )
-    }
-
-    pub fn tx(&self) -> TransportLinkUnicastTx {
-        TransportLinkUnicastTx {
-            inner: self.clone(),
+        Self {
+            link,
+            config,
             buffer: None,
         }
     }
 
-    pub fn rx(&self) -> TransportLinkUnicastRx {
-        TransportLinkUnicastRx {
-            link: self.link.clone(),
-            config: self.config.clone(),
+    pub fn reconfigure(self, new_config: TransportLinkUnicastConfig) -> Self {
+        Self {
+            link: self.link,
+            config: new_config,
+            buffer: self.buffer,
         }
     }
 
-    pub async fn send(&self, msg: &TransportMessage) -> ZResult<usize> {
-        let mut link = self.tx();
-        link.send(msg).await
-    }
-
-    pub async fn recv(&self) -> ZResult<TransportMessage> {
-        let mut link = self.rx();
-        link.recv().await
-    }
-
-    pub async fn close(&self, reason: Option<u8>) -> ZResult<()> {
-        if let Some(reason) = reason {
-            // Build the close message
-            let message: TransportMessage = Close {
-                reason,
-                session: false,
-            }
-            .into();
-            // Send the close message on the link
-            let _ = self.send(&message).await;
-        }
-        self.link.close().await
-    }
-}
-
-impl fmt::Display for TransportLinkUnicast {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}", self.link)
-    }
-}
-
-impl fmt::Debug for TransportLinkUnicast {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.debug_struct("TransportLinkUnicast")
-            .field("link", &self.link)
-            .field("config", &self.config)
-            .finish()
-    }
-}
-
-impl PartialEq<Link> for TransportLinkUnicast {
-    fn eq(&self, other: &Link) -> bool {
-        &other.src == self.link.get_src() && &other.dst == self.link.get_dst()
-    }
-}
-
-pub struct TransportLinkUnicastTx {
-    pub inner: TransportLinkUnicast,
-    pub buffer: Option<BBuf>,
-}
-
-impl TransportLinkUnicastTx {
     pub async fn send_batch(&mut self, batch: &mut WBatch) -> ZResult<()> {
         const ERR: &str = "Write error on link: ";
 
-        // tracing::trace!("WBatch: {:?}", batch);
-
         let res = batch
             .finalize(self.buffer.as_mut())
-            .map_err(|_| zerror!("{ERR}{self}"))?;
+            .map_err(|_| zerror!("{ERR}"))?;
 
         let bytes = match res {
             Finalize::Batch => batch.as_slice(),
@@ -156,7 +72,7 @@ impl TransportLinkUnicastTx {
                 .as_slice(),
         };
 
-        self.inner.link.write_all(bytes).await?;
+        self.link.write_all(bytes).await?;
 
         Ok(())
     }
@@ -165,36 +81,16 @@ impl TransportLinkUnicastTx {
         const ERR: &str = "Write error on link: ";
 
         // Create the batch for serializing the message
-        let mut batch = WBatch::new(self.inner.config.batch);
-        batch.encode(msg).map_err(|_| zerror!("{ERR}{self}"))?;
+        let mut batch = WBatch::new(BatchConfig {
+            mtu: self.config.mtu,
+            is_streamed: self.config.is_streamed,
+        });
+        batch.encode(msg).map_err(|_| zerror!("{ERR}"))?;
         let len = batch.len() as usize;
         self.send_batch(&mut batch).await?;
         Ok(len)
     }
-}
 
-impl fmt::Display for TransportLinkUnicastTx {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}", self.inner)
-    }
-}
-
-impl fmt::Debug for TransportLinkUnicastTx {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.debug_struct("TransportLinkUnicastRx")
-            .field("link", &self.inner.link)
-            .field("config", &self.inner.config)
-            .field("buffer", &self.buffer.as_ref().map(|b| b.capacity()))
-            .finish()
-    }
-}
-
-pub struct TransportLinkUnicastRx {
-    pub link: LinkUnicast,
-    pub config: TransportLinkUnicastConfig,
-}
-
-impl TransportLinkUnicastRx {
     pub async fn recv_batch<C, T>(&mut self, buff: C) -> ZResult<RBatch>
     where
         C: Fn() -> T + Copy,
@@ -213,7 +109,7 @@ impl TransportLinkUnicastRx {
             let slice = into
                 .as_mut()
                 .get_mut(len.len()..len.len() + l)
-                .ok_or_else(|| zerror!("{ERR}{self}. Invalid batch length or buffer size."))?;
+                .ok_or_else(|| zerror!("{ERR}. Invalid batch length or buffer size."))?;
             self.link.read_exact(slice).await?;
             len.len() + l
         } else {
@@ -224,11 +120,15 @@ impl TransportLinkUnicastRx {
         // tracing::trace!("RBytes: {:02x?}", &into.as_slice()[0..end]);
 
         let buffer = ZSlice::new(Arc::new(into), 0, end)
-            .map_err(|_| zerror!("{ERR}{self}. ZSlice index(es) out of bounds"))?;
-        let mut batch = RBatch::new(self.config.batch, buffer);
-        batch
-            .initialize(buff)
-            .map_err(|e| zerror!("{ERR}{self}. {e}."))?;
+            .map_err(|_| zerror!("{ERR}. ZSlice index(es) out of bounds"))?;
+        let mut batch = RBatch::new(
+            BatchConfig {
+                mtu: self.config.mtu,
+                is_streamed: self.config.is_streamed,
+            },
+            buffer,
+        );
+        batch.initialize(buff).map_err(|e| zerror!("{ERR}. {e}."))?;
 
         // tracing::trace!("RBatch: {:?}", batch);
 
@@ -236,41 +136,26 @@ impl TransportLinkUnicastRx {
     }
 
     pub async fn recv(&mut self) -> ZResult<TransportMessage> {
-        let mtu = self.config.batch.mtu as usize;
+        let mtu = self.config.mtu as usize;
         let mut batch = self
             .recv_batch(|| zenoh_buffers::vec::uninit(mtu).into_boxed_slice())
             .await?;
         let msg = batch
             .decode()
-            .map_err(|_| zerror!("Decode error on link: {}", self))?;
+            .map_err(|_| zerror!("Decode error on link"))?;
         Ok(msg)
     }
 }
 
-impl fmt::Display for TransportLinkUnicastRx {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}:{:?}", self.link, self.config)
-    }
-}
-
-impl fmt::Debug for TransportLinkUnicastRx {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.debug_struct("TransportLinkUnicastRx")
-            .field("link", &self.link)
-            .field("config", &self.config)
-            .finish()
-    }
-}
-
 pub(crate) struct MaybeOpenAck {
-    link: TransportLinkUnicastTx,
+    link: TransportLinkUnicast,
     open_ack: Option<OpenAck>,
 }
 
 impl MaybeOpenAck {
-    pub(crate) fn new(link: &TransportLinkUnicast, open_ack: Option<OpenAck>) -> Self {
+    pub(crate) fn new(link: TransportLinkUnicast, open_ack: Option<OpenAck>) -> Self {
         Self {
-            link: link.tx(),
+            link: link,
             open_ack,
         }
     }
@@ -280,10 +165,6 @@ impl MaybeOpenAck {
             self.link.send(&msg.into()).await?;
         }
         Ok(())
-    }
-
-    pub(crate) fn link(&self) -> Link {
-        self.link.inner.link()
     }
 }
 
@@ -301,21 +182,11 @@ impl LinkUnicastWithOpenAck {
         &self.link.config
     }
 
-    pub(crate) fn unpack(self) -> (TransportLinkUnicast, MaybeOpenAck) {
-        let ack = MaybeOpenAck::new(&self.link, self.ack);
-        (self.link, ack)
+    pub(crate) fn unpack(self) -> MaybeOpenAck {
+        MaybeOpenAck::new(self.link, self.ack)
     }
 
     pub(crate) fn fail(self) -> TransportLinkUnicast {
         self.link
-    }
-}
-
-impl fmt::Display for LinkUnicastWithOpenAck {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self.ack.as_ref() {
-            Some(ack) => write!(f, "{}({:?})", self.link, ack),
-            None => write!(f, "{}", self.link),
-        }
     }
 }

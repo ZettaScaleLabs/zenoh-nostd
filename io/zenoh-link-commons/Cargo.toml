@@ -13,5 +13,3 @@ version.workspace = true
 [dependencies]
 zenoh-protocol = { workspace = true }
 zenoh-result = { workspace = true }
-
-async-trait = { workspace = true }

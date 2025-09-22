@@ -1,5 +1,5 @@
 [package]
-name = "zenoh-nano"
+name = "zenoh-nostd"
 authors.workspace = true
 categories.workspace = true
 description.workspace = true
@@ -13,14 +13,16 @@ version.workspace = true
 [features]
 default = []
 
-arch-std = ["zenoh-link/arch-std", "futures-timer"]
+arch-std = ["zenoh-transport/arch-std", "embassy-executor/arch-std", "embassy-time/std", "embassy-sync/std"]
 arch-wasm = []
 
 [dependencies]
 zenoh-result = { workspace = true }
 zenoh-protocol = { workspace = true }
 
-zenoh-link = { workspace = true }
-
 zenoh-transport = { workspace = true }
-futures-timer = { workspace = true, optional = true }
+
+embassy-executor = { workspace = true }
+embassy-sync = { workspace = true }
+embassy-time = { workspace = true }
+embassy-futures = { workspace = true }

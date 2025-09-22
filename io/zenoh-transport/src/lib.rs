@@ -1,8 +1,46 @@
-#![no_std]
-extern crate alloc;
 
-mod common;
-pub use common::*;
+use zenoh_protocol::{
+    core::{EndPoint, Resolution, WhatAmI, ZenohIdProto},
+    transport::BatchSize,
+};
+use zenoh_result::ZResult;
 
-mod unicast;
-pub use unicast::*;
+use crate::unicast::{
+    open::{RecvOpenAckOut, SendOpenSynOut},
+    TransportLinkUnicast, TransportManagerUnicast,
+};
+
+pub mod common;
+pub mod unicast;
+
+#[derive(Debug, Clone)]
+pub struct TransportManager {
+    pub zid: ZenohIdProto,
+    pub whatami: WhatAmI,
+    pub resolution: Resolution,
+    pub batch_size: BatchSize,
+    pub batching: bool,
+    pub unicast: TransportManagerUnicast,
+}
+
+impl TransportManager {
+    pub fn new(zid: ZenohIdProto, whatami: WhatAmI) -> Self {
+        Self {
+            zid,
+            whatami,
+            resolution: Resolution::default(),
+            batch_size: BatchSize::MAX,
+            batching: true,
+            unicast: TransportManagerUnicast::new(),
+        }
+    }
+
+    pub async fn open_transport_link_unicast(
+        &self,
+        endpoint: &EndPoint,
+    ) -> ZResult<(TransportLinkUnicast, SendOpenSynOut, RecvOpenAckOut)> {
+        self.unicast
+            .open_transport_link_unicast(endpoint, &self)
+            .await
+    }
+}

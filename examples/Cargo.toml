@@ -13,11 +13,11 @@ version.workspace = true
 [features]
 default = []
 
-arch-std = ["zenoh-nano/arch-std", "xcutor/arch-std"]
-arch-wasm = ["zenoh-nano/arch-wasm"]
-
-[dependencies]
-zenoh-nano = { workspace = true }
+arch-std = ["zenoh-nostd/arch-std"]
+arch-wasm = []
 
 [dev-dependencies]
-xcutor = { workspace = true }
+zenoh-protocol = { workspace = true }
+
+zenoh-nostd = { workspace = true }
+embassy-executor = { workspace = true }

@@ -11,12 +11,12 @@
 // Contributors:
 //   ZettaScale Zenoh Team, <zenoh@zettascale.tech>
 //
-use alloc::boxed::Box;
 use core::time::Duration;
-use zenoh_link_commons::LinkUnicast;
+use std::boxed::Box;
 
 use async_trait::async_trait;
 use zenoh_buffers::ZSlice;
+use zenoh_link::unicast::LinkUnicast;
 use zenoh_protocol::{
     core::{EndPoint, Field, Resolution, WhatAmI, ZenohIdProto},
     transport::{
@@ -28,64 +28,64 @@ use zenoh_protocol::{
 use zenoh_result::{zerror, ZResult};
 
 use crate::{
-    common::BatchConfig,
     unicast::{
         establishment::{compute_sn, ext, OpenFsm},
         link::{TransportLinkUnicast, TransportLinkUnicastConfig, TransportLinkUnicastDirection},
     },
+    TransportManager,
 };
 
 type OpenError = (zenoh_result::Error, Option<u8>);
 
-struct StateTransport {
-    batch_size: BatchSize,
-    resolution: Resolution,
-    ext_qos: ext::qos::StateOpen,
-    ext_lowlatency: ext::lowlatency::StateOpen,
-    ext_patch: ext::patch::StateOpen,
+pub struct StateTransport {
+    pub batch_size: BatchSize,
+    pub resolution: Resolution,
+    pub ext_qos: ext::qos::StateOpen,
+    pub ext_lowlatency: ext::lowlatency::StateOpen,
+    pub ext_patch: ext::patch::StateOpen,
 }
 
-struct State {
-    transport: StateTransport,
+pub struct State {
+    pub transport: StateTransport,
 }
 
 // InitSyn
-struct SendInitSynIn {
-    mine_version: u8,
-    mine_zid: ZenohIdProto,
-    mine_whatami: WhatAmI,
+pub struct SendInitSynIn {
+    pub mine_version: u8,
+    pub mine_zid: ZenohIdProto,
+    pub mine_whatami: WhatAmI,
 }
 
 // InitAck
-struct RecvInitAckOut {
-    other_zid: ZenohIdProto,
-    other_whatami: WhatAmI,
-    other_cookie: ZSlice,
+pub struct RecvInitAckOut {
+    pub other_zid: ZenohIdProto,
+    pub other_whatami: WhatAmI,
+    pub other_cookie: ZSlice,
 }
 
 // OpenSyn
-struct SendOpenSynIn {
-    mine_zid: ZenohIdProto,
-    mine_lease: Duration,
-    other_zid: ZenohIdProto,
-    other_cookie: ZSlice,
+pub struct SendOpenSynIn {
+    pub mine_zid: ZenohIdProto,
+    pub mine_lease: Duration,
+    pub other_zid: ZenohIdProto,
+    pub other_cookie: ZSlice,
 }
 
-struct SendOpenSynOut {
-    mine_initial_sn: TransportSn,
+pub struct SendOpenSynOut {
+    pub mine_initial_sn: TransportSn,
 }
 
 // OpenAck
-struct RecvOpenAckOut {
-    other_lease: Duration,
-    other_initial_sn: TransportSn,
+pub struct RecvOpenAckOut {
+    pub other_lease: Duration,
+    pub other_initial_sn: TransportSn,
 }
 
 // FSM
-struct OpenLink<'a> {
-    ext_qos: ext::qos::QoSFsm<'a>,
-    ext_lowlatency: ext::lowlatency::LowLatencyFsm<'a>,
-    ext_patch: ext::patch::PatchFsm<'a>,
+pub struct OpenLink<'a> {
+    pub ext_qos: ext::qos::QoSFsm<'a>,
+    pub ext_lowlatency: ext::lowlatency::LowLatencyFsm<'a>,
+    pub ext_patch: ext::patch::PatchFsm<'a>,
 }
 
 #[async_trait]
@@ -162,17 +162,15 @@ impl<'a, 'b: 'a> OpenFsm for &'a mut OpenLink<'b> {
             TransportBody::InitAck(init_ack) => init_ack,
             TransportBody::Close(Close { reason, .. }) => {
                 let e = zerror!(
-                    "Received a close message (reason {}) in response to an InitSyn on: {}",
+                    "Received a close message (reason {}) in response to an InitSyn",
                     close::reason_to_str(reason),
-                    link,
                 );
 
                 return Err((e.into(), None));
             }
             _ => {
                 let e = zerror!(
-                    "Received an invalid message in response to an InitSyn on {}: {:?}",
-                    link,
+                    "Received an invalid message in response to an InitSyn: {:?}",
                     msg.body
                 );
 
@@ -190,8 +188,7 @@ impl<'a, 'b: 'a> OpenFsm for &'a mut OpenLink<'b> {
 
             if i_fsn_res > m_fsn_res {
                 let e = zerror!(
-                    "Invalid FrameSN resolution on {}: {:?} > {:?}",
-                    link,
+                    "Invalid FrameSN resolution: {:?} > {:?}",
                     i_fsn_res,
                     m_fsn_res
                 );
@@ -206,8 +203,7 @@ impl<'a, 'b: 'a> OpenFsm for &'a mut OpenLink<'b> {
 
             if i_rid_res > m_rid_res {
                 let e = zerror!(
-                    "Invalid RequestID resolution on {}: {:?} > {:?}",
-                    link,
+                    "Invalid RequestID resolution: {:?} > {:?}",
                     i_rid_res,
                     m_rid_res
                 );
@@ -315,17 +311,15 @@ impl<'a, 'b: 'a> OpenFsm for &'a mut OpenLink<'b> {
             TransportBody::OpenAck(open_ack) => open_ack,
             TransportBody::Close(Close { reason, .. }) => {
                 let e = zerror!(
-                    "Received a close message (reason {}) in response to an OpenSyn on: {:?}",
+                    "Received a close message (reason {}) in response to an OpenSyn",
                     close::reason_to_str(reason),
-                    link,
                 );
 
                 return Err((e.into(), None));
             }
             _ => {
                 let e = zerror!(
-                    "Received an invalid message in response to an OpenSyn on {}: {:?}",
-                    link,
+                    "Received an invalid message in response to an OpenSyn: {:?}",
                     msg.body
                 );
 
@@ -353,25 +347,22 @@ impl<'a, 'b: 'a> OpenFsm for &'a mut OpenLink<'b> {
     }
 }
 
-pub async fn open_link(endpoint: EndPoint, link: LinkUnicast) -> ZResult<TransportLinkUnicast> {
+pub async fn open_link(
+    endpoint: &EndPoint,
+    link: LinkUnicast,
+    tm: &TransportManager,
+) -> ZResult<(TransportLinkUnicast, SendOpenSynOut, RecvOpenAckOut)> {
     let direction = TransportLinkUnicastDirection::Outbound;
     let is_streamed = link.is_streamed();
+
     let config = TransportLinkUnicastConfig {
         direction,
-        batch: BatchConfig {
-            mtu: link.get_mtu(),
-            is_streamed,
-        },
-        priorities: None,
-        reliability: None,
-        sn_resolution: None,
-        tx_initial_sn: None,
-        zid: None,
-        whatami: None,
-        mine_lease: None,
-        other_lease: None,
+        mtu: link.get_mtu(),
+        is_streamed,
     };
+
     let mut link = TransportLinkUnicast::new(link, config);
+
     let mut fsm = OpenLink {
         ext_qos: ext::qos::QoSFsm::new(),
         ext_lowlatency: ext::lowlatency::LowLatencyFsm::new(),
@@ -381,15 +372,15 @@ pub async fn open_link(endpoint: EndPoint, link: LinkUnicast) -> ZResult<Transpo
     // Clippy raises a warning because `batch_size::UNICAST` is currently equal to `BatchSize::MAX`.
     // However, the current code catches the cases where `batch_size::UNICAST` is different from `BatchSize::MAX`.
     #[allow(clippy::unnecessary_min_or_max)]
-    let batch_size = batch_size::UNICAST.min(link.config.batch.mtu);
+    let batch_size = tm.batch_size.min(link.config.mtu).min(batch_size::UNICAST);
 
     let mut state = {
         State {
             transport: StateTransport {
-                batch_size,
-                resolution: Resolution::default(),
-                ext_qos: ext::qos::StateOpen::new(false, &endpoint)?, // TODO shouldn't be false by default
-                ext_lowlatency: ext::lowlatency::StateOpen::new(false), // TODO shouldn't be false by default
+                batch_size: batch_size,
+                resolution: tm.resolution,
+                ext_qos: ext::qos::StateOpen::new(tm.unicast.is_qos, &endpoint)?, // TODO shouldn't be false by default
+                ext_lowlatency: ext::lowlatency::StateOpen::new(tm.unicast.is_lowlatency), // TODO shouldn't be false by default
                 ext_patch: ext::patch::StateOpen::new(),
             },
         }
@@ -400,8 +391,7 @@ pub async fn open_link(endpoint: EndPoint, link: LinkUnicast) -> ZResult<Transpo
         ($s: expr) => {
             match $s {
                 Ok(output) => output,
-                Err((e, reason)) => {
-                    let _ = link.close(reason).await;
+                Err((e, _)) => {
                     return Err(e);
                 }
             }
@@ -409,9 +399,9 @@ pub async fn open_link(endpoint: EndPoint, link: LinkUnicast) -> ZResult<Transpo
     }
 
     // TODO should be defined elsewhere in the session !!
-    let mine_zid = ZenohIdProto::rand();
-    let mine_whatami = WhatAmI::Client;
-    let mine_lease = Duration::from_secs(10);
+    let mine_zid = tm.zid;
+    let mine_whatami = tm.whatami;
+    let mine_lease = tm.unicast.lease;
 
     let isyn_in = SendInitSynIn {
         mine_version: VERSION,
@@ -428,7 +418,7 @@ pub async fn open_link(endpoint: EndPoint, link: LinkUnicast) -> ZResult<Transpo
         mine_zid,
         other_zid: iack_out.other_zid,
         mine_lease,
-        other_cookie: iack_out.other_cookie,
+        other_cookie: iack_out.other_cookie.clone(),
     };
     let osyn_out = step!(fsm.send_open_syn((&mut link, &mut state, osyn_in)).await);
 
@@ -436,21 +426,11 @@ pub async fn open_link(endpoint: EndPoint, link: LinkUnicast) -> ZResult<Transpo
 
     let o_config = TransportLinkUnicastConfig {
         direction,
-        batch: BatchConfig {
-            mtu: state.transport.batch_size,
-            is_streamed,
-        },
-        priorities: state.transport.ext_qos.priorities(),
-        reliability: state.transport.ext_qos.reliability(),
-        zid: Some(mine_zid),
-        whatami: Some(mine_whatami),
-        sn_resolution: Some(state.transport.resolution.get(Field::FrameSN)),
-        tx_initial_sn: Some(osyn_out.mine_initial_sn),
-        mine_lease: Some(mine_lease),
-        other_lease: Some(oack_out.other_lease),
+        mtu: state.transport.batch_size,
+        is_streamed,
     };
 
     let o_link = link.reconfigure(o_config);
 
-    Ok(o_link)
+    Ok((o_link, osyn_out, oack_out))
 }

@@ -11,17 +11,16 @@ rust-version.workspace = true
 version.workspace = true
 
 [features]
-default = []
+default = ["arch-std"]
 
-arch-std = ["async-net", "futures-lite"]
-arch-wasm = []
+arch-std = []
 
 [dependencies]
 zenoh-protocol = { workspace = true }
-zenoh-result    = { workspace = true }
+zenoh-result = { workspace = true }
 
 zenoh-link-commons = { workspace = true }
 
-async-trait = { workspace = true }
-async-net = { workspace = true, optional = true }
-futures-lite = { workspace = true, optional = true }
+async-net  = "2.0.0"
+futures-lite = "2.6.1"
+socket2 = { version = "0.5.7", features = ["all"] }

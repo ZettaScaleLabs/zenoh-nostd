@@ -1,33 +1,16 @@
-//
-// Copyright (c) 2023 ZettaScale Technology
-//
-// This program and the accompanying materials are made available under the
-// terms of the Eclipse Public License 2.0 which is available at
-// http://www.eclipse.org/legal/epl-2.0, or the Apache License, Version 2.0
-// which is available at https://www.apache.org/licenses/LICENSE-2.0.
-//
-// SPDX-License-Identifier: EPL-2.0 OR Apache-2.0
-//
-// Contributors:
-//   ZettaScale Zenoh Team, <zenoh@zettascale.tech>
-//
 pub mod ext;
-
 pub mod open;
-pub use open::*;
 
-use alloc::boxed::Box;
 use async_trait::async_trait;
 use sha3::{
     digest::{ExtendableOutput, Update, XofReader},
     Shake128,
 };
+use std::boxed::Box;
 use zenoh_protocol::{
     core::{Field, Resolution, ZenohIdProto},
     transport::TransportSn,
 };
-
-use crate::get_mask;
 
 /*************************************/
 /*             TRAITS                */
@@ -114,5 +97,6 @@ pub(super) fn compute_sn(
     hasher.update(&zid2.to_le_bytes()[..zid2.size()]);
     let mut array = (0 as TransportSn).to_le_bytes();
     hasher.finalize_xof().read(&mut array);
-    TransportSn::from_le_bytes(array) & get_mask(resolution.get(Field::FrameSN))
+    TransportSn::from_le_bytes(array)
+        & crate::common::seq_num::get_mask(resolution.get(Field::FrameSN))
 }
