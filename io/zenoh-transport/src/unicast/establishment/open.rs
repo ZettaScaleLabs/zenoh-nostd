@@ -237,7 +237,7 @@ pub async fn open_link(
     let batch_size = tm.batch_size.min(link.config.mtu).min(batch_size::UNICAST);
 
     let mut state = StateTransport {
-        batch_size: batch_size,
+        batch_size,
         resolution: tm.resolution,
     };
 

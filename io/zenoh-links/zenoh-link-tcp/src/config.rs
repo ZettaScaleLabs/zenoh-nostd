@@ -5,6 +5,12 @@ use zenoh_result::{zerror, ZResult};
 
 pub struct TcpSocketConfig {}
 
+impl Default for TcpSocketConfig {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl TcpSocketConfig {
     pub fn new() -> Self {
         Self {}

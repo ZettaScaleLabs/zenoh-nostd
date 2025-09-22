@@ -36,8 +36,6 @@ embassy-time = { version = "0.5.0", features = ["log" ] }
 embassy-futures = { version = "0.1.2" }
 
 # Other dependencies
-async-trait = "0.1.89"
-lazy_static = "1.5.0"
 async-net = "2.0.0"
 futures-lite = "2.6.1"
 sha3 = { version = "0.10.8", default-features = false }

@@ -31,6 +31,12 @@ pub struct TransportManagerUnicast {
     pub is_lowlatency: bool,
 }
 
+impl Default for TransportManagerUnicast {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl TransportManagerUnicast {
     pub fn new() -> Self {
         Self {

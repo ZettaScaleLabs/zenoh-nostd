@@ -40,7 +40,7 @@ impl TransportManager {
         endpoint: &EndPoint,
     ) -> ZResult<(TransportLinkUnicast, SendOpenSynOut, RecvOpenAckOut)> {
         self.unicast
-            .open_transport_link_unicast(endpoint, &self)
+            .open_transport_link_unicast(endpoint, self)
             .await
     }
 }

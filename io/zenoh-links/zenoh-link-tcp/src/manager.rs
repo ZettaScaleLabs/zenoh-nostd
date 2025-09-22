@@ -7,6 +7,12 @@ use crate::{config::TcpSocketConfig, unicast::LinkUnicastTcp};
 
 pub struct LinkManagerUnicastTcp {}
 
+impl Default for LinkManagerUnicastTcp {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl LinkManagerUnicastTcp {
     pub fn new() -> Self {
         LinkManagerUnicastTcp {}
