@@ -1,0 +1,25 @@
+[package]
+name = "zenoh-link"
+authors.workspace = true
+categories.workspace = true
+description.workspace = true
+edition.workspace = true
+homepage.workspace = true
+license.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+version.workspace = true
+
+[features]
+default = []
+
+arch-std = ["zenoh-link-tcp/arch-std"]
+arch-wasm = []
+
+[dependencies]
+zenoh-result = { workspace = true }
+zenoh-protocol = { workspace = true }
+
+zenoh-link-commons = { workspace = true }
+
+zenoh-link-tcp = { workspace = true }

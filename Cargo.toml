@@ -1,0 +1,41 @@
+[workspace]
+members = [ "examples", "io/zenoh-link", "io/zenoh-link-commons", "io/zenoh-links/zenoh-link-tcp", "io/zenoh-transport","zenoh-nano"]
+resolver = "2"
+
+[workspace.package]
+authors = []
+categories = ["network-programming"]
+description = "Zenoh: The Zero Overhead Pub/Sub/Query Protocol."
+edition = "2021"
+homepage = "http://zenoh.io"
+license = "EPL-2.0 OR Apache-2.0"
+repository = "https://github.com/eclipse-zenoh/zenoh"
+rust-version = "1.75.0"
+version = "1.5.1"
+
+[workspace.dependencies]
+zenoh-protocol = { version = "1.5.1", git = "https://github.com/eclipse-zenoh/zenoh", default-features = false }
+zenoh-result = { version = "1.5.1", git = "https://github.com/eclipse-zenoh/zenoh", default-features = false }
+zenoh-keyexpr = { version = "1.5.1", git = "https://github.com/eclipse-zenoh/zenoh", default-features = false }
+zenoh-buffers = { version = "1.5.1", git = "https://github.com/eclipse-zenoh/zenoh", default-features = false }
+zenoh-codec = { version = "1.5.1", git = "https://github.com/eclipse-zenoh/zenoh", default-features = false }
+zenoh-crypto = { version = "1.5.1", git = "https://github.com/eclipse-zenoh/zenoh", default-features = false }
+
+zenoh-link = { path = "io/zenoh-link", default-features = false }
+zenoh-link-commons = { path = "io/zenoh-link-commons", default-features = false }
+zenoh-transport = { path = "io/zenoh-transport", default-features = false }
+
+zenoh-link-tcp = { path = "io/zenoh-links/zenoh-link-tcp", default-features = false }
+
+zenoh-nano = { path = "zenoh-nano", default-features = false }
+
+# Minimal async executor, maybe replaced by a fully sync one? (with custom eventloop)
+xcutor = { version = "0.1.0", git = "https://github.com/Hennzau/xcutor", default-features = false }
+
+# Other dependencies
+async-trait = "0.1.89"
+lazy_static = "1.5.0"
+async-net = "2.0.0"
+futures-lite = "2.6.1"
+sha3 = { version = "0.10.8", default-features = false }
+futures-timer = "3.0.3"
