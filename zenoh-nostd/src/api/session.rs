@@ -2,9 +2,13 @@ use embassy_executor::Spawner;
 use embassy_futures::select::select;
 use embassy_sync::{blocking_mutex::raw::ThreadModeRawMutex, channel::Channel};
 use embassy_time::Timer;
+use zenoh_buffers::writer::HasWriter;
+use zenoh_codec::{WCodec, Zenoh080};
 use zenoh_protocol::{
-    core::{EndPoint, ZenohIdProto},
-    transport::{KeepAlive, TransportMessage},
+    core::{key_expr::keyexpr, Encoding, EndPoint, WireExpr, ZenohIdProto},
+    network::{ext::NodeIdType, NetworkBody, NetworkMessage, Push},
+    transport::{ext::QoSType, Frame, KeepAlive, TransportMessage},
+    zenoh::{PushBody, Put},
 };
 use zenoh_result::{zerror, ZResult};
 use zenoh_transport::{
@@ -15,7 +19,7 @@ use zenoh_transport::{
     TransportManager,
 };
 
-static SESSION_TO_TRANSPORT: Channel<ThreadModeRawMutex, TransportMessage, 8> = Channel::new();
+static SESSION_TO_TRANSPORT: Channel<ThreadModeRawMutex, NetworkMessage, 8> = Channel::new();
 static TRANSPORT_TO_SESSION: Channel<ThreadModeRawMutex, TransportMessage, 8> = Channel::new();
 
 pub struct SingleLinkClientSession {}
@@ -23,10 +27,12 @@ pub struct SingleLinkClientSession {}
 #[embassy_executor::task]
 async fn link_task(
     link: TransportLinkUnicast,
-    _send_open_syn: SendOpenSynOut,
+    send_open_syn: SendOpenSynOut,
     recv_open_ack: RecvOpenAckOut,
     tm: TransportManager,
 ) {
+    let mut sn = send_open_syn.mine_initial_sn + 1;
+
     let mut link = link;
     let keep_alive_timeout = tm.unicast.lease / (tm.unicast.keep_alive as u32);
     let other_lease = recv_open_ack.other_lease;
@@ -49,16 +55,13 @@ async fn link_task(
 
                 match read_task {
                     embassy_futures::select::Either::First(_) => {
-                        println!("Keep-alive timeout, closing link");
                         break 'main;
                     }
                     embassy_futures::select::Either::Second(msg) => match msg {
                         Ok(msg) => {
-                            println!("Received message from link, forwarding to session");
                             TRANSPORT_TO_SESSION.send(msg).await;
                         }
-                        Err(e) => {
-                            println!("Error receiving message from link: {}", e);
+                        Err(_) => {
                             break 'main;
                         }
                     },
@@ -69,18 +72,28 @@ async fn link_task(
 
                 match write_task {
                     embassy_futures::select::Either::First(_) => {
-                        println!("Sending keep-alive");
-                        if let Err(e) = link.send(&KeepAlive.into()).await {
-                            println!("Error sending keep-alive to link: {}", e);
+                        if let Err(_) = link.send(&KeepAlive.into()).await {
                             break 'main;
                         }
                     }
                     embassy_futures::select::Either::Second(msg) => {
-                        println!("Sending message from session to link");
-                        if let Err(e) = link.send(&msg).await {
-                            println!("Error sending message to link: {}", e);
+                        let mut payload: Vec<u8> = Vec::with_capacity(64);
+                        let mut writer = payload.writer();
+                        let codec = Zenoh080::new();
+                        codec.write(&mut writer, &msg).unwrap();
+
+                        let frame = Frame {
+                            reliability: msg.reliability,
+                            sn,
+                            ext_qos: QoSType::DEFAULT,
+                            payload: payload.into(),
+                        };
+
+                        if let Err(_) = link.send(&frame.into()).await {
                             break 'main;
                         }
+
+                        sn += 1;
                     }
                 }
             }
@@ -107,6 +120,36 @@ impl SingleLinkClientSession {
 
     pub async fn read(&mut self) -> ZResult<()> {
         let _ = TRANSPORT_TO_SESSION.receive().await;
+
+        Ok(())
+    }
+
+    pub fn try_read(&mut self) -> ZResult<()> {
+        let _ = TRANSPORT_TO_SESSION.try_receive();
+
+        Ok(())
+    }
+
+    pub async fn put(&mut self, keyexpr: &'static keyexpr, bytes: &[u8]) -> ZResult<()> {
+        let msg = NetworkMessage {
+            reliability: zenoh_protocol::core::Reliability::BestEffort,
+            body: NetworkBody::Push(Push {
+                wire_expr: WireExpr::from(keyexpr),
+                ext_qos: zenoh_protocol::network::ext::QoSType::DEFAULT,
+                ext_tstamp: None,
+                ext_nodeid: NodeIdType::DEFAULT,
+                payload: PushBody::Put(Put {
+                    timestamp: None,
+                    encoding: Encoding::empty(),
+                    ext_sinfo: None,
+                    ext_attachment: None,
+                    ext_unknown: vec![],
+                    payload: bytes.to_vec().into(),
+                }),
+            }),
+        };
+
+        SESSION_TO_TRANSPORT.send(msg).await;
 
         Ok(())
     }

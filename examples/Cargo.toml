@@ -20,4 +20,6 @@ arch-wasm = []
 zenoh-protocol = { workspace = true }
 
 zenoh-nostd = { workspace = true }
+
 embassy-executor = { workspace = true }
+embassy-time = { workspace = true }
