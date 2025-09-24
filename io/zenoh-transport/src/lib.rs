@@ -35,12 +35,17 @@ impl TransportManager {
         }
     }
 
-    pub async fn open_transport_link_unicast(
+    pub async fn open_transport_link_unicast<
+        const L: usize,
+        const N: usize,
+        const S: usize,
+        const D: usize,
+    >(
         &self,
-        endpoint: &EndPoint,
-    ) -> ZResult<(TransportLinkUnicast, SendOpenSynOut, RecvOpenAckOut)> {
+        endpoint: &EndPoint<N>,
+    ) -> ZResult<(TransportLinkUnicast<S, D>, SendOpenSynOut, RecvOpenAckOut)> {
         self.unicast
-            .open_transport_link_unicast(endpoint, self)
+            .open_transport_link_unicast::<L, _, _, _>(endpoint, self)
             .await
     }
 }

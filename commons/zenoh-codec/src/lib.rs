@@ -1,14 +1,118 @@
-pub fn add(left: u64, right: u64) -> u64 {
-    left + right
+#![no_std]
+
+pub mod common;
+pub mod core;
+pub mod network;
+// pub mod scouting;
+pub mod transport;
+pub mod zenoh;
+
+use ::core::marker::PhantomData;
+use zenoh_protocol::core::Reliability;
+
+pub trait WCodec<Message, Buffer> {
+    type Output;
+    fn write(self, buffer: Buffer, message: Message) -> Self::Output;
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
+pub trait RCodec<Message, Buffer> {
+    type Error;
+    fn read(self, buffer: Buffer) -> Result<Message, Self::Error>;
+}
 
-    #[test]
-    fn it_works() {
-        let result = add(2, 2);
-        assert_eq!(result, 4);
+// Calculate the length of the value once serialized
+pub trait LCodec<Message> {
+    fn w_len(self, message: Message) -> usize;
+}
+
+#[derive(Clone, Copy)]
+pub struct Zenoh080;
+
+impl Default for Zenoh080 {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl Zenoh080 {
+    pub const fn new() -> Self {
+        Self
+    }
+}
+
+#[derive(Clone, Copy)]
+pub struct Zenoh080Header {
+    pub header: u8,
+    pub codec: Zenoh080,
+}
+
+impl Zenoh080Header {
+    pub const fn new(header: u8) -> Self {
+        Self {
+            header,
+            codec: Zenoh080,
+        }
+    }
+}
+
+#[derive(Clone, Copy)]
+pub struct Zenoh080Condition {
+    pub condition: bool,
+    pub codec: Zenoh080,
+}
+
+impl Zenoh080Condition {
+    pub const fn new(condition: bool) -> Self {
+        Self {
+            condition,
+            codec: Zenoh080,
+        }
+    }
+}
+
+#[derive(Clone, Copy)]
+pub struct Zenoh080Length {
+    pub length: usize,
+    pub codec: Zenoh080,
+}
+
+impl Zenoh080Length {
+    pub const fn new(length: usize) -> Self {
+        Self {
+            length,
+            codec: Zenoh080,
+        }
+    }
+}
+
+#[derive(Clone, Copy)]
+pub struct Zenoh080Reliability {
+    pub reliability: Reliability,
+    pub codec: Zenoh080,
+}
+
+impl Zenoh080Reliability {
+    pub const fn new(reliability: Reliability) -> Self {
+        Self {
+            reliability,
+            codec: Zenoh080,
+        }
+    }
+}
+
+#[derive(Clone, Copy)]
+pub struct Zenoh080Bounded<T> {
+    _t: PhantomData<T>,
+}
+
+impl<T> Default for Zenoh080Bounded<T> {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl<T> Zenoh080Bounded<T> {
+    pub const fn new() -> Self {
+        Self { _t: PhantomData }
     }
 }

@@ -21,6 +21,16 @@ pub enum ZErrorKind {
     InvalidBits,
     InvalidWhatAmI,
     InvalidArgument,
+    ScopedKeyExpr,
+    SuffixedKeyExpr,
+    MandatoryFieldMissing,
+    ConnectionRefused,
+    InvalidAddress,
+    InvalidConfiguration,
+    InvalidProtocol,
+    Timeout,
+    InvalidMessage,
+    Failed,
 }
 
 pub type ZE = ZErrorKind;
@@ -51,6 +61,16 @@ impl core::fmt::Debug for ZErrorKind {
             Self::InvalidBits => write!(f, "ZError::InvalidBits"),
             Self::InvalidWhatAmI => write!(f, "ZError::InvalidWhatAmI"),
             Self::InvalidArgument => write!(f, "ZError::InvalidArgument"),
+            Self::ScopedKeyExpr => write!(f, "ZError::ScopedKeyExpr"),
+            Self::SuffixedKeyExpr => write!(f, "ZError::SuffixedKeyExpr"),
+            Self::MandatoryFieldMissing => write!(f, "ZError::MandatoryFieldMissing"),
+            Self::ConnectionRefused => write!(f, "ZError::ConnectionRefused"),
+            Self::InvalidAddress => write!(f, "ZError::InvalidAddress"),
+            Self::InvalidConfiguration => write!(f, "ZError::InvalidConfiguration"),
+            Self::InvalidProtocol => write!(f, "ZError::InvalidProtocol"),
+            Self::Timeout => write!(f, "ZError::Timeout"),
+            Self::InvalidMessage => write!(f, "ZError::InvalidMessage"),
+            Self::Failed => write!(f, "ZError::Failed"),
         }
     }
 }
@@ -114,10 +134,6 @@ impl ZError {
 
     pub fn column(&self) -> u32 {
         self.column
-    }
-
-    pub fn context(&self) -> Option<&'static str> {
-        self.context
     }
 }
 

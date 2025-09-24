@@ -1,7 +1,7 @@
 use std::{net::SocketAddr, str::FromStr};
 
 use zenoh_protocol::core::EndPoint;
-use zenoh_result::{bail, zerror, ZResult};
+use zenoh_result::{bail, zerr, ZResult, ZE};
 
 use crate::{config::TcpSocketConfig, unicast::LinkUnicastTcp};
 
@@ -18,18 +18,17 @@ impl LinkManagerUnicastTcp {
         LinkManagerUnicastTcp {}
     }
 
-    pub async fn new_link(&self, endpoint: &EndPoint) -> ZResult<LinkUnicastTcp> {
+    pub async fn new_link<const N: usize, const S: usize, const D: usize>(
+        &self,
+        endpoint: &EndPoint<N>,
+    ) -> ZResult<LinkUnicastTcp<S, D>> {
         let dst_addr = SocketAddr::from_str(endpoint.address().as_str())
-            .map_err(|e| zerror!("Can not parse the given address {}: {}", endpoint, e))?;
+            .map_err(|_| zerr!(ZE::InvalidAddress))?;
 
         let config = endpoint.config();
 
         if let (Some(_), Some(_)) = (config.get("iface"), config.get("bind")) {
-            bail!(
-                "Using Config options `iface` and `bind` in conjunction is unsupported at this time {} {:?}",
-                "iface",
-                "bind"
-            )
+            bail!(ZE::InvalidConfiguration)
         }
 
         let socket_config = TcpSocketConfig::new();

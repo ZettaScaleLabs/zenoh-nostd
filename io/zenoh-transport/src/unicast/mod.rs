@@ -6,7 +6,7 @@ use embassy_time::Timer;
 pub use establishment::*;
 use zenoh_link::unicast::LinkManagerUnicast;
 use zenoh_protocol::core::EndPoint;
-use zenoh_result::{zerror, ZResult};
+use zenoh_result::{zerr, ZResult, ZE};
 
 use crate::{
     unicast::{
@@ -51,24 +51,25 @@ impl TransportManagerUnicast {
         }
     }
 
-    pub async fn open_transport_link_unicast(
+    pub async fn open_transport_link_unicast<
+        const L: usize,
+        const N: usize,
+        const S: usize,
+        const D: usize,
+    >(
         &self,
-        endpoint: &EndPoint,
+        endpoint: &EndPoint<N>,
         tm: &TransportManager,
-    ) -> ZResult<(TransportLinkUnicast, SendOpenSynOut, RecvOpenAckOut)> {
+    ) -> ZResult<(TransportLinkUnicast<S, D>, SendOpenSynOut, RecvOpenAckOut)> {
         match select(Timer::after(self.open_timeout.try_into().unwrap()), async {
             let lm = LinkManagerUnicast::new(endpoint)?;
             let link = lm.new_link(endpoint).await?;
 
-            establishment::open::open_link(link, tm).await
+            establishment::open::open_link::<L, _, _>(link, tm).await
         })
         .await
         {
-            embassy_futures::select::Either::First(_) => Err(zerror!(
-                "Timeout opening transport link unicast to endpoint {}",
-                endpoint
-            )
-            .into()),
+            embassy_futures::select::Either::First(_) => Err(zerr!(ZE::Timeout).into()),
             embassy_futures::select::Either::Second(result) => result,
         }
     }

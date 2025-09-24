@@ -241,6 +241,8 @@ impl ABuf {
     }
 }
 
+pub struct ZSliceLen<const L: usize>;
+
 #[derive(Clone)]
 pub struct ZSlice {
     buf: ABuf,
@@ -481,15 +483,23 @@ impl Reader for ZSlice {
         self.len()
     }
 
-    fn read_zslices<F: FnMut(ZSlice), const N: usize>(&mut self, mut f: F) -> ZResult<()> {
-        let zslice = self.read_zslice::<N>()?;
+    fn read_zslices<F: FnMut(ZSlice), const N: usize>(
+        &mut self,
+        len: usize,
+        mut f: F,
+    ) -> ZResult<()> {
+        let zslice = self.read_zslice::<N>(len)?;
         f(zslice);
         Ok(())
     }
 
-    fn read_zslice<const N: usize>(&mut self) -> ZResult<ZSlice> {
-        let res = self.subslice(..N).ok_or(zerr!(ZE::DidntRead))?;
-        self.start += N;
+    fn read_zslice<const N: usize>(&mut self, len: usize) -> ZResult<ZSlice> {
+        if len > N {
+            bail!(ZE::CapacityExceeded);
+        }
+
+        let res = self.subslice(..len).ok_or(zerr!(ZE::DidntRead))?;
+        self.start += len;
         Ok(res)
     }
 

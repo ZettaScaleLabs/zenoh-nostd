@@ -11,3 +11,9 @@ rust-version.workspace = true
 version.workspace = true
 
 [dependencies]
+zenoh-result = { workspace = true }
+zenoh-buffers = { workspace = true }
+zenoh-protocol = { workspace = true }
+
+heapless = { workspace = true }
+uhlc = { workspace = true }

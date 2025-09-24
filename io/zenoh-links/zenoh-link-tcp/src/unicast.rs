@@ -2,31 +2,30 @@ use core::{fmt, net::SocketAddr};
 
 use async_net::TcpStream;
 use futures_lite::{AsyncReadExt, AsyncWriteExt};
-use zenoh_link_commons::LinkAuthId;
 use zenoh_protocol::{core::Locator, transport::BatchSize};
-use zenoh_result::{zerror, ZResult};
+use zenoh_result::{zerr, ZResult, ZE};
 
-pub struct LinkUnicastTcp {
+pub struct LinkUnicastTcp<const S: usize, const D: usize> {
     // The underlying socket as returned from the tokio library
     socket: TcpStream,
     // The source socket address of this link (address used on the local host)
     src_addr: SocketAddr,
-    src_locator: Locator,
+    src_locator: Locator<S>,
     // The destination socket address of this link (address used on the remote host)
     dst_addr: SocketAddr,
-    dst_locator: Locator,
+    dst_locator: Locator<D>,
     // The computed mtu
     mtu: BatchSize,
 }
 
-impl fmt::Display for LinkUnicastTcp {
+impl<const S: usize, const D: usize> fmt::Display for LinkUnicastTcp<S, D> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{} => {}", self.src_addr, self.dst_addr)?;
         Ok(())
     }
 }
 
-impl fmt::Debug for LinkUnicastTcp {
+impl<const S: usize, const D: usize> fmt::Debug for LinkUnicastTcp<S, D> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("Tcp")
             .field("src", &self.src_addr)
@@ -35,8 +34,12 @@ impl fmt::Debug for LinkUnicastTcp {
             .finish()
     }
 }
-impl LinkUnicastTcp {
-    pub fn new(socket: TcpStream, src_addr: SocketAddr, dst_addr: SocketAddr) -> LinkUnicastTcp {
+impl<const S: usize, const D: usize> LinkUnicastTcp<S, D> {
+    pub fn new(
+        socket: TcpStream,
+        src_addr: SocketAddr,
+        dst_addr: SocketAddr,
+    ) -> LinkUnicastTcp<S, D> {
         if let Err(err) = socket.set_nodelay(true) {
             println!(
                 "Unable to set NODELAY option on TCP link {:?} => {:?}: {}",
@@ -79,40 +82,40 @@ impl LinkUnicastTcp {
     }
 
     pub async fn write(&mut self, buffer: &[u8]) -> ZResult<usize> {
-        self.socket.write(buffer).await.map_err(|e| {
-            let e = zerror!("Write error on TCP link {}: {}", self, e);
-            e.into()
-        })
+        self.socket
+            .write(buffer)
+            .await
+            .map_err(|_| zerr!(ZE::DidntWrite))
     }
 
     pub async fn write_all(&mut self, buffer: &[u8]) -> ZResult<()> {
-        self.socket.write_all(buffer).await.map_err(|e| {
-            let e = zerror!("Write error on TCP link {}: {}", self, e);
-            e.into()
-        })
+        self.socket
+            .write_all(buffer)
+            .await
+            .map_err(|_| zerr!(ZE::DidntWrite))
     }
 
     pub async fn read(&mut self, buffer: &mut [u8]) -> ZResult<usize> {
-        self.socket.read(buffer).await.map_err(|e| {
-            let e = zerror!("Read error on TCP link {}: {}", self, e);
-            e.into()
-        })
+        self.socket
+            .read(buffer)
+            .await
+            .map_err(|_| zerr!(ZE::DidntRead))
     }
 
     pub async fn read_exact(&mut self, buffer: &mut [u8]) -> ZResult<()> {
-        self.socket.read_exact(buffer).await.map_err(|e| {
-            let e = zerror!("Read error on TCP link {}: {}", self, e);
-            e.into()
-        })
+        self.socket
+            .read_exact(buffer)
+            .await
+            .map_err(|_| zerr!(ZE::DidntRead))
     }
 
     #[inline(always)]
-    pub fn get_src(&self) -> &Locator {
+    pub fn get_src(&self) -> &Locator<S> {
         &self.src_locator
     }
 
     #[inline(always)]
-    pub fn get_dst(&self) -> &Locator {
+    pub fn get_dst(&self) -> &Locator<D> {
         &self.dst_locator
     }
 
@@ -129,10 +132,5 @@ impl LinkUnicastTcp {
     #[inline(always)]
     pub fn is_streamed(&self) -> bool {
         true
-    }
-
-    #[inline(always)]
-    pub fn get_auth_id(&self) -> &LinkAuthId {
-        &LinkAuthId::Tcp
     }
 }

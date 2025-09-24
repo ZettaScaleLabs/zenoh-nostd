@@ -230,18 +230,25 @@ impl<const N: usize, const L: usize> Reader for ZBufReader<'_, N, L> {
         s.iter().fold(0, |acc, it| acc + it.len()) - self.cursor.byte
     }
 
-    fn read_zslices<F: FnMut(ZSlice), const M: usize>(&mut self, mut f: F) -> ZResult<()> {
+    fn read_zslices<F: FnMut(ZSlice), const M: usize>(
+        &mut self,
+        len: usize,
+        mut f: F,
+    ) -> ZResult<()> {
+        if len > L * N {
+            bail!(ZE::CapacityExceeded);
+        }
         if M != L {
             bail!(ZE::InvalidArgument);
         }
 
-        if self.remaining() < L {
+        if self.remaining() < len {
             return Err(zerr!(ZE::DidntRead));
         }
 
         let iter = ZBufSliceIterator {
             reader: self,
-            remaining: L,
+            remaining: len,
         };
         for slice in iter {
             f(slice);
@@ -250,7 +257,11 @@ impl<const N: usize, const L: usize> Reader for ZBufReader<'_, N, L> {
         Ok(())
     }
 
-    fn read_zslice<const M: usize>(&mut self) -> ZResult<ZSlice> {
+    fn read_zslice<const M: usize>(&mut self, len: usize) -> ZResult<ZSlice> {
+        if len > L {
+            bail!(ZE::CapacityExceeded);
+        }
+
         if M != L {
             bail!(ZE::InvalidArgument);
         }
@@ -261,10 +272,14 @@ impl<const N: usize, const L: usize> Reader for ZBufReader<'_, N, L> {
             .get(self.cursor.slice)
             .ok_or(zerr!(ZE::DidntRead))?;
 
-        match (slice.len() - self.cursor.byte).cmp(&L) {
+        match (slice.len() - self.cursor.byte).cmp(&len) {
             cmp::Ordering::Less => {
-                let mut buffer = crate::vec::uninit::<L>();
-                Reader::read_exact(self, &mut buffer)?;
+                let mut buffer = crate::vec::empty::<L>();
+                buffer
+                    .resize(len, 0)
+                    .map_err(|_| zerr!(ZE::CapacityExceeded))?;
+
+                Reader::read(self, &mut buffer)?;
                 Ok(buffer.try_into()?)
             }
             cmp::Ordering::Equal => {
@@ -277,7 +292,7 @@ impl<const N: usize, const L: usize> Reader for ZBufReader<'_, N, L> {
             }
             cmp::Ordering::Greater => {
                 let start = self.cursor.byte;
-                self.cursor.byte += L;
+                self.cursor.byte += len;
                 slice
                     .subslice(start..self.cursor.byte)
                     .ok_or(zerr!(ZE::DidntRead))

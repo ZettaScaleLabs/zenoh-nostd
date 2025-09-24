@@ -14,12 +14,17 @@ async fn main(spawner: Spawner) {
     .unwrap();
 
     let ke: &'static keyexpr = "demo/example".try_into().unwrap();
+    let payload = b"Hello, world!";
 
     loop {
         session.try_read().unwrap();
 
-        session.put(ke, b"Hello, world!").await.unwrap();
-        println!("Sent data");
+        session.put(ke, payload).await.unwrap();
+        println!(
+            "[Publisher] Sent PUT ('{}': '{}')",
+            ke,
+            core::str::from_utf8(payload).unwrap()
+        );
 
         Timer::after(Duration::from_secs(1)).await;
     }

@@ -149,17 +149,27 @@ impl Reader for &[u8] {
         self.len()
     }
 
-    fn read_zslices<F: FnMut(ZSlice), const N: usize>(&mut self, mut f: F) -> ZResult<()> {
-        let zslice = self.read_zslice::<N>()?;
+    fn read_zslices<F: FnMut(ZSlice), const N: usize>(
+        &mut self,
+        len: usize,
+        mut f: F,
+    ) -> ZResult<()> {
+        let zslice = self.read_zslice::<N>(len)?;
         f(zslice);
         Ok(())
     }
 
-    fn read_zslice<const N: usize>(&mut self) -> ZResult<ZSlice> {
+    fn read_zslice<const N: usize>(&mut self, len: usize) -> ZResult<ZSlice> {
         // SAFETY: the buffer is initialized by the `read_exact()` function. Should the `read_exact()`
         // function fail, the `read_zslice()` will fail as well and return None. It is hence guaranteed
         // that any `ZSlice` returned by `read_zslice()` points to a fully initialized buffer.
-        let mut buffer = crate::vec::uninit::<N>();
+        let mut buffer = crate::vec::empty::<N>();
+        if len > N {
+            bail!(ZE::CapacityExceeded);
+        }
+        buffer
+            .resize(len, 0)
+            .map_err(|_| zerr!(ZE::CapacityExceeded))?;
         self.read_exact(&mut buffer)?;
 
         Ok(buffer.try_into()?)

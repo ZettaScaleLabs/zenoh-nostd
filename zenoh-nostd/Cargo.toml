@@ -28,3 +28,5 @@ embassy-executor = { workspace = true }
 embassy-sync = { workspace = true }
 embassy-time = { workspace = true }
 embassy-futures = { workspace = true }
+
+heapless = { workspace = true }

@@ -2,15 +2,20 @@ use embassy_executor::Spawner;
 use embassy_futures::select::select;
 use embassy_sync::{blocking_mutex::raw::ThreadModeRawMutex, channel::Channel};
 use embassy_time::Timer;
-use zenoh_buffers::writer::HasWriter;
+use heapless::Vec;
+use zenoh_buffers::{
+    writer::HasWriter,
+    zslice::{ArcBytes256, ArcBytes64},
+    zunsafe_arc_pool_init,
+};
 use zenoh_codec::{WCodec, Zenoh080};
 use zenoh_protocol::{
     core::{key_expr::keyexpr, Encoding, EndPoint, WireExpr, ZenohIdProto},
-    network::{ext::NodeIdType, NetworkBody, NetworkMessage, Push},
+    network::{ext::NodeIdType, push::Push, NetworkBody, NetworkMessage},
     transport::{ext::QoSType, Frame, KeepAlive, TransportMessage},
     zenoh::{PushBody, Put},
 };
-use zenoh_result::{zerror, ZResult};
+use zenoh_result::{bail, zerr, ZResult, ZE};
 use zenoh_transport::{
     unicast::{
         link::TransportLinkUnicast,
@@ -26,7 +31,7 @@ pub struct SingleLinkClientSession {}
 
 #[embassy_executor::task]
 async fn link_task(
-    link: TransportLinkUnicast,
+    link: TransportLinkUnicast<32, 32>,
     send_open_syn: SendOpenSynOut,
     recv_open_ack: RecvOpenAckOut,
     tm: TransportManager,
@@ -45,7 +50,7 @@ async fn link_task(
         let write_lease = Timer::at(last_write_time + keep_alive_timeout.try_into().unwrap());
 
         match select(
-            select(read_lease, link.recv()),
+            select(read_lease, link.recv::<256>()),
             select(write_lease, SESSION_TO_TRANSPORT.receive()),
         )
         .await
@@ -72,24 +77,28 @@ async fn link_task(
 
                 match write_task {
                     embassy_futures::select::Either::First(_) => {
-                        if let Err(_) = link.send(&KeepAlive.into()).await {
+                        if let Err(_) = link.send::<32>(&KeepAlive.into()).await {
                             break 'main;
                         }
                     }
                     embassy_futures::select::Either::Second(msg) => {
-                        let mut payload: Vec<u8> = Vec::with_capacity(64);
+                        let mut payload: Vec<u8, 64> = zenoh_buffers::vec::empty();
                         let mut writer = payload.writer();
                         let codec = Zenoh080::new();
                         codec.write(&mut writer, &msg).unwrap();
+
+                        let Ok(slice) = payload.try_into() else {
+                            break 'main;
+                        };
 
                         let frame = Frame {
                             reliability: msg.reliability,
                             sn,
                             ext_qos: QoSType::DEFAULT,
-                            payload: payload.into(),
+                            payload: slice,
                         };
 
-                        if let Err(_) = link.send(&frame.into()).await {
+                        if let Err(_) = link.send::<64>(&frame.into()).await {
                             break 'main;
                         }
 
@@ -102,18 +111,22 @@ async fn link_task(
 }
 
 impl SingleLinkClientSession {
-    pub async fn open(endpoint: EndPoint, spawner: Spawner) -> ZResult<Self> {
+    pub async fn open(endpoint: EndPoint<32>, spawner: Spawner) -> ZResult<Self> {
         let tm = TransportManager::new(
             ZenohIdProto::default(),
             zenoh_protocol::core::WhatAmI::Client,
         );
 
-        let (link, send_open_syn, recv_open_ack) =
-            tm.open_transport_link_unicast(&endpoint).await?;
+        zunsafe_arc_pool_init!(ArcBytes256: 1);
+        zunsafe_arc_pool_init!(ArcBytes64: 2);
+
+        let (link, send_open_syn, recv_open_ack) = tm
+            .open_transport_link_unicast::<256, _, 32, 32>(&endpoint)
+            .await?;
 
         spawner
             .spawn(link_task(link, send_open_syn, recv_open_ack, tm))
-            .map_err(|_| zerror!("Failed to spawn link task"))?;
+            .map_err(|_| zerr!(ZE::Failed))?;
 
         Ok(SingleLinkClientSession {})
     }
@@ -130,7 +143,15 @@ impl SingleLinkClientSession {
         Ok(())
     }
 
-    pub async fn put(&mut self, keyexpr: &'static keyexpr, bytes: &[u8]) -> ZResult<()> {
+    pub async fn put<const L: usize>(
+        &mut self,
+        keyexpr: &'static keyexpr,
+        bytes: &[u8; L],
+    ) -> ZResult<()> {
+        if L > 64 {
+            bail!(ZE::CapacityExceeded);
+        }
+
         let msg = NetworkMessage {
             reliability: zenoh_protocol::core::Reliability::BestEffort,
             body: NetworkBody::Push(Push {
@@ -143,8 +164,8 @@ impl SingleLinkClientSession {
                     encoding: Encoding::empty(),
                     ext_sinfo: None,
                     ext_attachment: None,
-                    ext_unknown: vec![],
-                    payload: bytes.to_vec().into(),
+                    ext_unknown: Vec::new(),
+                    payload: Vec::<u8, 64>::from_slice(bytes).unwrap().try_into()?,
                 }),
             }),
         };

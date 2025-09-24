@@ -21,6 +21,12 @@ pub fn uninit<const N: usize>() -> Vec<u8, N> {
     vbuf
 }
 
+/// Allocate a vector with a given capacity.
+#[must_use]
+pub fn empty<const N: usize>() -> Vec<u8, N> {
+    Vec::new()
+}
+
 // Buffer
 impl<const N: usize> Buffer for Vec<u8, N> {
     fn len(&self) -> usize {
@@ -63,6 +69,7 @@ impl<const N: usize> Writer for Vec<u8, N> {
         if bytes.is_empty() {
             bail!(ZE::DidntWrite);
         }
+
         self.extend_from_slice(bytes)
             .map_err(|_| zerr!(ZE::DidntWrite))?;
         // SAFETY: this operation is safe since we early return in case bytes is empty

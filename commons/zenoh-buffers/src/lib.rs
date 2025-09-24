@@ -5,7 +5,7 @@ pub mod zbuf;
 pub mod zslice;
 
 mod slice;
-mod vec;
+pub mod vec;
 
 #[macro_export]
 macro_rules! unsafe_slice_mut {
@@ -180,11 +180,12 @@ pub mod reader {
         /// Returns an iterator of `ZSlices` such that the sum of their length is _exactly_ `len`.
         fn read_zslices<F: FnMut(ZSlice), const N: usize>(
             &mut self,
+            len: usize,
             for_each_slice: F,
         ) -> ZResult<()>;
 
         /// Reads exactly `len` bytes, returning them as a single `ZSlice`.
-        fn read_zslice<const N: usize>(&mut self) -> ZResult<ZSlice>;
+        fn read_zslice<const N: usize>(&mut self, len: usize) -> ZResult<ZSlice>;
 
         fn read_u8(&mut self) -> ZResult<u8> {
             let mut byte = 0;
@@ -213,12 +214,13 @@ pub mod reader {
         }
         fn read_zslices<F: FnMut(ZSlice), const N: usize>(
             &mut self,
+            len: usize,
             for_each_slice: F,
         ) -> ZResult<()> {
-            (**self).read_zslices::<_, N>(for_each_slice)
+            (**self).read_zslices::<_, N>(len, for_each_slice)
         }
-        fn read_zslice<const N: usize>(&mut self) -> ZResult<ZSlice> {
-            (**self).read_zslice::<N>()
+        fn read_zslice<const N: usize>(&mut self, len: usize) -> ZResult<ZSlice> {
+            (**self).read_zslice::<N>(len)
         }
         fn read_u8(&mut self) -> ZResult<u8> {
             (**self).read_u8()
