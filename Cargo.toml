@@ -1,5 +1,19 @@
 [workspace]
-members = [ "examples", "io/zenoh-link", "io/zenoh-link-commons", "io/zenoh-links/zenoh-link-tcp", "io/zenoh-transport","zenoh-nostd"]
+members = [
+    # "examples",
+
+    # "io/zenoh-link-commons",
+    # "io/zenoh-transport",
+
+    # "io/zenoh-link",
+    # "io/zenoh-links/zenoh-link-tcp",
+
+    # "zenoh-nostd",
+    "commons/zenoh-result",
+    "commons/zenoh-buffers",
+    "commons/zenoh-keyexpr"
+]
+
 resolver = "2"
 
 [workspace.package]
@@ -14,20 +28,19 @@ rust-version = "1.75.0"
 version = "1.5.1"
 
 [workspace.dependencies]
-zenoh-protocol = { version = "1.5.1", default-features = false }
-zenoh-result = { version = "1.5.1",  default-features = false }
-zenoh-keyexpr = { version = "1.5.1", default-features = false }
-zenoh-buffers = { version = "1.5.1", default-features = false }
-zenoh-codec = { version = "1.5.1", default-features = false }
-zenoh-crypto = { version = "1.5.1", default-features = false }
+zenoh-protocol = { version = "1.5.1", path = "commons/zenoh-protocol", default-features = false }
+zenoh-result = { version = "1.5.1", path = "commons/zenoh-result", default-features = false }
+zenoh-keyexpr = { version = "1.5.1", path = "commons/zenoh-keyexpr", default-features = false }
+zenoh-buffers = { version = "1.5.1", path = "commons/zenoh-buffers", default-features = false }
+zenoh-codec = { version = "1.5.1", path = "commons/zenoh-codec", default-features = false }
 
-zenoh-link-commons = { path = "io/zenoh-link-commons", default-features = false }
-zenoh-link = { path = "io/zenoh-link", default-features = false }
+# zenoh-link-commons = { path = "io/zenoh-link-commons", default-features = false }
+# zenoh-transport = { path = "io/zenoh-transport", default-features = false }
 
-zenoh-link-tcp = { path = "io/zenoh-links/zenoh-link-tcp", default-features = false }
+# zenoh-link = { path = "io/zenoh-link", default-features = false }
+# zenoh-link-tcp = { path = "io/zenoh-links/zenoh-link-tcp", default-features = false }
 
-zenoh-transport = { path = "io/zenoh-transport", default-features = false }
-zenoh-nostd = { path = "zenoh-nostd", default-features = false }
+# zenoh-nostd = { path = "zenoh-nostd", default-features = false }
 
 # Embassy
 embassy-sync = { version = "0.7.2" }
@@ -39,3 +52,5 @@ embassy-futures = { version = "0.1.2" }
 async-net = "2.0.0"
 futures-lite = "2.6.1"
 sha3 = { version = "0.10.8", default-features = false }
+heapless = { version = "0.9.1", git = "https://github.com/Hennzau/heapless", branch = "arc-get-mut", default-features = false, features = ["portable-atomic"] }
+paste = "1.0"

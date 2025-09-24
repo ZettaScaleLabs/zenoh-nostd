@@ -249,11 +249,11 @@ pub trait Encode<Message> {
 }
 
 impl Encode<&TransportMessage> for &mut WBatch {
-    type Output = Result<(), DidntWrite>;
+    type Output = Result<();
 
     fn encode(self, x: &TransportMessage) -> Self::Output {
         let mut writer = self.buffer.writer();
-        
+
         self.codec.write(&mut writer, x)
     }
 }
@@ -272,17 +272,17 @@ impl Encode<(NetworkMessageRef<'_>, &FrameHeader)> for &mut WBatch {
 
     fn encode(self, x: (NetworkMessageRef, &FrameHeader)) -> Self::Output {
         let mut writer = self.buffer.writer();
-        
+
         self.codec.write(&mut writer, x)
     }
 }
 
 impl Encode<(&mut ZBufReader<'_>, &mut FragmentHeader)> for &mut WBatch {
-    type Output = Result<NonZeroUsize, DidntWrite>;
+    type Output = Result<NonZeroUsize;
 
     fn encode(self, x: (&mut ZBufReader<'_>, &mut FragmentHeader)) -> Self::Output {
         let mut writer = self.buffer.writer();
-        
+
         self.codec.write(&mut writer, x)
     }
 }
