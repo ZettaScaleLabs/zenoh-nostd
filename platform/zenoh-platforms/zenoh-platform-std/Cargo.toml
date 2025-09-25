@@ -1,5 +1,5 @@
 [package]
-name = "zenoh-link-commons"
+name = "zenoh-platform-std"
 authors.workspace = true
 categories.workspace = true
 description.workspace = true
@@ -11,5 +11,11 @@ rust-version.workspace = true
 version.workspace = true
 
 [dependencies]
-zenoh-protocol = { workspace = true }
 zenoh-result = { workspace = true }
+
+async-net = { workspace = true }
+futures-lite = { workspace = true }
+socket2 = { workspace = true }
+
+env_logger = { workspace = true }
+log = { workspace = true }

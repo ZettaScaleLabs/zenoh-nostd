@@ -1,5 +1,5 @@
 [package]
-name = "zenoh-nostd"
+name = "zenoh"
 authors.workspace = true
 categories.workspace = true
 description.workspace = true
@@ -10,23 +10,20 @@ repository.workspace = true
 rust-version.workspace = true
 version.workspace = true
 
-[features]
-default = []
-
-arch-std = ["zenoh-transport/arch-std", "embassy-executor/arch-std", "embassy-time/std", "embassy-sync/std"]
-arch-wasm = []
-
 [dependencies]
 zenoh-result = { workspace = true }
 zenoh-buffers = { workspace = true }
 zenoh-codec = { workspace = true }
 zenoh-protocol = { workspace = true }
 
+zenoh-platform = { workspace = true }
+
 zenoh-transport = { workspace = true }
 
 embassy-executor = { workspace = true }
-embassy-sync = { workspace = true }
-embassy-time = { workspace = true }
 embassy-futures = { workspace = true }
+embassy-time = { workspace = true }
+embassy-sync = { workspace = true }
 
 heapless = { workspace = true }
+static_cell = { workspace = true }

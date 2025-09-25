@@ -1,3 +1,8 @@
+#![cfg_attr(
+    not(any(target_os = "linux", target_os = "macos", target_os = "windows",)),
+    no_std
+)]
+
 use zenoh_protocol::{
     core::{EndPoint, Resolution, WhatAmI, ZenohIdProto},
     transport::BatchSize,

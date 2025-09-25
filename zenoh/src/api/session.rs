@@ -1,8 +1,10 @@
 use embassy_executor::Spawner;
 use embassy_futures::select::select;
-use embassy_sync::{blocking_mutex::raw::ThreadModeRawMutex, channel::Channel};
+
+use embassy_sync::{blocking_mutex::raw::NoopRawMutex, channel::Channel};
 use embassy_time::Timer;
 use heapless::Vec;
+use static_cell::StaticCell;
 use zenoh_buffers::{
     writer::HasWriter,
     zslice::{ArcBytes256, ArcBytes64},
@@ -24,10 +26,10 @@ use zenoh_transport::{
     TransportManager,
 };
 
-static SESSION_TO_TRANSPORT: Channel<ThreadModeRawMutex, NetworkMessage, 8> = Channel::new();
-static TRANSPORT_TO_SESSION: Channel<ThreadModeRawMutex, TransportMessage, 8> = Channel::new();
-
-pub struct SingleLinkClientSession {}
+pub struct SingleLinkClientSession {
+    session_to_transport: &'static Channel<NoopRawMutex, NetworkMessage, 8>,
+    transport_to_session: &'static Channel<NoopRawMutex, TransportMessage, 8>,
+}
 
 #[embassy_executor::task]
 async fn link_task(
@@ -35,6 +37,9 @@ async fn link_task(
     send_open_syn: SendOpenSynOut,
     recv_open_ack: RecvOpenAckOut,
     tm: TransportManager,
+
+    session_to_transport: &'static Channel<NoopRawMutex, NetworkMessage, 8>,
+    transport_to_session: &'static Channel<NoopRawMutex, TransportMessage, 8>,
 ) {
     let mut sn = send_open_syn.mine_initial_sn + 1;
 
@@ -51,7 +56,7 @@ async fn link_task(
 
         match select(
             select(read_lease, link.recv::<256>()),
-            select(write_lease, SESSION_TO_TRANSPORT.receive()),
+            select(write_lease, session_to_transport.receive()),
         )
         .await
         {
@@ -64,7 +69,7 @@ async fn link_task(
                     }
                     embassy_futures::select::Either::Second(msg) => match msg {
                         Ok(msg) => {
-                            TRANSPORT_TO_SESSION.send(msg).await;
+                            transport_to_session.send(msg).await;
                         }
                         Err(_) => {
                             break 'main;
@@ -120,32 +125,51 @@ impl SingleLinkClientSession {
         zunsafe_arc_pool_init!(ArcBytes256: 1);
         zunsafe_arc_pool_init!(ArcBytes64: 2);
 
+        static SESSION_TO_TRANSPORT: StaticCell<Channel<NoopRawMutex, NetworkMessage, 8>> =
+            StaticCell::new();
+
+        static TRANSPORT_TO_SESSION: StaticCell<Channel<NoopRawMutex, TransportMessage, 8>> =
+            StaticCell::new();
+
+        let session_to_transport = SESSION_TO_TRANSPORT.init(Channel::new());
+        let transport_to_session = TRANSPORT_TO_SESSION.init(Channel::new());
+
         let (link, send_open_syn, recv_open_ack) = tm
             .open_transport_link_unicast::<256, _, 32, 32>(&endpoint)
             .await?;
 
         spawner
-            .spawn(link_task(link, send_open_syn, recv_open_ack, tm))
+            .spawn(link_task(
+                link,
+                send_open_syn,
+                recv_open_ack,
+                tm,
+                session_to_transport,
+                transport_to_session,
+            ))
             .map_err(|_| zerr!(ZE::Failed))?;
 
-        Ok(SingleLinkClientSession {})
+        Ok(SingleLinkClientSession {
+            session_to_transport,
+            transport_to_session,
+        })
     }
 
     pub async fn read(&mut self) -> ZResult<()> {
-        let _ = TRANSPORT_TO_SESSION.receive().await;
+        let _ = self.transport_to_session.receive().await;
 
         Ok(())
     }
 
     pub fn try_read(&mut self) -> ZResult<()> {
-        let _ = TRANSPORT_TO_SESSION.try_receive();
+        let _ = self.transport_to_session.try_receive();
 
         Ok(())
     }
 
     pub async fn put<const L: usize>(
         &mut self,
-        keyexpr: &'static keyexpr,
+        ke: &'static keyexpr,
         bytes: &[u8; L],
     ) -> ZResult<()> {
         if L > 64 {
@@ -155,7 +179,7 @@ impl SingleLinkClientSession {
         let msg = NetworkMessage {
             reliability: zenoh_protocol::core::Reliability::BestEffort,
             body: NetworkBody::Push(Push {
-                wire_expr: WireExpr::from(keyexpr),
+                wire_expr: WireExpr::from(ke),
                 ext_qos: zenoh_protocol::network::ext::QoSType::DEFAULT,
                 ext_tstamp: None,
                 ext_nodeid: NodeIdType::DEFAULT,
@@ -170,7 +194,7 @@ impl SingleLinkClientSession {
             }),
         };
 
-        SESSION_TO_TRANSPORT.send(msg).await;
+        self.session_to_transport.send(msg).await;
 
         Ok(())
     }

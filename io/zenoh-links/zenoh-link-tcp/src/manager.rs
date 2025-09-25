@@ -1,9 +1,10 @@
-use std::{net::SocketAddr, str::FromStr};
+use core::{net::SocketAddr, str::FromStr};
 
+use zenoh_platform::tcp::PlatformTcpStream;
 use zenoh_protocol::core::EndPoint;
 use zenoh_result::{bail, zerr, ZResult, ZE};
 
-use crate::{config::TcpSocketConfig, unicast::LinkUnicastTcp};
+use crate::unicast::LinkUnicastTcp;
 
 pub struct LinkManagerUnicastTcp {}
 
@@ -31,9 +32,9 @@ impl LinkManagerUnicastTcp {
             bail!(ZE::InvalidConfiguration)
         }
 
-        let socket_config = TcpSocketConfig::new();
-
-        let (stream, src_addr, dst_addr) = socket_config.new_link(&dst_addr).await?;
+        let stream = PlatformTcpStream::new(&dst_addr).await?;
+        let src_addr = stream.local_addr()?;
+        let dst_addr = stream.peer_addr()?;
 
         Ok(LinkUnicastTcp::new(stream, src_addr, dst_addr))
     }

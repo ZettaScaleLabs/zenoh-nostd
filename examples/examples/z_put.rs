@@ -1,12 +1,32 @@
+#![cfg_attr(
+    not(any(
+        target_os = "linux",
+        target_os = "macos",
+        target_os = "windows",
+        target_arch = "wasm32",
+    )),
+    no_std
+)]
+#![cfg_attr(target_arch = "xtensa", no_main)]
+
+#[cfg(target_arch = "xtensa")]
+#[panic_handler]
+fn panic(_: &core::panic::PanicInfo) -> ! {
+    loop {}
+}
+
 use core::str::FromStr;
 
-use embassy_executor::Spawner;
-use embassy_time::{Duration, Timer};
-use zenoh_protocol::core::{key_expr::keyexpr, EndPoint};
+use zenoh::{keyexpr, EndPoint};
 
-#[embassy_executor::main]
-async fn main(spawner: Spawner) {
-    let mut session = zenoh_nostd::api::session::SingleLinkClientSession::open(
+#[cfg_attr(target_arch = "xtensa", esp_hal_embassy::main)]
+#[cfg_attr(not(target_arch = "xtensa"), embassy_executor::main)]
+async fn main(spawner: embassy_executor::Spawner) {
+    zenoh::init_logger();
+
+    zenoh::log::info!("Start z_put example");
+
+    let mut session = zenoh::api::session::SingleLinkClientSession::open(
         EndPoint::from_str("tcp/127.0.0.1:7447").unwrap(),
         spawner,
     )
@@ -20,12 +40,12 @@ async fn main(spawner: Spawner) {
         session.try_read().unwrap();
 
         session.put(ke, payload).await.unwrap();
-        println!(
+        zenoh::log::info!(
             "[Publisher] Sent PUT ('{}': '{}')",
-            ke,
+            ke.as_str(),
             core::str::from_utf8(payload).unwrap()
         );
 
-        Timer::after(Duration::from_secs(1)).await;
+        embassy_time::Timer::after(embassy_time::Duration::from_secs(1)).await;
     }
 }

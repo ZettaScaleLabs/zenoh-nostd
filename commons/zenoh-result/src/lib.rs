@@ -31,6 +31,7 @@ pub enum ZErrorKind {
     Timeout,
     InvalidMessage,
     Failed,
+    UnsupportedPlatform,
 }
 
 pub type ZE = ZErrorKind;
@@ -71,6 +72,7 @@ impl core::fmt::Debug for ZErrorKind {
             Self::Timeout => write!(f, "ZError::Timeout"),
             Self::InvalidMessage => write!(f, "ZError::InvalidMessage"),
             Self::Failed => write!(f, "ZError::Failed"),
+            Self::UnsupportedPlatform => write!(f, "ZError::UnsupportedPlatform"),
         }
     }
 }

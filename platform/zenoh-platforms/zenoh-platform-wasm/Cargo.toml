@@ -1,5 +1,5 @@
 [package]
-name = "zenoh-link"
+name = "zenoh-platform-wasm"
 authors.workspace = true
 categories.workspace = true
 description.workspace = true
@@ -11,7 +11,5 @@ rust-version.workspace = true
 version.workspace = true
 
 [dependencies]
-zenoh-protocol = { workspace = true }
-zenoh-result = { workspace = true }
-
-zenoh-link-tcp = { workspace = true }
+wasm-bindgen = { workspace = true }
+web-sys = { workspace = true, features = ["console"] }
