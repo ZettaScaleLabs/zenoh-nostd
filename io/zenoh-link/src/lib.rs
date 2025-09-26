@@ -9,6 +9,7 @@ pub mod unicast;
 pub enum LinkKind {
     Serial,
     Tcp,
+    WS,
     Udp,
 }
 
@@ -19,6 +20,7 @@ impl<const N: usize> TryFrom<&Locator<N>> for LinkKind {
         match locator.protocol().as_str() {
             "tcp" => Ok(LinkKind::Tcp),
             "udp" => Ok(LinkKind::Udp),
+            "ws" => Ok(LinkKind::WS),
             "serial" => Ok(LinkKind::Serial),
 
             _ => bail!(ZE::InvalidProtocol),

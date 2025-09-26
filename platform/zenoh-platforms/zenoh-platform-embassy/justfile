@@ -1,0 +1,5 @@
+check:
+    cargo +esp check -Zbuild-std=core,alloc --target xtensa-esp32s3-none-elf --release
+
+esp32s3:
+    cd example-esp32s3 && cargo run --example z_put

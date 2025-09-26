@@ -1,9 +1,11 @@
 use core::str::FromStr;
 
+use static_cell::StaticCell;
 use zenoh::{api::session::SessionRunner, keyexpr, EndPoint};
+use zenoh_platform_std::PlatformStd;
 
 #[embassy_executor::task]
-async fn session_task(mut runner: SessionRunner<zenoh_platform_std::PlatformStd>) {
+async fn session_task(mut runner: SessionRunner<'static, zenoh_platform_std::PlatformStd>) {
     runner.run().await;
 }
 
@@ -15,7 +17,11 @@ async fn main(spawner: embassy_executor::Spawner) {
 
     log::info!("Starting z_put example...");
 
+    static PLATFORM: StaticCell<PlatformStd> = StaticCell::new();
+    let platform = PLATFORM.init(PlatformStd);
+
     let (mut session, runner) = zenoh::api::session::SingleLinkClientSession::open(
+        platform,
         EndPoint::from_str("tcp/127.0.0.1:7447").unwrap(),
     )
     .await

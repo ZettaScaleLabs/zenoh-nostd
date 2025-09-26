@@ -1,5 +1,5 @@
 [package]
-name = "zenoh-platform-esp32"
+name = "zenoh-link-ws"
 authors.workspace = true
 categories.workspace = true
 description.workspace = true
@@ -11,5 +11,9 @@ rust-version.workspace = true
 version.workspace = true
 
 [dependencies]
-getrandom = { workspace = true, features = ["custom"] }
-defmt = { workspace = true }
+zenoh-protocol = { workspace = true }
+zenoh-result = { workspace = true }
+
+zenoh-platform = { workspace = true }
+
+heapless = { workspace = true }

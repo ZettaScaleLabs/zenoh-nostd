@@ -91,16 +91,29 @@ pub struct ZError {
     file: &'static str,
     line: u32,
     column: u32,
-    context: Option<&'static str>,
+
+    contexts: [Option<&'static str>; 16],
 }
 
 impl core::fmt::Debug for ZError {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
-        write!(f, "{} at {}:{}", self.kind(), self.file(), self.line())?;
+        write!(
+            f,
+            "{} at {}:{}:{}",
+            self.kind(),
+            self.file(),
+            self.line(),
+            self.column()
+        )?;
 
-        if let Some(ctx) = &self.context {
-            write!(f, "\nCausing: {:?}", ctx)?;
+        write!(f, "\nContext:")?;
+
+        for context in &self.contexts {
+            if let Some(ctx) = context {
+                write!(f, "\n  - {}", ctx)?;
+            }
         }
+
         Ok(())
     }
 }
@@ -118,7 +131,7 @@ impl ZError {
             file,
             line,
             column,
-            context: None,
+            contexts: [None; 16],
         }
     }
 
@@ -145,7 +158,12 @@ pub trait WithContext {
 
 impl WithContext for ZError {
     fn context(mut self, context: &'static str) -> Self {
-        self.context = Some(context);
+        for slot in &mut self.contexts {
+            if slot.is_none() {
+                *slot = Some(context);
+                break;
+            }
+        }
 
         self
     }
@@ -163,6 +181,15 @@ pub type ZResult<T> = core::result::Result<T, ZError>;
 macro_rules! zerr {
     ($kind:expr) => {
         $crate::ZError::new($kind, file!(), line!(), column!())
+    };
+}
+
+#[macro_export]
+macro_rules! zctx {
+    ($ctx:expr) => {
+        format_args!("{} at {}:{}:{}", $ctx, file!(), line!(), column!())
+            .as_str()
+            .unwrap()
     };
 }
 

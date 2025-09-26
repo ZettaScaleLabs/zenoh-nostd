@@ -1239,6 +1239,7 @@ name = "zenoh-link"
 version = "1.5.1"
 dependencies = [
  "zenoh-link-tcp",
+ "zenoh-link-ws",
  "zenoh-platform",
  "zenoh-protocol",
  "zenoh-result",
@@ -1255,9 +1256,20 @@ dependencies = [
 ]
 
 [[package]]
+name = "zenoh-link-ws"
+version = "1.5.1"
+dependencies = [
+ "heapless 0.9.1",
+ "zenoh-platform",
+ "zenoh-protocol",
+ "zenoh-result",
+]
+
+[[package]]
 name = "zenoh-platform"
 version = "1.5.1"
 dependencies = [
+ "embassy-executor",
  "zenoh-result",
 ]
 
@@ -1272,6 +1284,7 @@ dependencies = [
  "futures-lite",
  "log",
  "socket2",
+ "static_cell",
  "zenoh",
  "zenoh-platform",
  "zenoh-result",

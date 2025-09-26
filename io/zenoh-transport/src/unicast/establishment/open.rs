@@ -14,12 +14,9 @@ use zenoh_protocol::{
 
 use zenoh_result::{bail, ZResult, ZE};
 
-use crate::{
-    unicast::{
-        establishment::compute_sn,
-        link::{TransportLinkUnicast, TransportLinkUnicastConfig},
-    },
-    TransportManager,
+use crate::unicast::{
+    establishment::compute_sn,
+    link::{TransportLinkUnicast, TransportLinkUnicastConfig},
 };
 
 pub struct StateTransport {
@@ -182,9 +179,13 @@ impl RecvOpenAckOut {
     }
 }
 
-pub async fn open_link<T: Platform, const N: usize, const S: usize, const D: usize>(
+pub async fn open_unicast_link<'a, T: Platform, const N: usize, const S: usize, const D: usize>(
     link: LinkUnicast<T, S, D>,
-    tm: &TransportManager,
+    batch_size: BatchSize,
+    resolution: Resolution,
+    zid: ZenohIdProto,
+    whatami: WhatAmI,
+    lease: Duration,
 ) -> ZResult<(
     TransportLinkUnicast<T, S, D>,
     SendOpenSynOut,
@@ -200,17 +201,17 @@ pub async fn open_link<T: Platform, const N: usize, const S: usize, const D: usi
     let mut link = TransportLinkUnicast::new(link, config);
 
     #[allow(clippy::unnecessary_min_or_max)]
-    let batch_size = tm.batch_size.min(link.config.mtu).min(batch_size::UNICAST);
+    let batch_size = batch_size.min(link.config.mtu).min(batch_size::UNICAST);
 
     let mut state = StateTransport {
         batch_size,
-        resolution: tm.resolution,
+        resolution: resolution,
     };
 
     let isyn_in = SendInitSynIn {
         mine_version: VERSION,
-        mine_zid: tm.zid,
-        mine_whatami: tm.whatami,
+        mine_zid: zid,
+        mine_whatami: whatami,
     };
 
     isyn_in.send::<_, N, _, _>(&mut link, &state).await?;
@@ -218,9 +219,9 @@ pub async fn open_link<T: Platform, const N: usize, const S: usize, const D: usi
 
     // Open handshake
     let osyn_in = SendOpenSynIn {
-        mine_zid: tm.zid,
+        mine_zid: zid,
         other_zid: iack_out.other_zid,
-        mine_lease: tm.unicast.lease,
+        mine_lease: lease,
         other_cookie: iack_out.other_cookie.clone(),
     };
     let osyn_out = osyn_in.send::<_, N, _, _>(&mut link, &state).await?;

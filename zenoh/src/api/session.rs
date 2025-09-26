@@ -17,7 +17,7 @@ use zenoh_protocol::{
     transport::{ext::QoSType, Frame, KeepAlive, TransportMessage},
     zenoh::{PushBody, Put},
 };
-use zenoh_result::{bail, ZResult, ZE};
+use zenoh_result::{bail, zctx, WithContext, ZResult, ZE};
 use zenoh_transport::{
     unicast::{
         link::TransportLinkUnicast,
@@ -26,18 +26,18 @@ use zenoh_transport::{
     TransportManager,
 };
 
-pub struct SessionRunner<T: Platform> {
+pub struct SessionRunner<'a, T: Platform> {
     link: TransportLinkUnicast<T, 32, 32>,
 
     send_open_syn: SendOpenSynOut,
     recv_open_ack: RecvOpenAckOut,
-    tm: TransportManager,
+    tm: TransportManager<'a, T>,
 
     session_to_transport: &'static Channel<NoopRawMutex, NetworkMessage, 8>,
     transport_to_session: &'static Channel<NoopRawMutex, TransportMessage, 8>,
 }
 
-impl<T: Platform> SessionRunner<T> {
+impl<T: Platform> SessionRunner<'_, T> {
     pub async fn run(&mut self) {
         let mut sn = self.send_open_syn.mine_initial_sn + 1;
 
@@ -113,16 +113,18 @@ impl<T: Platform> SessionRunner<T> {
     }
 }
 
-pub struct SingleLinkClientSession<T: Platform> {
+pub struct SingleLinkClientSession {
     session_to_transport: &'static Channel<NoopRawMutex, NetworkMessage, 8>,
     transport_to_session: &'static Channel<NoopRawMutex, TransportMessage, 8>,
-
-    _marker: core::marker::PhantomData<T>,
 }
 
-impl<T: Platform> SingleLinkClientSession<T> {
-    pub async fn open(endpoint: EndPoint<32>) -> ZResult<(Self, SessionRunner<T>)> {
-        let tm = TransportManager::new(
+impl SingleLinkClientSession {
+    pub async fn open<'a, T: Platform>(
+        platform: &'a mut T,
+        endpoint: EndPoint<32>,
+    ) -> ZResult<(Self, SessionRunner<'a, T>)> {
+        let mut tm = TransportManager::new(
+            platform,
             ZenohIdProto::default(),
             zenoh_protocol::core::WhatAmI::Client,
         );
@@ -140,14 +142,14 @@ impl<T: Platform> SingleLinkClientSession<T> {
         let transport_to_session = TRANSPORT_TO_SESSION.init(Channel::new());
 
         let (link, send_open_syn, recv_open_ack) = tm
-            .open_transport_link_unicast::<T, 256, _, 32, 32>(&endpoint)
-            .await?;
+            .open_transport_link_unicast::<256, _, 32, 32>(&endpoint)
+            .await
+            .context(zctx!("opening transport link"))?;
 
         Ok((
             Self {
                 session_to_transport,
                 transport_to_session,
-                _marker: core::marker::PhantomData,
             },
             SessionRunner {
                 link,

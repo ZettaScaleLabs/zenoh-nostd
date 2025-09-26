@@ -17,3 +17,4 @@ zenoh-result = { workspace = true }
 zenoh-platform = { workspace = true }
 
 zenoh-link-tcp = { workspace = true }
+zenoh-link-ws = { workspace = true }

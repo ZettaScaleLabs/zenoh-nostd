@@ -1,33 +1,28 @@
 use core::net::SocketAddr;
 
-use futures_lite::{AsyncReadExt, AsyncWriteExt};
-
+use embassy_net::tcp::TcpSocket;
+use embedded_io_async::{Read, Write};
 use zenoh_platform::tcp::PlatformTcpStream;
-use zenoh_result::{zctx, WithContext, ZResult};
-use zenoh_result::{zerr, ZE};
+use zenoh_result::{zctx, zerr, WithContext, ZResult, ZE};
 
-pub struct PlatformStdTcpStream {
-    pub socket: async_net::TcpStream,
-    pub mtu: u16,
+pub struct PlatformEmbassyTcpStream {
+    pub socket: TcpSocket<'static>,
+
+    pub local_addr: SocketAddr,
+    pub peer_addr: SocketAddr,
 }
 
-impl PlatformTcpStream for PlatformStdTcpStream {
+impl PlatformTcpStream for PlatformEmbassyTcpStream {
     fn mtu(&self) -> u16 {
-        self.mtu
+        1024
     }
 
     fn local_addr(&self) -> ZResult<SocketAddr> {
-        self.socket
-            .local_addr()
-            .map_err(|_| zerr!(ZE::ConnectionRefused))
-            .context(zctx!("getting local addr of tcp stream"))
+        Ok(self.local_addr)
     }
 
     fn peer_addr(&self) -> ZResult<SocketAddr> {
-        self.socket
-            .peer_addr()
-            .map_err(|_| zerr!(ZE::ConnectionRefused))
-            .context(zctx!("getting peer addr of tcp stream"))
+        Ok(self.peer_addr)
     }
 
     async fn write(&mut self, buffer: &[u8]) -> ZResult<usize> {

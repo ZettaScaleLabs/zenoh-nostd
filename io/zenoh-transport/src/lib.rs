@@ -16,36 +16,35 @@ use crate::unicast::{
 pub mod common;
 pub mod unicast;
 
-#[derive(Debug, Clone)]
-pub struct TransportManager {
+#[derive(Debug)]
+pub struct TransportManager<'a, T: Platform> {
     pub zid: ZenohIdProto,
     pub whatami: WhatAmI,
     pub resolution: Resolution,
     pub batch_size: BatchSize,
     pub batching: bool,
-    pub unicast: TransportManagerUnicast,
+    pub unicast: TransportManagerUnicast<'a, T>,
 }
 
-impl TransportManager {
-    pub fn new(zid: ZenohIdProto, whatami: WhatAmI) -> Self {
+impl<'a, T: Platform> TransportManager<'a, T> {
+    pub fn new(platform: &'a mut T, zid: ZenohIdProto, whatami: WhatAmI) -> Self {
         Self {
             zid,
             whatami,
             resolution: Resolution::default(),
             batch_size: BatchSize::MAX,
             batching: true,
-            unicast: TransportManagerUnicast::new(),
+            unicast: TransportManagerUnicast::new(platform),
         }
     }
 
     pub async fn open_transport_link_unicast<
-        T: Platform,
         const L: usize,
         const N: usize,
         const S: usize,
         const D: usize,
     >(
-        &self,
+        &mut self,
         endpoint: &EndPoint<N>,
     ) -> ZResult<(
         TransportLinkUnicast<T, S, D>,
@@ -53,7 +52,14 @@ impl TransportManager {
         RecvOpenAckOut,
     )> {
         self.unicast
-            .open_transport_link_unicast::<_, L, _, _, _>(endpoint, self)
+            .open_transport_link_unicast::<L, _, _, _>(
+                endpoint,
+                self.batch_size,
+                self.resolution,
+                self.zid,
+                self.whatami,
+                self.unicast.lease,
+            )
             .await
     }
 }
