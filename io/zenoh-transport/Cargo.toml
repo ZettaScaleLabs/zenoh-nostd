@@ -16,6 +16,8 @@ zenoh-result = { workspace = true }
 zenoh-buffers = { workspace = true }
 zenoh-codec = { workspace = true }
 
+zenoh-platform = { workspace = true }
+
 zenoh-link = { workspace = true }
 
 embassy-futures = { workspace = true }

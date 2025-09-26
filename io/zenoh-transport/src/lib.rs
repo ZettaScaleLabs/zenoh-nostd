@@ -1,8 +1,6 @@
-#![cfg_attr(
-    not(any(target_os = "linux", target_os = "macos", target_os = "windows",)),
-    no_std
-)]
+#![no_std]
 
+use zenoh_platform::Platform;
 use zenoh_protocol::{
     core::{EndPoint, Resolution, WhatAmI, ZenohIdProto},
     transport::BatchSize,
@@ -41,6 +39,7 @@ impl TransportManager {
     }
 
     pub async fn open_transport_link_unicast<
+        T: Platform,
         const L: usize,
         const N: usize,
         const S: usize,
@@ -48,9 +47,13 @@ impl TransportManager {
     >(
         &self,
         endpoint: &EndPoint<N>,
-    ) -> ZResult<(TransportLinkUnicast<S, D>, SendOpenSynOut, RecvOpenAckOut)> {
+    ) -> ZResult<(
+        TransportLinkUnicast<T, S, D>,
+        SendOpenSynOut,
+        RecvOpenAckOut,
+    )> {
         self.unicast
-            .open_transport_link_unicast::<L, _, _, _>(endpoint, self)
+            .open_transport_link_unicast::<_, L, _, _, _>(endpoint, self)
             .await
     }
 }

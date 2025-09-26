@@ -14,4 +14,6 @@ version.workspace = true
 zenoh-protocol = { workspace = true }
 zenoh-result = { workspace = true }
 
+zenoh-platform = { workspace = true }
+
 zenoh-link-tcp = { workspace = true }

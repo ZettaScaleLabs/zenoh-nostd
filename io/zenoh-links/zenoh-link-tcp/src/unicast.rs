@@ -5,9 +5,9 @@ use zenoh_platform::tcp::PlatformTcpStream;
 use zenoh_protocol::{core::Locator, transport::BatchSize};
 use zenoh_result::ZResult;
 
-pub struct LinkUnicastTcp<const S: usize, const D: usize> {
+pub struct LinkUnicastTcp<T: PlatformTcpStream, const S: usize, const D: usize> {
     // The underlying socket as returned from the tokio library
-    socket: PlatformTcpStream,
+    socket: T,
     // The source socket address of this link (address used on the local host)
     src_addr: SocketAddr,
     src_locator: Locator<S>,
@@ -16,14 +16,16 @@ pub struct LinkUnicastTcp<const S: usize, const D: usize> {
     dst_locator: Locator<D>,
 }
 
-impl<const S: usize, const D: usize> fmt::Display for LinkUnicastTcp<S, D> {
+impl<T: PlatformTcpStream, const S: usize, const D: usize> fmt::Display
+    for LinkUnicastTcp<T, S, D>
+{
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{} => {}", self.src_addr, self.dst_addr)?;
         Ok(())
     }
 }
 
-impl<const S: usize, const D: usize> fmt::Debug for LinkUnicastTcp<S, D> {
+impl<T: PlatformTcpStream, const S: usize, const D: usize> fmt::Debug for LinkUnicastTcp<T, S, D> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("Tcp")
             .field("src", &self.src_addr)
@@ -33,12 +35,8 @@ impl<const S: usize, const D: usize> fmt::Debug for LinkUnicastTcp<S, D> {
     }
 }
 
-impl<const S: usize, const D: usize> LinkUnicastTcp<S, D> {
-    pub fn new(
-        socket: PlatformTcpStream,
-        src_addr: SocketAddr,
-        dst_addr: SocketAddr,
-    ) -> LinkUnicastTcp<S, D> {
+impl<T: PlatformTcpStream, const S: usize, const D: usize> LinkUnicastTcp<T, S, D> {
+    pub fn new(socket: T, src_addr: SocketAddr, dst_addr: SocketAddr) -> LinkUnicastTcp<T, S, D> {
         let src_address: String<S> = format!("{}", src_addr).unwrap();
         let dst_address: String<D> = format!("{}", dst_addr).unwrap();
 

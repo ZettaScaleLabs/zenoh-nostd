@@ -7,9 +7,6 @@ members = [
     "commons/zenoh-codec",
 
     "platform/zenoh-platform",
-    "platform/zenoh-platforms/zenoh-platform-std",
-    "platform/zenoh-platforms/zenoh-platform-wasm",
-    "platform/zenoh-platforms/zenoh-platform-esp32",
 
     "io/zenoh-link",
     "io/zenoh-links/zenoh-link-tcp",
@@ -17,10 +14,12 @@ members = [
     "io/zenoh-transport",
 
     "zenoh",
-
-    "examples",
 ]
-
+exclude = [
+    "platform/zenoh-platforms/zenoh-platform-std",
+    "platform/zenoh-platforms/zenoh-platform-wasm",
+    "platform/zenoh-platforms/zenoh-platform-esp32",
+]
 resolver = "2"
 
 [workspace.package]
@@ -42,9 +41,6 @@ zenoh-buffers = { version = "1.5.1", path = "commons/zenoh-buffers", default-fea
 zenoh-codec = { version = "1.5.1", path = "commons/zenoh-codec", default-features = false }
 
 zenoh-platform = { version = "1.5.1", path = "platform/zenoh-platform", default-features = false }
-zenoh-platform-std = { version = "1.5.1", path = "platform/zenoh-platforms/zenoh-platform-std", default-features = false }
-zenoh-platform-wasm = { version = "1.5.1", path = "platform/zenoh-platforms/zenoh-platform-wasm", default-features = false }
-zenoh-platform-esp32 = { version = "1.5.1", path = "platform/zenoh-platforms/zenoh-platform-esp32", default-features = false }
 
 zenoh-transport = { path = "io/zenoh-transport", default-features = false }
 
@@ -60,33 +56,10 @@ embassy-time = { version = "0.5.0", default-features = false }
 embassy-futures = { version = "0.1.2", default-features = false }
 embassy-net = { version = "0.7.1", default-features = false }
 
-# Wasm
-wasm-bindgen = "0.2.104"
-web-sys = "0.3.81"
-
-# esp32
-esp-hal-embassy = { git = "https://github.com/esp-rs/esp-hal", features = ["defmt", "esp32s3", "executors"] }
-esp-hal = { git = "https://github.com/esp-rs/esp-hal", features = [
-  "defmt",
-  "esp32s3",
-  "unstable",
-] }
-esp-bootloader-esp-idf = { git = "https://github.com/esp-rs/esp-hal", features = ["esp32s3"] }
-
-# Other dependencies
-async-net = "2.0.0"
-futures-lite = "2.6.1"
-socket2 = { version = "0.5.7", features = ["all"] }
+# Other
 sha3 = { version = "0.10.8", default-features = false }
 heapless = { version = "0.9.1", git = "https://github.com/Hennzau/heapless", branch = "arc-get-mut", default-features = false, features = ["portable-atomic"] }
 paste = "1.0"
 uhlc = { version = "0.8.1", git = "https://github.com/Hennzau/uhlc-rs", branch = "no-alloc", default-features = false }
 const_format = "0.2.34"
-getrandom = { version = "0.2.16", default-features = false }
 static_cell = "2.1.1"
-defmt = "1.0.1"
-defmt-rtt = "1.0.0"
-env_logger = "0.11.8"
-log = "0.4.28"
-
-bitflags = { version = "2.9.4", default-features = false }

@@ -5,6 +5,7 @@ use embassy_time::Timer;
 
 pub use establishment::*;
 use zenoh_link::unicast::LinkManagerUnicast;
+use zenoh_platform::Platform;
 use zenoh_protocol::core::EndPoint;
 use zenoh_result::{zerr, ZResult, ZE};
 
@@ -52,6 +53,7 @@ impl TransportManagerUnicast {
     }
 
     pub async fn open_transport_link_unicast<
+        T: Platform,
         const L: usize,
         const N: usize,
         const S: usize,
@@ -60,12 +62,16 @@ impl TransportManagerUnicast {
         &self,
         endpoint: &EndPoint<N>,
         tm: &TransportManager,
-    ) -> ZResult<(TransportLinkUnicast<S, D>, SendOpenSynOut, RecvOpenAckOut)> {
+    ) -> ZResult<(
+        TransportLinkUnicast<T, S, D>,
+        SendOpenSynOut,
+        RecvOpenAckOut,
+    )> {
         match select(Timer::after(self.open_timeout.try_into().unwrap()), async {
             let lm = LinkManagerUnicast::new(endpoint)?;
             let link = lm.new_link(endpoint).await?;
 
-            establishment::open::open_link::<L, _, _>(link, tm).await
+            establishment::open::open_link::<_, L, _, _>(link, tm).await
         })
         .await
         {

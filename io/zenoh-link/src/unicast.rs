@@ -1,14 +1,15 @@
 use zenoh_link_tcp::{manager::LinkManagerUnicastTcp, unicast::LinkUnicastTcp};
+use zenoh_platform::Platform;
 use zenoh_protocol::core::EndPoint;
 use zenoh_result::{bail, ZResult, ZE};
 
 use crate::LinkKind;
 
-pub enum LinkUnicast<const S: usize, const D: usize> {
-    LinkUnicastTcp(LinkUnicastTcp<S, D>),
+pub enum LinkUnicast<T: Platform, const S: usize, const D: usize> {
+    LinkUnicastTcp(LinkUnicastTcp<T::PlatformTcpStream, S, D>),
 }
 
-impl<const S: usize, const D: usize> LinkUnicast<S, D> {
+impl<T: Platform, const S: usize, const D: usize> LinkUnicast<T, S, D> {
     pub fn is_streamed(&self) -> bool {
         match self {
             Self::LinkUnicastTcp(tcp) => tcp.is_streamed(),
@@ -46,15 +47,15 @@ impl<const S: usize, const D: usize> LinkUnicast<S, D> {
     }
 }
 
-pub enum LinkManagerUnicast {
-    LinkManagerUnicastTcp(LinkManagerUnicastTcp),
+pub enum LinkManagerUnicast<T: Platform> {
+    LinkManagerUnicastTcp(LinkManagerUnicastTcp<T::PlatformTcpStream>),
 }
 
-impl LinkManagerUnicast {
+impl<T: Platform> LinkManagerUnicast<T> {
     pub fn new<const N: usize>(endpoint: &EndPoint<N>) -> ZResult<Self> {
         match LinkKind::try_from(endpoint)? {
             LinkKind::Tcp => Ok(LinkManagerUnicast::LinkManagerUnicastTcp(
-                LinkManagerUnicastTcp::new(),
+                LinkManagerUnicastTcp::default(),
             )),
             _ => bail!(ZE::InvalidProtocol),
         }
@@ -63,7 +64,7 @@ impl LinkManagerUnicast {
     pub async fn new_link<const N: usize, const S: usize, const D: usize>(
         &self,
         endpoint: &EndPoint<N>,
-    ) -> ZResult<LinkUnicast<S, D>> {
+    ) -> ZResult<LinkUnicast<T, S, D>> {
         match self {
             Self::LinkManagerUnicastTcp(lm) => {
                 let link = lm.new_link(endpoint).await?;

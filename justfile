@@ -35,15 +35,15 @@ release-esp:
 release: release-std release-wasm release-esp
 
 test-std:
-    cargo check --examples
+    cd platform/zenoh-platforms/zenoh-platform-std && cargo check --examples
 
 test-wasm:
-    cargo check --examples --target wasm32-unknown-unknown
+    cd platform/zenoh-platforms/zenoh-platform-wasm && cargo check --examples --target wasm32-unknown-unknown
 
 test-esp:
-    cargo +esp check --examples -Zbuild-std=core,alloc --target xtensa-esp32-none-elf
+    cd platform/zenoh-platforms/zenoh-platform-esp && cargo +esp check --examples -Zbuild-std=core,alloc --target xtensa-esp32-none-elf
 
 test: test-std test-wasm test-esp
 
 run-std:
-    cargo run --example z_put
+    cd platform/zenoh-platforms/zenoh-platform-std && cargo run --example z_put

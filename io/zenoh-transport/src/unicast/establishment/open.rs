@@ -2,6 +2,7 @@ use core::time::Duration;
 
 use zenoh_buffers::zslice::ZSlice;
 use zenoh_link::unicast::LinkUnicast;
+use zenoh_platform::Platform;
 use zenoh_protocol::{
     core::{Field, Resolution, WhatAmI, ZenohIdProto},
     transport::{
@@ -34,9 +35,9 @@ pub struct SendInitSynIn {
 }
 
 impl SendInitSynIn {
-    pub async fn send<const N: usize, const S: usize, const D: usize>(
+    pub async fn send<T: Platform, const N: usize, const S: usize, const D: usize>(
         &self,
-        link: &mut TransportLinkUnicast<S, D>,
+        link: &mut TransportLinkUnicast<T, S, D>,
         state: &StateTransport,
     ) -> ZResult<()> {
         let msg: TransportMessage = InitSyn {
@@ -69,8 +70,8 @@ pub struct RecvInitAckOut {
 }
 
 impl RecvInitAckOut {
-    pub async fn recv<const N: usize, const S: usize, const D: usize>(
-        link: &mut TransportLinkUnicast<S, D>,
+    pub async fn recv<T: Platform, const N: usize, const S: usize, const D: usize>(
+        link: &mut TransportLinkUnicast<T, S, D>,
         state: &mut StateTransport,
     ) -> ZResult<Self> {
         let msg = link.recv::<N>().await?;
@@ -124,9 +125,9 @@ pub struct SendOpenSynIn {
 }
 
 impl SendOpenSynIn {
-    pub async fn send<const N: usize, const S: usize, const D: usize>(
+    pub async fn send<T: Platform, const N: usize, const S: usize, const D: usize>(
         &self,
-        link: &mut TransportLinkUnicast<S, D>,
+        link: &mut TransportLinkUnicast<T, S, D>,
         state: &StateTransport,
     ) -> ZResult<SendOpenSynOut> {
         let mine_initial_sn = compute_sn(self.mine_zid, self.other_zid, state.resolution);
@@ -162,8 +163,8 @@ pub struct RecvOpenAckOut {
 }
 
 impl RecvOpenAckOut {
-    pub async fn recv<const N: usize, const S: usize, const D: usize>(
-        link: &mut TransportLinkUnicast<S, D>,
+    pub async fn recv<T: Platform, const N: usize, const S: usize, const D: usize>(
+        link: &mut TransportLinkUnicast<T, S, D>,
     ) -> ZResult<Self> {
         let msg = link.recv::<N>().await?;
 
@@ -181,10 +182,14 @@ impl RecvOpenAckOut {
     }
 }
 
-pub async fn open_link<const N: usize, const S: usize, const D: usize>(
-    link: LinkUnicast<S, D>,
+pub async fn open_link<T: Platform, const N: usize, const S: usize, const D: usize>(
+    link: LinkUnicast<T, S, D>,
     tm: &TransportManager,
-) -> ZResult<(TransportLinkUnicast<S, D>, SendOpenSynOut, RecvOpenAckOut)> {
+) -> ZResult<(
+    TransportLinkUnicast<T, S, D>,
+    SendOpenSynOut,
+    RecvOpenAckOut,
+)> {
     let is_streamed = link.is_streamed();
 
     let config = TransportLinkUnicastConfig {
@@ -208,8 +213,8 @@ pub async fn open_link<const N: usize, const S: usize, const D: usize>(
         mine_whatami: tm.whatami,
     };
 
-    isyn_in.send::<N, _, _>(&mut link, &state).await?;
-    let iack_out = RecvInitAckOut::recv::<N, _, _>(&mut link, &mut state).await?;
+    isyn_in.send::<_, N, _, _>(&mut link, &state).await?;
+    let iack_out = RecvInitAckOut::recv::<_, N, _, _>(&mut link, &mut state).await?;
 
     // Open handshake
     let osyn_in = SendOpenSynIn {
@@ -218,8 +223,8 @@ pub async fn open_link<const N: usize, const S: usize, const D: usize>(
         mine_lease: tm.unicast.lease,
         other_cookie: iack_out.other_cookie.clone(),
     };
-    let osyn_out = osyn_in.send::<N, _, _>(&mut link, &state).await?;
-    let oack_out = RecvOpenAckOut::recv::<N, _, _>(&mut link).await?;
+    let osyn_out = osyn_in.send::<_, N, _, _>(&mut link, &state).await?;
+    let oack_out = RecvOpenAckOut::recv::<_, N, _, _>(&mut link).await?;
 
     let o_config = TransportLinkUnicastConfig {
         mtu: state.batch_size,

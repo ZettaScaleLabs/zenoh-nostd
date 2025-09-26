@@ -1,21 +1,28 @@
 [package]
 name = "zenoh-platform-std"
-authors.workspace = true
-categories.workspace = true
-description.workspace = true
-edition.workspace = true
-homepage.workspace = true
-license.workspace = true
-repository.workspace = true
-rust-version.workspace = true
-version.workspace = true
+authors = []
+categories = ["network-programming"]
+description = "Zenoh: The Zero Overhead Pub/Sub/Query Protocol."
+edition = "2021"
+homepage = "http://zenoh.io"
+license = "EPL-2.0 OR Apache-2.0"
+repository = "https://github.com/eclipse-zenoh/zenoh"
+rust-version = "1.75.0"
+version = "1.5.1"
 
 [dependencies]
-zenoh-result = { workspace = true }
+async-net = "2.0.0"
+futures-lite = "2.6.1"
+log = "0.4.28"
+socket2 = { version = "0.5.7", features = ["all"] }
 
-async-net = { workspace = true }
-futures-lite = { workspace = true }
-socket2 = { workspace = true }
+zenoh-result = { version = "1.5.1", path = "../../../commons/zenoh-result" }
+zenoh-platform = { version = "1.5.1", path = "../../zenoh-platform" }
 
-env_logger = { workspace = true }
-log = { workspace = true }
+[dev-dependencies]
+env_logger = "0.11.8"
+
+zenoh = { version = "1.5.1", path = "../../../zenoh" }
+
+embassy-executor = { version = "0.9.0", features = ["executor-thread", "arch-std"] }
+embassy-time = { version = "0.5.0", features = ["std"] }

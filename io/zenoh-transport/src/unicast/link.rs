@@ -5,6 +5,7 @@ use zenoh_buffers::{
 };
 use zenoh_codec::{RCodec, WCodec, Zenoh080};
 use zenoh_link::unicast::LinkUnicast;
+use zenoh_platform::Platform;
 use zenoh_protocol::transport::{BatchSize, TransportMessage};
 use zenoh_result::{zerr, ZResult, ZE};
 
@@ -20,15 +21,15 @@ pub struct TransportLinkUnicastConfig {
     pub(crate) is_streamed: bool,
 }
 
-pub struct TransportLinkUnicast<const S: usize, const D: usize> {
-    pub link: LinkUnicast<S, D>,
+pub struct TransportLinkUnicast<T: Platform, const S: usize, const D: usize> {
+    pub link: LinkUnicast<T, S, D>,
     pub config: TransportLinkUnicastConfig,
 
     pub(crate) codec: Zenoh080,
 }
 
-impl<const S: usize, const D: usize> TransportLinkUnicast<S, D> {
-    pub fn new(link: LinkUnicast<S, D>, config: TransportLinkUnicastConfig) -> Self {
+impl<T: Platform, const S: usize, const D: usize> TransportLinkUnicast<T, S, D> {
+    pub fn new(link: LinkUnicast<T, S, D>, config: TransportLinkUnicastConfig) -> Self {
         Self {
             link,
             config,

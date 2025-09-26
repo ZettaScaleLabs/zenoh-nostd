@@ -1,4 +1,3 @@
-use embassy_executor::Spawner;
 use embassy_futures::select::select;
 
 use embassy_sync::{blocking_mutex::raw::NoopRawMutex, channel::Channel};
@@ -11,13 +10,14 @@ use zenoh_buffers::{
     zunsafe_arc_pool_init,
 };
 use zenoh_codec::{WCodec, Zenoh080};
+use zenoh_platform::Platform;
 use zenoh_protocol::{
     core::{key_expr::keyexpr, Encoding, EndPoint, WireExpr, ZenohIdProto},
     network::{ext::NodeIdType, push::Push, NetworkBody, NetworkMessage},
     transport::{ext::QoSType, Frame, KeepAlive, TransportMessage},
     zenoh::{PushBody, Put},
 };
-use zenoh_result::{bail, zerr, ZResult, ZE};
+use zenoh_result::{bail, ZResult, ZE};
 use zenoh_transport::{
     unicast::{
         link::TransportLinkUnicast,
@@ -26,88 +26,86 @@ use zenoh_transport::{
     TransportManager,
 };
 
-pub struct SingleLinkClientSession {
-    session_to_transport: &'static Channel<NoopRawMutex, NetworkMessage, 8>,
-    transport_to_session: &'static Channel<NoopRawMutex, TransportMessage, 8>,
-}
+pub struct SessionRunner<T: Platform> {
+    link: TransportLinkUnicast<T, 32, 32>,
 
-#[embassy_executor::task]
-async fn link_task(
-    link: TransportLinkUnicast<32, 32>,
     send_open_syn: SendOpenSynOut,
     recv_open_ack: RecvOpenAckOut,
     tm: TransportManager,
 
     session_to_transport: &'static Channel<NoopRawMutex, NetworkMessage, 8>,
     transport_to_session: &'static Channel<NoopRawMutex, TransportMessage, 8>,
-) {
-    let mut sn = send_open_syn.mine_initial_sn + 1;
+}
 
-    let mut link = link;
-    let keep_alive_timeout = tm.unicast.lease / (tm.unicast.keep_alive as u32);
-    let other_lease = recv_open_ack.other_lease;
+impl<T: Platform> SessionRunner<T> {
+    pub async fn run(&mut self) {
+        let mut sn = self.send_open_syn.mine_initial_sn + 1;
 
-    let mut last_read_time = embassy_time::Instant::now();
-    let mut last_write_time = embassy_time::Instant::now();
+        let keep_alive_timeout = self.tm.unicast.lease / (self.tm.unicast.keep_alive as u32);
+        let other_lease = self.recv_open_ack.other_lease;
 
-    'main: loop {
-        let read_lease = Timer::at(last_read_time + other_lease.try_into().unwrap());
-        let write_lease = Timer::at(last_write_time + keep_alive_timeout.try_into().unwrap());
+        let mut last_read_time = embassy_time::Instant::now();
+        let mut last_write_time = embassy_time::Instant::now();
 
-        match select(
-            select(read_lease, link.recv::<256>()),
-            select(write_lease, session_to_transport.receive()),
-        )
-        .await
-        {
-            embassy_futures::select::Either::First(read_task) => {
-                last_read_time = embassy_time::Instant::now();
+        'main: loop {
+            let read_lease = Timer::at(last_read_time + other_lease.try_into().unwrap());
+            let write_lease = Timer::at(last_write_time + keep_alive_timeout.try_into().unwrap());
 
-                match read_task {
-                    embassy_futures::select::Either::First(_) => {
-                        break 'main;
-                    }
-                    embassy_futures::select::Either::Second(msg) => match msg {
-                        Ok(msg) => {
-                            transport_to_session.send(msg).await;
-                        }
-                        Err(_) => {
+            match select(
+                select(read_lease, self.link.recv::<256>()),
+                select(write_lease, self.session_to_transport.receive()),
+            )
+            .await
+            {
+                embassy_futures::select::Either::First(read_task) => {
+                    last_read_time = embassy_time::Instant::now();
+
+                    match read_task {
+                        embassy_futures::select::Either::First(_) => {
                             break 'main;
                         }
-                    },
+                        embassy_futures::select::Either::Second(msg) => match msg {
+                            Ok(msg) => {
+                                self.transport_to_session.send(msg).await;
+                            }
+                            Err(_) => {
+                                break 'main;
+                            }
+                        },
+                    }
                 }
-            }
-            embassy_futures::select::Either::Second(write_task) => {
-                last_write_time = embassy_time::Instant::now();
+                embassy_futures::select::Either::Second(write_task) => {
+                    last_write_time = embassy_time::Instant::now();
 
-                match write_task {
-                    embassy_futures::select::Either::First(_) => {
-                        if let Err(_) = link.send::<32>(&KeepAlive.into()).await {
-                            break 'main;
+                    match write_task {
+                        embassy_futures::select::Either::First(_) => {
+                            if let Err(_) = self.link.send::<32>(&KeepAlive.into()).await {
+                                break 'main;
+                            }
                         }
-                    }
-                    embassy_futures::select::Either::Second(msg) => {
-                        let mut payload: Vec<u8, 64> = zenoh_buffers::vec::empty();
-                        let mut writer = payload.writer();
-                        let codec = Zenoh080::new();
-                        codec.write(&mut writer, &msg).unwrap();
+                        embassy_futures::select::Either::Second(msg) => {
+                            let mut payload: Vec<u8, 64> = zenoh_buffers::vec::empty();
+                            let mut writer = payload.writer();
+                            let codec = Zenoh080::new();
+                            codec.write(&mut writer, &msg).unwrap();
 
-                        let Ok(slice) = payload.try_into() else {
-                            break 'main;
-                        };
+                            let Ok(slice) = payload.try_into() else {
+                                break 'main;
+                            };
 
-                        let frame = Frame {
-                            reliability: msg.reliability,
-                            sn,
-                            ext_qos: QoSType::DEFAULT,
-                            payload: slice,
-                        };
+                            let frame = Frame {
+                                reliability: msg.reliability,
+                                sn,
+                                ext_qos: QoSType::DEFAULT,
+                                payload: slice,
+                            };
 
-                        if let Err(_) = link.send::<64>(&frame.into()).await {
-                            break 'main;
+                            if let Err(_) = self.link.send::<64>(&frame.into()).await {
+                                break 'main;
+                            }
+
+                            sn += 1;
                         }
-
-                        sn += 1;
                     }
                 }
             }
@@ -115,8 +113,15 @@ async fn link_task(
     }
 }
 
-impl SingleLinkClientSession {
-    pub async fn open(endpoint: EndPoint<32>, spawner: Spawner) -> ZResult<Self> {
+pub struct SingleLinkClientSession<T: Platform> {
+    session_to_transport: &'static Channel<NoopRawMutex, NetworkMessage, 8>,
+    transport_to_session: &'static Channel<NoopRawMutex, TransportMessage, 8>,
+
+    _marker: core::marker::PhantomData<T>,
+}
+
+impl<T: Platform> SingleLinkClientSession<T> {
+    pub async fn open(endpoint: EndPoint<32>) -> ZResult<(Self, SessionRunner<T>)> {
         let tm = TransportManager::new(
             ZenohIdProto::default(),
             zenoh_protocol::core::WhatAmI::Client,
@@ -135,24 +140,24 @@ impl SingleLinkClientSession {
         let transport_to_session = TRANSPORT_TO_SESSION.init(Channel::new());
 
         let (link, send_open_syn, recv_open_ack) = tm
-            .open_transport_link_unicast::<256, _, 32, 32>(&endpoint)
+            .open_transport_link_unicast::<T, 256, _, 32, 32>(&endpoint)
             .await?;
 
-        spawner
-            .spawn(link_task(
+        Ok((
+            Self {
+                session_to_transport,
+                transport_to_session,
+                _marker: core::marker::PhantomData,
+            },
+            SessionRunner {
                 link,
                 send_open_syn,
                 recv_open_ack,
                 tm,
                 session_to_transport,
                 transport_to_session,
-            ))
-            .map_err(|_| zerr!(ZE::Failed))?;
-
-        Ok(SingleLinkClientSession {
-            session_to_transport,
-            transport_to_session,
-        })
+            },
+        ))
     }
 
     pub async fn read(&mut self) -> ZResult<()> {
