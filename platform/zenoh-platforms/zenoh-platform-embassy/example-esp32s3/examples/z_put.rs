@@ -1,10 +1,10 @@
 #![no_std]
 #![no_main]
 
-use embassy_sync::blocking_mutex::Mutex;
 use embassy_sync::blocking_mutex::raw::CriticalSectionRawMutex;
+use embassy_sync::blocking_mutex::Mutex;
 use esp_hal::rng::Rng;
-use getrandom::{Error, register_custom_getrandom};
+use getrandom::{register_custom_getrandom, Error};
 
 use core::num::NonZeroU32;
 use core::str::FromStr;
@@ -16,11 +16,11 @@ use esp_hal::clock::CpuClock;
 use esp_hal::timer::systimer::SystemTimer;
 use esp_hal::timer::timg::TimerGroup;
 use esp_println as _;
-use zenoh::{EndPoint, keyexpr};
+use zenoh::{keyexpr, EndPoint};
 
 use esp_wifi::{
-    EspWifiController,
     wifi::{ClientConfiguration, Configuration, WifiController, WifiDevice, WifiEvent, WifiState},
+    EspWifiController,
 };
 use static_cell::StaticCell;
 use zenoh::api::session::SessionRunner;
@@ -68,17 +68,12 @@ async fn main(spawner: Spawner) {
     static PLATFORM: StaticCell<PlatformEmbassy> = StaticCell::new();
     let platform = PLATFORM.init(PlatformEmbassy { stack: net_stack });
 
-    let result = zenoh::api::session::SingleLinkClientSession::open(
+    let (mut session, runner) = zenoh::api::session::SingleLinkClientSession::open(
         platform,
         EndPoint::from_str("tcp/192.168.1.23:7447").unwrap(),
     )
-    .await;
-
-    if let Err(e) = &result {
-        esp_println::println!("Failed to open session: {:?}", e);
-    }
-
-    let (mut session, runner) = result.unwrap();
+    .await
+    .unwrap();
 
     defmt::info!("Session initialized!");
 
