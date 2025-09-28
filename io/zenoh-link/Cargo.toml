@@ -10,15 +10,11 @@ repository.workspace = true
 rust-version.workspace = true
 version.workspace = true
 
-[features]
-default = ["arch-std"]
-
-arch-std = ["zenoh-link-tcp/arch-std"]
-
 [dependencies]
 zenoh-protocol = { workspace = true }
 zenoh-result = { workspace = true }
 
-zenoh-link-commons = { workspace = true }
+zenoh-platform = { workspace = true }
 
 zenoh-link-tcp = { workspace = true }
+zenoh-link-ws = { workspace = true }

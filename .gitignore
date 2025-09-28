@@ -25,3 +25,8 @@ target
 
 # Zed
 .zed
+
+# Wasm
+*.wasm
+*.ts
+*.js

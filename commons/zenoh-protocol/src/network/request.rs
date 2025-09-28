@@ -1,0 +1,103 @@
+use core::sync::atomic::AtomicU32;
+
+// use crate::{core::WireExpr, zenoh::RequestBody};
+
+/// The resolution of a RequestId
+pub type RequestId = u32;
+pub type AtomicRequestId = AtomicU32;
+
+pub mod flag {
+    pub const N: u8 = 1 << 5; // 0x20 Named         if N==1 then the key expr has name/suffix
+    pub const M: u8 = 1 << 6; // 0x40 Mapping       if M==1 then key expr mapping is the one declared by the sender, else it is the one declared by the receiver
+    pub const Z: u8 = 1 << 7; // 0x80 Extensions    if Z==1 then an extension will follow
+}
+
+/// # Request message
+///
+/// ```text
+/// Flags:
+/// - N: Named          if N==1 then the key expr has name/suffix
+/// - M: Mapping        if M==1 then key expr mapping is the one declared by the sender, else it is the one declared by the receiver
+/// - Z: Extension      if Z==1 then at least one extension is present
+///
+///  7 6 5 4 3 2 1 0
+/// +-+-+-+-+-+-+-+-+
+/// |Z|M|N| Request |
+/// +-+-+-+---------+
+/// ~ request_id:z32~  (*)
+/// +---------------+
+/// ~ key_scope:z16 ~
+/// +---------------+
+/// ~  key_suffix   ~  if N==1 -- <u8;z16>
+/// +---------------+
+/// ~   [req_exts]  ~  if Z==1
+/// +---------------+
+/// ~  RequestBody  ~  -- Payload
+/// +---------------+
+///
+/// (*) The resolution of the request id is negotiated during the session establishment.
+///     This implementation limits the resolution to 32bit.
+/// ```
+// #[derive(Debug, Clone, PartialEq, Eq)]
+// pub struct Request {
+//     pub id: RequestId,
+//     pub wire_expr: WireExpr<'static>,
+//     pub ext_qos: ext::QoSType,
+//     pub ext_tstamp: Option<ext::TimestampType>,
+//     pub ext_nodeid: ext::NodeIdType,
+//     pub ext_target: ext::QueryTarget,
+//     pub ext_budget: Option<ext::BudgetType>,
+//     pub ext_timeout: Option<ext::TimeoutType>,
+//     pub payload: RequestBody,
+// }
+
+pub mod ext {
+    use core::{num::NonZeroU32, time::Duration};
+
+    use crate::{
+        common::{ZExtZ64, ZExtZBuf},
+        zextz64, zextzbuf,
+    };
+
+    pub type QoS = zextz64!(0x1, false);
+    pub type QoSType = crate::network::ext::QoSType<{ QoS::ID }>;
+
+    pub type Timestamp = zextzbuf!(0x2, 1, 16, false);
+    pub type TimestampType = crate::network::ext::TimestampType<{ Timestamp::ID }>;
+
+    pub type NodeId = zextz64!(0x3, true);
+    pub type NodeIdType = crate::network::ext::NodeIdType<{ NodeId::ID }>;
+
+    pub type Target = zextz64!(0x4, true);
+    // ```text
+    // - Target (0x03)
+    //  7 6 5 4 3 2 1 0
+    // +-+-+-+-+-+-+-+-+
+    // %     target    %
+    // +---------------+
+    // ```
+    // The `zenoh::queryable::Queryable`s that should be target of a `zenoh::Session::get()`.
+    #[repr(u8)]
+    #[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
+    pub enum QueryTarget {
+        /// Let Zenoh find the BestMatching queryable capabale of serving the query.
+        #[default]
+        BestMatching,
+        /// Deliver the query to all queryables matching the query's key expression.
+        All,
+        /// Deliver the query to all queryables matching the query's key expression that are declared as complete.
+        AllComplete,
+    }
+
+    impl QueryTarget {
+        pub const DEFAULT: Self = Self::BestMatching;
+    }
+
+    // The maximum number of responses
+    pub type Budget = zextz64!(0x5, false);
+    pub type BudgetType = NonZeroU32;
+
+    // The timeout of the request
+    pub type Timeout = zextz64!(0x6, false);
+    pub type TimeoutType = Duration;
+}

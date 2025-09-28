@@ -1,0 +1,29 @@
+[package]
+name = "zenoh"
+authors.workspace = true
+categories.workspace = true
+description.workspace = true
+edition.workspace = true
+homepage.workspace = true
+license.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+version.workspace = true
+
+[dependencies]
+zenoh-result = { workspace = true }
+zenoh-buffers = { workspace = true }
+zenoh-codec = { workspace = true }
+zenoh-protocol = { workspace = true }
+
+zenoh-platform = { workspace = true }
+
+zenoh-transport = { workspace = true }
+
+embassy-executor = { workspace = true }
+embassy-futures = { workspace = true }
+embassy-time = { workspace = true }
+embassy-sync = { workspace = true }
+
+heapless = { workspace = true }
+static_cell = { workspace = true }

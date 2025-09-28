@@ -1,0 +1,19 @@
+[package]
+name = "zenoh-link-ws"
+authors.workspace = true
+categories.workspace = true
+description.workspace = true
+edition.workspace = true
+homepage.workspace = true
+license.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+version.workspace = true
+
+[dependencies]
+zenoh-protocol = { workspace = true }
+zenoh-result = { workspace = true }
+
+zenoh-platform = { workspace = true }
+
+heapless = { workspace = true }
