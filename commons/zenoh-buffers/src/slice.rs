@@ -6,7 +6,7 @@ use core::{
     slice::{self},
 };
 
-use zenoh_result::{bail, zerr, ZResult, ZE};
+use zenoh_result::{bail, zctx, zerr, WithContext, ZResult, ZE};
 
 use crate::{
     buffer::{Buffer, SplitBuffer},
@@ -126,7 +126,7 @@ impl HasReader for &[u8] {
 impl Reader for &[u8] {
     fn read(&mut self, into: &mut [u8]) -> ZResult<NonZeroUsize> {
         let Some(len) = NonZeroUsize::new(self.len().min(into.len())) else {
-            bail!(ZE::DidntRead);
+            bail!(ZE::DidntRead)
         };
         let (to_write, remain) = self.split_at(len.get());
         into[..len.get()].copy_from_slice(to_write);
@@ -154,7 +154,7 @@ impl Reader for &[u8] {
         len: usize,
         mut f: F,
     ) -> ZResult<()> {
-        let zslice = self.read_zslice::<N>(len)?;
+        let zslice = self.read_zslice::<N>(len).context(zctx!("read_zslices"))?;
         f(zslice);
         Ok(())
     }
@@ -177,7 +177,7 @@ impl Reader for &[u8] {
 
     fn read_u8(&mut self) -> ZResult<u8> {
         let mut buf = [0; 1];
-        self.read(&mut buf)?;
+        self.read(&mut buf).context(zctx!("reading u8"))?;
         Ok(buf[0])
     }
 

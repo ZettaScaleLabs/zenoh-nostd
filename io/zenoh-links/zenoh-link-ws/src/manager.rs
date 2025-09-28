@@ -15,10 +15,10 @@ impl<'a, T: Platform> LinkManagerUnicastWs<'a, T> {
         Self { platform }
     }
 
-    pub async fn new_link<const N: usize, const S: usize, const D: usize>(
+    pub async fn new_link<const N: usize, const D: usize>(
         &mut self,
         endpoint: &EndPoint<N>,
-    ) -> ZResult<LinkUnicastWS<T::PlatformWSStream, S, D>> {
+    ) -> ZResult<LinkUnicastWS<T::PlatformWSStream, D>> {
         let dst_addr = SocketAddr::from_str(endpoint.address().as_str())
             .map_err(|_| zerr!(ZE::InvalidAddress))?;
 
@@ -34,14 +34,10 @@ impl<'a, T: Platform> LinkManagerUnicastWs<'a, T> {
             .await
             .context(zctx!("creating new platform WS stream"))?;
 
-        let src_addr = stream
-            .local_addr()
-            .context(zctx!("getting local addr from WS stream"))?;
-
         let dst_addr = stream
             .peer_addr()
             .context(zctx!("getting peer addr from WS stream"))?;
 
-        Ok(LinkUnicastWS::new(stream, src_addr, dst_addr))
+        Ok(LinkUnicastWS::new(stream, dst_addr))
     }
 }

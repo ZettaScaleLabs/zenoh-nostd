@@ -3,10 +3,6 @@ use core::{future::Future, net::SocketAddr};
 use zenoh_result::ZResult;
 
 pub trait PlatformWSStream {
-    fn connect(addr: &SocketAddr) -> impl Future<Output = ZResult<Self>>
-    where
-        Self: Sized;
-
     fn mtu(&self) -> u16;
 
     fn local_addr(&self) -> ZResult<SocketAddr>;
@@ -25,10 +21,6 @@ pub trait PlatformWSStream {
 pub struct DummyPlatformWSStream;
 
 impl PlatformWSStream for DummyPlatformWSStream {
-    fn connect(_addr: &SocketAddr) -> impl Future<Output = ZResult<Self>> {
-        async { Err(zenoh_result::zerr!(zenoh_result::ZE::UnsupportedPlatform)) }
-    }
-
     fn mtu(&self) -> u16 {
         0
     }

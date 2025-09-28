@@ -1746,6 +1746,7 @@ dependencies = [
 name = "zenoh-platform"
 version = "1.5.1"
 dependencies = [
+ "embassy-executor",
  "zenoh-result",
 ]
 
@@ -1758,6 +1759,7 @@ dependencies = [
  "embassy-time",
  "futures-lite",
  "getrandom 0.3.3",
+ "static_cell",
  "wasm-bindgen",
  "web-sys",
  "zenoh",
