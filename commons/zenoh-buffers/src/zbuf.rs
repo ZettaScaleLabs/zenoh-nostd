@@ -1,7 +1,7 @@
 use core::{cmp, num::NonZeroUsize, ptr::NonNull};
 
 use heapless::Vec;
-use zenoh_result::{bail, zerr, ZError, ZResult, ZE};
+use zenoh_result::{bail, zctx, zerr, WithContext, ZError, ZResult, ZE};
 
 use crate::{
     buffer::{Buffer, SplitBuffer},
@@ -45,7 +45,8 @@ impl<const N: usize, const L: usize> ZBuf<N, L> {
         if !zslice.is_empty() {
             self.slices
                 .push(zslice)
-                .map_err(|_| zerr!(ZE::CapacityExceeded))?;
+                .map_err(|_| zerr!(ZE::CapacityExceeded))
+                .context(zctx!("Cannot push ZSlice into ZBuf"))?;
         }
 
         Ok(())
@@ -141,7 +142,8 @@ impl<const N: usize, const L: usize> TryFrom<ZSlice> for ZBuf<N, L> {
     type Error = ZError;
     fn try_from(t: ZSlice) -> ZResult<Self> {
         let mut zbuf = ZBuf::empty();
-        zbuf.push_zslice(t)?;
+        zbuf.push_zslice(t)
+            .context(zctx!("Cannot convert ZSlice into ZBuf"))?;
 
         Ok(zbuf)
     }
@@ -151,7 +153,9 @@ impl<const N: usize, const L: usize> TryFrom<Vec<u8, L>> for ZBuf<N, L> {
     type Error = ZError;
 
     fn try_from(t: Vec<u8, L>) -> ZResult<Self> {
-        let zslice: ZSlice = t.try_into()?;
+        let zslice: ZSlice = t
+            .try_into()
+            .context(zctx!("Cannot convert Vec into ZSlice"))?;
 
         Self::try_from(zslice)
     }
@@ -277,7 +281,8 @@ impl<const N: usize, const L: usize> Reader for ZBufReader<'_, N, L> {
                 let mut buffer = crate::vec::empty::<L>();
                 buffer
                     .resize(len, 0)
-                    .map_err(|_| zerr!(ZE::CapacityExceeded))?;
+                    .map_err(|_| zerr!(ZE::CapacityExceeded))
+                    .context(zctx!("Cannot resize buffer"))?;
 
                 Reader::read(self, &mut buffer)?;
                 Ok(buffer.try_into()?)
@@ -307,7 +312,10 @@ impl<const N: usize, const L: usize> Reader for ZBufReader<'_, N, L> {
             .get(self.cursor.slice)
             .ok_or(zerr!(ZE::DidntRead))?;
 
-        let byte = *slice.get(self.cursor.byte).ok_or(zerr!(ZE::DidntRead))?;
+        let byte = *slice
+            .get(self.cursor.byte)
+            .ok_or(zerr!(ZE::DidntRead))
+            .context(zctx!("Cannot read u8"))?;
         self.cursor.byte += 1;
         if self.cursor.byte == slice.len() {
             self.cursor.slice += 1;
@@ -358,11 +366,15 @@ impl<const N: usize, const L: usize> SiphonableReader for ZBufReader<'_, N, L> {
                     }
                 }
                 Err(_) => {
-                    return NonZeroUsize::new(read).ok_or(zerr!(ZE::DidntSiphon));
+                    return NonZeroUsize::new(read).ok_or(
+                        zerr!(ZE::DidntSiphon)
+                            .context(zctx!("Cannot siphon from ZBufReader to Writer")),
+                    );
                 }
             }
         }
-        NonZeroUsize::new(read).ok_or(zerr!(ZE::DidntSiphon))
+        NonZeroUsize::new(read)
+            .ok_or(zerr!(ZE::DidntSiphon).context(zctx!("Cannot siphon from ZBufReader to Writer")))
     }
 }
 
@@ -402,14 +414,15 @@ impl<const N: usize, const L: usize> AdvanceableReader for ZBufReader<'_, N, L> 
                     .inner
                     .slices
                     .get(self.cursor.slice)
-                    .ok_or(zerr!(ZE::DidntRead))?
+                    .ok_or(zerr!(ZE::DidntRead))
+                    .context(zctx!("Cannot backtrack ZBufReader"))?
                     .len();
             }
         }
         if remaining_offset == 0 {
             Ok(())
         } else {
-            Err(zerr!(ZE::DidntRead))
+            Err(zerr!(ZE::DidntRead)).context(zctx!("Cannot backtrack ZBufReader"))
         }
     }
 }

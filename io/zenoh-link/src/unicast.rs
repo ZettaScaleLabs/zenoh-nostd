@@ -8,7 +8,7 @@ use crate::LinkKind;
 
 pub enum LinkUnicast<T: Platform, const S: usize, const D: usize> {
     LinkUnicastTcp(LinkUnicastTcp<T::PlatformTcpStream, S, D>),
-    LinkUnicastWS(LinkUnicastWS<T::PlatformWSStream, S, D>),
+    LinkUnicastWS(LinkUnicastWS<T::PlatformWSStream, D>),
 }
 
 impl<T: Platform, const S: usize, const D: usize> LinkUnicast<T, S, D> {

@@ -34,8 +34,11 @@ release-esp:
 
 release: release-std release-wasm release-esp
 
-run-std:
+z_put-std:
     cd platform/zenoh-platforms/zenoh-platform-std && cargo run --example z_put
 
-run-esp:
+z_put-wasm:
+    cd platform/zenoh-platforms/zenoh-platform-wasm && just run_z_put
+
+z_put-esp:
     cd platform/zenoh-platforms/zenoh-platform-embassy/example-esp32s3 && cargo run --example z_put

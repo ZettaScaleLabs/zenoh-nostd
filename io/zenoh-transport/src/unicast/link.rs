@@ -77,7 +77,7 @@ impl<T: Platform, const S: usize, const D: usize> TransportLinkUnicast<T, S, D> 
 
             self.link.read_exact(&mut slice.as_mut_slice()[..l]).await?;
         } else {
-            self.link.read_exact(slice.as_mut()).await?;
+            self.link.read(slice.as_mut()).await?;
         }
 
         let mut reader = slice.reader();

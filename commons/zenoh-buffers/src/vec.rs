@@ -1,7 +1,7 @@
 use core::{mem, num::NonZeroUsize, option};
 
 use heapless::Vec;
-use zenoh_result::{bail, zerr, ZResult, ZE};
+use zenoh_result::{bail, zctx, zerr, WithContext, ZResult, ZE};
 
 use crate::{
     buffer::{Buffer, SplitBuffer},
@@ -71,7 +71,8 @@ impl<const N: usize> Writer for Vec<u8, N> {
         }
 
         self.extend_from_slice(bytes)
-            .map_err(|_| zerr!(ZE::DidntWrite))?;
+            .map_err(|_| zerr!(ZE::DidntWrite))
+            .context(zctx!("Vec write"))?;
         // SAFETY: this operation is safe since we early return in case bytes is empty
         Ok(unsafe { NonZeroUsize::new_unchecked(bytes.len()) })
     }
@@ -85,7 +86,9 @@ impl<const N: usize> Writer for Vec<u8, N> {
     }
 
     fn write_u8(&mut self, byte: u8) -> ZResult<()> {
-        self.push(byte).map_err(|_| zerr!(ZE::DidntWrite))?;
+        self.push(byte)
+            .map_err(|_| zerr!(ZE::DidntWrite))
+            .context(zctx!("Vec write_u8"))?;
         Ok(())
     }
 
