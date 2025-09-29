@@ -1,0 +1,24 @@
+[workspace]
+members = ["commons/zenoh-buffers","commons/zenoh-log", "commons/zenoh-result"]
+resolver = "2"
+
+[workspace.package]
+authors = []
+categories = ["network-programming"]
+description = "Zenoh: The Zero Overhead Pub/Sub/Query Protocol."
+edition = "2021"
+homepage = "http://zenoh.io"
+license = "EPL-2.0 OR Apache-2.0"
+repository = "https://github.com/ZettaScaleLabs/zenoh-nostd"
+rust-version = "1.75.0"
+version = "1.5.1"
+
+[workspace.dependencies]
+zenoh-log = { version = "1.5.1", path = "commons/zenoh-log" }
+zenoh-result = { version = "1.5.1", path = "commons/zenoh-result" }
+zenoh-buffers = { version = "1.5.1", path = "commons/zenoh-buffers" }
+
+defmt = { version = "1.0.1" }
+log = { version = "0.4.28" }
+web-sys = { version = "0.3.81" }
+heapless = { version = "0.9.1" }

@@ -1,0 +1,21 @@
+[package]
+name = "zenoh-log"
+authors.workspace = true
+categories.workspace = true
+description.workspace = true
+edition.workspace = true
+homepage.workspace = true
+license.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+version.workspace = true
+
+[features]
+log = ["dep:log"]
+defmt = ["dep:defmt"]
+web_console = ["dep:web-sys"]
+
+[dependencies]
+defmt = { workspace = true, optional = true }
+log = { workspace = true, optional = true }
+web-sys = { workspace = true, features = ["console"], optional = true }
