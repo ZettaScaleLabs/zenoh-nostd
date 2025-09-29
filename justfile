@@ -40,5 +40,5 @@ z_put-std:
 z_put-wasm:
     cd platform/zenoh-platforms/zenoh-platform-wasm && just run_z_put
 
-z_put-esp:
+z_put-esp32s3:
     cd platform/zenoh-platforms/zenoh-platform-embassy/example-esp32s3 && cargo run --example z_put

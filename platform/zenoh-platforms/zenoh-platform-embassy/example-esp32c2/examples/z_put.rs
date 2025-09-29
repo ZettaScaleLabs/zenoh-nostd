@@ -1,10 +1,10 @@
 #![no_std]
 #![no_main]
 
-use embassy_sync::blocking_mutex::raw::CriticalSectionRawMutex;
 use embassy_sync::blocking_mutex::Mutex;
+use embassy_sync::blocking_mutex::raw::CriticalSectionRawMutex;
 use esp_hal::rng::Rng;
-use getrandom::{register_custom_getrandom, Error};
+use getrandom::{Error, register_custom_getrandom};
 
 use core::num::NonZeroU32;
 use core::str::FromStr;
@@ -16,11 +16,11 @@ use esp_hal::clock::CpuClock;
 use esp_hal::timer::systimer::SystemTimer;
 use esp_hal::timer::timg::TimerGroup;
 use esp_println as _;
-use zenoh::{keyexpr, EndPoint};
+use zenoh::{EndPoint, keyexpr};
 
 use esp_wifi::{
-    wifi::{ClientConfiguration, Configuration, WifiController, WifiDevice, WifiEvent, WifiState},
     EspWifiController,
+    wifi::{ClientConfiguration, Configuration, WifiController, WifiDevice, WifiEvent, WifiState},
 };
 use static_cell::StaticCell;
 use zenoh::api::session::SessionRunner;

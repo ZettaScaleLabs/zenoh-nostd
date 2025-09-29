@@ -18,7 +18,7 @@ pub async fn main(spawner: embassy_executor::Spawner) {
 
     let (mut session, runner) = zenoh::api::session::SingleLinkClientSession::open(
         platform,
-        EndPoint::from_str("ws/127.0.0.1:7447").unwrap(),
+        EndPoint::from_str("ws/127.0.0.1:7446").unwrap(),
     )
     .await
     .unwrap();
@@ -26,7 +26,7 @@ pub async fn main(spawner: embassy_executor::Spawner) {
     spawner.spawn(session_task(runner)).unwrap();
 
     let ke: &'static keyexpr = "demo/example".try_into().unwrap();
-    let payload = b"Hello, world!";
+    let payload = b"Hello, from wasm!";
 
     loop {
         session.try_read().unwrap();
