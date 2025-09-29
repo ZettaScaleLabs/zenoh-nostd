@@ -1,3 +1,7 @@
+#![no_std]
+
+use core::cell::RefCell;
+
 use heapless::Vec;
 use zenoh_result::{zbail, zerr, ZResult, ZE};
 
@@ -104,6 +108,11 @@ impl<'a> Writer<'a> for Buffer<'a> {
 }
 
 fn main() -> ZResult<()> {
+    extern crate std;
+
+    let a: RefCell<i32> = RefCell::new(0);
+    let mut b = Vec::<i32, 4>::new();
+
     let header: [u8; 9] = [
         0x7E, // Start byte
         0x01, // Version
@@ -121,11 +130,11 @@ fn main() -> ZResult<()> {
     buffer.write_slice(payload)?;
     buffer.write(&footer, footer.len())?;
 
-    println!("Buffer: {:?}", buffer);
+    std::println!("Buffer: {:?}", buffer);
 
     buffer.flush()?;
     let bytes = buffer.as_bytes()?;
-    println!("As bytes: {:?}", bytes);
+    std::println!("As bytes: {:?}", bytes);
 
     Ok(())
 }

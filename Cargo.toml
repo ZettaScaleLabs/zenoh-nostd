@@ -1,5 +1,5 @@
 [workspace]
-members = ["commons/zenoh-buffers","commons/zenoh-log", "commons/zenoh-result"]
+members = ["commons/zenoh-buffers", "commons/zenoh-keyexpr","commons/zenoh-log", "commons/zenoh-protocol", "commons/zenoh-result"]
 resolver = "2"
 
 [workspace.package]
@@ -17,8 +17,10 @@ version = "1.5.1"
 zenoh-log = { version = "1.5.1", path = "commons/zenoh-log" }
 zenoh-result = { version = "1.5.1", path = "commons/zenoh-result" }
 zenoh-buffers = { version = "1.5.1", path = "commons/zenoh-buffers" }
+zenoh-keyexpr = { version = "1.5.1", path = "commons/zenoh-keyexpr" }
 
 defmt = { version = "1.0.1" }
 log = { version = "0.4.28" }
 web-sys = { version = "0.3.81" }
 heapless = { version = "0.9.1" }
+uhlc = { version = "0.8.1", git = "https://github.com/Hennzau/uhlc-rs", branch = "no-alloc", default-features = false }

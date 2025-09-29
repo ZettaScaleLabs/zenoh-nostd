@@ -203,3 +203,9 @@ macro_rules! zbail {
         return Err($crate::zerr!($kind));
     };
 }
+
+impl From<core::fmt::Error> for ZError {
+    fn from(_: core::fmt::Error) -> Self {
+        zerr!(ZE::FmtError)
+    }
+}
