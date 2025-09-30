@@ -30,7 +30,7 @@ async fn main(spawner: embassy_executor::Spawner) {
 
     spawner.spawn(session_task(runner)).unwrap();
 
-    let ke: &'static keyexpr = "demo/example/**".try_into().unwrap();
+    let ke: &'static keyexpr = "demo/example".try_into().unwrap();
     let mut sub = session.declare_subscriber(ke).await.unwrap();
 
     loop {
