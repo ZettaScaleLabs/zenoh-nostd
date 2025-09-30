@@ -1,5 +1,9 @@
+use crate::zenoh::{err::Err, put::Put, query::Query, reply::Reply};
+
+pub mod err;
 pub mod put;
-pub use put::Put;
+pub mod query;
+pub mod reply;
 
 pub mod id {
     pub const OAM: u8 = 0x00;
@@ -16,8 +20,21 @@ pub enum PushBody<'a> {
     Put(Put<'a>),
 }
 
+// Request
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum RequestBody<'a> {
+    Query(Query<'a>),
+}
+
+// Response
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum ResponseBody<'a> {
+    Reply(Reply<'a>),
+    Err(Err<'a>),
+}
+
 pub mod ext {
-    use crate::core::EntityGlobalIdProto;
+    use crate::core::{encoding::Encoding, EntityGlobalIdProto};
 
     /// ```text
     ///  7 6 5 4 3 2 1 0
@@ -35,6 +52,25 @@ pub mod ext {
     pub struct SourceInfoType<const ID: u8> {
         pub id: EntityGlobalIdProto,
         pub sn: u32,
+    }
+
+    /// ```text
+    ///   7 6 5 4 3 2 1 0
+    ///  +-+-+-+-+-+-+-+-+
+    ///  ~   encoding    ~
+    ///  +---------------+
+    ///  ~ pl: [u8;z32]  ~  -- Payload
+    ///  +---------------+
+    /// ```
+    #[derive(Debug, Clone, PartialEq, Eq)]
+    pub struct ValueType<'a, const VID: u8, const SID: u8> {
+        pub encoding: Encoding<'a>,
+        pub payload: &'a [u8],
+    }
+
+    impl<const VID: u8, const SID: u8> ValueType<'_, { VID }, { SID }> {
+        pub const VID: u8 = VID;
+        pub const SID: u8 = SID;
     }
 
     /// ```text

@@ -1,25 +1,27 @@
-use zenoh_protocol::{
-    core::{resolution::Resolution, whatami::WhatAmI, ZenohIdProto},
-    transport::{init::ext, BatchSize, InitSyn},
-    VERSION,
-};
+use zenoh_codec::{RCodec, WCodec, Zenoh080};
+// use zenoh_protocol::{
+//     core::{resolution::Resolution, whatami::WhatAmI, ZenohIdProto},
+//     transport::{
+//         init::{ext, InitSyn},
+//         BatchSize,
+//     },
+//     VERSION,
+// };
 
 fn main() {
-    let buffer = [0u8; 128];
-    let ext_autch = ext::Auth::new(&buffer);
+    let mut buffer = [0u8; 128];
 
-    let init_syn = InitSyn {
-        version: VERSION,
-        whatami: WhatAmI::Client,
-        zid: ZenohIdProto::default(),
-        resolution: Resolution::default(),
-        batch_size: BatchSize::MAX,
-        ext_qos: None,
-        ext_qos_link: None,
-        ext_auth: Some(ext_autch),
-        ext_mlink: None,
-        ext_lowlatency: None,
-        ext_compression: None,
-        ext_patch: ext::PatchType::NONE,
-    };
+    let codec = Zenoh080;
+
+    let value = 1u8;
+    let len = codec.write(&value, &mut buffer).unwrap();
+
+    let value = 666u64;
+    let _ = codec.write(&value, &mut buffer[len..]).unwrap();
+
+    let (value_u8, len): (u8, usize) = codec.read(&buffer).unwrap();
+    println!("u8: {value_u8}, len: {len}");
+
+    let (value_u64, len): (u64, usize) = codec.read(&buffer[len..]).unwrap();
+    println!("u64: {value_u64}, len: {len}");
 }

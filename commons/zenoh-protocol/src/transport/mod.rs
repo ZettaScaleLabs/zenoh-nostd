@@ -5,12 +5,12 @@ pub mod open;
 
 use core::fmt;
 
-pub use frame::{Frame, FrameHeader};
-pub use init::{InitAck, InitSyn};
-pub use keepalive::KeepAlive;
-pub use open::{OpenAck, OpenSyn};
-
-// use crate::network::{NetworkMessage, NetworkMessageRef};
+use crate::transport::{
+    frame::Frame,
+    init::{InitAck, InitSyn},
+    keepalive::KeepAlive,
+    open::{OpenAck, OpenSyn},
+};
 
 /// NOTE: 16 bits (2 bytes) may be prepended to the serialized message indicating the total length
 ///       in bytes of the message, resulting in the maximum length of a message being 65_535 bytes.

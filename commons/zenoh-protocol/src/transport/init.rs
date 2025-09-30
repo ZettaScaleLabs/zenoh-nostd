@@ -118,10 +118,7 @@ pub struct InitSyn<'a> {
 
 // Extensions
 pub mod ext {
-    use crate::{
-        common::extension::{ZExtUnit, ZExtZ64, ZExtZBuf},
-        zextunit, zextz64, zextzbuf,
-    };
+    use crate::{zextunit, zextz64, zextzbuf};
 
     /// # QoS extension
     /// Used to negotiate the use of QoS

@@ -371,18 +371,10 @@ dependencies = [
 ]
 
 [[package]]
-name = "zenoh-buffers"
-version = "1.5.1"
-dependencies = [
- "heapless",
- "zenoh-log",
- "zenoh-result",
-]
-
-[[package]]
 name = "zenoh-codec"
 version = "1.5.1"
 dependencies = [
+ "heapless",
  "zenoh-protocol",
  "zenoh-result",
 ]

@@ -35,7 +35,7 @@ pub struct Push<'a> {
 }
 
 pub mod ext {
-    use crate::{common::extension::ZExtZ64, common::extension::ZExtZBuf, zextz64, zextzbuf};
+    use crate::{zextz64, zextzbuf};
 
     pub type QoS = zextz64!(0x1, false);
     pub type QoSType = crate::network::ext::QoSType<{ QoS::ID }>;

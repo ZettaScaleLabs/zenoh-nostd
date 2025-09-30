@@ -80,10 +80,7 @@ pub struct OpenSyn<'a> {
 
 // Extensions
 pub mod ext {
-    use crate::{
-        common::extension::{ZExtUnit, ZExtZBuf},
-        zextunit, zextzbuf,
-    };
+    use crate::{zextunit, zextzbuf};
 
     /// # QoS extension
     /// Used to negotiate the use of QoS

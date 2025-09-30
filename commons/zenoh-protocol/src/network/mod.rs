@@ -2,11 +2,20 @@ use core::fmt;
 
 use crate::{
     core::{wire_expr::WireExpr, CongestionControl, Priority, Reliability},
-    network::push::Push,
+    network::{
+        declare::{Declare, DeclareBody},
+        interest::Interest,
+        push::Push,
+        request::Request,
+        response::{Response, ResponseFinal},
+    },
 };
 
+pub mod declare;
+pub mod interest;
 pub mod push;
 pub mod request;
+pub mod response;
 
 pub mod id {
     // WARNING: it's crucial that these IDs do NOT collide with the IDs
@@ -35,6 +44,11 @@ impl Mapping {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum NetworkBody<'a> {
     Push(Push<'a>),
+    Request(Request<'a>),
+    Response(Response<'a>),
+    ResponseFinal(ResponseFinal),
+    Interest(Interest<'a>),
+    Declare(Declare<'a>),
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -60,6 +74,11 @@ impl<'a> NetworkMessage<'a> {
     pub fn is_express(&self) -> bool {
         match self.body() {
             NetworkBody::Push(msg) => msg.ext_qos.is_express(),
+            NetworkBody::Request(msg) => msg.ext_qos.is_express(),
+            NetworkBody::Response(msg) => msg.ext_qos.is_express(),
+            NetworkBody::ResponseFinal(msg) => msg.ext_qos.is_express(),
+            NetworkBody::Interest(msg) => msg.ext_qos.is_express(),
+            NetworkBody::Declare(msg) => msg.ext_qos.is_express(),
         }
     }
 
@@ -67,6 +86,11 @@ impl<'a> NetworkMessage<'a> {
     pub fn congestion_control(&self) -> CongestionControl {
         match self.body() {
             NetworkBody::Push(msg) => msg.ext_qos.get_congestion_control(),
+            NetworkBody::Request(msg) => msg.ext_qos.get_congestion_control(),
+            NetworkBody::Response(msg) => msg.ext_qos.get_congestion_control(),
+            NetworkBody::ResponseFinal(msg) => msg.ext_qos.get_congestion_control(),
+            NetworkBody::Interest(msg) => msg.ext_qos.get_congestion_control(),
+            NetworkBody::Declare(msg) => msg.ext_qos.get_congestion_control(),
         }
     }
 
@@ -79,6 +103,11 @@ impl<'a> NetworkMessage<'a> {
     pub fn priority(&self) -> Priority {
         match self.body() {
             NetworkBody::Push(msg) => msg.ext_qos.get_priority(),
+            NetworkBody::Request(msg) => msg.ext_qos.get_priority(),
+            NetworkBody::Response(msg) => msg.ext_qos.get_priority(),
+            NetworkBody::ResponseFinal(msg) => msg.ext_qos.get_priority(),
+            NetworkBody::Interest(msg) => msg.ext_qos.get_priority(),
+            NetworkBody::Declare(msg) => msg.ext_qos.get_priority(),
         }
     }
 
@@ -86,6 +115,21 @@ impl<'a> NetworkMessage<'a> {
     pub fn wire_expr(&'a self) -> Option<&'a WireExpr<'a>> {
         match &self.body() {
             NetworkBody::Push(m) => Some(&m.wire_expr),
+            NetworkBody::Request(m) => Some(&m.wire_expr),
+            NetworkBody::Response(m) => Some(&m.wire_expr),
+            NetworkBody::ResponseFinal(_) => None,
+            NetworkBody::Interest(m) => m.wire_expr.as_ref(),
+            NetworkBody::Declare(m) => match &m.body {
+                DeclareBody::DeclareKeyExpr(m) => Some(&m.wire_expr),
+                DeclareBody::UndeclareKeyExpr(_) => None,
+                DeclareBody::DeclareSubscriber(m) => Some(&m.wire_expr),
+                DeclareBody::UndeclareSubscriber(m) => Some(&m.ext_wire_expr.wire_expr),
+                DeclareBody::DeclareQueryable(m) => Some(&m.wire_expr),
+                DeclareBody::UndeclareQueryable(m) => Some(&m.ext_wire_expr.wire_expr),
+                DeclareBody::DeclareToken(m) => Some(&m.wire_expr),
+                DeclareBody::UndeclareToken(m) => Some(&m.ext_wire_expr.wire_expr),
+                DeclareBody::DeclareFinal(_) => None,
+            },
         }
     }
 }
@@ -94,6 +138,11 @@ impl fmt::Display for NetworkMessage<'_> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match &self.body {
             NetworkBody::Push(_) => write!(f, "Push"),
+            NetworkBody::Request(_) => write!(f, "Request"),
+            NetworkBody::Response(_) => write!(f, "Response"),
+            NetworkBody::ResponseFinal(_) => write!(f, "ResponseFinal"),
+            NetworkBody::Interest(_) => write!(f, "Interest"),
+            NetworkBody::Declare(_) => write!(f, "Declare"),
         }
     }
 }
@@ -114,7 +163,7 @@ pub mod ext {
 
     use crate::{
         common::{extension::ZExtZ64, imsg},
-        core::{CongestionControl, Priority},
+        core::{CongestionControl, EntityId, Priority, ZenohIdProto},
     };
 
     /// ```text
@@ -301,5 +350,21 @@ pub mod ext {
         fn from(ext: NodeIdType<{ ID }>) -> Self {
             ZExtZ64::new(ext.node_id as u64)
         }
+    }
+
+    /// ```text
+    ///  7 6 5 4 3 2 1 0
+    /// +-+-+-+-+-+-+-+-+
+    /// |zid_len|X|X|X|X|
+    /// +-------+-+-+---+
+    /// ~      zid      ~
+    /// +---------------+
+    /// %      eid      %
+    /// +---------------+
+    /// ```
+    #[derive(Debug, Clone, PartialEq, Eq)]
+    pub struct EntityGlobalIdType<const ID: u8> {
+        pub zid: ZenohIdProto,
+        pub eid: EntityId,
     }
 }
