@@ -2,9 +2,9 @@ use core::{convert::TryInto, fmt, sync::atomic::AtomicU16};
 
 use heapless::String;
 use zenoh_keyexpr::key_expr::{keyexpr, OwnedKeyExpr};
-use zenoh_result::{bail, zerr, ZError, ZResult, ZE};
+use zenoh_result::{zbail, ZError, ZResult, ZE};
 
-use crate::{core::CowStr, network::Mapping};
+use crate::network::Mapping;
 
 /// A numerical Id mapped to a key expression.
 pub type ExprId = u16;
@@ -39,23 +39,31 @@ pub const EMPTY_EXPR_ID: ExprId = 0;
 // +---------------+
 //
 #[derive(PartialEq, Eq, Hash, Clone, Debug)]
-pub struct WireExpr<'a, const N: usize> {
+pub struct WireExpr<'a> {
     pub scope: ExprId, // 0 marks global scope
-    pub suffix: CowStr<'a, N>,
+    pub suffix: &'a str,
     pub mapping: Mapping,
 }
 
-impl<'a, const N: usize> WireExpr<'a, N> {
+impl<'a> WireExpr<'a> {
+    pub fn new(scope: ExprId, suffix: &'a str, mapping: Mapping) -> Self {
+        WireExpr {
+            scope,
+            suffix,
+            mapping,
+        }
+    }
+
     pub fn empty() -> Self {
         WireExpr {
             scope: 0,
-            suffix: CowStr::Borrowed(""),
+            suffix: "",
             mapping: Mapping::Sender,
         }
     }
 
     pub fn is_empty(&self) -> bool {
-        self.scope == 0 && self.suffix.as_ref().is_empty()
+        self.scope == 0 && self.suffix.is_empty()
     }
 
     pub fn as_str(&'a self) -> &'a str {
@@ -70,7 +78,7 @@ impl<'a, const N: usize> WireExpr<'a, N> {
         if self.scope == EMPTY_EXPR_ID {
             Ok(self.suffix.as_ref())
         } else {
-            bail!(ZE::ScopedKeyExpr)
+            zbail!(ZE::ScopedKeyExprUnsupported)
         }
     }
 
@@ -80,7 +88,7 @@ impl<'a, const N: usize> WireExpr<'a, N> {
 
     pub fn try_as_id(&'a self) -> ZResult<ExprId> {
         if self.has_suffix() {
-            bail!(ZE::SuffixedKeyExpr)
+            zbail!(ZE::SuffixedKeyExprUnsupported);
         } else {
             Ok(self.scope)
         }
@@ -91,89 +99,56 @@ impl<'a, const N: usize> WireExpr<'a, N> {
     }
 
     pub fn has_suffix(&self) -> bool {
-        !self.suffix.as_ref().is_empty()
+        !self.suffix.is_empty()
     }
 
-    pub fn to_owned(&self) -> ZResult<WireExpr<'static, N>> {
-        Ok(WireExpr {
+    pub fn with_suffix(&self, suffix: &'a str) -> Self {
+        WireExpr {
             scope: self.scope,
-            suffix: self.suffix.to_owned()?,
+            suffix,
             mapping: self.mapping,
-        })
-    }
-
-    pub fn with_suffix(mut self, suffix: &'a str) -> ZResult<Self> {
-        if suffix.len() + self.suffix.as_ref().len() > N {
-            bail!(ZE::CapacityExceeded);
-        }
-
-        if self.suffix.as_ref().is_empty() {
-            self.suffix = CowStr::Borrowed(suffix);
-        } else {
-            self.suffix = CowStr::Owned({
-                let mut owned = String::<N>::new();
-                owned
-                    .push_str(self.suffix.as_ref())
-                    .map_err(|_| zerr!(ZE::CapacityExceeded))?;
-                owned
-                    .push_str(suffix)
-                    .map_err(|_| zerr!(ZE::CapacityExceeded))?;
-                owned
-            });
-        }
-        Ok(self)
-    }
-}
-
-impl<const N: usize> TryInto<String<N>> for WireExpr<'_, N> {
-    type Error = ZError;
-    fn try_into(self) -> Result<String<N>, Self::Error> {
-        if self.scope == 0 {
-            Ok(self.suffix.into_owned()?)
-        } else {
-            bail!(ZE::ScopedKeyExpr)
         }
     }
 }
 
-impl<const N: usize> TryInto<ExprId> for WireExpr<'_, N> {
+impl TryInto<ExprId> for WireExpr<'_> {
     type Error = ZError;
     fn try_into(self) -> Result<ExprId, Self::Error> {
         self.try_as_id()
     }
 }
 
-impl<const N: usize> From<ExprId> for WireExpr<'_, N> {
+impl From<ExprId> for WireExpr<'_> {
     fn from(scope: ExprId) -> Self {
         Self {
             scope,
-            suffix: CowStr::Borrowed(""),
+            suffix: "",
             mapping: Mapping::Sender,
         }
     }
 }
 
-impl<'a, const N: usize> From<&'a OwnedKeyExpr<N>> for WireExpr<'a, N> {
+impl<'a, const N: usize> From<&'a OwnedKeyExpr<N>> for WireExpr<'a> {
     fn from(val: &'a OwnedKeyExpr<N>) -> Self {
         WireExpr {
             scope: 0,
-            suffix: CowStr::Borrowed(val.as_str()),
+            suffix: val.as_str(),
             mapping: Mapping::Sender,
         }
     }
 }
 
-impl<'a, const N: usize> From<&'a keyexpr> for WireExpr<'a, N> {
+impl<'a> From<&'a keyexpr> for WireExpr<'a> {
     fn from(val: &'a keyexpr) -> Self {
         WireExpr {
             scope: 0,
-            suffix: CowStr::Borrowed(val.as_str()),
+            suffix: val.as_str(),
             mapping: Mapping::Sender,
         }
     }
 }
 
-impl<const N: usize> fmt::Display for WireExpr<'_, N> {
+impl fmt::Display for WireExpr<'_> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         if self.scope == 0 {
             write!(f, "{}", self.suffix)
@@ -183,41 +158,30 @@ impl<const N: usize> fmt::Display for WireExpr<'_, N> {
     }
 }
 
-impl<'a, const N: usize> From<&WireExpr<'a, N>> for WireExpr<'a, N> {
+impl<'a> From<&WireExpr<'a>> for WireExpr<'a> {
     #[inline]
-    fn from(key: &WireExpr<'a, N>) -> WireExpr<'a, N> {
+    fn from(key: &WireExpr<'a>) -> WireExpr<'a> {
         key.clone()
     }
 }
 
-impl<'a, const N: usize> From<&'a str> for WireExpr<'a, N> {
+impl<'a> From<&'a str> for WireExpr<'a> {
     #[inline]
-    fn from(name: &'a str) -> WireExpr<'a, N> {
+    fn from(name: &'a str) -> WireExpr<'a> {
         WireExpr {
             scope: 0,
-            suffix: CowStr::Borrowed(name),
+            suffix: name,
             mapping: Mapping::Sender,
         }
     }
 }
 
-impl<const N: usize> From<String<N>> for WireExpr<'_, N> {
+impl<'a, const N: usize> From<&'a String<N>> for WireExpr<'a> {
     #[inline]
-    fn from(name: String<N>) -> WireExpr<'static, N> {
+    fn from(name: &'a String<N>) -> WireExpr<'a> {
         WireExpr {
             scope: 0,
-            suffix: CowStr::Owned(name),
-            mapping: Mapping::Sender,
-        }
-    }
-}
-
-impl<'a, const N: usize> From<&'a String<N>> for WireExpr<'a, N> {
-    #[inline]
-    fn from(name: &'a String<N>) -> WireExpr<'a, N> {
-        WireExpr {
-            scope: 0,
-            suffix: CowStr::Borrowed(name.as_str()),
+            suffix: name.as_str(),
             mapping: Mapping::Sender,
         }
     }

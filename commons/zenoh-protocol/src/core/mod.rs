@@ -9,84 +9,23 @@ use core::{
 use heapless::String;
 pub use uhlc::{Timestamp, NTP64};
 use zenoh_keyexpr::key_expr::OwnedKeyExpr;
-use zenoh_result::{zbail, zerr, ZError, ZResult, ZE};
+use zenoh_result::{zbail, zerr, ZError, ZE};
 
 /// The unique Id of the [`HLC`](uhlc::HLC) that generated the concerned [`Timestamp`].
 pub type TimestampId = uhlc::ID;
 
 /// Constants and helpers for zenoh `whatami` flags.
 pub mod whatami;
-pub use whatami::*;
 
 pub mod wire_expr;
-pub use wire_expr::*;
 
 pub mod encoding;
-pub use encoding::{Encoding, EncodingId};
 
 pub mod locator;
-pub use locator::*;
 
 pub mod endpoint;
-pub use endpoint::*;
 
 pub mod resolution;
-pub use resolution::*;
-
-pub mod parameters;
-pub use parameters::Parameters;
-
-#[derive(PartialEq, Eq, Hash, Clone, Debug)]
-pub enum CowStr<'a, const N: usize> {
-    Borrowed(&'a str),
-    Owned(String<N>),
-}
-
-impl<'a, const N: usize> Default for CowStr<'a, N> {
-    fn default() -> Self {
-        CowStr::Borrowed("")
-    }
-}
-
-impl<const N: usize> fmt::Display for CowStr<'_, N> {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        match self {
-            CowStr::Borrowed(s) => write!(f, "{}", s),
-            CowStr::Owned(s) => write!(f, "{}", s),
-        }
-    }
-}
-
-impl<'a, const N: usize> CowStr<'a, N> {
-    pub fn as_ref(&self) -> &str {
-        match self {
-            CowStr::Borrowed(s) => s,
-            CowStr::Owned(s) => s.as_str(),
-        }
-    }
-
-    pub fn into_owned(self) -> ZResult<String<N>> {
-        match self {
-            CowStr::Borrowed(s) => {
-                let mut owned = String::<N>::new();
-                owned.push_str(s).map_err(|_| zerr!(ZE::CapacityExceeded))?;
-                Ok(owned)
-            }
-            CowStr::Owned(s) => Ok(s),
-        }
-    }
-
-    pub fn to_owned(&self) -> ZResult<CowStr<'static, N>> {
-        match self {
-            CowStr::Borrowed(s) => {
-                let mut owned = String::<N>::new();
-                owned.push_str(s).map_err(|_| zerr!(ZE::CapacityExceeded))?;
-                Ok(CowStr::Owned(owned))
-            }
-            CowStr::Owned(s) => Ok(CowStr::Owned(s.clone())),
-        }
-    }
-}
 
 /// The global unique id of a zenoh peer.
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]

@@ -49,6 +49,15 @@ impl<const N: usize, const L: usize> Div<&keyexpr> for (OwnedKeyExpr<N>, ZKeyLen
 }
 
 #[allow(clippy::suspicious_arithmetic_impl)]
+impl<const N: usize, const L: usize> Div<(&keyexpr, ZKeyLength<L>)> for OwnedKeyExpr<N> {
+    type Output = OwnedKeyExpr<L>;
+
+    fn div(self, rhs: (&keyexpr, ZKeyLength<L>)) -> Self::Output {
+        &self / rhs
+    }
+}
+
+#[allow(clippy::suspicious_arithmetic_impl)]
 impl<const N: usize, const L: usize> Div<&keyexpr> for (&OwnedKeyExpr<N>, ZKeyLength<L>) {
     type Output = OwnedKeyExpr<L>;
 
@@ -63,6 +72,15 @@ impl<const N: usize, const L: usize> Div<&keyexpr> for (&OwnedKeyExpr<N>, ZKeyLe
         let s: String<L> = format!("{}/{}", self.0.as_str(), rhs.as_str()).unwrap();
 
         OwnedKeyExpr::autocanonize(s).unwrap()
+    }
+}
+
+#[allow(clippy::suspicious_arithmetic_impl)]
+impl<const N: usize, const L: usize> Div<(&keyexpr, ZKeyLength<L>)> for &OwnedKeyExpr<N> {
+    type Output = OwnedKeyExpr<L>;
+
+    fn div(self, rhs: (&keyexpr, ZKeyLength<L>)) -> Self::Output {
+        (self, rhs.1) / rhs.0
     }
 }
 
@@ -175,6 +193,15 @@ impl<const N: usize, const L: usize> Div<&keyexpr> for (&OwnedNonWildKeyExpr<N>,
 }
 
 #[allow(clippy::suspicious_arithmetic_impl)]
+impl<const N: usize, const L: usize> Div<(&keyexpr, ZKeyLength<L>)> for &OwnedNonWildKeyExpr<N> {
+    type Output = OwnedKeyExpr<L>;
+
+    fn div(self, rhs: (&keyexpr, ZKeyLength<L>)) -> Self::Output {
+        (self, rhs.1) / rhs.0
+    }
+}
+
+#[allow(clippy::suspicious_arithmetic_impl)]
 impl<const N: usize, const L: usize> Div<&nonwild_keyexpr>
     for (&OwnedNonWildKeyExpr<N>, ZKeyLength<L>)
 {
@@ -190,5 +217,16 @@ impl<const N: usize, const L: usize> Div<&nonwild_keyexpr>
 
         let s: String<L> = format!("{}/{}", self.0.as_str(), rhs.as_str()).unwrap();
         s.try_into().unwrap()
+    }
+}
+
+#[allow(clippy::suspicious_arithmetic_impl)]
+impl<const N: usize, const L: usize> Div<(&nonwild_keyexpr, ZKeyLength<L>)>
+    for &OwnedNonWildKeyExpr<N>
+{
+    type Output = OwnedKeyExpr<L>;
+
+    fn div(self, rhs: (&nonwild_keyexpr, ZKeyLength<L>)) -> Self::Output {
+        (self, rhs.1) / rhs.0
     }
 }

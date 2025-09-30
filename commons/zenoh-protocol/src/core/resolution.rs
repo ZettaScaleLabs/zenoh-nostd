@@ -1,6 +1,6 @@
 use core::{fmt, str::FromStr};
 
-use zenoh_result::{bail, ZError, ZE};
+use zenoh_result::{zbail, ZError, ZE};
 
 use crate::{network::request::RequestId, transport::TransportSn};
 
@@ -81,7 +81,7 @@ impl FromStr for Bits {
             Bits::S16 => Ok(Bits::U16),
             Bits::S32 => Ok(Bits::U32),
             Bits::S64 => Ok(Bits::U64),
-            _ => bail!(ZE::InvalidBits),
+            _ => zbail!(ZE::InvalidBits),
         }
     }
 }

@@ -1,7 +1,7 @@
 use core::{convert::TryFrom, fmt, num::NonZeroU8, ops::BitOr, str::FromStr};
 
 use const_format::formatcp;
-use zenoh_result::{bail, ZError, ZE};
+use zenoh_result::{zbail, ZError, ZE};
 
 #[repr(u8)]
 #[derive(Debug, Default, Clone, Copy, PartialEq, Eq, Hash)]
@@ -51,7 +51,7 @@ impl FromStr for WhatAmI {
             Self::STR_R => Ok(Self::Router),
             Self::STR_P => Ok(Self::Peer),
             Self::STR_C => Ok(Self::Client),
-            _ => bail!(ZE::InvalidWhatAmI),
+            _ => zbail!(ZE::InvalidWhatAmI),
         }
     }
 }

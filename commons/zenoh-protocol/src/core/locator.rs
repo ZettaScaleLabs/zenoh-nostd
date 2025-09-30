@@ -12,13 +12,12 @@ use super::endpoint::*;
 pub struct Locator<const N: usize>(pub(super) EndPoint<N>);
 
 impl<const N: usize> Locator<N> {
-    pub fn new<A, B, C>(protocol: A, address: B, metadata: C) -> ZResult<Self>
+    pub fn new<A, B>(protocol: A, address: B) -> ZResult<Self>
     where
         A: AsRef<str>,
         B: AsRef<str>,
-        C: AsRef<str>,
     {
-        let ep = EndPoint::new(protocol, address, metadata, "")?;
+        let ep = EndPoint::new(protocol, address)?;
         Ok(Self(ep))
     }
 
@@ -26,24 +25,8 @@ impl<const N: usize> Locator<N> {
         self.0.protocol()
     }
 
-    pub fn protocol_mut(&mut self) -> ProtocolMut<'_, N> {
-        self.0.protocol_mut()
-    }
-
     pub fn address(&self) -> Address<'_> {
         self.0.address()
-    }
-
-    pub fn address_mut(&mut self) -> AddressMut<'_, N> {
-        self.0.address_mut()
-    }
-
-    pub fn metadata(&self) -> Metadata<'_> {
-        self.0.metadata()
-    }
-
-    pub fn metadata_mut(&mut self) -> MetadataMut<'_, N> {
-        self.0.metadata_mut()
     }
 
     pub fn as_str(&self) -> &str {

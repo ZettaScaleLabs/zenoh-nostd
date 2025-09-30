@@ -10,9 +10,9 @@ pub type EncodingId = u16;
 /// Nevertheless, it is worth highlighting that Zenoh still provides a default mapping as part
 /// of the API as per user convenience. That mapping has no impact on the Zenoh protocol definition.
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
-pub struct Encoding {
+pub struct Encoding<'a> {
     pub id: EncodingId,
-    pub schema: Option<ZSlice>,
+    pub schema: Option<&'a [u8]>,
 }
 
 /// # Encoding field
@@ -29,7 +29,7 @@ pub mod flag {
     pub const S: u32 = 1; // 0x01 Suffix    if S==1 then schema is present
 }
 
-impl Encoding {
+impl Encoding<'_> {
     /// Returns a new [`Encoding`] object with default empty prefix ID.
     pub const fn empty() -> Self {
         Self {
@@ -39,7 +39,7 @@ impl Encoding {
     }
 }
 
-impl Default for Encoding {
+impl Default for Encoding<'_> {
     fn default() -> Self {
         Self::empty()
     }

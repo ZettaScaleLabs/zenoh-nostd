@@ -1,5 +1,5 @@
 [package]
-name = "zenoh-protocol"
+name = "zenoh-codec"
 authors.workspace = true
 categories.workspace = true
 description.workspace = true
@@ -12,8 +12,4 @@ version.workspace = true
 
 [dependencies]
 zenoh-result = { workspace = true }
-zenoh-keyexpr = { workspace = true }
-
-uhlc = { workspace = true }
-heapless = { workspace = true }
-const_format = { workspace = true }
+zenoh-protocol = { workspace = true }

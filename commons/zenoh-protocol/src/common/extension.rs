@@ -360,7 +360,7 @@ macro_rules! zextz64 {
 
 #[macro_export]
 macro_rules! zextzbuf {
-    ($id:expr, $n:expr, $l:expr, $m:expr) => {
-        ZExtZBuf<{ ZExtZBuf::<$id, $n, $l>::id($m) }, $n, $l>
+    ($lt:lifetime, $id:expr, $m:expr) => {
+        ZExtZBuf<$lt, { ZExtZBuf::<$id>::id($m) }>
     }
 }
