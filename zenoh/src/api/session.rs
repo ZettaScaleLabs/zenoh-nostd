@@ -201,8 +201,14 @@ impl SingleLinkClientSession {
                 match body.body {
                     NetworkBody::Push(push) => match push.payload {
                         PushBody::Put(put) => {
-                            let id = self.mapping.get(&push.wire_expr).ok_or(zerr!(ZE::Failed))?;
-                            let sender = self.subscribers.get_mut(id).ok_or(zerr!(ZE::Failed))?;
+                            let id = self
+                                .mapping
+                                .get(&push.wire_expr)
+                                .ok_or(zerr!(ZE::InvalidKeyExpr))?;
+                            let sender = self
+                                .subscribers
+                                .get_mut(id)
+                                .ok_or(zerr!(ZE::InvalidKeyExpr))?;
 
                             sender.send(put.payload).await;
                         }
