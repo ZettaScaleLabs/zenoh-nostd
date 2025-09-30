@@ -87,6 +87,10 @@ impl<'a, const N: usize> CowStr<'a, N> {
             CowStr::Owned(s) => Ok(CowStr::Owned(s.clone())),
         }
     }
+
+    pub fn as_bytes(&self) -> &[u8] {
+        self.as_ref().as_bytes()
+    }
 }
 
 /// The global unique id of a zenoh peer.

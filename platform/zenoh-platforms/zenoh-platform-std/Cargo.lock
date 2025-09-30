@@ -1279,6 +1279,7 @@ version = "1.5.1"
 dependencies = [
  "async-net",
  "embassy-executor",
+ "embassy-futures",
  "embassy-time",
  "env_logger",
  "futures-lite",

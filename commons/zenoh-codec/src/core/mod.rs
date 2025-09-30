@@ -107,7 +107,7 @@ macro_rules! vec_impl {
                 let len: usize = self.read(&mut *reader)?;
                 let mut buff = zenoh_buffers::vec::uninit::<N>();
                 if len != 0 {
-                    reader.read_exact(&mut buff[..])?;
+                    reader.read_exact(&mut buff[..len])?;
                 }
                 Ok(buff)
             }
@@ -186,7 +186,16 @@ macro_rules! str_impl {
             #[allow(clippy::uninit_vec)]
             fn read(self, reader: &mut R) -> ZResult<String<N>> {
                 let vec: Vec<u8, N> = self.read(&mut *reader)?;
-                String::from_utf8(vec).map_err(|_| zerr!(ZE::DidntRead))
+                // Strip possible trailing zeros
+                let mut str = String::from_utf8(vec).map_err(|_| zerr!(ZE::DidntRead));
+
+                if let Ok(s) = &mut str {
+                    while s.as_bytes().last() == Some(&0) {
+                        s.pop();
+                    }
+                }
+
+                str
             }
         }
     };

@@ -1,20 +1,4 @@
-//
-// Copyright (c) 2022 ZettaScale Technology
-//
-// This program and the accompanying materials are made available under the
-// terms of the Eclipse Public License 2.0 which is available at
-// http://www.eclipse.org/legal/epl-2.0, or the Apache License, Version 2.0
-// which is available at https://www.apache.org/licenses/LICENSE-2.0.
-//
-// SPDX-License-Identifier: EPL-2.0 OR Apache-2.0
-//
-// Contributors:
-//   ZettaScale Zenoh Team, <zenoh@zettascale.tech>
-//
-use zenoh_buffers::{
-    reader::{DidntRead, Reader},
-    writer::{DidntWrite, Writer},
-};
+use zenoh_buffers::{reader::Reader, writer::Writer};
 use zenoh_protocol::{
     common::{
         iext,
@@ -27,6 +11,7 @@ use zenoh_protocol::{
         Mapping,
     },
 };
+use zenoh_result::{bail, ZError, ZResult, ZE};
 
 use crate::{common::extension, RCodec, WCodec, Zenoh080, Zenoh080Condition, Zenoh080Header};
 
@@ -35,7 +20,7 @@ impl<W> WCodec<&Interest, &mut W> for Zenoh080
 where
     W: Writer,
 {
-    type Output = Result<(), DidntWrite>;
+    type Output = ZResult<()>;
 
     fn write(self, writer: &mut W, x: &Interest) -> Self::Output {
         let Interest {
@@ -95,9 +80,9 @@ impl<R> RCodec<Interest, &mut R> for Zenoh080
 where
     R: Reader,
 {
-    type Error = DidntRead;
+    type Error = ZError;
 
-    fn read(self, reader: &mut R) -> ZResult<Interest, Self::Error> {
+    fn read(self, reader: &mut R) -> ZResult<Interest> {
         let header: u8 = self.read(&mut *reader)?;
         let codec = Zenoh080Header::new(header);
 
@@ -109,11 +94,11 @@ impl<R> RCodec<Interest, &mut R> for Zenoh080Header
 where
     R: Reader,
 {
-    type Error = DidntRead;
+    type Error = ZError;
 
-    fn read(self, reader: &mut R) -> ZResult<Interest, Self::Error> {
+    fn read(self, reader: &mut R) -> ZResult<Interest> {
         if imsg::mid(self.header) != id::INTEREST {
-            return Err(DidntRead);
+            bail!(ZE::DidntRead);
         }
 
         let id = self.codec.read(&mut *reader)?;
@@ -122,7 +107,7 @@ where
             0b01 => InterestMode::Current,
             0b10 => InterestMode::Future,
             0b11 => InterestMode::CurrentFuture,
-            _ => return Err(DidntRead),
+            _ => bail!(ZE::DidntRead),
         };
 
         let mut options = InterestOptions::empty();
@@ -132,7 +117,7 @@ where
             options = InterestOptions::from(options_byte);
             if options.restricted() {
                 let ccond = Zenoh080Condition::new(options.named());
-                let mut we: WireExpr<'static> = ccond.read(&mut *reader)?;
+                let mut we: WireExpr<'static, 32> = ccond.read(&mut *reader)?;
                 we.mapping = if options.mapping() {
                     Mapping::Sender
                 } else {
@@ -169,7 +154,7 @@ where
                     has_ext = ext;
                 }
                 _ => {
-                    has_ext = extension::skip(reader, "Declare", ext)?;
+                    has_ext = extension::skip::<_, 1, 32>(reader, "Declare", ext)?;
                 }
             }
         }

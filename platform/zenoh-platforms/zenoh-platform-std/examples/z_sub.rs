@@ -1,5 +1,6 @@
 use core::str::FromStr;
 
+use embassy_futures::select::select;
 use static_cell::StaticCell;
 use zenoh::{api::session::SessionRunner, keyexpr, EndPoint};
 use zenoh_platform_std::PlatformStd;
@@ -15,7 +16,7 @@ async fn main(spawner: embassy_executor::Spawner) {
         .filter_level(log::LevelFilter::Trace)
         .init();
 
-    log::info!("Starting z_put example...");
+    log::info!("Starting z_sub example...");
 
     static PLATFORM: StaticCell<PlatformStd> = StaticCell::new();
     let platform = PLATFORM.init(PlatformStd);
@@ -30,19 +31,27 @@ async fn main(spawner: embassy_executor::Spawner) {
     spawner.spawn(session_task(runner)).unwrap();
 
     let ke: &'static keyexpr = "demo/example".try_into().unwrap();
-    let payload = b"Hello, from std!";
+    let mut sub = session.declare_subscriber(ke).await.unwrap();
 
     loop {
-        let _ = session.try_read().await;
-
-        session.put(ke, payload).await.unwrap();
-
-        log::info!(
-            "[Publisher] Sent PUT ('{}': '{}')",
-            ke.as_str(),
-            core::str::from_utf8(payload).unwrap()
-        );
-
-        embassy_time::Timer::after(embassy_time::Duration::from_secs(1)).await;
+        match select(
+            embassy_time::Timer::after(embassy_time::Duration::from_secs(1)),
+            sub.recv(),
+        )
+        .await
+        {
+            embassy_futures::select::Either::First(_) => {
+                if let Err(e) = session.try_read().await {
+                    log::error!("[Session] Error during read: {e}");
+                }
+            }
+            embassy_futures::select::Either::Second(sample) => {
+                log::info!(
+                    "[Subscriber] Received Sample ('{}': '{:?}')",
+                    ke.as_str(),
+                    core::str::from_utf8(sample.as_slice())
+                );
+            }
+        }
     }
 }

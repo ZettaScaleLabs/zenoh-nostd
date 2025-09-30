@@ -99,7 +99,7 @@ where
 
         let codec = (Zenoh080Header::new(header), ZSliceLen::<L>);
         let body = match imsg::mid(codec.0.header) {
-            // id::FRAME => TransportBody::Frame(codec.read(&mut *reader)?),
+            id::FRAME => TransportBody::Frame(codec.read(&mut *reader)?),
             // id::FRAGMENT => TransportBody::Fragment(codec.read(&mut *reader)?),
             id::KEEP_ALIVE => TransportBody::KeepAlive(codec.0.read(&mut *reader)?),
             id::INIT => {

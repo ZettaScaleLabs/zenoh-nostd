@@ -2,11 +2,15 @@ use core::fmt;
 
 use crate::{
     core::{CongestionControl, Priority, Reliability, WireExpr},
-    network::push::Push,
+    network::{
+        declare::{Declare, DeclareBody},
+        interest::Interest,
+        push::Push,
+    },
 };
 
-// pub mod declare;
-// pub mod interest;
+pub mod declare;
+pub mod interest;
 // pub mod oam;
 pub mod push;
 pub mod request;
@@ -53,8 +57,8 @@ pub enum NetworkBody {
     // Request(Request),
     // Response(Response),
     // ResponseFinal(ResponseFinal),
-    // Interest(Interest),
-    // Declare(Declare),
+    Interest(Interest),
+    Declare(Declare),
     // OAM(Oam),
 }
 
@@ -64,8 +68,8 @@ pub enum NetworkBodyRef<'a> {
     // Request(&'a Request),
     // Response(&'a Response),
     // ResponseFinal(&'a ResponseFinal),
-    // Interest(&'a Interest),
-    // Declare(&'a Declare),
+    Interest(&'a Interest),
+    Declare(&'a Declare),
     // OAM(&'a Oam),
 }
 
@@ -75,8 +79,8 @@ pub enum NetworkBodyMut<'a> {
     // Request(&'a mut Request),
     // Response(&'a mut Response),
     // ResponseFinal(&'a mut ResponseFinal),
-    // Interest(&'a mut Interest),
-    // Declare(&'a mut Declare),
+    Interest(&'a mut Interest),
+    Declare(&'a mut Declare),
     // OAM(&'a mut Oam),
 }
 
@@ -117,8 +121,8 @@ pub trait NetworkMessageExt {
             // NetworkBodyRef::Request(msg) => msg.ext_qos.is_express(),
             // NetworkBodyRef::Response(msg) => msg.ext_qos.is_express(),
             // NetworkBodyRef::ResponseFinal(msg) => msg.ext_qos.is_express(),
-            // NetworkBodyRef::Interest(msg) => msg.ext_qos.is_express(),
-            // NetworkBodyRef::Declare(msg) => msg.ext_qos.is_express(),
+            NetworkBodyRef::Interest(msg) => msg.ext_qos.is_express(),
+            NetworkBodyRef::Declare(msg) => msg.ext_qos.is_express(),
             // NetworkBodyRef::OAM(msg) => msg.ext_qos.is_express(),
         }
     }
@@ -130,8 +134,8 @@ pub trait NetworkMessageExt {
             // NetworkBodyRef::Request(msg) => msg.ext_qos.get_congestion_control(),
             // NetworkBodyRef::Response(msg) => msg.ext_qos.get_congestion_control(),
             // NetworkBodyRef::ResponseFinal(msg) => msg.ext_qos.get_congestion_control(),
-            // NetworkBodyRef::Interest(msg) => msg.ext_qos.get_congestion_control(),
-            // NetworkBodyRef::Declare(msg) => msg.ext_qos.get_congestion_control(),
+            NetworkBodyRef::Interest(msg) => msg.ext_qos.get_congestion_control(),
+            NetworkBodyRef::Declare(msg) => msg.ext_qos.get_congestion_control(),
             // NetworkBodyRef::OAM(msg) => msg.ext_qos.get_congestion_control(),
         }
     }
@@ -148,8 +152,8 @@ pub trait NetworkMessageExt {
             // NetworkBodyRef::Request(msg) => msg.ext_qos.get_priority(),
             // NetworkBodyRef::Response(msg) => msg.ext_qos.get_priority(),
             // NetworkBodyRef::ResponseFinal(msg) => msg.ext_qos.get_priority(),
-            // NetworkBodyRef::Interest(msg) => msg.ext_qos.get_priority(),
-            // NetworkBodyRef::Declare(msg) => msg.ext_qos.get_priority(),
+            NetworkBodyRef::Interest(msg) => msg.ext_qos.get_priority(),
+            NetworkBodyRef::Declare(msg) => msg.ext_qos.get_priority(),
             // NetworkBodyRef::OAM(msg) => msg.ext_qos.get_priority(),
         }
     }
@@ -161,18 +165,18 @@ pub trait NetworkMessageExt {
             // NetworkBodyRef::Request(m) => Some(&m.wire_expr),
             // NetworkBodyRef::Response(m) => Some(&m.wire_expr),
             // NetworkBodyRef::ResponseFinal(_) => None,
-            // NetworkBodyRef::Interest(m) => m.wire_expr.as_ref(),
-            // NetworkBodyRef::Declare(m) => match &m.body {
-            //     DeclareBody::DeclareKeyExpr(m) => Some(&m.wire_expr),
-            //     DeclareBody::UndeclareKeyExpr(_) => None,
-            //     DeclareBody::DeclareSubscriber(m) => Some(&m.wire_expr),
-            //     DeclareBody::UndeclareSubscriber(m) => Some(&m.ext_wire_expr.wire_expr),
-            //     DeclareBody::DeclareQueryable(m) => Some(&m.wire_expr),
-            //     DeclareBody::UndeclareQueryable(m) => Some(&m.ext_wire_expr.wire_expr),
-            //     DeclareBody::DeclareToken(m) => Some(&m.wire_expr),
-            //     DeclareBody::UndeclareToken(m) => Some(&m.ext_wire_expr.wire_expr),
-            //     DeclareBody::DeclareFinal(_) => None,
-            // },
+            NetworkBodyRef::Interest(m) => m.wire_expr.as_ref(),
+            NetworkBodyRef::Declare(m) => match &m.body {
+                DeclareBody::DeclareKeyExpr(m) => Some(&m.wire_expr),
+                DeclareBody::UndeclareKeyExpr(_) => None,
+                DeclareBody::DeclareSubscriber(m) => Some(&m.wire_expr),
+                DeclareBody::UndeclareSubscriber(m) => Some(&m.ext_wire_expr.wire_expr),
+                DeclareBody::DeclareQueryable(m) => Some(&m.wire_expr),
+                DeclareBody::UndeclareQueryable(m) => Some(&m.ext_wire_expr.wire_expr),
+                DeclareBody::DeclareToken(m) => Some(&m.wire_expr),
+                DeclareBody::UndeclareToken(m) => Some(&m.ext_wire_expr.wire_expr),
+                DeclareBody::DeclareFinal(_) => None,
+            },
             // NetworkBodyRef::OAM(_) => None,
         }
     }
@@ -193,8 +197,8 @@ pub trait NetworkMessageExt {
                 // NetworkBodyRef::Request(msg) => NetworkBody::Request(msg.clone()),
                 // NetworkBodyRef::Response(msg) => NetworkBody::Response(msg.clone()),
                 // NetworkBodyRef::ResponseFinal(msg) => NetworkBody::ResponseFinal(msg.clone()),
-                // NetworkBodyRef::Interest(msg) => NetworkBody::Interest(msg.clone()),
-                // NetworkBodyRef::Declare(msg) => NetworkBody::Declare(msg.clone()),
+                NetworkBodyRef::Interest(msg) => NetworkBody::Interest(msg.clone()),
+                NetworkBodyRef::Declare(msg) => NetworkBody::Declare(msg.clone()),
                 // NetworkBodyRef::OAM(msg) => NetworkBody::OAM(msg.clone()),
             },
             reliability: self.reliability(),
@@ -209,8 +213,8 @@ impl NetworkMessageExt for NetworkMessage {
             // NetworkBody::Request(body) => NetworkBodyRef::Request(body),
             // NetworkBody::Response(body) => NetworkBodyRef::Response(body),
             // NetworkBody::ResponseFinal(body) => NetworkBodyRef::ResponseFinal(body),
-            // NetworkBody::Interest(body) => NetworkBodyRef::Interest(body),
-            // NetworkBody::Declare(body) => NetworkBodyRef::Declare(body),
+            NetworkBody::Interest(body) => NetworkBodyRef::Interest(body),
+            NetworkBody::Declare(body) => NetworkBodyRef::Declare(body),
             // NetworkBody::OAM(body) => NetworkBodyRef::OAM(body),
         }
     }
@@ -237,8 +241,8 @@ impl NetworkMessageExt for NetworkMessageMut<'_> {
             // NetworkBodyMut::Request(body) => NetworkBodyRef::Request(body),
             // NetworkBodyMut::Response(body) => NetworkBodyRef::Response(body),
             // NetworkBodyMut::ResponseFinal(body) => NetworkBodyRef::ResponseFinal(body),
-            // NetworkBodyMut::Interest(body) => NetworkBodyRef::Interest(body),
-            // NetworkBodyMut::Declare(body) => NetworkBodyRef::Declare(body),
+            NetworkBodyMut::Interest(body) => NetworkBodyRef::Interest(body),
+            NetworkBodyMut::Declare(body) => NetworkBodyRef::Declare(body),
             // NetworkBodyMut::OAM(body) => NetworkBodyRef::OAM(body),
         }
     }
@@ -256,8 +260,8 @@ impl NetworkMessage {
             // NetworkBody::Request(body) => NetworkBodyMut::Request(body),
             // NetworkBody::Response(body) => NetworkBodyMut::Response(body),
             // NetworkBody::ResponseFinal(body) => NetworkBodyMut::ResponseFinal(body),
-            // NetworkBody::Interest(body) => NetworkBodyMut::Interest(body),
-            // NetworkBody::Declare(body) => NetworkBodyMut::Declare(body),
+            NetworkBody::Interest(body) => NetworkBodyMut::Interest(body),
+            NetworkBody::Declare(body) => NetworkBodyMut::Declare(body),
             // NetworkBody::OAM(body) => NetworkBodyMut::OAM(body),
         };
         NetworkMessageMut {
@@ -275,8 +279,8 @@ impl NetworkMessageMut<'_> {
             // NetworkBodyMut::Request(body) => NetworkBodyMut::Request(body),
             // NetworkBodyMut::Response(body) => NetworkBodyMut::Response(body),
             // NetworkBodyMut::ResponseFinal(body) => NetworkBodyMut::ResponseFinal(body),
-            // NetworkBodyMut::Interest(body) => NetworkBodyMut::Interest(body),
-            // NetworkBodyMut::Declare(body) => NetworkBodyMut::Declare(body),
+            NetworkBodyMut::Interest(body) => NetworkBodyMut::Interest(body),
+            NetworkBodyMut::Declare(body) => NetworkBodyMut::Declare(body),
             // NetworkBodyMut::OAM(body) => NetworkBodyMut::OAM(body),
         };
         NetworkMessageMut {
@@ -294,8 +298,8 @@ impl fmt::Display for NetworkMessageRef<'_> {
             // NetworkBodyRef::Request(_) => write!(f, "Request"),
             // NetworkBodyRef::Response(_) => write!(f, "Response"),
             // NetworkBodyRef::ResponseFinal(_) => write!(f, "ResponseFinal"),
-            // NetworkBodyRef::Interest(_) => write!(f, "Interest"),
-            // NetworkBodyRef::Declare(_) => write!(f, "Declare"),
+            NetworkBodyRef::Interest(_) => write!(f, "Interest"),
+            NetworkBodyRef::Declare(_) => write!(f, "Declare"),
         }
     }
 }
