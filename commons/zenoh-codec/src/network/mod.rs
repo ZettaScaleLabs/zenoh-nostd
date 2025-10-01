@@ -1,5 +1,5 @@
-// mod declare;
-// mod interest;
+mod declare;
+mod interest;
 // mod oam;
 mod push;
 // mod request;
@@ -35,8 +35,8 @@ where
             // NetworkBodyRef::Request(b) => self.write(&mut *writer, b),
             // NetworkBodyRef::Response(b) => self.write(&mut *writer, b),
             // NetworkBodyRef::ResponseFinal(b) => self.write(&mut *writer, b),
-            // NetworkBodyRef::Interest(b) => self.write(&mut *writer, b),
-            // NetworkBodyRef::Declare(b) => self.write(&mut *writer, b),
+            NetworkBodyRef::Interest(b) => self.write(&mut *writer, b),
+            NetworkBodyRef::Declare(b) => self.write(&mut *writer, b),
             // NetworkBodyRef::OAM(b) => self.write(&mut *writer, b),
         }
     }
@@ -96,8 +96,8 @@ where
             // id::REQUEST => NetworkBody::Request(self.read(&mut *reader)?),
             // id::RESPONSE => NetworkBody::Response(self.read(&mut *reader)?),
             // id::RESPONSE_FINAL => NetworkBody::ResponseFinal(self.read(&mut *reader)?),
-            // id::INTEREST => NetworkBody::Interest(self.read(&mut *reader)?),
-            // id::DECLARE => NetworkBody::Declare(self.read(&mut *reader)?),
+            id::INTEREST => NetworkBody::Interest(self.0.read(&mut *reader)?),
+            id::DECLARE => NetworkBody::Declare(self.0.read(&mut *reader)?),
             // id::OAM => NetworkBody::OAM(self.read(&mut *reader)?),
             _ => bail!(ZE::DidntRead),
         };

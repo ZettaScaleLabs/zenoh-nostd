@@ -1,31 +1,18 @@
-//
-// Copyright (c) 2022 ZettaScale Technology
-//
-// This program and the accompanying materials are made available under the
-// terms of the Eclipse Public License 2.0 which is available at
-// http://www.eclipse.org/legal/epl-2.0, or the Apache License, Version 2.0
-// which is available at https://www.apache.org/licenses/LICENSE-2.0.
-//
-// SPDX-License-Identifier: EPL-2.0 OR Apache-2.0
-//
-// Contributors:
-//   ZettaScale Zenoh Team, <zenoh@zettascale.tech>
-//
-use alloc::string::String;
-
+use heapless::String;
 use zenoh_buffers::{
-    reader::{DidntRead, Reader},
-    writer::{DidntWrite, HasWriter, Writer},
-    ZBuf,
+    reader::Reader,
+    writer::{HasWriter, Writer},
+    zbuf::ZBuf,
 };
 use zenoh_protocol::{
     common::{iext, imsg},
-    core::{ExprId, ExprLen, WireExpr},
+    core::{CowStr, ExprId, ExprLen, WireExpr},
     network::{
         declare::{self, common, keyexpr, queryable, subscriber, token, Declare, DeclareBody},
         id, Mapping,
     },
 };
+use zenoh_result::{bail, zerr, ZError, ZResult, ZE};
 
 use crate::{common::extension, RCodec, WCodec, Zenoh080, Zenoh080Condition, Zenoh080Header};
 
@@ -34,7 +21,7 @@ impl<W> WCodec<&DeclareBody, &mut W> for Zenoh080
 where
     W: Writer,
 {
-    type Output = Result<(), DidntWrite>;
+    type Output = ZResult<()>;
 
     fn write(self, writer: &mut W, x: &DeclareBody) -> Self::Output {
         match x {
@@ -57,9 +44,9 @@ impl<R> RCodec<DeclareBody, &mut R> for Zenoh080
 where
     R: Reader,
 {
-    type Error = DidntRead;
+    type Error = ZError;
 
-    fn read(self, reader: &mut R) -> ZResult<DeclareBody, Self::Error> {
+    fn read(self, reader: &mut R) -> ZResult<DeclareBody> {
         let header: u8 = self.read(&mut *reader)?;
         let codec = Zenoh080Header::new(header);
 
@@ -74,7 +61,7 @@ where
             D_TOKEN => DeclareBody::DeclareToken(codec.read(&mut *reader)?),
             U_TOKEN => DeclareBody::UndeclareToken(codec.read(&mut *reader)?),
             D_FINAL => DeclareBody::DeclareFinal(codec.read(&mut *reader)?),
-            _ => return Err(DidntRead),
+            _ => bail!(ZE::DidntRead),
         };
 
         Ok(d)
@@ -86,7 +73,7 @@ impl<W> WCodec<&Declare, &mut W> for Zenoh080
 where
     W: Writer,
 {
-    type Output = Result<(), DidntWrite>;
+    type Output = ZResult<()>;
 
     fn write(self, writer: &mut W, x: &Declare) -> Self::Output {
         let Declare {
@@ -139,9 +126,9 @@ impl<R> RCodec<Declare, &mut R> for Zenoh080
 where
     R: Reader,
 {
-    type Error = DidntRead;
+    type Error = ZError;
 
-    fn read(self, reader: &mut R) -> ZResult<Declare, Self::Error> {
+    fn read(self, reader: &mut R) -> ZResult<Declare> {
         let header: u8 = self.read(&mut *reader)?;
         let codec = Zenoh080Header::new(header);
 
@@ -153,11 +140,11 @@ impl<R> RCodec<Declare, &mut R> for Zenoh080Header
 where
     R: Reader,
 {
-    type Error = DidntRead;
+    type Error = ZError;
 
-    fn read(self, reader: &mut R) -> ZResult<Declare, Self::Error> {
+    fn read(self, reader: &mut R) -> ZResult<Declare> {
         if imsg::mid(self.header) != id::DECLARE {
-            return Err(DidntRead);
+            bail!(ZE::DidntRead);
         }
 
         let mut interest_id = None;
@@ -191,7 +178,7 @@ where
                     has_ext = ext;
                 }
                 _ => {
-                    has_ext = extension::skip(reader, "Declare", ext)?;
+                    has_ext = extension::skip::<_, 1, 32>(reader, "Declare", ext)?;
                 }
             }
         }
@@ -214,7 +201,7 @@ impl<W> WCodec<&common::DeclareFinal, &mut W> for Zenoh080
 where
     W: Writer,
 {
-    type Output = Result<(), DidntWrite>;
+    type Output = ZResult<()>;
 
     fn write(self, writer: &mut W, x: &common::DeclareFinal) -> Self::Output {
         let common::DeclareFinal = x;
@@ -231,9 +218,9 @@ impl<R> RCodec<common::DeclareFinal, &mut R> for Zenoh080
 where
     R: Reader,
 {
-    type Error = DidntRead;
+    type Error = ZError;
 
-    fn read(self, reader: &mut R) -> ZResult<common::DeclareFinal, Self::Error> {
+    fn read(self, reader: &mut R) -> ZResult<common::DeclareFinal> {
         let header: u8 = self.read(&mut *reader)?;
         let codec = Zenoh080Header::new(header);
 
@@ -245,17 +232,17 @@ impl<R> RCodec<common::DeclareFinal, &mut R> for Zenoh080Header
 where
     R: Reader,
 {
-    type Error = DidntRead;
+    type Error = ZError;
 
-    fn read(self, reader: &mut R) -> ZResult<common::DeclareFinal, Self::Error> {
+    fn read(self, reader: &mut R) -> ZResult<common::DeclareFinal> {
         if imsg::mid(self.header) != declare::id::D_FINAL {
-            return Err(DidntRead);
+            bail!(ZE::DidntRead);
         }
 
         // Extensions
         let has_ext = imsg::has_flag(self.header, token::flag::Z);
         if has_ext {
-            extension::skip_all(reader, "Final")?;
+            extension::skip_all::<_, 1, 32>(reader, "Final")?;
         }
 
         Ok(common::DeclareFinal)
@@ -267,7 +254,7 @@ impl<W> WCodec<&keyexpr::DeclareKeyExpr, &mut W> for Zenoh080
 where
     W: Writer,
 {
-    type Output = Result<(), DidntWrite>;
+    type Output = ZResult<()>;
 
     fn write(self, writer: &mut W, x: &keyexpr::DeclareKeyExpr) -> Self::Output {
         let keyexpr::DeclareKeyExpr { id, wire_expr } = x;
@@ -291,9 +278,9 @@ impl<R> RCodec<keyexpr::DeclareKeyExpr, &mut R> for Zenoh080
 where
     R: Reader,
 {
-    type Error = DidntRead;
+    type Error = ZError;
 
-    fn read(self, reader: &mut R) -> ZResult<keyexpr::DeclareKeyExpr, Self::Error> {
+    fn read(self, reader: &mut R) -> ZResult<keyexpr::DeclareKeyExpr> {
         let header: u8 = self.read(&mut *reader)?;
         let codec = Zenoh080Header::new(header);
 
@@ -305,21 +292,21 @@ impl<R> RCodec<keyexpr::DeclareKeyExpr, &mut R> for Zenoh080Header
 where
     R: Reader,
 {
-    type Error = DidntRead;
+    type Error = ZError;
 
-    fn read(self, reader: &mut R) -> ZResult<keyexpr::DeclareKeyExpr, Self::Error> {
+    fn read(self, reader: &mut R) -> ZResult<keyexpr::DeclareKeyExpr> {
         if imsg::mid(self.header) != declare::id::D_KEYEXPR {
-            return Err(DidntRead);
+            bail!(ZE::DidntRead);
         }
 
         let id: ExprId = self.codec.read(&mut *reader)?;
         let ccond = Zenoh080Condition::new(imsg::has_flag(self.header, keyexpr::flag::N));
-        let wire_expr: WireExpr<'static> = ccond.read(&mut *reader)?;
+        let wire_expr: WireExpr<'static, 32> = ccond.read(&mut *reader)?;
 
         // Extensions
         let has_ext = imsg::has_flag(self.header, keyexpr::flag::Z);
         if has_ext {
-            extension::skip_all(reader, "DeclareKeyExpr")?;
+            extension::skip_all::<_, 1, 32>(reader, "DeclareKeyExpr")?;
         }
 
         Ok(keyexpr::DeclareKeyExpr { id, wire_expr })
@@ -331,7 +318,7 @@ impl<W> WCodec<&keyexpr::UndeclareKeyExpr, &mut W> for Zenoh080
 where
     W: Writer,
 {
-    type Output = Result<(), DidntWrite>;
+    type Output = ZResult<()>;
 
     fn write(self, writer: &mut W, x: &keyexpr::UndeclareKeyExpr) -> Self::Output {
         let keyexpr::UndeclareKeyExpr { id } = x;
@@ -351,9 +338,9 @@ impl<R> RCodec<keyexpr::UndeclareKeyExpr, &mut R> for Zenoh080
 where
     R: Reader,
 {
-    type Error = DidntRead;
+    type Error = ZError;
 
-    fn read(self, reader: &mut R) -> ZResult<keyexpr::UndeclareKeyExpr, Self::Error> {
+    fn read(self, reader: &mut R) -> ZResult<keyexpr::UndeclareKeyExpr> {
         let header: u8 = self.read(&mut *reader)?;
         let codec = Zenoh080Header::new(header);
 
@@ -365,11 +352,11 @@ impl<R> RCodec<keyexpr::UndeclareKeyExpr, &mut R> for Zenoh080Header
 where
     R: Reader,
 {
-    type Error = DidntRead;
+    type Error = ZError;
 
-    fn read(self, reader: &mut R) -> ZResult<keyexpr::UndeclareKeyExpr, Self::Error> {
+    fn read(self, reader: &mut R) -> ZResult<keyexpr::UndeclareKeyExpr> {
         if imsg::mid(self.header) != declare::id::U_KEYEXPR {
-            return Err(DidntRead);
+            bail!(ZE::DidntRead);
         }
 
         let id: ExprId = self.codec.read(&mut *reader)?;
@@ -377,7 +364,7 @@ where
         // Extensions
         let has_ext = imsg::has_flag(self.header, keyexpr::flag::Z);
         if has_ext {
-            extension::skip_all(reader, "UndeclareKeyExpr")?;
+            extension::skip_all::<_, 1, 32>(reader, "UndeclareKeyExpr")?;
         }
 
         Ok(keyexpr::UndeclareKeyExpr { id })
@@ -389,7 +376,7 @@ impl<W> WCodec<&subscriber::DeclareSubscriber, &mut W> for Zenoh080
 where
     W: Writer,
 {
-    type Output = Result<(), DidntWrite>;
+    type Output = ZResult<()>;
 
     fn write(self, writer: &mut W, x: &subscriber::DeclareSubscriber) -> Self::Output {
         let subscriber::DeclareSubscriber { id, wire_expr } = x;
@@ -418,9 +405,9 @@ impl<R> RCodec<subscriber::DeclareSubscriber, &mut R> for Zenoh080
 where
     R: Reader,
 {
-    type Error = DidntRead;
+    type Error = ZError;
 
-    fn read(self, reader: &mut R) -> ZResult<subscriber::DeclareSubscriber, Self::Error> {
+    fn read(self, reader: &mut R) -> ZResult<subscriber::DeclareSubscriber> {
         let header: u8 = self.read(&mut *reader)?;
         let codec = Zenoh080Header::new(header);
 
@@ -432,17 +419,17 @@ impl<R> RCodec<subscriber::DeclareSubscriber, &mut R> for Zenoh080Header
 where
     R: Reader,
 {
-    type Error = DidntRead;
+    type Error = ZError;
 
-    fn read(self, reader: &mut R) -> ZResult<subscriber::DeclareSubscriber, Self::Error> {
+    fn read(self, reader: &mut R) -> ZResult<subscriber::DeclareSubscriber> {
         if imsg::mid(self.header) != declare::id::D_SUBSCRIBER {
-            return Err(DidntRead);
+            bail!(ZE::DidntRead);
         }
 
         // Body
         let id: subscriber::SubscriberId = self.codec.read(&mut *reader)?;
         let ccond = Zenoh080Condition::new(imsg::has_flag(self.header, subscriber::flag::N));
-        let mut wire_expr: WireExpr<'static> = ccond.read(&mut *reader)?;
+        let mut wire_expr: WireExpr<'static, 32> = ccond.read(&mut *reader)?;
         wire_expr.mapping = if imsg::has_flag(self.header, subscriber::flag::M) {
             Mapping::Sender
         } else {
@@ -453,7 +440,7 @@ where
         let mut has_ext = imsg::has_flag(self.header, subscriber::flag::Z);
         while has_ext {
             let ext: u8 = self.codec.read(&mut *reader)?;
-            has_ext = extension::skip(reader, "DeclareSubscriber", ext)?;
+            has_ext = extension::skip::<_, 1, 32>(reader, "DeclareSubscriber", ext)?;
         }
 
         Ok(subscriber::DeclareSubscriber { id, wire_expr })
@@ -465,7 +452,7 @@ impl<W> WCodec<&subscriber::UndeclareSubscriber, &mut W> for Zenoh080
 where
     W: Writer,
 {
-    type Output = Result<(), DidntWrite>;
+    type Output = ZResult<()>;
 
     fn write(self, writer: &mut W, x: &subscriber::UndeclareSubscriber) -> Self::Output {
         let subscriber::UndeclareSubscriber { id, ext_wire_expr } = x;
@@ -493,9 +480,9 @@ impl<R> RCodec<subscriber::UndeclareSubscriber, &mut R> for Zenoh080
 where
     R: Reader,
 {
-    type Error = DidntRead;
+    type Error = ZError;
 
-    fn read(self, reader: &mut R) -> ZResult<subscriber::UndeclareSubscriber, Self::Error> {
+    fn read(self, reader: &mut R) -> ZResult<subscriber::UndeclareSubscriber> {
         let header: u8 = self.read(&mut *reader)?;
         let codec = Zenoh080Header::new(header);
 
@@ -507,11 +494,11 @@ impl<R> RCodec<subscriber::UndeclareSubscriber, &mut R> for Zenoh080Header
 where
     R: Reader,
 {
-    type Error = DidntRead;
+    type Error = ZError;
 
-    fn read(self, reader: &mut R) -> ZResult<subscriber::UndeclareSubscriber, Self::Error> {
+    fn read(self, reader: &mut R) -> ZResult<subscriber::UndeclareSubscriber> {
         if imsg::mid(self.header) != declare::id::U_SUBSCRIBER {
-            return Err(DidntRead);
+            bail!(ZE::DidntRead);
         }
 
         // Body
@@ -531,7 +518,7 @@ where
                     has_ext = ext;
                 }
                 _ => {
-                    has_ext = extension::skip(reader, "UndeclareSubscriber", ext)?;
+                    has_ext = extension::skip::<_, 1, 32>(reader, "UndeclareSubscriber", ext)?;
                 }
             }
         }
@@ -545,7 +532,7 @@ impl<W> WCodec<(&queryable::ext::QueryableInfoType, bool), &mut W> for Zenoh080
 where
     W: Writer,
 {
-    type Output = Result<(), DidntWrite>;
+    type Output = ZResult<()>;
     fn write(self, writer: &mut W, x: (&queryable::ext::QueryableInfoType, bool)) -> Self::Output {
         let (x, more) = x;
 
@@ -564,12 +551,9 @@ impl<R> RCodec<(queryable::ext::QueryableInfoType, bool), &mut R> for Zenoh080He
 where
     R: Reader,
 {
-    type Error = DidntRead;
+    type Error = ZError;
 
-    fn read(
-        self,
-        reader: &mut R,
-    ) -> ZResult<(queryable::ext::QueryableInfoType, bool), Self::Error> {
+    fn read(self, reader: &mut R) -> ZResult<(queryable::ext::QueryableInfoType, bool)> {
         let (ext, more): (queryable::ext::QueryableInfo, bool) = self.read(&mut *reader)?;
 
         let complete = imsg::has_flag(ext.value as u8, queryable::ext::flag::C);
@@ -587,7 +571,7 @@ impl<W> WCodec<&queryable::DeclareQueryable, &mut W> for Zenoh080
 where
     W: Writer,
 {
-    type Output = Result<(), DidntWrite>;
+    type Output = ZResult<()>;
 
     fn write(self, writer: &mut W, x: &queryable::DeclareQueryable) -> Self::Output {
         let queryable::DeclareQueryable {
@@ -626,9 +610,9 @@ impl<R> RCodec<queryable::DeclareQueryable, &mut R> for Zenoh080
 where
     R: Reader,
 {
-    type Error = DidntRead;
+    type Error = ZError;
 
-    fn read(self, reader: &mut R) -> ZResult<queryable::DeclareQueryable, Self::Error> {
+    fn read(self, reader: &mut R) -> ZResult<queryable::DeclareQueryable> {
         let header: u8 = self.read(&mut *reader)?;
         let codec = Zenoh080Header::new(header);
 
@@ -640,17 +624,17 @@ impl<R> RCodec<queryable::DeclareQueryable, &mut R> for Zenoh080Header
 where
     R: Reader,
 {
-    type Error = DidntRead;
+    type Error = ZError;
 
-    fn read(self, reader: &mut R) -> ZResult<queryable::DeclareQueryable, Self::Error> {
+    fn read(self, reader: &mut R) -> ZResult<queryable::DeclareQueryable> {
         if imsg::mid(self.header) != declare::id::D_QUERYABLE {
-            return Err(DidntRead);
+            bail!(ZE::DidntRead);
         }
 
         // Body
         let id: queryable::QueryableId = self.codec.read(&mut *reader)?;
         let ccond = Zenoh080Condition::new(imsg::has_flag(self.header, queryable::flag::N));
-        let mut wire_expr: WireExpr<'static> = ccond.read(&mut *reader)?;
+        let mut wire_expr: WireExpr<'static, 32> = ccond.read(&mut *reader)?;
         wire_expr.mapping = if imsg::has_flag(self.header, queryable::flag::M) {
             Mapping::Sender
         } else {
@@ -672,7 +656,7 @@ where
                     has_ext = ext;
                 }
                 _ => {
-                    has_ext = extension::skip(reader, "DeclareQueryable", ext)?;
+                    has_ext = extension::skip::<_, 1, 32>(reader, "DeclareQueryable", ext)?;
                 }
             }
         }
@@ -690,7 +674,7 @@ impl<W> WCodec<&queryable::UndeclareQueryable, &mut W> for Zenoh080
 where
     W: Writer,
 {
-    type Output = Result<(), DidntWrite>;
+    type Output = ZResult<()>;
 
     fn write(self, writer: &mut W, x: &queryable::UndeclareQueryable) -> Self::Output {
         let queryable::UndeclareQueryable { id, ext_wire_expr } = x;
@@ -713,9 +697,9 @@ impl<R> RCodec<queryable::UndeclareQueryable, &mut R> for Zenoh080
 where
     R: Reader,
 {
-    type Error = DidntRead;
+    type Error = ZError;
 
-    fn read(self, reader: &mut R) -> ZResult<queryable::UndeclareQueryable, Self::Error> {
+    fn read(self, reader: &mut R) -> ZResult<queryable::UndeclareQueryable> {
         let header: u8 = self.read(&mut *reader)?;
         let codec = Zenoh080Header::new(header);
 
@@ -727,11 +711,11 @@ impl<R> RCodec<queryable::UndeclareQueryable, &mut R> for Zenoh080Header
 where
     R: Reader,
 {
-    type Error = DidntRead;
+    type Error = ZError;
 
-    fn read(self, reader: &mut R) -> ZResult<queryable::UndeclareQueryable, Self::Error> {
+    fn read(self, reader: &mut R) -> ZResult<queryable::UndeclareQueryable> {
         if imsg::mid(self.header) != declare::id::U_QUERYABLE {
-            return Err(DidntRead);
+            bail!(ZE::DidntRead);
         }
 
         // Body
@@ -751,7 +735,7 @@ where
                     has_ext = ext;
                 }
                 _ => {
-                    has_ext = extension::skip(reader, "UndeclareQueryable", ext)?;
+                    has_ext = extension::skip::<_, 1, 32>(reader, "UndeclareQueryable", ext)?;
                 }
             }
         }
@@ -765,7 +749,7 @@ impl<W> WCodec<&token::DeclareToken, &mut W> for Zenoh080
 where
     W: Writer,
 {
-    type Output = Result<(), DidntWrite>;
+    type Output = ZResult<()>;
 
     fn write(self, writer: &mut W, x: &token::DeclareToken) -> Self::Output {
         let token::DeclareToken { id, wire_expr } = x;
@@ -792,9 +776,9 @@ impl<R> RCodec<token::DeclareToken, &mut R> for Zenoh080
 where
     R: Reader,
 {
-    type Error = DidntRead;
+    type Error = ZError;
 
-    fn read(self, reader: &mut R) -> ZResult<token::DeclareToken, Self::Error> {
+    fn read(self, reader: &mut R) -> ZResult<token::DeclareToken> {
         let header: u8 = self.read(&mut *reader)?;
         let codec = Zenoh080Header::new(header);
         codec.read(reader)
@@ -805,17 +789,17 @@ impl<R> RCodec<token::DeclareToken, &mut R> for Zenoh080Header
 where
     R: Reader,
 {
-    type Error = DidntRead;
+    type Error = ZError;
 
-    fn read(self, reader: &mut R) -> ZResult<token::DeclareToken, Self::Error> {
+    fn read(self, reader: &mut R) -> ZResult<token::DeclareToken> {
         if imsg::mid(self.header) != declare::id::D_TOKEN {
-            return Err(DidntRead);
+            bail!(ZE::DidntRead);
         }
 
         // Body
         let id: token::TokenId = self.codec.read(&mut *reader)?;
         let ccond = Zenoh080Condition::new(imsg::has_flag(self.header, token::flag::N));
-        let mut wire_expr: WireExpr<'static> = ccond.read(&mut *reader)?;
+        let mut wire_expr: WireExpr<'static, 32> = ccond.read(&mut *reader)?;
         wire_expr.mapping = if imsg::has_flag(self.header, token::flag::M) {
             Mapping::Sender
         } else {
@@ -825,7 +809,7 @@ where
         // Extensions
         let has_ext = imsg::has_flag(self.header, token::flag::Z);
         if has_ext {
-            extension::skip_all(reader, "DeclareToken")?;
+            extension::skip_all::<_, 1, 32>(reader, "DeclareToken")?;
         }
 
         Ok(token::DeclareToken { id, wire_expr })
@@ -837,7 +821,7 @@ impl<W> WCodec<&token::UndeclareToken, &mut W> for Zenoh080
 where
     W: Writer,
 {
-    type Output = Result<(), DidntWrite>;
+    type Output = ZResult<()>;
 
     fn write(self, writer: &mut W, x: &token::UndeclareToken) -> Self::Output {
         let token::UndeclareToken { id, ext_wire_expr } = x;
@@ -860,9 +844,9 @@ impl<R> RCodec<token::UndeclareToken, &mut R> for Zenoh080
 where
     R: Reader,
 {
-    type Error = DidntRead;
+    type Error = ZError;
 
-    fn read(self, reader: &mut R) -> ZResult<token::UndeclareToken, Self::Error> {
+    fn read(self, reader: &mut R) -> ZResult<token::UndeclareToken> {
         let header: u8 = self.read(&mut *reader)?;
         let codec = Zenoh080Header::new(header);
 
@@ -874,11 +858,11 @@ impl<R> RCodec<token::UndeclareToken, &mut R> for Zenoh080Header
 where
     R: Reader,
 {
-    type Error = DidntRead;
+    type Error = ZError;
 
-    fn read(self, reader: &mut R) -> ZResult<token::UndeclareToken, Self::Error> {
+    fn read(self, reader: &mut R) -> ZResult<token::UndeclareToken> {
         if imsg::mid(self.header) != declare::id::U_TOKEN {
-            return Err(DidntRead);
+            bail!(ZE::DidntRead);
         }
 
         // Body
@@ -898,7 +882,7 @@ where
                     has_ext = ext;
                 }
                 _ => {
-                    has_ext = extension::skip(reader, "UndeclareToken", ext)?;
+                    has_ext = extension::skip::<_, 1, 32>(reader, "UndeclareToken", ext)?;
                 }
             }
         }
@@ -912,7 +896,7 @@ impl<W> WCodec<(&common::ext::WireExprType, bool), &mut W> for Zenoh080
 where
     W: Writer,
 {
-    type Output = Result<(), DidntWrite>;
+    type Output = ZResult<()>;
 
     fn write(self, writer: &mut W, x: (&common::ext::WireExprType, bool)) -> Self::Output {
         let (x, more) = x;
@@ -947,9 +931,9 @@ impl<R> RCodec<(common::ext::WireExprType, bool), &mut R> for Zenoh080Header
 where
     R: Reader,
 {
-    type Error = DidntRead;
+    type Error = ZError;
 
-    fn read(self, reader: &mut R) -> ZResult<(common::ext::WireExprType, bool), Self::Error> {
+    fn read(self, reader: &mut R) -> ZResult<(common::ext::WireExprType, bool)> {
         use zenoh_buffers::reader::HasReader;
 
         let (ext, more): (common::ext::WireExprExt, bool) = self.read(&mut *reader)?;
@@ -958,10 +942,10 @@ where
         let flags: u8 = self.codec.read(&mut zeader)?;
 
         let scope: ExprLen = self.codec.read(&mut zeader)?;
-        let suffix = if imsg::has_flag(flags, 1) {
-            let mut buff = zenoh_buffers::vec::uninit(zeader.remaining());
+        let suffix: String<32> = if imsg::has_flag(flags, 1) {
+            let mut buff = zenoh_buffers::vec::uninit::<32>();
             zeader.read_exact(&mut buff)?;
-            String::from_utf8(buff).map_err(|_| DidntRead)?
+            String::from_utf8(buff).map_err(|_| zerr!(ZE::DidntRead))?
         } else {
             String::new()
         };
@@ -975,7 +959,7 @@ where
             common::ext::WireExprType {
                 wire_expr: WireExpr {
                     scope,
-                    suffix: suffix.into(),
+                    suffix: CowStr::Owned(suffix),
                     mapping,
                 },
             },

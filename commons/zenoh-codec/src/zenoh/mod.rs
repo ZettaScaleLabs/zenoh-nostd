@@ -43,7 +43,9 @@ where
         let body = match imsg::mid(codec.header) {
             id::PUT => PushBody::Put((codec, ZSliceLen::<L>).read(&mut *reader)?),
             // id::DEL => PushBody::Del(codec.read(&mut *reader)?),
-            _ => bail!(ZE::DidntRead),
+            _ => {
+                bail!(ZE::DidntRead)
+            }
         };
 
         Ok(body)
