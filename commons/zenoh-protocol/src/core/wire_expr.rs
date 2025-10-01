@@ -66,7 +66,7 @@ impl<'a> WireExpr<'a> {
         self.scope == 0 && self.suffix.is_empty()
     }
 
-    pub fn as_str(&'a self) -> &'a str {
+    pub fn as_str(&self) -> &'_ str {
         if self.scope == 0 {
             self.suffix.as_ref()
         } else {
@@ -74,7 +74,7 @@ impl<'a> WireExpr<'a> {
         }
     }
 
-    pub fn try_as_str(&'a self) -> ZResult<&'a str> {
+    pub fn try_as_str(&self) -> ZResult<&'_ str> {
         if self.scope == EMPTY_EXPR_ID {
             Ok(self.suffix.as_ref())
         } else {
@@ -82,11 +82,11 @@ impl<'a> WireExpr<'a> {
         }
     }
 
-    pub fn as_id(&'a self) -> ExprId {
+    pub fn as_id(&self) -> ExprId {
         self.scope
     }
 
-    pub fn try_as_id(&'a self) -> ZResult<ExprId> {
+    pub fn try_as_id(&self) -> ZResult<ExprId> {
         if self.has_suffix() {
             zbail!(ZE::SuffixedKeyExprUnsupported);
         } else {
@@ -94,7 +94,7 @@ impl<'a> WireExpr<'a> {
         }
     }
 
-    pub fn as_id_and_suffix(&'a self) -> (ExprId, &'a str) {
+    pub fn as_id_and_suffix(&self) -> (ExprId, &'_ str) {
         (self.scope, self.suffix.as_ref())
     }
 

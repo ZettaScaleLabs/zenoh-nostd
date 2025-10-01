@@ -1,5 +1,5 @@
 [package]
-name = "zenoh-codec"
+name = "zenoh-buffer"
 authors.workspace = true
 categories.workspace = true
 description.workspace = true
@@ -12,7 +12,3 @@ version.workspace = true
 
 [dependencies]
 zenoh-result = { workspace = true }
-zenoh-buffer = { workspace = true }
-zenoh-protocol = { workspace = true }
-
-heapless = { workspace = true }

@@ -18,6 +18,7 @@ pub enum ZErrorKind {
     ReadFailure,
     ConversionFailure,
     SiphonFailure,
+    MalformedVLE,
 
     // ==== Addressing / Connection ====
     InvalidAddress,

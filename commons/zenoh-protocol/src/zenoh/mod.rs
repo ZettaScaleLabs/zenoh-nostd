@@ -34,6 +34,8 @@ pub enum ResponseBody<'a> {
 }
 
 pub mod ext {
+    use zenoh_buffer::ZBuf;
+
     use crate::core::{encoding::Encoding, EntityGlobalIdProto};
 
     /// ```text
@@ -65,7 +67,7 @@ pub mod ext {
     #[derive(Debug, Clone, PartialEq, Eq)]
     pub struct ValueType<'a, const VID: u8, const SID: u8> {
         pub encoding: Encoding<'a>,
-        pub payload: &'a [u8],
+        pub payload: ZBuf<'a>,
     }
 
     impl<const VID: u8, const SID: u8> ValueType<'_, { VID }, { SID }> {
@@ -86,6 +88,6 @@ pub mod ext {
     /// ```
     #[derive(Debug, Clone, PartialEq, Eq)]
     pub struct AttachmentType<'a, const ID: u8> {
-        pub buffer: &'a [u8],
+        pub buffer: ZBuf<'a>,
     }
 }

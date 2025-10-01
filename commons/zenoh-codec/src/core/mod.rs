@@ -1,7 +1,10 @@
-// use heapless::{String, Vec};
-use zenoh_result::{zbail, ZResult, ZE};
+use core::str::FromStr;
 
-use crate::{RCodec, WCodec, Writer, Zenoh080};
+use heapless::String;
+use zenoh_buffer::{ZBuf, ZBufReader, ZBufWriter};
+use zenoh_result::{zbail, zerr, ZResult, ZE};
+
+use crate::{RCodec, WCodec, Zenoh080};
 
 const VLE_LEN_MAX: usize = vle_len(u64::MAX);
 
@@ -36,108 +39,201 @@ const fn vle_len(x: u64) -> usize {
     }
 }
 
-impl WCodec<u8> for Zenoh080 {
-    fn write(&self, message: &u8, mut support: &mut [u8]) -> ZResult<usize> {
-        support.write_u8(*message)
+impl<'a> WCodec<'a, u8> for Zenoh080 {
+    fn write(&self, message: u8, writer: &mut ZBufWriter<'a>) -> ZResult<()> {
+        writer.write_u8(message)?;
+
+        Ok(())
     }
 }
 
-impl RCodec<u8> for Zenoh080 {
-    fn read(&self, support: &[u8]) -> ZResult<(u8, usize)> {
-        if support.is_empty() {
-            zbail!(ZE::CapacityExceeded);
-        }
-
-        Ok((support[0], 1))
+impl<'a> RCodec<'a, u8> for Zenoh080 {
+    fn read(&self, reader: &mut ZBufReader<'a>) -> ZResult<u8> {
+        reader.read_u8()
     }
 }
 
-impl WCodec<u64> for Zenoh080 {
-    fn write(&self, message: &u64, mut support: &mut [u8]) -> ZResult<usize> {
-        let len = vle_len(*message);
-        if support.len() < len {
-            zbail!(ZE::CapacityExceeded);
-        }
+impl<'a> WCodec<'a, u64> for Zenoh080 {
+    fn write(&self, message: u64, writer: &mut ZBufWriter<'a>) -> ZResult<()> {
+        let mut value = message;
+        let mut buf = [0u8; VLE_LEN_MAX];
+        let mut i = 0;
 
-        let mut value = *message;
-        for i in 0..len {
+        loop {
             let byte = (value & 0x7F) as u8;
             value >>= 7;
-            if i < len - 1 {
-                support.write_u8(byte | 0x80)?;
+
+            if value != 0 {
+                unsafe {
+                    *buf.get_unchecked_mut(i) = byte | 0x80;
+                }
             } else {
-                support.write_u8(byte)?;
+                unsafe {
+                    *buf.get_unchecked_mut(i) = byte;
+                }
+                break;
+            }
+
+            i += 1;
+            if i >= VLE_LEN_MAX {
+                zbail!(ZE::WriteFailure);
             }
         }
 
-        Ok(len)
+        writer.write_exact(&buf[..=i])?;
+
+        Ok(())
     }
 }
 
-impl RCodec<u64> for Zenoh080 {
-    fn read(&self, support: &[u8]) -> ZResult<(u64, usize)> {
+impl<'a> RCodec<'a, u64> for Zenoh080 {
+    fn read(&self, reader: &mut ZBufReader<'a>) -> ZResult<u64> {
         let mut value: u64 = 0;
         let mut shift = 0;
-        let mut len = 0;
+        let mut byte: u8;
 
-        for byte in support {
-            let byte = *byte;
+        loop {
+            if shift >= 64 {
+                zbail!(ZE::MalformedVLE);
+            }
+
+            byte = reader.read_u8()?;
             value |= ((byte & 0x7F) as u64) << shift;
-            len += 1;
 
             if (byte & 0x80) == 0 {
-                return Ok((value, len));
+                break;
             }
 
             shift += 7;
-            if shift >= 64 || len >= VLE_LEN_MAX {
-                zbail!(ZE::ReadFailure);
-            }
         }
 
-        zbail!(ZE::CapacityExceeded);
+        Ok(value)
     }
 }
 
-// impl<const N: usize> WCodec<[u8; N]> for Zenoh080 {
-//     fn write(&self, message: &[u8; N], mut support: &mut [u8]) -> ZResult<usize> {
-//         support.write(message, message.len())
-//     }
-// }
+impl<'a> WCodec<'a, u32> for Zenoh080 {
+    fn write(&self, message: u32, writer: &mut ZBufWriter<'a>) -> ZResult<()> {
+        self.write(message as u64, writer)
+    }
+}
 
-// impl<const N: usize> RCodec<[u8; N]> for Zenoh080 {
-//     fn read(&self, support: &[u8]) -> ZResult<([u8; N], usize)> {
-//         if support.len() < N {
-//             zbail!(ZE::CapacityExceeded);
-//         }
+impl<'a> RCodec<'a, u32> for Zenoh080 {
+    fn read(&self, reader: &mut ZBufReader<'a>) -> ZResult<u32> {
+        let value: u64 = self.read(reader)?;
 
-//         let mut array = [0u8; N];
-//         array.copy_from_slice(&support[..N]);
+        if value > u32::MAX as u64 {
+            zbail!(ZE::CapacityExceeded);
+        }
 
-//         Ok((array, N))
-//     }
-// }
+        Ok(value as u32)
+    }
+}
 
-// impl WCodec<&[u8]> for Zenoh080 {
-//     fn write(&self, message: &&[u8], mut support: &mut [u8]) -> ZResult<usize> {
-//         support.write(message, message.len())
-//     }
-// }
+impl<'a> WCodec<'a, u16> for Zenoh080 {
+    fn write(&self, message: u16, writer: &mut ZBufWriter<'a>) -> ZResult<()> {
+        self.write(message as u64, writer)
+    }
+}
 
-// impl<const N: usize> WCodec<Vec<u8, N>> for Zenoh080 {
-//     fn write(&self, message: &Vec<u8, N>, mut support: &mut [u8]) -> ZResult<usize> {
-//         support.write(message.as_slice(), message.len())
-//     }
-// }
+impl<'a> RCodec<'a, u16> for Zenoh080 {
+    fn read(&self, reader: &mut ZBufReader<'a>) -> ZResult<u16> {
+        let value: u64 = self.read(reader)?;
 
-// impl WCodec<&str> for Zenoh080 {
-//     fn write(&self, message: &&str, mut support: &mut [u8]) -> ZResult<usize> {
-//         support.write(message.as_bytes(), message.len())
-//     }
-// }
+        if value > u16::MAX as u64 {
+            zbail!(ZE::CapacityExceeded);
+        }
 
-// impl<const N: usize> WCodec<&String<N>> for Zenoh080 {
-//     fn write(&self, message: &&String<N>, mut support: &mut [u8]) -> ZResult<usize> {
-//         support.write(message.as_bytes(), message.len())
-//     }
-// }
+        Ok(value as u16)
+    }
+}
+
+impl<'a> WCodec<'a, usize> for Zenoh080 {
+    fn write(&self, message: usize, writer: &mut ZBufWriter<'a>) -> ZResult<()> {
+        self.write(message as u64, writer)
+    }
+}
+
+impl<'a> RCodec<'a, usize> for Zenoh080 {
+    fn read(&self, reader: &mut ZBufReader<'a>) -> ZResult<usize> {
+        let value: u64 = self.read(reader)?;
+
+        if value > usize::MAX as u64 {
+            zbail!(ZE::CapacityExceeded);
+        }
+
+        Ok(value as usize)
+    }
+}
+
+impl<'a, const N: usize> WCodec<'a, &[u8; N]> for Zenoh080 {
+    fn write(&self, message: &[u8; N], writer: &mut ZBufWriter<'a>) -> ZResult<()> {
+        writer.write_exact(message)?;
+
+        Ok(())
+    }
+}
+
+impl<'a, const N: usize> RCodec<'a, [u8; N]> for Zenoh080 {
+    fn read(&self, reader: &mut ZBufReader<'a>) -> ZResult<[u8; N]> {
+        if reader.remaining() < N {
+            zbail!(ZE::CapacityExceeded);
+        }
+
+        let mut array = [0u8; N];
+        reader.read_exact(&mut array)?;
+
+        Ok(array)
+    }
+}
+
+impl<'a> WCodec<'a, ZBuf<'_>> for Zenoh080 {
+    fn write(&self, message: ZBuf<'_>, writer: &mut ZBufWriter<'a>) -> ZResult<()> {
+        if message.is_empty() {
+            zbail!(ZE::WriteFailure);
+        }
+
+        let len = message.len();
+        self.write(len, writer)?;
+        writer.write_exact(message.as_bytes())?;
+
+        Ok(())
+    }
+}
+
+impl<'a> RCodec<'a, ZBuf<'a>> for Zenoh080 {
+    fn read(&self, reader: &mut ZBufReader<'a>) -> ZResult<ZBuf<'a>> {
+        let len: usize = self.read(reader)?;
+
+        reader.read_zbuf(len)
+    }
+}
+
+impl<'a> WCodec<'a, &str> for Zenoh080 {
+    fn write(&self, message: &str, writer: &mut ZBufWriter<'a>) -> ZResult<()> {
+        let zbuf = ZBuf(message.as_bytes());
+        self.write(zbuf, writer)
+    }
+}
+
+impl<'a> RCodec<'a, &'a str> for Zenoh080 {
+    fn read(&self, reader: &mut ZBufReader<'a>) -> ZResult<&'a str> {
+        let zbuf: ZBuf<'a> = self.read(reader)?;
+
+        zbuf.as_str()
+    }
+}
+
+impl<'a, const N: usize> WCodec<'a, &String<N>> for Zenoh080 {
+    fn write(&self, message: &String<N>, writer: &mut ZBufWriter<'a>) -> ZResult<()> {
+        let zbuf = ZBuf(message.as_bytes());
+        self.write(zbuf, writer)
+    }
+}
+
+impl<'a, const N: usize> RCodec<'a, String<N>> for Zenoh080 {
+    fn read(&self, reader: &mut ZBufReader<'a>) -> ZResult<String<N>> {
+        let s: &'a str = self.read(reader)?;
+
+        String::from_str(s).map_err(|_| zerr!(ZE::CapacityExceeded))
+    }
+}

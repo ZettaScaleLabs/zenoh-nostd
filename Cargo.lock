@@ -371,10 +371,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "zenoh-buffer"
+version = "1.5.1"
+dependencies = [
+ "zenoh-result",
+]
+
+[[package]]
 name = "zenoh-codec"
 version = "1.5.1"
 dependencies = [
  "heapless",
+ "zenoh-buffer",
  "zenoh-protocol",
  "zenoh-result",
 ]
@@ -403,6 +411,7 @@ dependencies = [
  "const_format",
  "heapless",
  "uhlc",
+ "zenoh-buffer",
  "zenoh-keyexpr",
  "zenoh-result",
 ]

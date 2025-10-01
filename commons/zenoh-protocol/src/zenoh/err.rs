@@ -1,3 +1,5 @@
+use zenoh_buffer::ZBuf;
+
 use crate::{common::extension::ZExtUnknown, core::encoding::Encoding};
 
 /// # Err message
@@ -30,7 +32,7 @@ pub struct Err<'a> {
     pub encoding: Encoding<'a>,
     pub ext_sinfo: Option<ext::SourceInfoType>,
     pub ext_unknown: &'a [ZExtUnknown<'a>],
-    pub payload: &'a [u8],
+    pub payload: ZBuf<'a>,
 }
 
 pub mod ext {

@@ -1,5 +1,5 @@
 [workspace]
-members = ["commons/zenoh-codec", "commons/zenoh-keyexpr","commons/zenoh-log", "commons/zenoh-protocol", "commons/zenoh-result"]
+members = [ "commons/zenoh-buffer","commons/zenoh-codec", "commons/zenoh-keyexpr","commons/zenoh-log", "commons/zenoh-protocol", "commons/zenoh-result"]
 resolver = "2"
 
 [workspace.package]
@@ -16,6 +16,7 @@ version = "1.5.1"
 [workspace.dependencies]
 zenoh-log = { version = "1.5.1", path = "commons/zenoh-log" }
 zenoh-result = { version = "1.5.1", path = "commons/zenoh-result" }
+zenoh-buffer = { version = "1.5.1", path = "commons/zenoh-buffer" }
 zenoh-keyexpr = { version = "1.5.1", path = "commons/zenoh-keyexpr" }
 zenoh-protocol = { version = "1.5.1", path = "commons/zenoh-protocol" }
 zenoh-codec = { version = "1.5.1", path = "commons/zenoh-codec" }

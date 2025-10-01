@@ -29,7 +29,7 @@ pub(super) fn address(s: &str) -> &str {
 pub struct Protocol<'a>(pub(super) &'a str);
 
 impl<'a> Protocol<'a> {
-    pub fn as_str(&self) -> &'a str {
+    pub fn as_str(&self) -> &'_ str {
         self.0
     }
 }
@@ -58,7 +58,7 @@ impl fmt::Debug for Protocol<'_> {
 pub struct Address<'a>(pub(super) &'a str);
 
 impl<'a> Address<'a> {
-    pub fn as_str(&self) -> &'a str {
+    pub fn as_str(&self) -> &'_ str {
         self.0
     }
 }

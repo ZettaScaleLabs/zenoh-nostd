@@ -1,5 +1,7 @@
 use core::fmt::Debug;
 
+use zenoh_buffer::ZBuf;
+
 pub type EncodingId = u16;
 
 /// [`Encoding`] is a metadata that indicates how the data payload should be interpreted.
@@ -12,7 +14,7 @@ pub type EncodingId = u16;
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct Encoding<'a> {
     pub id: EncodingId,
-    pub schema: Option<&'a [u8]>,
+    pub schema: Option<ZBuf<'a>>,
 }
 
 /// # Encoding field

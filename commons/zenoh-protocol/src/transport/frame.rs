@@ -1,3 +1,5 @@
+use zenoh_buffer::ZBuf;
+
 use crate::{core::Reliability, transport::TransportSn};
 
 pub mod flag {
@@ -57,7 +59,7 @@ pub struct Frame<'a> {
     pub reliability: Reliability,
     pub sn: TransportSn,
     pub ext_qos: ext::QoSType,
-    pub payload: &'a [u8],
+    pub payload: ZBuf<'a>,
 }
 
 // Extensions

@@ -58,7 +58,7 @@ pub struct NetworkMessage<'a> {
 }
 
 impl<'a> NetworkMessage<'a> {
-    pub fn body(&'a self) -> &'a NetworkBody<'a> {
+    pub fn body(&self) -> &'_ NetworkBody<'_> {
         &self.body
     }
 
@@ -112,7 +112,7 @@ impl<'a> NetworkMessage<'a> {
     }
 
     #[inline]
-    pub fn wire_expr(&'a self) -> Option<&'a WireExpr<'a>> {
+    pub fn wire_expr(&self) -> Option<&'_ WireExpr<'_>> {
         match &self.body() {
             NetworkBody::Push(m) => Some(&m.wire_expr),
             NetworkBody::Request(m) => Some(&m.wire_expr),

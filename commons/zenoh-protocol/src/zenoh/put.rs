@@ -1,4 +1,5 @@
 use uhlc::Timestamp;
+use zenoh_buffer::ZBuf;
 
 use crate::{common::extension::ZExtUnknown, core::encoding::Encoding};
 
@@ -36,7 +37,7 @@ pub struct Put<'a> {
     pub ext_sinfo: Option<ext::SourceInfoType>,
     pub ext_attachment: Option<ext::AttachmentType<'a>>,
     pub ext_unknown: &'a [ZExtUnknown<'a>],
-    pub payload: &'a [u8],
+    pub payload: ZBuf<'a>,
 }
 
 pub mod ext {

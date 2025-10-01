@@ -50,6 +50,8 @@
 
 use core::time::Duration;
 
+use zenoh_buffer::ZBuf;
+
 use crate::transport::TransportSn;
 
 pub mod flag {
@@ -70,7 +72,7 @@ pub mod flag {
 pub struct OpenSyn<'a> {
     pub lease: Duration,
     pub initial_sn: TransportSn,
-    pub cookie: &'a [u8],
+    pub cookie: ZBuf<'a>,
     pub ext_qos: Option<ext::QoS>,
     pub ext_auth: Option<ext::Auth<'a>>,
     pub ext_mlink: Option<ext::MultiLinkSyn<'a>>,

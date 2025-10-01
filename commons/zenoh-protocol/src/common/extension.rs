@@ -3,6 +3,7 @@ use core::{
     fmt::{self, Debug},
 };
 
+use zenoh_buffer::ZBuf;
 use zenoh_result::{zbail, zerr, ZError, ZResult, ZE};
 
 /// # Zenoh extensions
@@ -195,13 +196,13 @@ impl<'a, const ID: u8> TryFrom<ZExtUnknown<'a>> for ZExtZ64<{ ID }> {
 #[repr(transparent)]
 #[derive(Clone, PartialEq, Eq)]
 pub struct ZExtZBuf<'a, const ID: u8> {
-    pub value: &'a [u8],
+    pub value: ZBuf<'a>,
 }
 
 impl<'a, const ID: u8> ZExtZBuf<'a, { ID }> {
     pub const ID: u8 = ID;
 
-    pub const fn new(value: &'a [u8]) -> Self {
+    pub const fn new(value: ZBuf<'a>) -> Self {
         Self { value }
     }
 
@@ -274,7 +275,7 @@ pub enum ZExtBody<'a> {
     #[default]
     Unit,
     Z64(u64),
-    ZBuf(&'a [u8]),
+    ZBuf(ZBuf<'a>),
 }
 
 #[derive(Clone, PartialEq, Eq)]

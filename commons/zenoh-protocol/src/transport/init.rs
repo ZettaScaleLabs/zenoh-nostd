@@ -80,6 +80,8 @@
 //!       In any case, the length of a message must not exceed 65535 bytes.
 //! ```
 
+use zenoh_buffer::ZBuf;
+
 use crate::{
     core::{resolution::Resolution, whatami::WhatAmI, ZenohIdProto},
     transport::BatchSize,
@@ -166,7 +168,7 @@ pub struct InitAck<'a> {
     pub zid: ZenohIdProto,
     pub resolution: Resolution,
     pub batch_size: BatchSize,
-    pub cookie: &'a [u8],
+    pub cookie: ZBuf<'a>,
     pub ext_qos: Option<ext::QoS>,
     pub ext_qos_link: Option<ext::QoSLink>,
     pub ext_auth: Option<ext::Auth<'a>>,
