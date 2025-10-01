@@ -161,8 +161,13 @@ impl WithContext for ZError {
 }
 
 impl<T> WithContext for Result<T, ZError> {
+    #[cfg(feature = "ctx")]
     fn ctx(self, context: &'static str) -> Self {
         self.map_err(|e| e.ctx(context))
+    }
+    #[cfg(not(feature = "ctx"))]
+    fn ctx(self, _context: &'static str) -> Self {
+        self
     }
 }
 

@@ -8,7 +8,7 @@ use zenoh_protocol::{
         id,
     },
 };
-use zenoh_result::{zbail, zerr, ZE};
+use zenoh_result::{zbail, zctx, zerr, WithContext, ZE};
 
 use crate::{common::extension, RCodec, WCodec, Zenoh080};
 
@@ -33,22 +33,22 @@ impl<'a, const MAX_EXT_UNKNOWN: usize> WCodec<'a, &Err<'_, MAX_EXT_UNKNOWN>> for
         if n_exts != 0 {
             header |= flag::Z;
         }
-        self.write(header, writer)?;
+        self.write(header, writer).ctx(zctx!())?;
 
         if encoding != &Encoding::empty() {
-            self.write(encoding, writer)?;
+            self.write(encoding, writer).ctx(zctx!())?;
         }
 
         if let Some(sinfo) = ext_sinfo.as_ref() {
             n_exts -= 1;
-            self.write((sinfo, n_exts != 0), writer)?;
+            self.write((sinfo, n_exts != 0), writer).ctx(zctx!())?;
         }
         for u in ext_unknown.iter() {
             n_exts -= 1;
-            self.write((u, n_exts != 0), writer)?;
+            self.write((u, n_exts != 0), writer).ctx(zctx!())?;
         }
 
-        self.write(payload, writer)?;
+        self.write(payload, writer).ctx(zctx!())?;
 
         Ok(())
     }
@@ -60,7 +60,7 @@ impl<'a, const MAX_EXT_UNKNOWN: usize> WCodec<'a, Err<'_, MAX_EXT_UNKNOWN>> for 
         message: Err<'_, MAX_EXT_UNKNOWN>,
         writer: &mut zenoh_buffer::ZBufWriter<'a>,
     ) -> zenoh_result::ZResult<()> {
-        self.write(&message, writer)
+        self.write(&message, writer).ctx(zctx!())
     }
 }
 
@@ -76,7 +76,7 @@ impl<'a, const MAX_EXT_UNKNOWN: usize> RCodec<'a, Err<'a, MAX_EXT_UNKNOWN>> for 
 
         let mut encoding = Encoding::empty();
         if imsg::has_flag(header, flag::E) {
-            encoding = self.read(reader)?;
+            encoding = self.read(reader).ctx(zctx!())?;
         }
 
         let mut ext_sinfo: Option<ext::SourceInfoType> = None;
@@ -84,7 +84,7 @@ impl<'a, const MAX_EXT_UNKNOWN: usize> RCodec<'a, Err<'a, MAX_EXT_UNKNOWN>> for 
 
         let mut has_ext = imsg::has_flag(header, flag::Z);
         while has_ext {
-            let ext: u8 = self.read(reader)?;
+            let ext: u8 = self.read(reader).ctx(zctx!())?;
             match iext::eid(ext) {
                 ext::SourceInfo::ID => {
                     let (s, ext): (ext::SourceInfoType, bool) =
@@ -100,7 +100,7 @@ impl<'a, const MAX_EXT_UNKNOWN: usize> RCodec<'a, Err<'a, MAX_EXT_UNKNOWN>> for 
             }
         }
 
-        let payload: ZBuf = self.read(reader)?;
+        let payload: ZBuf = self.read(reader).ctx(zctx!())?;
 
         Ok(Err {
             encoding,
@@ -114,7 +114,7 @@ impl<'a, const MAX_EXT_UNKNOWN: usize> RCodec<'a, Err<'a, MAX_EXT_UNKNOWN>> for 
         &self,
         reader: &mut zenoh_buffer::ZBufReader<'a>,
     ) -> zenoh_result::ZResult<Err<'a, MAX_EXT_UNKNOWN>> {
-        let header: u8 = self.read(reader)?;
-        self.read_knowing_header(reader, header)
+        let header: u8 = self.read(reader).ctx(zctx!())?;
+        self.read_knowing_header(reader, header).ctx(zctx!())
     }
 }

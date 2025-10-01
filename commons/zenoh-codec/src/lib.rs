@@ -5,6 +5,7 @@ use zenoh_result::{zbail, ZResult, ZE};
 
 pub mod common;
 pub mod core;
+pub mod network;
 pub mod zenoh;
 
 pub trait LCodec<'a, Message> {

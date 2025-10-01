@@ -6,7 +6,7 @@ use zenoh_protocol::{
         query::{ext, flag, ConsolidationMode, Query},
     },
 };
-use zenoh_result::{zbail, zerr, ZE};
+use zenoh_result::{zbail, zctx, zerr, WithContext, ZE};
 
 use crate::{common::extension, RCodec, WCodec, Zenoh080};
 
@@ -23,7 +23,7 @@ impl<'a> WCodec<'a, &ConsolidationMode> for Zenoh080 {
             ConsolidationMode::Latest => 3,
         };
 
-        self.write(v, writer)
+        self.write(v, writer).ctx(zctx!())
     }
 }
 
@@ -32,7 +32,7 @@ impl<'a> RCodec<'a, ConsolidationMode> for Zenoh080 {
         &self,
         reader: &mut zenoh_buffer::ZBufReader<'a>,
     ) -> zenoh_result::ZResult<ConsolidationMode> {
-        let v: u64 = self.read(reader)?;
+        let v: u64 = self.read(reader).ctx(zctx!())?;
 
         match v {
             0 => Ok(ConsolidationMode::Auto),
@@ -78,30 +78,30 @@ impl<'a, const MAX_EXT_UNKNOWN: usize> WCodec<'a, &Query<'_, MAX_EXT_UNKNOWN>> f
             header |= flag::Z;
         }
 
-        self.write(header, writer)?;
+        self.write(header, writer).ctx(zctx!())?;
 
         if consolidation != &ConsolidationMode::DEFAULT {
-            self.write(consolidation, writer)?;
+            self.write(consolidation, writer).ctx(zctx!())?;
         }
         if !parameters.is_empty() {
-            self.write(*parameters, writer)?;
+            self.write(*parameters, writer).ctx(zctx!())?;
         }
 
         if let Some(sinfo) = ext_sinfo.as_ref() {
             n_exts -= 1;
-            self.write((sinfo, n_exts != 0), writer)?;
+            self.write((sinfo, n_exts != 0), writer).ctx(zctx!())?;
         }
         if let Some(body) = ext_body.as_ref() {
             n_exts -= 1;
-            self.write((body, n_exts != 0), writer)?;
+            self.write((body, n_exts != 0), writer).ctx(zctx!())?;
         }
         if let Some(att) = ext_attachment.as_ref() {
             n_exts -= 1;
-            self.write((att, n_exts != 0), writer)?;
+            self.write((att, n_exts != 0), writer).ctx(zctx!())?;
         }
         for u in ext_unknown.iter() {
             n_exts -= 1;
-            self.write((u, n_exts != 0), writer)?;
+            self.write((u, n_exts != 0), writer).ctx(zctx!())?;
         }
 
         Ok(())
@@ -120,12 +120,12 @@ impl<'a, const MAX_EXT_UNKNOWN: usize> RCodec<'a, Query<'a, MAX_EXT_UNKNOWN>> fo
 
         let mut consolidation = ConsolidationMode::DEFAULT;
         if imsg::has_flag(header, flag::C) {
-            consolidation = self.read(reader)?;
+            consolidation = self.read(reader).ctx(zctx!())?;
         }
 
         let mut parameters = "";
         if imsg::has_flag(header, flag::P) {
-            parameters = self.read(reader)?;
+            parameters = self.read(reader).ctx(zctx!())?;
         }
 
         let mut ext_sinfo: Option<ext::SourceInfoType> = None;
@@ -135,7 +135,7 @@ impl<'a, const MAX_EXT_UNKNOWN: usize> RCodec<'a, Query<'a, MAX_EXT_UNKNOWN>> fo
 
         let mut has_ext = imsg::has_flag(header, flag::Z);
         while has_ext {
-            let ext: u8 = self.read(reader)?;
+            let ext: u8 = self.read(reader).ctx(zctx!())?;
 
             match iext::eid(ext) {
                 ext::SourceInfo::ID => {
@@ -183,8 +183,8 @@ impl<'a, const MAX_EXT_UNKNOWN: usize> RCodec<'a, Query<'a, MAX_EXT_UNKNOWN>> fo
         &self,
         reader: &mut zenoh_buffer::ZBufReader<'a>,
     ) -> zenoh_result::ZResult<Query<'a, MAX_EXT_UNKNOWN>> {
-        let header: u8 = self.read(reader)?;
+        let header: u8 = self.read(reader).ctx(zctx!())?;
 
-        self.read_knowing_header(reader, header)
+        self.read_knowing_header(reader, header).ctx(zctx!())
     }
 }

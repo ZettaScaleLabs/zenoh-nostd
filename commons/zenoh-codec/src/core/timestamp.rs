@@ -1,7 +1,7 @@
 use uhlc::{ID, NTP64};
 use zenoh_buffer::ZBuf;
 use zenoh_protocol::core::Timestamp;
-use zenoh_result::{zerr, ZE};
+use zenoh_result::{zctx, zerr, WithContext, ZE};
 
 use crate::{LCodec, RCodec, WCodec, Zenoh080};
 
@@ -24,8 +24,8 @@ impl<'a> WCodec<'a, &Timestamp> for Zenoh080 {
         let id = message.get_id();
         let bytes = &id.to_le_bytes()[..id.size()];
 
-        self.write(time, writer)?;
-        self.write(ZBuf(bytes), writer)?;
+        self.write(time, writer).ctx(zctx!())?;
+        self.write(ZBuf(bytes), writer).ctx(zctx!())?;
 
         Ok(())
     }
@@ -37,14 +37,14 @@ impl<'a> WCodec<'a, Timestamp> for Zenoh080 {
         message: Timestamp,
         writer: &mut zenoh_buffer::ZBufWriter<'a>,
     ) -> zenoh_result::ZResult<()> {
-        self.write(&message, writer)
+        self.write(&message, writer).ctx(zctx!())
     }
 }
 
 impl<'a> RCodec<'a, Timestamp> for Zenoh080 {
     fn read(&self, reader: &mut zenoh_buffer::ZBufReader<'a>) -> zenoh_result::ZResult<Timestamp> {
-        let time: u64 = self.read(reader)?;
-        let zbuf: ZBuf<'a> = self.read(reader)?;
+        let time: u64 = self.read(reader).ctx(zctx!())?;
+        let zbuf: ZBuf<'a> = self.read(reader).ctx(zctx!())?;
         let id = ID::try_from(zbuf.as_bytes()).map_err(|_| zerr!(ZE::ReadFailure))?;
 
         let time = NTP64(time);

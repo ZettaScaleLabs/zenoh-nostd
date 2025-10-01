@@ -71,6 +71,13 @@ impl<'a> ZBuf<'a> {
             pos: 0,
         }
     }
+
+    pub fn local_reader(&self) -> ZBufReader<'a> {
+        ZBufReader {
+            buf: ZBuf(self.0),
+            pos: 0,
+        }
+    }
 }
 
 impl<'a> ZBufMut<'a> {
@@ -128,6 +135,13 @@ impl<'a> ZBufMut<'a> {
             pos: 0,
         }
     }
+
+    pub fn into_ref<'b>(self) -> ZBuf<'b>
+    where
+        'a: 'b,
+    {
+        ZBuf(self.0)
+    }
 }
 
 pub struct ZBufWriter<'a> {
@@ -136,6 +150,10 @@ pub struct ZBufWriter<'a> {
 }
 
 impl<'a> ZBufWriter<'a> {
+    pub fn pos(&self) -> usize {
+        self.pos
+    }
+
     pub fn remaining(&self) -> usize {
         self.buf.len() - self.pos
     }

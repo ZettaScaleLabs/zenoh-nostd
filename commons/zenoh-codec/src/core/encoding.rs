@@ -3,7 +3,7 @@ use zenoh_protocol::{
     common::imsg,
     core::encoding::{flag, Encoding, EncodingId},
 };
-use zenoh_result::zbail;
+use zenoh_result::{zbail, zctx, WithContext};
 
 use crate::{LCodec, RCodec, WCodec, Zenoh080};
 
@@ -29,14 +29,14 @@ impl<'a> WCodec<'a, &Encoding<'_>> for Zenoh080 {
             id |= flag::S;
         }
 
-        self.write(id, writer)?;
+        self.write(id, writer).ctx(zctx!())?;
 
         if let Some(schema) = &message.schema {
             if schema.len() > 255 {
                 zbail!(zenoh_result::ZE::InvalidArgument);
             }
 
-            self.write(schema, writer)?;
+            self.write(schema, writer).ctx(zctx!())?;
         }
 
         Ok(())
@@ -49,7 +49,7 @@ impl<'a> WCodec<'a, Encoding<'_>> for Zenoh080 {
         message: Encoding<'_>,
         writer: &mut zenoh_buffer::ZBufWriter<'a>,
     ) -> zenoh_result::ZResult<()> {
-        self.write(&message, writer)
+        self.write(&message, writer).ctx(zctx!())
     }
 }
 
@@ -58,12 +58,12 @@ impl<'a> RCodec<'a, Encoding<'a>> for Zenoh080 {
         &self,
         reader: &mut zenoh_buffer::ZBufReader<'a>,
     ) -> zenoh_result::ZResult<Encoding<'a>> {
-        let id: u32 = self.read(reader)?;
+        let id: u32 = self.read(reader).ctx(zctx!())?;
         let has_schema = imsg::has_flag(id as u8, flag::S as u8);
         let id = (id >> 1) as EncodingId;
 
         let schema = if has_schema {
-            let schema: ZBuf<'a> = self.read(reader)?;
+            let schema: ZBuf<'a> = self.read(reader).ctx(zctx!())?;
             if schema.len() > 255 {
                 zbail!(zenoh_result::ZE::InvalidArgument);
             }

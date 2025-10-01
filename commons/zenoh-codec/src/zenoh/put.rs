@@ -7,7 +7,7 @@ use zenoh_protocol::{
         put::{ext, flag, Put},
     },
 };
-use zenoh_result::{zbail, zerr, ZE};
+use zenoh_result::{zbail, zctx, zerr, WithContext, ZE};
 
 use crate::{common::extension, RCodec, WCodec};
 
@@ -44,32 +44,32 @@ impl<'a, const MAX_EXT_UNKNOWN: usize> WCodec<'a, &Put<'_, MAX_EXT_UNKNOWN>> for
             header |= flag::Z;
         }
 
-        self.write(header, writer)?;
+        self.write(header, writer).ctx(zctx!())?;
 
         if let Some(ts) = timestamp.as_ref() {
-            self.write(ts, writer)?;
+            self.write(ts, writer).ctx(zctx!())?;
         }
 
         if encoding != &Encoding::empty() {
-            self.write(encoding, writer)?;
+            self.write(encoding, writer).ctx(zctx!())?;
         }
 
         if let Some(sinfo) = ext_sinfo.as_ref() {
             n_exts -= 1;
-            self.write((sinfo, n_exts != 0), writer)?;
+            self.write((sinfo, n_exts != 0), writer).ctx(zctx!())?;
         }
 
         if let Some(att) = ext_attachment.as_ref() {
             n_exts -= 1;
-            self.write((att, n_exts != 0), writer)?;
+            self.write((att, n_exts != 0), writer).ctx(zctx!())?;
         }
 
         for u in ext_unknown.iter() {
             n_exts -= 1;
-            self.write((u, n_exts != 0), writer)?;
+            self.write((u, n_exts != 0), writer).ctx(zctx!())?;
         }
 
-        self.write(payload, writer)?;
+        self.write(payload, writer).ctx(zctx!())?;
 
         Ok(())
     }
@@ -87,12 +87,12 @@ impl<'a, const MAX_EXT_UNKNOWN: usize> RCodec<'a, Put<'a, MAX_EXT_UNKNOWN>> for 
 
         let mut timestamp: Option<uhlc::Timestamp> = None;
         if imsg::has_flag(header, flag::T) {
-            timestamp = Some(self.read(reader)?);
+            timestamp = Some(self.read(reader).ctx(zctx!())?);
         }
 
         let mut encoding = Encoding::empty();
         if imsg::has_flag(header, flag::E) {
-            encoding = self.read(reader)?;
+            encoding = self.read(reader).ctx(zctx!())?;
         }
 
         // Extensions
@@ -102,7 +102,7 @@ impl<'a, const MAX_EXT_UNKNOWN: usize> RCodec<'a, Put<'a, MAX_EXT_UNKNOWN>> for 
 
         let mut has_ext = imsg::has_flag(header, flag::Z);
         while has_ext {
-            let ext: u8 = self.read(&mut *reader)?;
+            let ext: u8 = self.read(&mut *reader).ctx(zctx!())?;
 
             match iext::eid(ext) {
                 ext::SourceInfo::ID => {
@@ -127,7 +127,7 @@ impl<'a, const MAX_EXT_UNKNOWN: usize> RCodec<'a, Put<'a, MAX_EXT_UNKNOWN>> for 
             }
         }
 
-        let payload: zenoh_buffer::ZBuf<'a> = self.read(reader)?;
+        let payload: zenoh_buffer::ZBuf<'a> = self.read(reader).ctx(zctx!())?;
 
         Ok(Put {
             timestamp,
@@ -143,7 +143,7 @@ impl<'a, const MAX_EXT_UNKNOWN: usize> RCodec<'a, Put<'a, MAX_EXT_UNKNOWN>> for 
         &self,
         reader: &mut zenoh_buffer::ZBufReader<'a>,
     ) -> zenoh_result::ZResult<Put<'a, MAX_EXT_UNKNOWN>> {
-        let header: u8 = self.read(reader)?;
-        self.read_knowing_header(reader, header)
+        let header: u8 = self.read(reader).ctx(zctx!())?;
+        self.read_knowing_header(reader, header).ctx(zctx!())
     }
 }
