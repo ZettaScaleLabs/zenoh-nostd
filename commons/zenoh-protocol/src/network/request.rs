@@ -39,7 +39,7 @@ pub mod flag {
 ///     This implementation limits the resolution to 32bit.
 /// ```
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct Request<'a> {
+pub struct Request<'a, const MAX_EXT_UNKNOWN: usize> {
     pub id: RequestId,
     pub wire_expr: WireExpr<'a>,
     pub ext_qos: ext::QoSType,
@@ -48,7 +48,7 @@ pub struct Request<'a> {
     pub ext_target: ext::QueryTarget,
     pub ext_budget: Option<ext::BudgetType>,
     pub ext_timeout: Option<ext::TimeoutType>,
-    pub payload: RequestBody<'a>,
+    pub payload: RequestBody<'a, MAX_EXT_UNKNOWN>,
 }
 
 pub mod ext {

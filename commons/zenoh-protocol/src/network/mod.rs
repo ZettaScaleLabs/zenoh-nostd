@@ -42,23 +42,23 @@ impl Mapping {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub enum NetworkBody<'a> {
-    Push(Push<'a>),
-    Request(Request<'a>),
-    Response(Response<'a>),
+pub enum NetworkBody<'a, const MAX_EXT_UNKNOWN: usize> {
+    Push(Push<'a, MAX_EXT_UNKNOWN>),
+    Request(Request<'a, MAX_EXT_UNKNOWN>),
+    Response(Response<'a, MAX_EXT_UNKNOWN>),
     ResponseFinal(ResponseFinal),
     Interest(Interest<'a>),
     Declare(Declare<'a>),
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct NetworkMessage<'a> {
-    pub body: NetworkBody<'a>,
+pub struct NetworkMessage<'a, const MAX_EXT_UNKNOWN: usize> {
+    pub body: NetworkBody<'a, MAX_EXT_UNKNOWN>,
     pub reliability: Reliability,
 }
 
-impl<'a> NetworkMessage<'a> {
-    pub fn body(&self) -> &'_ NetworkBody<'_> {
+impl<'a, const MAX_EXT_UNKNOWN: usize> NetworkMessage<'a, MAX_EXT_UNKNOWN> {
+    pub fn body(&self) -> &'_ NetworkBody<'_, MAX_EXT_UNKNOWN> {
         &self.body
     }
 
@@ -134,7 +134,7 @@ impl<'a> NetworkMessage<'a> {
     }
 }
 
-impl fmt::Display for NetworkMessage<'_> {
+impl<const MAX_EXT_UNKNOWN: usize> fmt::Display for NetworkMessage<'_, MAX_EXT_UNKNOWN> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match &self.body {
             NetworkBody::Push(_) => write!(f, "Push"),
@@ -147,9 +147,11 @@ impl fmt::Display for NetworkMessage<'_> {
     }
 }
 
-impl<'a> From<NetworkBody<'a>> for NetworkMessage<'a> {
+impl<'a, const MAX_EXT_UNKNOWN: usize> From<NetworkBody<'a, MAX_EXT_UNKNOWN>>
+    for NetworkMessage<'a, MAX_EXT_UNKNOWN>
+{
     #[inline]
-    fn from(body: NetworkBody<'a>) -> Self {
+    fn from(body: NetworkBody<'a, MAX_EXT_UNKNOWN>) -> Self {
         Self {
             body,
             reliability: Reliability::DEFAULT,

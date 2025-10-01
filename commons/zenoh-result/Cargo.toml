@@ -10,6 +10,9 @@ repository.workspace = true
 rust-version.workspace = true
 version.workspace = true
 
+[features]
+ctx = []
+
 [dependencies]
 zenoh-log = { workspace = true }
 

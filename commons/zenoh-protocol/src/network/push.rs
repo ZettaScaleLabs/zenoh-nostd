@@ -26,12 +26,12 @@ pub mod flag {
 /// +---------------+
 /// ```
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct Push<'a> {
+pub struct Push<'a, const MAX_EXT_UNKNOWN: usize> {
     pub wire_expr: WireExpr<'a>,
     pub ext_qos: ext::QoSType,
     pub ext_tstamp: Option<ext::TimestampType>,
     pub ext_nodeid: ext::NodeIdType,
-    pub payload: PushBody<'a>,
+    pub payload: PushBody<'a, MAX_EXT_UNKNOWN>,
 }
 
 pub mod ext {
@@ -45,16 +45,4 @@ pub mod ext {
 
     pub type NodeId = zextz64!(0x3, true);
     pub type NodeIdType = crate::network::ext::NodeIdType<{ NodeId::ID }>;
-}
-
-impl<'a> From<PushBody<'a>> for Push<'a> {
-    fn from(value: PushBody<'a>) -> Self {
-        Self {
-            wire_expr: WireExpr::empty(),
-            ext_qos: ext::QoSType::DEFAULT,
-            ext_tstamp: None,
-            ext_nodeid: ext::NodeIdType::DEFAULT,
-            payload: value,
-        }
-    }
 }

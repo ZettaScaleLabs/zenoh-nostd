@@ -16,21 +16,21 @@ pub mod id {
 
 // Push
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub enum PushBody<'a> {
-    Put(Put<'a>),
+pub enum PushBody<'a, const MAX_EXT_UNKNOWN: usize> {
+    Put(Put<'a, MAX_EXT_UNKNOWN>),
 }
 
 // Request
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub enum RequestBody<'a> {
-    Query(Query<'a>),
+pub enum RequestBody<'a, const MAX_EXT_UNKNOWN: usize> {
+    Query(Query<'a, MAX_EXT_UNKNOWN>),
 }
 
 // Response
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub enum ResponseBody<'a> {
-    Reply(Reply<'a>),
-    Err(Err<'a>),
+pub enum ResponseBody<'a, const MAX_EXT_UNKNOWN: usize> {
+    Reply(Reply<'a, MAX_EXT_UNKNOWN>),
+    Err(Err<'a, MAX_EXT_UNKNOWN>),
 }
 
 pub mod ext {

@@ -2,6 +2,7 @@
 
 pub use zenoh_log;
 
+#[cfg(feature = "ctx")]
 use heapless::Vec;
 
 #[derive(PartialEq, Eq, PartialOrd, Ord, Debug)]
@@ -12,6 +13,7 @@ pub enum ZErrorKind {
     Timeout,
     CapacityExceeded,
     FmtError,
+    UnImplemented,
 
     // ==== IO / Serialization ====
     WriteFailure,
@@ -67,6 +69,7 @@ pub struct ZError {
     line: u32,
     column: u32,
 
+    #[cfg(feature = "ctx")]
     contexts: Vec<&'static str, 16>,
 }
 
@@ -81,17 +84,21 @@ impl core::fmt::Debug for ZError {
             self.column()
         )?;
 
+        #[cfg(feature = "ctx")]
         if self.contexts.is_empty() {
             return Ok(());
         }
 
+        #[cfg(feature = "ctx")]
         if self.contexts.len() == 1 {
             write!(f, "\nContext:")?;
         } else {
             write!(f, "\nContexts:")?;
         }
 
+        #[cfg(feature = "ctx")]
         let mut i = 0;
+        #[cfg(feature = "ctx")]
         for context in &self.contexts {
             write!(f, "\n  {}: {}", i, context)?;
             i += 1;
@@ -114,6 +121,7 @@ impl ZError {
             file,
             line,
             column,
+            #[cfg(feature = "ctx")]
             contexts: Vec::new(),
         }
     }
@@ -140,9 +148,14 @@ pub trait WithContext {
 }
 
 impl WithContext for ZError {
+    #[cfg(feature = "ctx")]
     fn ctx(mut self, context: &'static str) -> Self {
         let _ = self.contexts.push(context);
 
+        self
+    }
+    #[cfg(not(feature = "ctx"))]
+    fn ctx(self, _context: &'static str) -> Self {
         self
     }
 }
@@ -162,6 +175,7 @@ macro_rules! zerr {
     };
 }
 
+#[cfg(feature = "ctx")]
 #[macro_export]
 macro_rules! zctx {
     () => {
@@ -195,6 +209,22 @@ macro_rules! zctx {
                 .unwrap()
             },
         }
+    }};
+}
+
+#[cfg(not(feature = "ctx"))]
+#[macro_export]
+macro_rules! zctx {
+    () => {
+        ""
+    };
+
+    ($ctx:expr) => {{
+        ""
+    }};
+
+    ($ctx:expr, $($arg:tt)*) => {{
+        ""
     }};
 }
 

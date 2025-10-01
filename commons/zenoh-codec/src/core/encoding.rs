@@ -5,12 +5,22 @@ use zenoh_protocol::{
 };
 use zenoh_result::zbail;
 
-use crate::{RCodec, WCodec, Zenoh080};
+use crate::{LCodec, RCodec, WCodec, Zenoh080};
 
-impl<'a> WCodec<'a, Encoding<'_>> for Zenoh080 {
+impl<'a> LCodec<'a, &Encoding<'_>> for Zenoh080 {
+    fn w_len(&self, message: &Encoding<'_>) -> usize {
+        let mut len = self.w_len((message.id as u32) << 1);
+        if let Some(schema) = message.schema.as_ref() {
+            len += self.w_len(schema);
+        }
+        len
+    }
+}
+
+impl<'a> WCodec<'a, &Encoding<'_>> for Zenoh080 {
     fn write(
         &self,
-        message: Encoding<'_>,
+        message: &Encoding<'_>,
         writer: &mut zenoh_buffer::ZBufWriter<'a>,
     ) -> zenoh_result::ZResult<()> {
         let mut id = (message.id as u32) << 1;
@@ -21,7 +31,7 @@ impl<'a> WCodec<'a, Encoding<'_>> for Zenoh080 {
 
         self.write(id, writer)?;
 
-        if let Some(schema) = message.schema {
+        if let Some(schema) = &message.schema {
             if schema.len() > 255 {
                 zbail!(zenoh_result::ZE::InvalidArgument);
             }
@@ -30,6 +40,16 @@ impl<'a> WCodec<'a, Encoding<'_>> for Zenoh080 {
         }
 
         Ok(())
+    }
+}
+
+impl<'a> WCodec<'a, Encoding<'_>> for Zenoh080 {
+    fn write(
+        &self,
+        message: Encoding<'_>,
+        writer: &mut zenoh_buffer::ZBufWriter<'a>,
+    ) -> zenoh_result::ZResult<()> {
+        self.write(&message, writer)
     }
 }
 

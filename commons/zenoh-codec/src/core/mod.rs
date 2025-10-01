@@ -5,7 +5,7 @@ use zenoh_buffer::{ZBuf, ZBufReader, ZBufWriter};
 use zenoh_protocol::core::ZenohIdProto;
 use zenoh_result::{zbail, zerr, ZResult, ZE};
 
-use crate::{RCodec, WCodec, Zenoh080};
+use crate::{LCodec, RCodec, WCodec, Zenoh080};
 
 pub mod encoding;
 pub mod locator;
@@ -45,6 +45,12 @@ const fn vle_len(x: u64) -> usize {
     }
 }
 
+impl<'a> LCodec<'a, u8> for Zenoh080 {
+    fn w_len(&self, _message: u8) -> usize {
+        1
+    }
+}
+
 impl<'a> WCodec<'a, u8> for Zenoh080 {
     fn write(&self, message: u8, writer: &mut ZBufWriter<'a>) -> ZResult<()> {
         writer.write_u8(message)?;
@@ -56,6 +62,12 @@ impl<'a> WCodec<'a, u8> for Zenoh080 {
 impl<'a> RCodec<'a, u8> for Zenoh080 {
     fn read(&self, reader: &mut ZBufReader<'a>) -> ZResult<u8> {
         reader.read_u8()
+    }
+}
+
+impl<'a> LCodec<'a, u64> for Zenoh080 {
+    fn w_len(&self, message: u64) -> usize {
+        vle_len(message)
     }
 }
 
@@ -117,6 +129,12 @@ impl<'a> RCodec<'a, u64> for Zenoh080 {
     }
 }
 
+impl<'a> LCodec<'a, u32> for Zenoh080 {
+    fn w_len(&self, message: u32) -> usize {
+        self.w_len(message as u64)
+    }
+}
+
 impl<'a> WCodec<'a, u32> for Zenoh080 {
     fn write(&self, message: u32, writer: &mut ZBufWriter<'a>) -> ZResult<()> {
         self.write(message as u64, writer)
@@ -132,6 +150,12 @@ impl<'a> RCodec<'a, u32> for Zenoh080 {
         }
 
         Ok(value as u32)
+    }
+}
+
+impl<'a> LCodec<'a, u16> for Zenoh080 {
+    fn w_len(&self, message: u16) -> usize {
+        self.w_len(message as u64)
     }
 }
 
@@ -153,6 +177,12 @@ impl<'a> RCodec<'a, u16> for Zenoh080 {
     }
 }
 
+impl<'a> LCodec<'a, usize> for Zenoh080 {
+    fn w_len(&self, message: usize) -> usize {
+        self.w_len(message as u64)
+    }
+}
+
 impl<'a> WCodec<'a, usize> for Zenoh080 {
     fn write(&self, message: usize, writer: &mut ZBufWriter<'a>) -> ZResult<()> {
         self.write(message as u64, writer)
@@ -168,6 +198,12 @@ impl<'a> RCodec<'a, usize> for Zenoh080 {
         }
 
         Ok(value as usize)
+    }
+}
+
+impl<'a, const N: usize> LCodec<'a, &[u8; N]> for Zenoh080 {
+    fn w_len(&self, _: &[u8; N]) -> usize {
+        N
     }
 }
 
@@ -192,6 +228,12 @@ impl<'a, const N: usize> RCodec<'a, [u8; N]> for Zenoh080 {
     }
 }
 
+impl<'a> LCodec<'a, &ZBuf<'_>> for Zenoh080 {
+    fn w_len(&self, message: &ZBuf<'_>) -> usize {
+        self.w_len(message.len()) + message.len()
+    }
+}
+
 impl<'a> WCodec<'a, &ZBuf<'_>> for Zenoh080 {
     fn write(&self, message: &ZBuf<'_>, writer: &mut ZBufWriter<'a>) -> ZResult<()> {
         if message.is_empty() {
@@ -204,11 +246,31 @@ impl<'a> WCodec<'a, &ZBuf<'_>> for Zenoh080 {
 
         Ok(())
     }
+
+    fn write_without_length(&self, message: &ZBuf<'_>, writer: &mut ZBufWriter<'a>) -> ZResult<()> {
+        if message.is_empty() {
+            zbail!(ZE::WriteFailure);
+        }
+
+        writer.write_exact(message.as_bytes())?;
+
+        Ok(())
+    }
+}
+
+impl<'a> LCodec<'a, ZBuf<'_>> for Zenoh080 {
+    fn w_len(&self, message: ZBuf<'_>) -> usize {
+        self.w_len(&message)
+    }
 }
 
 impl<'a> WCodec<'a, ZBuf<'_>> for Zenoh080 {
     fn write(&self, message: ZBuf<'_>, writer: &mut ZBufWriter<'a>) -> ZResult<()> {
         self.write(&message, writer)
+    }
+
+    fn write_without_length(&self, message: ZBuf<'_>, writer: &mut ZBufWriter<'a>) -> ZResult<()> {
+        self.write_without_length(&message, writer)
     }
 }
 
@@ -217,6 +279,16 @@ impl<'a> RCodec<'a, ZBuf<'a>> for Zenoh080 {
         let len: usize = self.read(reader)?;
 
         reader.read_zbuf(len)
+    }
+
+    fn read_knowing_length(&self, reader: &mut ZBufReader<'a>, length: usize) -> ZResult<ZBuf<'a>> {
+        reader.read_zbuf(length)
+    }
+}
+
+impl<'a> LCodec<'a, &str> for Zenoh080 {
+    fn w_len(&self, message: &str) -> usize {
+        self.w_len(message.len()) + message.len()
     }
 }
 
@@ -235,6 +307,12 @@ impl<'a> RCodec<'a, &'a str> for Zenoh080 {
     }
 }
 
+impl<'a, const N: usize> LCodec<'a, &String<N>> for Zenoh080 {
+    fn w_len(&self, message: &String<N>) -> usize {
+        self.w_len(message.len()) + message.len()
+    }
+}
+
 impl<'a, const N: usize> WCodec<'a, &String<N>> for Zenoh080 {
     fn write(&self, message: &String<N>, writer: &mut ZBufWriter<'a>) -> ZResult<()> {
         let zbuf = ZBuf(message.as_bytes());
@@ -250,11 +328,27 @@ impl<'a, const N: usize> RCodec<'a, String<N>> for Zenoh080 {
     }
 }
 
+impl<'a> LCodec<'a, &ZenohIdProto> for Zenoh080 {
+    fn w_len(&self, message: &ZenohIdProto) -> usize {
+        message.size()
+    }
+}
+
 impl<'a> WCodec<'a, &ZenohIdProto> for Zenoh080 {
     fn write(&self, message: &ZenohIdProto, writer: &mut ZBufWriter<'a>) -> ZResult<()> {
         let bytes = &message.to_le_bytes()[..message.size()];
 
         self.write(ZBuf(bytes), writer)
+    }
+
+    fn write_without_length(
+        &self,
+        message: &ZenohIdProto,
+        writer: &mut ZBufWriter<'a>,
+    ) -> ZResult<()> {
+        writer
+            .write_exact(&message.to_le_bytes()[..message.size()])
+            .map(|_| ())
     }
 }
 
@@ -263,5 +357,20 @@ impl<'a> RCodec<'a, ZenohIdProto> for Zenoh080 {
         let zbuf: ZBuf<'a> = self.read(reader)?;
 
         ZenohIdProto::try_from(zbuf.as_bytes())
+    }
+
+    fn read_knowing_length(
+        &self,
+        reader: &mut ZBufReader<'a>,
+        length: usize,
+    ) -> ZResult<ZenohIdProto> {
+        if length > ZenohIdProto::MAX_SIZE {
+            zbail!(ZE::ReadFailure);
+        }
+
+        let mut id = [0; ZenohIdProto::MAX_SIZE];
+        reader.read(&mut id, length)?;
+
+        ZenohIdProto::try_from(&id[..length])
     }
 }

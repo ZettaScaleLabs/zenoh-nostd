@@ -1,3 +1,4 @@
+use heapless::Vec;
 use zenoh_buffer::ZBuf;
 
 use crate::{common::extension::ZExtUnknown, core::encoding::Encoding};
@@ -28,10 +29,10 @@ pub mod flag {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct Err<'a> {
+pub struct Err<'a, const MAX_EXT_UNKNOWN: usize> {
     pub encoding: Encoding<'a>,
     pub ext_sinfo: Option<ext::SourceInfoType>,
-    pub ext_unknown: &'a [ZExtUnknown<'a>],
+    pub ext_unknown: Vec<ZExtUnknown<'a>, MAX_EXT_UNKNOWN>,
     pub payload: ZBuf<'a>,
 }
 

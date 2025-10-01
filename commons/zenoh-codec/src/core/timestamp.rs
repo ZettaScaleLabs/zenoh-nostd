@@ -3,7 +3,16 @@ use zenoh_buffer::ZBuf;
 use zenoh_protocol::core::Timestamp;
 use zenoh_result::{zerr, ZE};
 
-use crate::{RCodec, WCodec, Zenoh080};
+use crate::{LCodec, RCodec, WCodec, Zenoh080};
+
+impl<'a> LCodec<'a, &Timestamp> for Zenoh080 {
+    fn w_len(&self, message: &Timestamp) -> usize {
+        let id = message.get_id();
+        let bytes = &id.to_le_bytes()[..id.size()];
+
+        self.w_len(message.get_time().as_u64()) + self.w_len(ZBuf(bytes))
+    }
+}
 
 impl<'a> WCodec<'a, &Timestamp> for Zenoh080 {
     fn write(

@@ -26,14 +26,15 @@ impl<'a> WCodec<'a, WireExpr<'_>> for Zenoh080 {
     }
 }
 
-impl<'a> RCodec<'a, WireExpr<'a>> for (Zenoh080, bool) {
-    fn read(
+impl<'a> RCodec<'a, WireExpr<'a>> for Zenoh080 {
+    fn read_with_condition(
         &self,
         reader: &mut zenoh_buffer::ZBufReader<'a>,
+        condition: bool,
     ) -> zenoh_result::ZResult<WireExpr<'a>> {
-        let scope: ExprId = self.0.read(reader)?;
+        let scope: ExprId = self.read(reader)?;
 
-        let suffix: &str = if self.1 { self.0.read(reader)? } else { "" };
+        let suffix: &str = if condition { self.read(reader)? } else { "" };
 
         Ok(WireExpr {
             scope,

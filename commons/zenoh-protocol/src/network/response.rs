@@ -33,10 +33,10 @@ pub mod flag {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct Response<'a> {
+pub struct Response<'a, const MAX_EXT_UNKNOWN: usize> {
     pub rid: RequestId,
     pub wire_expr: WireExpr<'a>,
-    pub payload: ResponseBody<'a>,
+    pub payload: ResponseBody<'a, MAX_EXT_UNKNOWN>,
     pub ext_qos: ext::QoSType,
     pub ext_tstamp: Option<ext::TimestampType>,
     pub ext_respid: Option<ext::ResponderIdType>,
