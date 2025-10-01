@@ -2,9 +2,15 @@ use core::str::FromStr;
 
 use heapless::String;
 use zenoh_buffer::{ZBuf, ZBufReader, ZBufWriter};
+use zenoh_protocol::core::ZenohIdProto;
 use zenoh_result::{zbail, zerr, ZResult, ZE};
 
 use crate::{RCodec, WCodec, Zenoh080};
+
+pub mod encoding;
+pub mod locator;
+pub mod timestamp;
+pub mod wire_expr;
 
 const VLE_LEN_MAX: usize = vle_len(u64::MAX);
 
@@ -186,8 +192,8 @@ impl<'a, const N: usize> RCodec<'a, [u8; N]> for Zenoh080 {
     }
 }
 
-impl<'a> WCodec<'a, ZBuf<'_>> for Zenoh080 {
-    fn write(&self, message: ZBuf<'_>, writer: &mut ZBufWriter<'a>) -> ZResult<()> {
+impl<'a> WCodec<'a, &ZBuf<'_>> for Zenoh080 {
+    fn write(&self, message: &ZBuf<'_>, writer: &mut ZBufWriter<'a>) -> ZResult<()> {
         if message.is_empty() {
             zbail!(ZE::WriteFailure);
         }
@@ -197,6 +203,12 @@ impl<'a> WCodec<'a, ZBuf<'_>> for Zenoh080 {
         writer.write_exact(message.as_bytes())?;
 
         Ok(())
+    }
+}
+
+impl<'a> WCodec<'a, ZBuf<'_>> for Zenoh080 {
+    fn write(&self, message: ZBuf<'_>, writer: &mut ZBufWriter<'a>) -> ZResult<()> {
+        self.write(&message, writer)
     }
 }
 
@@ -235,5 +247,21 @@ impl<'a, const N: usize> RCodec<'a, String<N>> for Zenoh080 {
         let s: &'a str = self.read(reader)?;
 
         String::from_str(s).map_err(|_| zerr!(ZE::CapacityExceeded))
+    }
+}
+
+impl<'a> WCodec<'a, &ZenohIdProto> for Zenoh080 {
+    fn write(&self, message: &ZenohIdProto, writer: &mut ZBufWriter<'a>) -> ZResult<()> {
+        let bytes = &message.to_le_bytes()[..message.size()];
+
+        self.write(ZBuf(bytes), writer)
+    }
+}
+
+impl<'a> RCodec<'a, ZenohIdProto> for Zenoh080 {
+    fn read(&self, reader: &mut ZBufReader<'a>) -> ZResult<ZenohIdProto> {
+        let zbuf: ZBuf<'a> = self.read(reader)?;
+
+        ZenohIdProto::try_from(zbuf.as_bytes())
     }
 }

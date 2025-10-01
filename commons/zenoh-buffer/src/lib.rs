@@ -15,10 +15,6 @@ pub struct ZBufWithCapacity<'a, const N: usize> {
 pub struct ZBufMut<'a>(pub &'a mut [u8]);
 
 impl<'a> ZBuf<'a> {
-    pub fn from_bytes(bytes: &'a [u8]) -> Self {
-        ZBuf(bytes)
-    }
-
     pub fn len(&self) -> usize {
         self.0.len()
     }
@@ -191,6 +187,10 @@ pub struct ZBufReader<'a> {
 impl<'a> ZBufReader<'a> {
     pub fn remaining(&self) -> usize {
         self.buf.len() - self.pos
+    }
+
+    pub fn can_read(&self) -> bool {
+        self.remaining() > 0
     }
 
     pub fn read_u8(&mut self) -> ZResult<u8> {

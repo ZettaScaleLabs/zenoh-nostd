@@ -382,7 +382,9 @@ name = "zenoh-codec"
 version = "1.5.1"
 dependencies = [
  "heapless",
+ "uhlc",
  "zenoh-buffer",
+ "zenoh-log",
  "zenoh-protocol",
  "zenoh-result",
 ]
