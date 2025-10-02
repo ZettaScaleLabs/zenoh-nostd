@@ -1,6 +1,4 @@
-use heapless::Vec;
 
-use crate::common::extension::ZExtUnknown;
 
 /// The kind of consolidation to apply to a query.
 #[repr(u8)]
@@ -55,13 +53,12 @@ pub mod flag {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct Query<'a, const MAX_EXT_UNKNOWN: usize> {
+pub struct Query<'a> {
     pub consolidation: ConsolidationMode,
     pub parameters: &'a str,
     pub ext_sinfo: Option<ext::SourceInfoType>,
     pub ext_body: Option<ext::QueryBodyType<'a>>,
     pub ext_attachment: Option<ext::AttachmentType<'a>>,
-    pub ext_unknown: Vec<ZExtUnknown<'a>, MAX_EXT_UNKNOWN>,
 }
 
 pub mod ext {

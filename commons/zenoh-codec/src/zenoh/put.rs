@@ -1,4 +1,3 @@
-use heapless::Vec;
 use zenoh_protocol::{
     common::{extension::iext, imsg},
     core::encoding::Encoding,
@@ -7,14 +6,14 @@ use zenoh_protocol::{
         put::{ext, flag, Put},
     },
 };
-use zenoh_result::{zbail, zctx, zerr, WithContext, ZE};
+use zenoh_result::{zbail, zctx, WithContext, ZE};
 
 use crate::{common::extension, RCodec, WCodec};
 
-impl<'a, const MAX_EXT_UNKNOWN: usize> WCodec<'a, &Put<'_, MAX_EXT_UNKNOWN>> for crate::Zenoh080 {
+impl<'a> WCodec<'a, &Put<'_>> for crate::Zenoh080 {
     fn write(
         &self,
-        message: &Put<'_, MAX_EXT_UNKNOWN>,
+        message: &Put<'_>,
         writer: &mut zenoh_buffer::ZBufWriter<'a>,
     ) -> zenoh_result::ZResult<()> {
         let Put {
@@ -22,7 +21,7 @@ impl<'a, const MAX_EXT_UNKNOWN: usize> WCodec<'a, &Put<'_, MAX_EXT_UNKNOWN>> for
             encoding,
             ext_sinfo,
             ext_attachment,
-            ext_unknown,
+
             payload,
         } = message;
 
@@ -36,9 +35,7 @@ impl<'a, const MAX_EXT_UNKNOWN: usize> WCodec<'a, &Put<'_, MAX_EXT_UNKNOWN>> for
             header |= flag::E;
         }
 
-        let mut n_exts = (ext_sinfo.is_some()) as u8
-            + (ext_attachment.is_some()) as u8
-            + (ext_unknown.len() as u8);
+        let mut n_exts = (ext_sinfo.is_some()) as u8 + (ext_attachment.is_some()) as u8;
 
         if n_exts != 0 {
             header |= flag::Z;
@@ -64,23 +61,18 @@ impl<'a, const MAX_EXT_UNKNOWN: usize> WCodec<'a, &Put<'_, MAX_EXT_UNKNOWN>> for
             self.write((att, n_exts != 0), writer).ctx(zctx!())?;
         }
 
-        for u in ext_unknown.iter() {
-            n_exts -= 1;
-            self.write((u, n_exts != 0), writer).ctx(zctx!())?;
-        }
-
         self.write(payload, writer).ctx(zctx!())?;
 
         Ok(())
     }
 }
 
-impl<'a, const MAX_EXT_UNKNOWN: usize> RCodec<'a, Put<'a, MAX_EXT_UNKNOWN>> for crate::Zenoh080 {
+impl<'a> RCodec<'a, Put<'a>> for crate::Zenoh080 {
     fn read_knowing_header(
         &self,
         reader: &mut zenoh_buffer::ZBufReader<'a>,
         header: u8,
-    ) -> zenoh_result::ZResult<Put<'a, MAX_EXT_UNKNOWN>> {
+    ) -> zenoh_result::ZResult<Put<'a>> {
         if imsg::mid(header) != id::PUT {
             zbail!(ZE::ReadFailure);
         }
@@ -98,7 +90,6 @@ impl<'a, const MAX_EXT_UNKNOWN: usize> RCodec<'a, Put<'a, MAX_EXT_UNKNOWN>> for 
         // Extensions
         let mut ext_sinfo: Option<ext::SourceInfoType> = None;
         let mut ext_attachment: Option<ext::AttachmentType> = None;
-        let mut ext_unknown = Vec::new();
 
         let mut has_ext = imsg::has_flag(header, flag::Z);
         while has_ext {
@@ -118,10 +109,7 @@ impl<'a, const MAX_EXT_UNKNOWN: usize> RCodec<'a, Put<'a, MAX_EXT_UNKNOWN>> for 
                     has_ext = ext;
                 }
                 _ => {
-                    let (u, ext) = extension::read(reader, "Put", ext)?;
-                    ext_unknown
-                        .push(u)
-                        .map_err(|_| zerr!(ZE::CapacityExceeded))?;
+                    let (_, ext) = extension::read(reader, "Put", ext)?;
                     has_ext = ext;
                 }
             }
@@ -134,15 +122,12 @@ impl<'a, const MAX_EXT_UNKNOWN: usize> RCodec<'a, Put<'a, MAX_EXT_UNKNOWN>> for 
             encoding,
             ext_sinfo,
             ext_attachment,
-            ext_unknown,
+
             payload,
         })
     }
 
-    fn read(
-        &self,
-        reader: &mut zenoh_buffer::ZBufReader<'a>,
-    ) -> zenoh_result::ZResult<Put<'a, MAX_EXT_UNKNOWN>> {
+    fn read(&self, reader: &mut zenoh_buffer::ZBufReader<'a>) -> zenoh_result::ZResult<Put<'a>> {
         let header: u8 = self.read(reader).ctx(zctx!())?;
         self.read_knowing_header(reader, header).ctx(zctx!())
     }

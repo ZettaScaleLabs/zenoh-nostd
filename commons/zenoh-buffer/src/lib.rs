@@ -197,6 +197,7 @@ impl<'a> ZBufWriter<'a> {
     }
 }
 
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct ZBufReader<'a> {
     buf: ZBuf<'a>,
     pos: usize,
@@ -205,6 +206,20 @@ pub struct ZBufReader<'a> {
 impl<'a> ZBufReader<'a> {
     pub fn remaining(&self) -> usize {
         self.buf.len() - self.pos
+    }
+
+    pub fn mark(&self) -> usize {
+        self.pos
+    }
+
+    pub fn rewind(&mut self, mark: usize) -> ZResult<()> {
+        if mark > self.buf.len() {
+            zbail!(ZE::CapacityExceeded);
+        }
+
+        self.pos = mark;
+
+        Ok(())
     }
 
     pub fn can_read(&self) -> bool {

@@ -20,14 +20,8 @@ pub mod push;
 pub mod request;
 pub mod response;
 
-impl<'a, const MAX_EXT_UNKNOWN: usize> WCodec<'a, &NetworkMessage<'_, MAX_EXT_UNKNOWN>>
-    for Zenoh080
-{
-    fn write(
-        &self,
-        message: &NetworkMessage<'_, MAX_EXT_UNKNOWN>,
-        writer: &mut ZBufWriter<'a>,
-    ) -> ZResult<()> {
+impl<'a> WCodec<'a, &NetworkMessage<'_>> for Zenoh080 {
+    fn write(&self, message: &NetworkMessage<'_>, writer: &mut ZBufWriter<'a>) -> ZResult<()> {
         match message.body() {
             NetworkBody::Push(b) => self.write(b, writer).ctx(zctx!()),
             NetworkBody::Request(b) => self.write(b, writer).ctx(zctx!()),
@@ -39,14 +33,12 @@ impl<'a, const MAX_EXT_UNKNOWN: usize> WCodec<'a, &NetworkMessage<'_, MAX_EXT_UN
     }
 }
 
-impl<'a, const MAX_EXT_UNKNOWN: usize> RCodec<'a, NetworkMessage<'a, MAX_EXT_UNKNOWN>>
-    for Zenoh080
-{
+impl<'a> RCodec<'a, NetworkMessage<'a>> for Zenoh080 {
     fn read_knowing_header(
         &self,
         reader: &mut ZBufReader<'a>,
         header: u8,
-    ) -> ZResult<NetworkMessage<'a, MAX_EXT_UNKNOWN>> {
+    ) -> ZResult<NetworkMessage<'a>> {
         let body = match imsg::mid(header) {
             id::PUSH => NetworkBody::Push(self.read_knowing_header(reader, header)?),
             id::REQUEST => NetworkBody::Request(self.read_knowing_header(reader, header)?),
@@ -66,17 +58,17 @@ impl<'a, const MAX_EXT_UNKNOWN: usize> RCodec<'a, NetworkMessage<'a, MAX_EXT_UNK
         &self,
         reader: &mut ZBufReader<'a>,
         reliability: Reliability,
-    ) -> ZResult<NetworkMessage<'a, MAX_EXT_UNKNOWN>> {
+    ) -> ZResult<NetworkMessage<'a>> {
         let header = self.read(reader).ctx(zctx!())?;
-        self.read_knowing_header(reader, header).ctx(zctx!()).map(
-            |mut msg: NetworkMessage<'a, MAX_EXT_UNKNOWN>| {
+        self.read_knowing_header(reader, header)
+            .ctx(zctx!())
+            .map(|mut msg: NetworkMessage<'a>| {
                 msg.reliability = reliability;
                 msg
-            },
-        )
+            })
     }
 
-    fn read(&self, reader: &mut ZBufReader<'a>) -> ZResult<NetworkMessage<'a, MAX_EXT_UNKNOWN>> {
+    fn read(&self, reader: &mut ZBufReader<'a>) -> ZResult<NetworkMessage<'a>> {
         self.read_with_reliability(reader, Reliability::DEFAULT)
             .ctx(zctx!())
     }

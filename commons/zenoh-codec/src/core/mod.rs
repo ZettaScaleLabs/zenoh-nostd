@@ -215,6 +215,14 @@ impl<'a, const N: usize> WCodec<'a, &[u8; N]> for Zenoh080 {
     }
 }
 
+impl<'a, const N: usize> WCodec<'a, [u8; N]> for Zenoh080 {
+    fn write(&self, message: [u8; N], writer: &mut ZBufWriter<'a>) -> ZResult<()> {
+        writer.write_exact(&message)?;
+
+        Ok(())
+    }
+}
+
 impl<'a, const N: usize> RCodec<'a, [u8; N]> for Zenoh080 {
     fn read(&self, reader: &mut ZBufReader<'a>) -> ZResult<[u8; N]> {
         if reader.remaining() < N {

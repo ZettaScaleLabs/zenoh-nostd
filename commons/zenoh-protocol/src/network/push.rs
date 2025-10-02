@@ -26,12 +26,12 @@ pub mod flag {
 /// +---------------+
 /// ```
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct Push<'a, const MAX_EXT_UNKNOWN: usize> {
+pub struct Push<'a> {
     pub wire_expr: WireExpr<'a>,
     pub ext_qos: ext::QoSType,
     pub ext_tstamp: Option<ext::TimestampType>,
     pub ext_nodeid: ext::NodeIdType,
-    pub payload: PushBody<'a, MAX_EXT_UNKNOWN>,
+    pub payload: PushBody<'a>,
 }
 
 pub mod ext {

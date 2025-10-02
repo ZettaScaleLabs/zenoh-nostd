@@ -1,10 +1,9 @@
-use heapless::Vec;
 use zenoh_buffer::{ZBuf, ZBufReader, ZBufWriter};
 use zenoh_protocol::common::{
     extension::{iext, ZExtBody, ZExtUnit, ZExtUnknown, ZExtZ64, ZExtZBuf, ZExtZBufHeader},
     imsg::has_flag,
 };
-use zenoh_result::{zbail, zctx, zerr, WithContext, ZResult, ZE};
+use zenoh_result::{zbail, zctx, WithContext, ZResult, ZE};
 
 use crate::{RCodec, WCodec, Zenoh080};
 
@@ -261,34 +260,5 @@ impl<'a> RCodec<'a, (ZExtUnknown<'a>, bool)> for Zenoh080 {
     fn read(&self, reader: &mut zenoh_buffer::ZBufReader<'a>) -> ZResult<(ZExtUnknown<'a>, bool)> {
         let header: u8 = self.read(reader).ctx(zctx!())?;
         self.read_knowing_header(reader, header).ctx(zctx!())
-    }
-}
-
-// &[ZExtUnknown]
-impl<'a> WCodec<'a, &'_ [ZExtUnknown<'_>]> for Zenoh080 {
-    fn write(&self, message: &'_ [ZExtUnknown<'_>], writer: &mut ZBufWriter<'a>) -> ZResult<()> {
-        let len = message.len();
-
-        for (i, e) in message.iter().enumerate() {
-            self.write((e, i < len - 1), writer).ctx(zctx!())?;
-        }
-
-        Ok(())
-    }
-}
-
-impl<'a, const N: usize> RCodec<'a, Vec<ZExtUnknown<'a>, N>> for Zenoh080 {
-    fn read(&self, reader: &mut zenoh_buffer::ZBufReader<'a>) -> ZResult<Vec<ZExtUnknown<'a>, N>> {
-        let mut exts = Vec::<ZExtUnknown<'a>, N>::new();
-        let mut has_ext = reader.can_read();
-
-        while has_ext {
-            let (e, more): (ZExtUnknown, bool) = self.read(&mut *reader).ctx(zctx!())?;
-            exts.push(e).map_err(|_| zerr!(ZE::CapacityExceeded))?;
-
-            has_ext = more;
-        }
-
-        Ok(exts)
     }
 }

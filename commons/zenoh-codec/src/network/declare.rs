@@ -32,7 +32,7 @@ impl<'a> WCodec<'a, &DeclareBody<'_>> for Zenoh080 {
 
 impl<'a> RCodec<'a, DeclareBody<'a>> for Zenoh080 {
     fn read(&self, reader: &mut ZBufReader<'a>) -> ZResult<DeclareBody<'a>> {
-        let header: u8 = self.read(reader)?;
+        let header: u8 = self.read(reader).ctx(zctx!())?;
 
         let d = match imsg::mid(header) {
             declare::id::D_KEYEXPR => {
@@ -139,7 +139,7 @@ impl<'a> RCodec<'a, Declare<'a>> for Zenoh080 {
 
         let mut has_ext = imsg::has_flag(header, declare::flag::Z);
         while has_ext {
-            let ext: u8 = self.read(reader)?;
+            let ext: u8 = self.read(reader).ctx(zctx!())?;
             match iext::eid(ext) {
                 declare::ext::QoS::ID => {
                     let (q, ext): (declare::ext::QoSType, bool) =
@@ -165,7 +165,7 @@ impl<'a> RCodec<'a, Declare<'a>> for Zenoh080 {
             }
         }
 
-        let body: DeclareBody = self.read(reader)?;
+        let body: DeclareBody = self.read(reader).ctx(zctx!())?;
 
         Ok(Declare {
             interest_id,
@@ -209,7 +209,7 @@ impl<'a> RCodec<'a, common::DeclareFinal> for Zenoh080 {
     }
 
     fn read(&self, reader: &mut ZBufReader<'a>) -> ZResult<common::DeclareFinal> {
-        let header: u8 = self.read(reader)?;
+        let header: u8 = self.read(reader).ctx(zctx!())?;
         self.read_knowing_header(reader, header)
     }
 }
@@ -239,7 +239,7 @@ impl<'a> RCodec<'a, keyexpr::DeclareKeyExpr<'a>> for Zenoh080 {
             zbail!(ZE::ReadFailure);
         }
 
-        let id: ExprId = self.read(reader)?;
+        let id: ExprId = self.read(reader).ctx(zctx!())?;
         let wire_expr: WireExpr<'_> = self
             .read_with_condition(reader, imsg::has_flag(header, keyexpr::flag::N))
             .ctx(zctx!())?;
@@ -284,7 +284,7 @@ impl<'a> RCodec<'a, keyexpr::UndeclareKeyExpr> for Zenoh080 {
             zbail!(ZE::ReadFailure);
         }
 
-        let id: ExprId = self.read(reader)?;
+        let id: ExprId = self.read(reader).ctx(zctx!())?;
 
         // Extensions
         let has_ext = imsg::has_flag(header, keyexpr::flag::Z);
@@ -333,7 +333,7 @@ impl<'a> RCodec<'a, subscriber::DeclareSubscriber<'a>> for Zenoh080 {
             zbail!(ZE::ReadFailure);
         }
 
-        let id: subscriber::SubscriberId = self.read(reader)?;
+        let id: subscriber::SubscriberId = self.read(reader).ctx(zctx!())?;
         let mut wire_expr: WireExpr<'_> = self
             .read_with_condition(reader, imsg::has_flag(header, subscriber::flag::N))
             .ctx(zctx!())?;
@@ -345,7 +345,7 @@ impl<'a> RCodec<'a, subscriber::DeclareSubscriber<'a>> for Zenoh080 {
 
         let mut has_ext = imsg::has_flag(header, subscriber::flag::Z);
         while has_ext {
-            let ext: u8 = self.read(reader)?;
+            let ext: u8 = self.read(reader).ctx(zctx!())?;
             has_ext = extension::skip(reader, "DeclareSubscriber", ext)?;
         }
 
@@ -391,13 +391,13 @@ impl<'a> RCodec<'a, subscriber::UndeclareSubscriber<'a>> for Zenoh080 {
             zbail!(ZE::ReadFailure);
         }
 
-        let id: subscriber::SubscriberId = self.read(reader)?;
+        let id: subscriber::SubscriberId = self.read(reader).ctx(zctx!())?;
 
         let mut ext_wire_expr = common::ext::WireExprType::null();
 
         let mut has_ext = imsg::has_flag(header, subscriber::flag::Z);
         while has_ext {
-            let ext: u8 = self.read(reader)?;
+            let ext: u8 = self.read(reader).ctx(zctx!())?;
             match iext::eid(ext) {
                 common::ext::WireExprExt::ID => {
                     let (we, ext): (common::ext::WireExprType, bool) =
@@ -512,7 +512,7 @@ impl<'a> RCodec<'a, queryable::DeclareQueryable<'a>> for Zenoh080 {
         }
 
         // Body
-        let id: queryable::QueryableId = self.read(reader)?;
+        let id: queryable::QueryableId = self.read(reader).ctx(zctx!())?;
         let mut wire_expr: WireExpr<'_> = self
             .read_with_condition(reader, imsg::has_flag(header, queryable::flag::N))
             .ctx(zctx!())?;
@@ -527,7 +527,7 @@ impl<'a> RCodec<'a, queryable::DeclareQueryable<'a>> for Zenoh080 {
 
         let mut has_ext = imsg::has_flag(header, queryable::flag::Z);
         while has_ext {
-            let ext: u8 = self.read(reader)?;
+            let ext: u8 = self.read(reader).ctx(zctx!())?;
             match iext::eid(ext) {
                 queryable::ext::QueryableInfo::ID => {
                     let (i, ext): (queryable::ext::QueryableInfoType, bool) =
@@ -588,7 +588,7 @@ impl<'a> RCodec<'a, queryable::UndeclareQueryable<'a>> for Zenoh080 {
 
         let mut has_ext = imsg::has_flag(header, queryable::flag::Z);
         while has_ext {
-            let ext: u8 = self.read(reader)?;
+            let ext: u8 = self.read(reader).ctx(zctx!())?;
             match iext::eid(ext) {
                 common::ext::WireExprExt::ID => {
                     let (we, ext): (common::ext::WireExprType, bool) =

@@ -13,10 +13,10 @@ pub mod put;
 pub mod query;
 pub mod reply;
 
-impl<'a, const MAX_EXT_UNKNOWN: usize> WCodec<'a, &PushBody<'_, MAX_EXT_UNKNOWN>> for Zenoh080 {
+impl<'a> WCodec<'a, &PushBody<'_>> for Zenoh080 {
     fn write(
         &self,
-        message: &PushBody<'_, MAX_EXT_UNKNOWN>,
+        message: &PushBody<'_>,
         writer: &mut zenoh_buffer::ZBufWriter<'a>,
     ) -> zenoh_result::ZResult<()> {
         match message {
@@ -25,11 +25,11 @@ impl<'a, const MAX_EXT_UNKNOWN: usize> WCodec<'a, &PushBody<'_, MAX_EXT_UNKNOWN>
     }
 }
 
-impl<'a, const MAX_EXT_UNKNOWN: usize> RCodec<'a, PushBody<'a, MAX_EXT_UNKNOWN>> for Zenoh080 {
+impl<'a> RCodec<'a, PushBody<'a>> for Zenoh080 {
     fn read(
         &self,
         reader: &mut zenoh_buffer::ZBufReader<'a>,
-    ) -> zenoh_result::ZResult<PushBody<'a, MAX_EXT_UNKNOWN>> {
+    ) -> zenoh_result::ZResult<PushBody<'a>> {
         let header = self.read(reader).ctx(zctx!())?;
 
         match imsg::mid(header) {
@@ -41,10 +41,10 @@ impl<'a, const MAX_EXT_UNKNOWN: usize> RCodec<'a, PushBody<'a, MAX_EXT_UNKNOWN>>
     }
 }
 
-impl<'a, const MAX_EXT_UNKNOWN: usize> WCodec<'a, &RequestBody<'_, MAX_EXT_UNKNOWN>> for Zenoh080 {
+impl<'a> WCodec<'a, &RequestBody<'_>> for Zenoh080 {
     fn write(
         &self,
-        message: &RequestBody<'_, MAX_EXT_UNKNOWN>,
+        message: &RequestBody<'_>,
         writer: &mut zenoh_buffer::ZBufWriter<'a>,
     ) -> zenoh_result::ZResult<()> {
         match message {
@@ -53,11 +53,11 @@ impl<'a, const MAX_EXT_UNKNOWN: usize> WCodec<'a, &RequestBody<'_, MAX_EXT_UNKNO
     }
 }
 
-impl<'a, const MAX_EXT_UNKNOWN: usize> RCodec<'a, RequestBody<'a, MAX_EXT_UNKNOWN>> for Zenoh080 {
+impl<'a> RCodec<'a, RequestBody<'a>> for Zenoh080 {
     fn read(
         &self,
         reader: &mut zenoh_buffer::ZBufReader<'a>,
-    ) -> zenoh_result::ZResult<RequestBody<'a, MAX_EXT_UNKNOWN>> {
+    ) -> zenoh_result::ZResult<RequestBody<'a>> {
         let header = self.read(reader).ctx(zctx!())?;
 
         match imsg::mid(header) {
@@ -69,10 +69,10 @@ impl<'a, const MAX_EXT_UNKNOWN: usize> RCodec<'a, RequestBody<'a, MAX_EXT_UNKNOW
     }
 }
 
-impl<'a, const MAX_EXT_UNKNOWN: usize> WCodec<'a, &ResponseBody<'_, MAX_EXT_UNKNOWN>> for Zenoh080 {
+impl<'a> WCodec<'a, &ResponseBody<'_>> for Zenoh080 {
     fn write(
         &self,
-        message: &ResponseBody<'_, MAX_EXT_UNKNOWN>,
+        message: &ResponseBody<'_>,
         writer: &mut zenoh_buffer::ZBufWriter<'a>,
     ) -> zenoh_result::ZResult<()> {
         match message {
@@ -82,11 +82,11 @@ impl<'a, const MAX_EXT_UNKNOWN: usize> WCodec<'a, &ResponseBody<'_, MAX_EXT_UNKN
     }
 }
 
-impl<'a, const MAX_EXT_UNKNOWN: usize> RCodec<'a, ResponseBody<'a, MAX_EXT_UNKNOWN>> for Zenoh080 {
+impl<'a> RCodec<'a, ResponseBody<'a>> for Zenoh080 {
     fn read(
         &self,
         reader: &mut zenoh_buffer::ZBufReader<'a>,
-    ) -> zenoh_result::ZResult<ResponseBody<'a, MAX_EXT_UNKNOWN>> {
+    ) -> zenoh_result::ZResult<ResponseBody<'a>> {
         let header = self.read(reader).ctx(zctx!())?;
 
         match imsg::mid(header) {

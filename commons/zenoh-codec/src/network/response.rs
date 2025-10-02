@@ -13,10 +13,10 @@ use zenoh_result::{zbail, zctx, WithContext, ZE};
 
 use crate::{common::extension, RCodec, WCodec, Zenoh080};
 
-impl<'a, const MAX_EXT_UNKNOWN: usize> WCodec<'a, &Response<'_, MAX_EXT_UNKNOWN>> for Zenoh080 {
+impl<'a> WCodec<'a, &Response<'_>> for Zenoh080 {
     fn write(
         &self,
-        message: &Response<'_, MAX_EXT_UNKNOWN>,
+        message: &Response<'_>,
         writer: &mut zenoh_buffer::ZBufWriter<'a>,
     ) -> zenoh_result::ZResult<()> {
         let Response {
@@ -70,12 +70,12 @@ impl<'a, const MAX_EXT_UNKNOWN: usize> WCodec<'a, &Response<'_, MAX_EXT_UNKNOWN>
     }
 }
 
-impl<'a, const MAX_EXT_UNKNOWN: usize> RCodec<'a, Response<'a, MAX_EXT_UNKNOWN>> for Zenoh080 {
+impl<'a> RCodec<'a, Response<'a>> for Zenoh080 {
     fn read_knowing_header(
         &self,
         reader: &mut zenoh_buffer::ZBufReader<'a>,
         header: u8,
-    ) -> zenoh_result::ZResult<Response<'a, MAX_EXT_UNKNOWN>> {
+    ) -> zenoh_result::ZResult<Response<'a>> {
         if imsg::mid(header) != id::RESPONSE {
             zbail!(ZE::ReadFailure);
         }
@@ -97,7 +97,7 @@ impl<'a, const MAX_EXT_UNKNOWN: usize> RCodec<'a, Response<'a, MAX_EXT_UNKNOWN>>
 
         let mut has_ext = imsg::has_flag(header, flag::Z);
         while has_ext {
-            let ext: u8 = self.read(reader)?;
+            let ext: u8 = self.read(reader).ctx(zctx!())?;
             match iext::eid(ext) {
                 ext::QoS::ID => {
                     let (q, ext): (ext::QoSType, bool) =
@@ -123,7 +123,7 @@ impl<'a, const MAX_EXT_UNKNOWN: usize> RCodec<'a, Response<'a, MAX_EXT_UNKNOWN>>
             }
         }
 
-        let payload: ResponseBody<'_, MAX_EXT_UNKNOWN> = self.read(reader)?;
+        let payload: ResponseBody<'_> = self.read(reader).ctx(zctx!())?;
 
         Ok(Response {
             rid,
@@ -138,7 +138,7 @@ impl<'a, const MAX_EXT_UNKNOWN: usize> RCodec<'a, Response<'a, MAX_EXT_UNKNOWN>>
     fn read(
         &self,
         reader: &mut zenoh_buffer::ZBufReader<'a>,
-    ) -> zenoh_result::ZResult<Response<'a, MAX_EXT_UNKNOWN>> {
+    ) -> zenoh_result::ZResult<Response<'a>> {
         let header: u8 = self.read(reader).ctx(zctx!())?;
         self.read_knowing_header(reader, header).ctx(zctx!())
     }
@@ -168,12 +168,12 @@ impl<'a> WCodec<'a, &ResponseFinal> for Zenoh080 {
 
         if ext_qos != &ext::QoSType::DEFAULT {
             n_exts -= 1;
-            self.write((*ext_qos, n_exts != 0), writer)?;
+            self.write((*ext_qos, n_exts != 0), writer).ctx(zctx!())?;
         }
 
         if let Some(ts) = ext_tstamp.as_ref() {
             n_exts -= 1;
-            self.write((ts, n_exts != 0), writer)?;
+            self.write((ts, n_exts != 0), writer).ctx(zctx!())?;
         }
 
         Ok(())
@@ -228,7 +228,7 @@ impl<'a> RCodec<'a, ResponseFinal> for Zenoh080 {
         &self,
         reader: &mut zenoh_buffer::ZBufReader<'a>,
     ) -> zenoh_result::ZResult<ResponseFinal> {
-        let header: u8 = self.read(reader)?;
+        let header: u8 = self.read(reader).ctx(zctx!())?;
         self.read_knowing_header(reader, header)
     }
 }

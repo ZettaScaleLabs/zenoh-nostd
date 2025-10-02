@@ -7,6 +7,7 @@ use zenoh_result::{zbail, ZResult, ZE};
 pub mod common;
 pub mod core;
 pub mod network;
+pub mod transport;
 pub mod zenoh;
 
 pub trait LCodec<'a, Message> {
@@ -67,4 +68,5 @@ pub trait RCodec<'a, Message> {
     }
 }
 
+#[derive(Debug, Default, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct Zenoh080;

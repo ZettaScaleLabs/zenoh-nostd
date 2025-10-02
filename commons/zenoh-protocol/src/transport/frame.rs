@@ -59,7 +59,7 @@ pub struct Frame<'a> {
     pub reliability: Reliability,
     pub sn: TransportSn,
     pub ext_qos: ext::QoSType,
-    pub payload: ZBuf<'a>, // Possibly multiple serialized NetworkMessage
+    pub payload: ZBuf<'a>,
 }
 
 // Extensions

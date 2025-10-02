@@ -96,7 +96,7 @@ impl<'a> RCodec<'a, Interest<'a>> for Zenoh080 {
         let mut options = InterestOptions::empty();
         let mut wire_expr = None;
         if mode != InterestMode::Final {
-            let options_byte: u8 = self.read(reader)?;
+            let options_byte: u8 = self.read(reader).ctx(zctx!())?;
             options = InterestOptions::from(options_byte);
             if options.restricted() {
                 let mut we: WireExpr<'_> = self
@@ -117,7 +117,7 @@ impl<'a> RCodec<'a, Interest<'a>> for Zenoh080 {
 
         let mut has_ext = imsg::has_flag(header, declare::flag::Z);
         while has_ext {
-            let ext: u8 = self.read(reader)?;
+            let ext: u8 = self.read(reader).ctx(zctx!())?;
             match iext::eid(ext) {
                 declare::ext::QoS::ID => {
                     let (q, ext): (interest::ext::QoSType, bool) =

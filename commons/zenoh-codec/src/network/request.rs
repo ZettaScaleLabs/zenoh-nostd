@@ -55,10 +55,10 @@ impl<'a> RCodec<'a, (ext::QueryTarget, bool)> for Zenoh080 {
     }
 }
 
-impl<'a, const MAX_EXT_UNKNOWN: usize> WCodec<'a, &Request<'_, MAX_EXT_UNKNOWN>> for Zenoh080 {
+impl<'a> WCodec<'a, &Request<'_>> for Zenoh080 {
     fn write(
         &self,
-        message: &Request<'_, MAX_EXT_UNKNOWN>,
+        message: &Request<'_>,
         writer: &mut zenoh_buffer::ZBufWriter<'a>,
     ) -> zenoh_result::ZResult<()> {
         let Request {
@@ -136,12 +136,12 @@ impl<'a, const MAX_EXT_UNKNOWN: usize> WCodec<'a, &Request<'_, MAX_EXT_UNKNOWN>>
     }
 }
 
-impl<'a, const MAX_EXT_UNKNOWN: usize> RCodec<'a, Request<'a, MAX_EXT_UNKNOWN>> for Zenoh080 {
+impl<'a> RCodec<'a, Request<'a>> for Zenoh080 {
     fn read_knowing_header(
         &self,
         reader: &mut zenoh_buffer::ZBufReader<'a>,
         header: u8,
-    ) -> zenoh_result::ZResult<Request<'a, MAX_EXT_UNKNOWN>> {
+    ) -> zenoh_result::ZResult<Request<'a>> {
         if imsg::mid(header) != id::REQUEST {
             zbail!(ZE::ReadFailure);
         }
@@ -211,7 +211,7 @@ impl<'a, const MAX_EXT_UNKNOWN: usize> RCodec<'a, Request<'a, MAX_EXT_UNKNOWN>> 
             }
         }
 
-        let payload: RequestBody<'_, MAX_EXT_UNKNOWN> = self.read(reader).ctx(zctx!())?;
+        let payload: RequestBody<'_> = self.read(reader).ctx(zctx!())?;
 
         Ok(Request {
             id,
@@ -229,7 +229,7 @@ impl<'a, const MAX_EXT_UNKNOWN: usize> RCodec<'a, Request<'a, MAX_EXT_UNKNOWN>> 
     fn read(
         &self,
         reader: &mut zenoh_buffer::ZBufReader<'a>,
-    ) -> zenoh_result::ZResult<Request<'a, MAX_EXT_UNKNOWN>> {
+    ) -> zenoh_result::ZResult<Request<'a>> {
         let header = self.read(reader).ctx(zctx!())?;
         self.read_knowing_header(reader, header).ctx(zctx!())
     }

@@ -12,10 +12,10 @@ use zenoh_result::{zbail, zctx, WithContext, ZE};
 
 use crate::{common::extension, RCodec, WCodec, Zenoh080};
 
-impl<'a, const MAX_EXT_UNKNOWN: usize> WCodec<'a, &Push<'_, MAX_EXT_UNKNOWN>> for Zenoh080 {
+impl<'a> WCodec<'a, &Push<'_>> for Zenoh080 {
     fn write(
         &self,
-        message: &Push<'_, MAX_EXT_UNKNOWN>,
+        message: &Push<'_>,
         writer: &mut zenoh_buffer::ZBufWriter<'a>,
     ) -> zenoh_result::ZResult<()> {
         let Push {
@@ -68,12 +68,12 @@ impl<'a, const MAX_EXT_UNKNOWN: usize> WCodec<'a, &Push<'_, MAX_EXT_UNKNOWN>> fo
     }
 }
 
-impl<'a, const MAX_EXT_UNKNOWN: usize> RCodec<'a, Push<'a, MAX_EXT_UNKNOWN>> for Zenoh080 {
+impl<'a> RCodec<'a, Push<'a>> for Zenoh080 {
     fn read_knowing_header(
         &self,
         reader: &mut zenoh_buffer::ZBufReader<'a>,
         header: u8,
-    ) -> zenoh_result::ZResult<Push<'a, MAX_EXT_UNKNOWN>> {
+    ) -> zenoh_result::ZResult<Push<'a>> {
         if imsg::mid(header) != id::PUSH {
             zbail!(ZE::ReadFailure);
         }
@@ -120,7 +120,7 @@ impl<'a, const MAX_EXT_UNKNOWN: usize> RCodec<'a, Push<'a, MAX_EXT_UNKNOWN>> for
             }
         }
 
-        let payload: PushBody<'_, _> = self.read(reader)?;
+        let payload: PushBody<'_> = self.read(reader).ctx(zctx!())?;
 
         Ok(Push {
             wire_expr,
@@ -131,10 +131,7 @@ impl<'a, const MAX_EXT_UNKNOWN: usize> RCodec<'a, Push<'a, MAX_EXT_UNKNOWN>> for
         })
     }
 
-    fn read(
-        &self,
-        reader: &mut zenoh_buffer::ZBufReader<'a>,
-    ) -> zenoh_result::ZResult<Push<'a, MAX_EXT_UNKNOWN>> {
+    fn read(&self, reader: &mut zenoh_buffer::ZBufReader<'a>) -> zenoh_result::ZResult<Push<'a>> {
         let header: u8 = self.read(reader).ctx(zctx!())?;
         self.read_knowing_header(reader, header).ctx(zctx!())
     }

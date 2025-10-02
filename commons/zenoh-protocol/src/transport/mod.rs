@@ -55,7 +55,7 @@ impl PrioritySn {
     };
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq)]
 pub enum TransportBody<'a> {
     InitSyn(InitSyn<'a>),
     InitAck(InitAck<'a>),
@@ -65,7 +65,7 @@ pub enum TransportBody<'a> {
     Frame(Frame<'a>),
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq)]
 pub struct TransportMessage<'a> {
     pub body: TransportBody<'a>,
 }
@@ -121,17 +121,7 @@ impl<'a> fmt::Display for TransportMessage<'a> {
             OpenSyn(_) => write!(f, "OpenSyn"),
             OpenAck(_) => write!(f, "OpenAck"),
             KeepAlive(_) => write!(f, "KeepAlive"),
-            Frame(m) => {
-                write!(f, "Frame[")?;
-                let mut netmsgs = m.payload.iter().peekable();
-                while let Some(m) = netmsgs.next() {
-                    m.fmt(f)?;
-                    if netmsgs.peek().is_some() {
-                        write!(f, ", ")?;
-                    }
-                }
-                write!(f, "]")
-            }
+            Frame(m) => write!(f, "Frame({} bytes)", m.payload.len()),
         }
     }
 }

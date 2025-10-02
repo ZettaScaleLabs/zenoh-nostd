@@ -1,9 +1,5 @@
-use heapless::Vec;
 
-use crate::{
-    common::extension::ZExtUnknown,
-    zenoh::{query::ConsolidationMode, PushBody},
-};
+use crate::zenoh::{query::ConsolidationMode, PushBody};
 
 /// # Reply message
 ///
@@ -31,10 +27,10 @@ pub mod flag {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct Reply<'a, const MAX_EXT_UNKNOWN: usize> {
+pub struct Reply<'a> {
     pub consolidation: ConsolidationMode,
-    pub ext_unknown: Vec<ZExtUnknown<'a>, MAX_EXT_UNKNOWN>,
-    pub payload: ReplyBody<'a, MAX_EXT_UNKNOWN>,
+
+    pub payload: ReplyBody<'a>,
 }
 
-pub type ReplyBody<'a, const MAX_EXT_UNKNOWN: usize> = PushBody<'a, MAX_EXT_UNKNOWN>;
+pub type ReplyBody<'a> = PushBody<'a>;
