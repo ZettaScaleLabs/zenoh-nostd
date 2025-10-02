@@ -69,13 +69,23 @@ impl<'a> Iterator for TransportMessageBatch<'a> {
     type Item = TransportMessageReader<'a>;
 
     fn next(&mut self) -> Option<TransportMessageReader<'a>> {
+        extern crate std;
+        std::println!(
+            "Trying to read next transport message... starting at {} = {:?}",
+            self.reader.pos(),
+            self.reader.current()
+        );
+
         if !self.reader.can_read() {
+            std::println!("No more data to read.");
             return None;
         }
 
         let header: u8 = self.codec.read(&mut self.reader).ok()?;
+        std::println!("Read header: {}", header);
         match imsg::mid(header) {
             id::FRAME => {
+                std::println!("Detected FRAME message.");
                 let header: FrameHeader = self
                     .codec
                     .read_knowing_header(&mut self.reader, header)

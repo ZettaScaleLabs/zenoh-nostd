@@ -1,6 +1,4 @@
-use zenoh_buffer::ZBuf;
-
-use crate::{core::Reliability, transport::TransportSn};
+use crate::{core::Reliability, network::NetworkMessage, transport::TransportSn};
 
 pub mod flag {
     pub const R: u8 = 1 << 5; // 0x20 Reliable      if R==1 then the frame is reliable
@@ -59,7 +57,7 @@ pub struct Frame<'a> {
     pub reliability: Reliability,
     pub sn: TransportSn,
     pub ext_qos: ext::QoSType,
-    pub payload: ZBuf<'a>,
+    pub payload: &'a [NetworkMessage<'a>],
 }
 
 // Extensions

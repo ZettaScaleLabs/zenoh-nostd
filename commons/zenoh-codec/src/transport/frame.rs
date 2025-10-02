@@ -93,7 +93,7 @@ impl<'a> WCodec<'a, &Frame<'_>> for ZCodec {
         let Frame {
             reliability,
             sn,
-            payload,
+            payload: _,
             ext_qos,
         } = message;
 
@@ -104,7 +104,12 @@ impl<'a> WCodec<'a, &Frame<'_>> for ZCodec {
         };
 
         self.write(&header, writer).ctx(zctx!())?;
-        self.write(payload, writer).ctx(zctx!())
+
+        for msg in message.payload {
+            self.write(msg, writer).ctx(zctx!())?;
+        }
+
+        Ok(())
     }
 }
 
@@ -122,14 +127,32 @@ impl<'a> Iterator for FrameReader<'a> {
 
     fn next(&mut self) -> Option<NetworkMessage<'a>> {
         let mark = self.reader.mark();
+        extern crate std;
+        std::println!(
+            "FrameReader: reading message at mark {} = {:?}",
+            mark,
+            self.reader.get(mark)
+        );
+
         let msg: ZResult<NetworkMessage<'a>> = self
             .codec
             .read_with_reliability(&mut self.reader, self.reliability)
             .ctx(zctx!());
 
         match msg {
-            Ok(m) => Some(m),
+            Ok(m) => {
+                extern crate std;
+                std::println!("FrameReader: read message");
+
+                Some(m)
+            }
             Err(_) => {
+                extern crate std;
+                std::println!(
+                    "FrameReader: stopping iteration due to error going back to mark {} = {:?}",
+                    mark,
+                    self.reader.get(mark)
+                );
                 self.reader.rewind(mark).unwrap();
                 None
             }
@@ -139,6 +162,8 @@ impl<'a> Iterator for FrameReader<'a> {
 
 impl<'a> Drop for FrameReader<'a> {
     fn drop(&mut self) {
+        extern crate std;
+        std::println!("FrameReader: dropped");
         for _ in self {}
     }
 }

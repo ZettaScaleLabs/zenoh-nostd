@@ -254,6 +254,26 @@ impl<'a> ZBufReader<'a> {
         self.pos
     }
 
+    pub fn get(&self, pos: usize) -> ZResult<u8> {
+        if pos >= self.buf.len() {
+            zbail!(ZE::CapacityExceeded);
+        }
+
+        Ok(self.buf.0[pos])
+    }
+
+    pub fn current(&self) -> ZResult<u8> {
+        if self.pos >= self.buf.len() {
+            zbail!(ZE::CapacityExceeded);
+        }
+
+        Ok(self.buf.0[self.pos])
+    }
+
+    pub fn pos(&self) -> usize {
+        self.pos
+    }
+
     pub fn rewind(&mut self, mark: usize) -> ZResult<()> {
         if mark > self.buf.len() {
             zbail!(ZE::CapacityExceeded);

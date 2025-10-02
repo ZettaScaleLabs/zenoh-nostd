@@ -1,15 +1,111 @@
 #![no_std]
 
+use heapless::Vec;
+use zenoh_buffer::{ZBuf, ZBufMut};
+use zenoh_codec::{transport::TransportMessageBatch, RCodec, WCodec, ZCodec};
+use zenoh_protocol::{
+    core::{encoding::Encoding, wire_expr::WireExpr},
+    network::{push::Push, NetworkBody, NetworkMessage},
+    transport::{frame::Frame, TransportBody, TransportMessage},
+    zenoh::{put::Put, PushBody},
+};
 use zenoh_result::ZResult;
 
-fn res_main() -> ZResult<()> {
-    let data = [0u8; 128];
-    let zbuf_1 = zenoh_buffer::ZBuf(&data);
-    let zbuf_2 = zbuf_1.clone();
+fn network_msg(payload: ZBuf<'_>) -> NetworkMessage<'_> {
+    NetworkMessage {
+        reliability: zenoh_protocol::core::Reliability::BestEffort,
+        body: NetworkBody::Push(Push {
+            wire_expr: WireExpr::from("value"),
+            ext_qos: zenoh_protocol::network::push::ext::QoSType::DEFAULT,
+            ext_nodeid: zenoh_protocol::network::push::ext::NodeIdType::DEFAULT,
+            ext_tstamp: None,
+            payload: PushBody::Put(Put {
+                timestamp: None,
+                encoding: Encoding::empty(),
+                ext_sinfo: None,
+                ext_attachment: None,
+                payload: payload,
+            }),
+        }),
+    }
+}
 
-    assert_eq!(zbuf_1.as_bytes().as_ptr(), zbuf_2.as_bytes().as_ptr());
-    assert_eq!(zbuf_1.len(), zbuf_2.len());
-    assert_eq!(zbuf_1, zbuf_2);
+fn frame<'a>(msgs: &'a [NetworkMessage<'a>]) -> Frame<'a> {
+    Frame {
+        reliability: zenoh_protocol::core::Reliability::BestEffort,
+        sn: 32,
+        ext_qos: zenoh_protocol::transport::frame::ext::QoSType::DEFAULT,
+        payload: msgs,
+    }
+}
+
+fn transport_msg<'a>(frame: Frame<'a>) -> TransportMessage<'a> {
+    TransportMessage {
+        body: TransportBody::Frame(frame),
+    }
+}
+
+fn res_main() -> ZResult<()> {
+    extern crate std;
+
+    let mut data = [0u8; 1500];
+    {
+        let payload1 = ZBuf(b"Hello, World");
+        let payload2 = ZBuf(b"Another message");
+        let msgs1 = [network_msg(payload1), network_msg(payload2)];
+
+        let frame1 = frame(&msgs1);
+
+        let payload3 = ZBuf(b"Third message");
+        let msgs2 = [network_msg(payload3)];
+
+        let frame2 = frame(&msgs2);
+
+        let transportmsg1 = transport_msg(frame1);
+        let transportmsg2 = transport_msg(frame2);
+
+        let mut zbuf = ZBufMut(&mut data);
+        let mut writer = zbuf.writer();
+
+        ZCodec.write(&transportmsg1, &mut writer)?;
+        let len1 = writer.pos();
+        ZCodec.write(&transportmsg2, &mut writer)?;
+        let len2 = writer.pos();
+
+        std::println!(
+            "Encoded data: \n{:?}\n{:?}",
+            &data[..len1],
+            &data[len1..len2]
+        );
+    }
+
+    let zbuf = ZBuf(&data);
+    let mut reader = zbuf.reader();
+
+    let batch: TransportMessageBatch = ZCodec.read(&mut reader)?;
+    let mut payloads = Vec::<ZBuf<'_>, 256>::new();
+
+    for msg in batch {
+        match msg {
+            zenoh_codec::transport::TransportMessageReader::Frame(frame) => {
+                for frame in frame {
+                    match frame.body {
+                        NetworkBody::Push(push) => match push.payload {
+                            PushBody::Put(put) => {
+                                payloads.push(put.payload).unwrap();
+                            }
+                        },
+                        _ => {}
+                    }
+                }
+            }
+            _ => {}
+        }
+    }
+
+    for payload in payloads {
+        std::println!("Decoded payload: {:?}", payload.as_str());
+    }
 
     Ok(())
 }
