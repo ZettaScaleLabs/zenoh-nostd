@@ -4,9 +4,9 @@ use zenoh_protocol::{
 };
 use zenoh_result::{zctx, WithContext};
 
-use crate::{RCodec, WCodec, Zenoh080};
+use crate::{RCodec, WCodec, ZCodec};
 
-impl<'a> WCodec<'a, &WireExpr<'_>> for Zenoh080 {
+impl<'a> WCodec<'a, &WireExpr<'_>> for ZCodec {
     fn write(
         &self,
         message: &WireExpr<'_>,
@@ -27,7 +27,7 @@ impl<'a> WCodec<'a, &WireExpr<'_>> for Zenoh080 {
     }
 }
 
-impl<'a> WCodec<'a, WireExpr<'_>> for Zenoh080 {
+impl<'a> WCodec<'a, WireExpr<'_>> for ZCodec {
     fn write(
         &self,
         message: WireExpr<'_>,
@@ -37,7 +37,7 @@ impl<'a> WCodec<'a, WireExpr<'_>> for Zenoh080 {
     }
 }
 
-impl<'a> RCodec<'a, WireExpr<'a>> for Zenoh080 {
+impl<'a> RCodec<'a, WireExpr<'a>> for ZCodec {
     fn read_with_condition(
         &self,
         reader: &mut zenoh_buffer::ZBufReader<'a>,

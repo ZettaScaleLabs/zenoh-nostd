@@ -21,6 +21,7 @@ zenoh-keyexpr = { version = "1.5.1", path = "commons/zenoh-keyexpr" }
 zenoh-protocol = { version = "1.5.1", path = "commons/zenoh-protocol" }
 zenoh-codec = { version = "1.5.1", path = "commons/zenoh-codec" }
 
+rand = "0.8.5"
 const_format = "0.2.34"
 defmt = { version = "1.0.1" }
 log = { version = "0.4.28" }

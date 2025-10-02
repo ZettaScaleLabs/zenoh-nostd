@@ -7,7 +7,6 @@ fn res_main() -> ZResult<()> {
     let zbuf_1 = zenoh_buffer::ZBuf(&data);
     let zbuf_2 = zbuf_1.clone();
 
-    // Assert ptrs are the same
     assert_eq!(zbuf_1.as_bytes().as_ptr(), zbuf_2.as_bytes().as_ptr());
     assert_eq!(zbuf_1.len(), zbuf_2.len());
     assert_eq!(zbuf_1, zbuf_2);

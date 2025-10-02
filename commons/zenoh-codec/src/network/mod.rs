@@ -12,7 +12,7 @@ use zenoh_protocol::{
 };
 use zenoh_result::{zbail, zctx, WithContext, ZResult, ZE};
 
-use crate::{LCodec, RCodec, WCodec, Zenoh080};
+use crate::{LCodec, RCodec, WCodec, ZCodec};
 
 pub mod declare;
 pub mod interest;
@@ -20,7 +20,7 @@ pub mod push;
 pub mod request;
 pub mod response;
 
-impl<'a> WCodec<'a, &NetworkMessage<'_>> for Zenoh080 {
+impl<'a> WCodec<'a, &NetworkMessage<'_>> for ZCodec {
     fn write(&self, message: &NetworkMessage<'_>, writer: &mut ZBufWriter<'a>) -> ZResult<()> {
         match message.body() {
             NetworkBody::Push(b) => self.write(b, writer).ctx(zctx!()),
@@ -33,7 +33,7 @@ impl<'a> WCodec<'a, &NetworkMessage<'_>> for Zenoh080 {
     }
 }
 
-impl<'a> RCodec<'a, NetworkMessage<'a>> for Zenoh080 {
+impl<'a> RCodec<'a, NetworkMessage<'a>> for ZCodec {
     fn read_knowing_header(
         &self,
         reader: &mut ZBufReader<'a>,
@@ -74,7 +74,7 @@ impl<'a> RCodec<'a, NetworkMessage<'a>> for Zenoh080 {
     }
 }
 
-impl<'a, const ID: u8> WCodec<'a, (ext::QoSType<{ ID }>, bool)> for Zenoh080 {
+impl<'a, const ID: u8> WCodec<'a, (ext::QoSType<{ ID }>, bool)> for ZCodec {
     fn write(
         &self,
         message: (ext::QoSType<{ ID }>, bool),
@@ -86,7 +86,7 @@ impl<'a, const ID: u8> WCodec<'a, (ext::QoSType<{ ID }>, bool)> for Zenoh080 {
     }
 }
 
-impl<'a, const ID: u8> RCodec<'a, (ext::QoSType<{ ID }>, bool)> for Zenoh080 {
+impl<'a, const ID: u8> RCodec<'a, (ext::QoSType<{ ID }>, bool)> for ZCodec {
     fn read_knowing_header(
         &self,
         reader: &mut ZBufReader<'a>,
@@ -104,7 +104,7 @@ impl<'a, const ID: u8> RCodec<'a, (ext::QoSType<{ ID }>, bool)> for Zenoh080 {
     }
 }
 
-impl<'a, const ID: u8> WCodec<'a, (&ext::TimestampType<{ ID }>, bool)> for Zenoh080 {
+impl<'a, const ID: u8> WCodec<'a, (&ext::TimestampType<{ ID }>, bool)> for ZCodec {
     fn write(
         &self,
         message: (&ext::TimestampType<{ ID }>, bool),
@@ -117,7 +117,7 @@ impl<'a, const ID: u8> WCodec<'a, (&ext::TimestampType<{ ID }>, bool)> for Zenoh
     }
 }
 
-impl<'a, const ID: u8> RCodec<'a, (ext::TimestampType<{ ID }>, bool)> for Zenoh080 {
+impl<'a, const ID: u8> RCodec<'a, (ext::TimestampType<{ ID }>, bool)> for ZCodec {
     fn read_knowing_header(
         &self,
         reader: &mut ZBufReader<'a>,
@@ -135,7 +135,7 @@ impl<'a, const ID: u8> RCodec<'a, (ext::TimestampType<{ ID }>, bool)> for Zenoh0
     }
 }
 
-impl<'a, const ID: u8> WCodec<'a, (ext::NodeIdType<{ ID }>, bool)> for Zenoh080 {
+impl<'a, const ID: u8> WCodec<'a, (ext::NodeIdType<{ ID }>, bool)> for ZCodec {
     fn write(
         &self,
         message: (ext::NodeIdType<{ ID }>, bool),
@@ -147,7 +147,7 @@ impl<'a, const ID: u8> WCodec<'a, (ext::NodeIdType<{ ID }>, bool)> for Zenoh080 
     }
 }
 
-impl<'a, const ID: u8> RCodec<'a, (ext::NodeIdType<{ ID }>, bool)> for Zenoh080 {
+impl<'a, const ID: u8> RCodec<'a, (ext::NodeIdType<{ ID }>, bool)> for ZCodec {
     fn read_knowing_header(
         &self,
         reader: &mut ZBufReader<'a>,
@@ -164,7 +164,7 @@ impl<'a, const ID: u8> RCodec<'a, (ext::NodeIdType<{ ID }>, bool)> for Zenoh080 
     }
 }
 
-impl<'a, const ID: u8> LCodec<'a, &ext::EntityGlobalIdType<{ ID }>> for Zenoh080 {
+impl<'a, const ID: u8> LCodec<'a, &ext::EntityGlobalIdType<{ ID }>> for ZCodec {
     fn w_len(&self, message: &ext::EntityGlobalIdType<{ ID }>) -> usize {
         let EntityGlobalIdType { zid, eid } = message;
 
@@ -172,7 +172,7 @@ impl<'a, const ID: u8> LCodec<'a, &ext::EntityGlobalIdType<{ ID }>> for Zenoh080
     }
 }
 
-impl<'a, const ID: u8> WCodec<'a, (&ext::EntityGlobalIdType<{ ID }>, bool)> for Zenoh080 {
+impl<'a, const ID: u8> WCodec<'a, (&ext::EntityGlobalIdType<{ ID }>, bool)> for ZCodec {
     fn write(
         &self,
         message: (&ext::EntityGlobalIdType<{ ID }>, bool),
@@ -192,7 +192,7 @@ impl<'a, const ID: u8> WCodec<'a, (&ext::EntityGlobalIdType<{ ID }>, bool)> for 
     }
 }
 
-impl<'a, const ID: u8> RCodec<'a, (ext::EntityGlobalIdType<{ ID }>, bool)> for Zenoh080 {
+impl<'a, const ID: u8> RCodec<'a, (ext::EntityGlobalIdType<{ ID }>, bool)> for ZCodec {
     fn read_knowing_header(
         &self,
         reader: &mut ZBufReader<'a>,

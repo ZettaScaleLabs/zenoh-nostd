@@ -69,4 +69,4 @@ pub trait RCodec<'a, Message> {
 }
 
 #[derive(Debug, Default, Clone, Copy, PartialEq, Eq, Hash)]
-pub struct Zenoh080;
+pub struct ZCodec;

@@ -13,14 +13,14 @@ use zenoh_protocol::{
 };
 use zenoh_result::{zctx, WithContext, ZResult};
 
-use crate::{transport::frame::FrameReader, RCodec, WCodec, Zenoh080};
+use crate::{transport::frame::FrameReader, RCodec, WCodec, ZCodec};
 
 pub mod frame;
 pub mod init;
 pub mod keepalive;
 pub mod open;
 
-impl<'a> WCodec<'a, &TransportMessage<'_>> for Zenoh080 {
+impl<'a> WCodec<'a, &TransportMessage<'_>> for ZCodec {
     fn write(
         &self,
         message: &TransportMessage<'_>,
@@ -48,24 +48,24 @@ pub enum TransportMessageReader<'a> {
 }
 
 #[derive(Debug, PartialEq, Eq, Hash)]
-pub struct TransportMessagesReader<'a> {
+pub struct TransportMessageBatch<'a> {
     reader: ZBufReader<'a>,
-    codec: Zenoh080,
+    codec: ZCodec,
 }
 
-impl<'a> RCodec<'a, TransportMessagesReader<'a>> for Zenoh080 {
+impl<'a> RCodec<'a, TransportMessageBatch<'a>> for ZCodec {
     fn read(
         &self,
         reader: &mut ZBufReader<'a>,
-    ) -> zenoh_result::ZResult<TransportMessagesReader<'a>> {
-        Ok(TransportMessagesReader {
+    ) -> zenoh_result::ZResult<TransportMessageBatch<'a>> {
+        Ok(TransportMessageBatch {
             reader: reader.clone(),
             codec: self.clone(),
         })
     }
 }
 
-impl<'a> Iterator for TransportMessagesReader<'a> {
+impl<'a> Iterator for TransportMessageBatch<'a> {
     type Item = TransportMessageReader<'a>;
 
     fn next(&mut self) -> Option<TransportMessageReader<'a>> {
@@ -135,7 +135,7 @@ impl<'a> Iterator for TransportMessagesReader<'a> {
     }
 }
 
-impl<'a, const ID: u8> WCodec<'a, (ext::QoSType<{ ID }>, bool)> for Zenoh080 {
+impl<'a, const ID: u8> WCodec<'a, (ext::QoSType<{ ID }>, bool)> for ZCodec {
     fn write(
         &self,
         message: (ext::QoSType<{ ID }>, bool),
@@ -148,7 +148,7 @@ impl<'a, const ID: u8> WCodec<'a, (ext::QoSType<{ ID }>, bool)> for Zenoh080 {
     }
 }
 
-impl<'a, const ID: u8> RCodec<'a, (ext::QoSType<{ ID }>, bool)> for Zenoh080 {
+impl<'a, const ID: u8> RCodec<'a, (ext::QoSType<{ ID }>, bool)> for ZCodec {
     fn read_knowing_header(
         &self,
         reader: &mut crate::ZBufReader<'a>,
@@ -165,7 +165,7 @@ impl<'a, const ID: u8> RCodec<'a, (ext::QoSType<{ ID }>, bool)> for Zenoh080 {
     }
 }
 
-impl<'a, const ID: u8> WCodec<'a, (ext::PatchType<{ ID }>, bool)> for Zenoh080 {
+impl<'a, const ID: u8> WCodec<'a, (ext::PatchType<{ ID }>, bool)> for ZCodec {
     fn write(
         &self,
         message: (ext::PatchType<{ ID }>, bool),
@@ -178,7 +178,7 @@ impl<'a, const ID: u8> WCodec<'a, (ext::PatchType<{ ID }>, bool)> for Zenoh080 {
     }
 }
 
-impl<'a, const ID: u8> RCodec<'a, (ext::PatchType<{ ID }>, bool)> for Zenoh080 {
+impl<'a, const ID: u8> RCodec<'a, (ext::PatchType<{ ID }>, bool)> for ZCodec {
     fn read_knowing_header(
         &self,
         reader: &mut crate::ZBufReader<'a>,

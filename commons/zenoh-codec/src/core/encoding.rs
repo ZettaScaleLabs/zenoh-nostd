@@ -5,9 +5,9 @@ use zenoh_protocol::{
 };
 use zenoh_result::{zbail, zctx, WithContext};
 
-use crate::{LCodec, RCodec, WCodec, Zenoh080};
+use crate::{LCodec, RCodec, WCodec, ZCodec};
 
-impl<'a> LCodec<'a, &Encoding<'_>> for Zenoh080 {
+impl<'a> LCodec<'a, &Encoding<'_>> for ZCodec {
     fn w_len(&self, message: &Encoding<'_>) -> usize {
         let mut len = self.w_len((message.id as u32) << 1);
         if let Some(schema) = message.schema.as_ref() {
@@ -17,7 +17,7 @@ impl<'a> LCodec<'a, &Encoding<'_>> for Zenoh080 {
     }
 }
 
-impl<'a> WCodec<'a, &Encoding<'_>> for Zenoh080 {
+impl<'a> WCodec<'a, &Encoding<'_>> for ZCodec {
     fn write(
         &self,
         message: &Encoding<'_>,
@@ -43,7 +43,7 @@ impl<'a> WCodec<'a, &Encoding<'_>> for Zenoh080 {
     }
 }
 
-impl<'a> WCodec<'a, Encoding<'_>> for Zenoh080 {
+impl<'a> WCodec<'a, Encoding<'_>> for ZCodec {
     fn write(
         &self,
         message: Encoding<'_>,
@@ -53,7 +53,7 @@ impl<'a> WCodec<'a, Encoding<'_>> for Zenoh080 {
     }
 }
 
-impl<'a> RCodec<'a, Encoding<'a>> for Zenoh080 {
+impl<'a> RCodec<'a, Encoding<'a>> for ZCodec {
     fn read(
         &self,
         reader: &mut zenoh_buffer::ZBufReader<'a>,

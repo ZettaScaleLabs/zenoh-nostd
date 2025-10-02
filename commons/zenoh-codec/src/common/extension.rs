@@ -5,14 +5,14 @@ use zenoh_protocol::common::{
 };
 use zenoh_result::{zbail, zctx, WithContext, ZResult, ZE};
 
-use crate::{RCodec, WCodec, Zenoh080};
+use crate::{RCodec, WCodec, ZCodec};
 
 pub fn read<'a>(
     reader: &mut ZBufReader<'a>,
     _s: &str,
     header: u8,
 ) -> ZResult<(ZExtUnknown<'a>, bool)> {
-    let codec = Zenoh080;
+    let codec = ZCodec;
     let (u, has_ext): (ZExtUnknown, bool) =
         codec.read_knowing_header(reader, header).ctx(zctx!())?;
 
@@ -29,7 +29,7 @@ pub fn skip<'a>(reader: &mut ZBufReader<'a>, s: &str, header: u8) -> ZResult<boo
 }
 
 pub fn skip_all<'a>(reader: &mut ZBufReader<'a>, s: &str) -> ZResult<()> {
-    let codec = Zenoh080;
+    let codec = ZCodec;
     let mut has_ext = reader.can_read();
 
     while has_ext {
@@ -40,8 +40,7 @@ pub fn skip_all<'a>(reader: &mut ZBufReader<'a>, s: &str) -> ZResult<()> {
     Ok(())
 }
 
-// ZExtUnit
-impl<'a, const ID: u8> WCodec<'a, (&ZExtUnit<{ ID }>, bool)> for Zenoh080 {
+impl<'a, const ID: u8> WCodec<'a, (&ZExtUnit<{ ID }>, bool)> for ZCodec {
     fn write(
         &self,
         message: (&ZExtUnit<{ ID }>, bool),
@@ -59,7 +58,7 @@ impl<'a, const ID: u8> WCodec<'a, (&ZExtUnit<{ ID }>, bool)> for Zenoh080 {
     }
 }
 
-impl<'a, const ID: u8> RCodec<'a, (ZExtUnit<{ ID }>, bool)> for Zenoh080 {
+impl<'a, const ID: u8> RCodec<'a, (ZExtUnit<{ ID }>, bool)> for ZCodec {
     fn read_knowing_header(
         &self,
         _: &mut ZBufReader<'a>,
@@ -79,8 +78,7 @@ impl<'a, const ID: u8> RCodec<'a, (ZExtUnit<{ ID }>, bool)> for Zenoh080 {
     }
 }
 
-// ZExt64
-impl<'a, const ID: u8> WCodec<'a, (&ZExtZ64<ID>, bool)> for Zenoh080 {
+impl<'a, const ID: u8> WCodec<'a, (&ZExtZ64<ID>, bool)> for ZCodec {
     fn write(&self, message: (&ZExtZ64<{ ID }>, bool), writer: &mut ZBufWriter<'a>) -> ZResult<()> {
         let (x, more) = message;
         let ZExtZ64 { value } = *x;
@@ -95,7 +93,7 @@ impl<'a, const ID: u8> WCodec<'a, (&ZExtZ64<ID>, bool)> for Zenoh080 {
     }
 }
 
-impl<'a, const ID: u8> RCodec<'a, (ZExtZ64<{ ID }>, bool)> for Zenoh080 {
+impl<'a, const ID: u8> RCodec<'a, (ZExtZ64<{ ID }>, bool)> for ZCodec {
     fn read_knowing_header(
         &self,
         reader: &mut ZBufReader<'a>,
@@ -116,8 +114,7 @@ impl<'a, const ID: u8> RCodec<'a, (ZExtZ64<{ ID }>, bool)> for Zenoh080 {
     }
 }
 
-// ZExtZBuf
-impl<'a, const ID: u8> WCodec<'a, (&ZExtZBuf<'_, ID>, bool)> for Zenoh080 {
+impl<'a, const ID: u8> WCodec<'a, (&ZExtZBuf<'_, ID>, bool)> for ZCodec {
     fn write(
         &self,
         message: (&ZExtZBuf<'_, { ID }>, bool),
@@ -136,7 +133,7 @@ impl<'a, const ID: u8> WCodec<'a, (&ZExtZBuf<'_, ID>, bool)> for Zenoh080 {
     }
 }
 
-impl<'a, const ID: u8> RCodec<'a, (ZExtZBuf<'a, ID>, bool)> for Zenoh080 {
+impl<'a, const ID: u8> RCodec<'a, (ZExtZBuf<'a, ID>, bool)> for ZCodec {
     fn read_knowing_header(
         &self,
         reader: &mut ZBufReader<'a>,
@@ -157,8 +154,7 @@ impl<'a, const ID: u8> RCodec<'a, (ZExtZBuf<'a, ID>, bool)> for Zenoh080 {
     }
 }
 
-// ZExtZBufHeader
-impl<'a, const ID: u8> WCodec<'a, (&ZExtZBufHeader<{ ID }>, bool)> for Zenoh080 {
+impl<'a, const ID: u8> WCodec<'a, (&ZExtZBufHeader<{ ID }>, bool)> for ZCodec {
     fn write(
         &self,
         message: (&ZExtZBufHeader<{ ID }>, bool),
@@ -177,7 +173,7 @@ impl<'a, const ID: u8> WCodec<'a, (&ZExtZBufHeader<{ ID }>, bool)> for Zenoh080 
     }
 }
 
-impl<'a, const ID: u8> RCodec<'a, (ZExtZBufHeader<{ ID }>, bool)> for Zenoh080 {
+impl<'a, const ID: u8> RCodec<'a, (ZExtZBufHeader<{ ID }>, bool)> for ZCodec {
     fn read_knowing_header(
         &self,
         reader: &mut ZBufReader<'a>,
@@ -202,8 +198,7 @@ impl<'a, const ID: u8> RCodec<'a, (ZExtZBufHeader<{ ID }>, bool)> for Zenoh080 {
     }
 }
 
-// ZExtUnknown
-impl<'a> WCodec<'a, (&ZExtUnknown<'_>, bool)> for Zenoh080 {
+impl<'a> WCodec<'a, (&ZExtUnknown<'_>, bool)> for ZCodec {
     fn write(&self, message: (&ZExtUnknown<'_>, bool), writer: &mut ZBufWriter<'a>) -> ZResult<()> {
         let (x, more) = message;
         let ZExtUnknown { id, body } = x;
@@ -227,7 +222,7 @@ impl<'a> WCodec<'a, (&ZExtUnknown<'_>, bool)> for Zenoh080 {
     }
 }
 
-impl<'a> RCodec<'a, (ZExtUnknown<'a>, bool)> for Zenoh080 {
+impl<'a> RCodec<'a, (ZExtUnknown<'a>, bool)> for ZCodec {
     fn read_knowing_header(
         &self,
         reader: &mut ZBufReader<'a>,

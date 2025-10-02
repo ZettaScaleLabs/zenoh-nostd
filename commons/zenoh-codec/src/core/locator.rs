@@ -2,9 +2,9 @@ use heapless::Vec;
 use zenoh_protocol::core::locator::Locator;
 use zenoh_result::{zbail, zctx, zerr, WithContext, ZE};
 
-use crate::{RCodec, WCodec, Zenoh080};
+use crate::{RCodec, WCodec, ZCodec};
 
-impl<'a, const N: usize> WCodec<'a, &Locator<N>> for Zenoh080 {
+impl<'a, const N: usize> WCodec<'a, &Locator<N>> for ZCodec {
     fn write(
         &self,
         message: &Locator<N>,
@@ -19,7 +19,7 @@ impl<'a, const N: usize> WCodec<'a, &Locator<N>> for Zenoh080 {
     }
 }
 
-impl<'a, const N: usize> WCodec<'a, Locator<N>> for crate::Zenoh080 {
+impl<'a, const N: usize> WCodec<'a, Locator<N>> for crate::ZCodec {
     fn write(
         &self,
         message: Locator<N>,
@@ -29,14 +29,14 @@ impl<'a, const N: usize> WCodec<'a, Locator<N>> for crate::Zenoh080 {
     }
 }
 
-impl<'a, const N: usize> RCodec<'a, Locator<N>> for crate::Zenoh080 {
+impl<'a, const N: usize> RCodec<'a, Locator<N>> for crate::ZCodec {
     fn read(&self, reader: &mut zenoh_buffer::ZBufReader<'a>) -> zenoh_result::ZResult<Locator<N>> {
         let str: &str = self.read(reader).ctx(zctx!())?;
         Locator::try_from(str).map_err(|_| zerr!(ZE::ReadFailure))
     }
 }
 
-impl<'a, const N: usize> WCodec<'a, &[Locator<N>]> for crate::Zenoh080 {
+impl<'a, const N: usize> WCodec<'a, &[Locator<N>]> for crate::ZCodec {
     fn write(
         &self,
         message: &[Locator<N>],
@@ -52,7 +52,7 @@ impl<'a, const N: usize> WCodec<'a, &[Locator<N>]> for crate::Zenoh080 {
     }
 }
 
-impl<'a, const L: usize, const N: usize> RCodec<'a, Vec<Locator<N>, L>> for crate::Zenoh080 {
+impl<'a, const L: usize, const N: usize> RCodec<'a, Vec<Locator<N>, L>> for crate::ZCodec {
     fn read(
         &self,
         reader: &mut zenoh_buffer::ZBufReader<'a>,

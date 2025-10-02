@@ -4,11 +4,11 @@ use core::str::FromStr;
 
 use heapless::String;
 use zenoh_buffer::{ZBuf, ZBufMut};
-use zenoh_codec::{RCodec, WCodec, Zenoh080};
+use zenoh_codec::{RCodec, WCodec, ZCodec};
 use zenoh_result::{zctx, WithContext, ZResult};
 
 fn encode_new_codec(data: &mut [u8]) -> ZResult<()> {
-    let codec = Zenoh080;
+    let codec = ZCodec;
     let mut buffer = ZBufMut(data);
     let mut writer = buffer.writer();
 
@@ -46,7 +46,7 @@ fn encode_new_codec(data: &mut [u8]) -> ZResult<()> {
 // }
 
 fn decode_new_codec(data: &[u8]) -> ZResult<()> {
-    let codec = Zenoh080;
+    let codec = ZCodec;
     let buffer = ZBuf(data);
     let mut reader = buffer.reader();
 

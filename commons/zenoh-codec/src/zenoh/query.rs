@@ -7,9 +7,9 @@ use zenoh_protocol::{
 };
 use zenoh_result::{zbail, zctx, WithContext, ZE};
 
-use crate::{common::extension, RCodec, WCodec, Zenoh080};
+use crate::{common::extension, RCodec, WCodec, ZCodec};
 
-impl<'a> WCodec<'a, &ConsolidationMode> for Zenoh080 {
+impl<'a> WCodec<'a, &ConsolidationMode> for ZCodec {
     fn write(
         &self,
         message: &ConsolidationMode,
@@ -26,7 +26,7 @@ impl<'a> WCodec<'a, &ConsolidationMode> for Zenoh080 {
     }
 }
 
-impl<'a> RCodec<'a, ConsolidationMode> for Zenoh080 {
+impl<'a> RCodec<'a, ConsolidationMode> for ZCodec {
     fn read(
         &self,
         reader: &mut zenoh_buffer::ZBufReader<'a>,
@@ -43,7 +43,7 @@ impl<'a> RCodec<'a, ConsolidationMode> for Zenoh080 {
     }
 }
 
-impl<'a> WCodec<'a, &Query<'_>> for Zenoh080 {
+impl<'a> WCodec<'a, &Query<'_>> for ZCodec {
     fn write(
         &self,
         message: &Query<'_>,
@@ -101,7 +101,7 @@ impl<'a> WCodec<'a, &Query<'_>> for Zenoh080 {
     }
 }
 
-impl<'a> RCodec<'a, Query<'a>> for Zenoh080 {
+impl<'a> RCodec<'a, Query<'a>> for ZCodec {
     fn read_knowing_header(
         &self,
         reader: &mut zenoh_buffer::ZBufReader<'a>,

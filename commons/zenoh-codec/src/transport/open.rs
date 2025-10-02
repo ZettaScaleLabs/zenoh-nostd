@@ -11,9 +11,9 @@ use zenoh_protocol::{
 };
 use zenoh_result::{zbail, zctx, WithContext, ZE};
 
-use crate::{common::extension, RCodec, WCodec, Zenoh080};
+use crate::{common::extension, RCodec, WCodec, ZCodec};
 
-impl<'a> WCodec<'a, &OpenSyn<'_>> for Zenoh080 {
+impl<'a> WCodec<'a, &OpenSyn<'_>> for ZCodec {
     fn write(
         &self,
         message: &OpenSyn<'_>,
@@ -83,7 +83,7 @@ impl<'a> WCodec<'a, &OpenSyn<'_>> for Zenoh080 {
     }
 }
 
-impl<'a> RCodec<'a, OpenSyn<'a>> for Zenoh080 {
+impl<'a> RCodec<'a, OpenSyn<'a>> for ZCodec {
     fn read_knowing_header(
         &self,
         reader: &mut zenoh_buffer::ZBufReader<'a>,
@@ -169,7 +169,7 @@ impl<'a> RCodec<'a, OpenSyn<'a>> for Zenoh080 {
     }
 }
 
-impl<'a> WCodec<'a, &OpenAck<'_>> for Zenoh080 {
+impl<'a> WCodec<'a, &OpenAck<'_>> for ZCodec {
     fn write(
         &self,
         message: &OpenAck<'_>,
@@ -242,7 +242,7 @@ impl<'a> WCodec<'a, &OpenAck<'_>> for Zenoh080 {
     }
 }
 
-impl<'a> RCodec<'a, OpenAck<'a>> for Zenoh080 {
+impl<'a> RCodec<'a, OpenAck<'a>> for ZCodec {
     fn read_knowing_header(
         &self,
         reader: &mut zenoh_buffer::ZBufReader<'a>,

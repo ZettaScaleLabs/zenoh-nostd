@@ -3,9 +3,9 @@ use zenoh_buffer::ZBuf;
 use zenoh_protocol::core::Timestamp;
 use zenoh_result::{zctx, zerr, WithContext, ZE};
 
-use crate::{LCodec, RCodec, WCodec, Zenoh080};
+use crate::{LCodec, RCodec, WCodec, ZCodec};
 
-impl<'a> LCodec<'a, &Timestamp> for Zenoh080 {
+impl<'a> LCodec<'a, &Timestamp> for ZCodec {
     fn w_len(&self, message: &Timestamp) -> usize {
         let id = message.get_id();
         let bytes = &id.to_le_bytes()[..id.size()];
@@ -14,7 +14,7 @@ impl<'a> LCodec<'a, &Timestamp> for Zenoh080 {
     }
 }
 
-impl<'a> WCodec<'a, &Timestamp> for Zenoh080 {
+impl<'a> WCodec<'a, &Timestamp> for ZCodec {
     fn write(
         &self,
         message: &Timestamp,
@@ -31,7 +31,7 @@ impl<'a> WCodec<'a, &Timestamp> for Zenoh080 {
     }
 }
 
-impl<'a> WCodec<'a, Timestamp> for Zenoh080 {
+impl<'a> WCodec<'a, Timestamp> for ZCodec {
     fn write(
         &self,
         message: Timestamp,
@@ -41,7 +41,7 @@ impl<'a> WCodec<'a, Timestamp> for Zenoh080 {
     }
 }
 
-impl<'a> RCodec<'a, Timestamp> for Zenoh080 {
+impl<'a> RCodec<'a, Timestamp> for ZCodec {
     fn read(&self, reader: &mut zenoh_buffer::ZBufReader<'a>) -> zenoh_result::ZResult<Timestamp> {
         let time: u64 = self.read(reader).ctx(zctx!())?;
         let zbuf: ZBuf<'a> = self.read(reader).ctx(zctx!())?;

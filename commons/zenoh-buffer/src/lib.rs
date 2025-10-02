@@ -136,6 +136,13 @@ impl<'a> ZBufMut<'a> {
         }
     }
 
+    pub fn reader(&self) -> ZBufReader<'_> {
+        ZBufReader {
+            buf: ZBuf(self.0),
+            pos: 0,
+        }
+    }
+
     pub fn into_ref<'b>(self) -> ZBuf<'b>
     where
         'a: 'b,
@@ -152,6 +159,20 @@ pub struct ZBufWriter<'a> {
 impl<'a> ZBufWriter<'a> {
     pub fn pos(&self) -> usize {
         self.pos
+    }
+
+    pub fn mark(&self) -> usize {
+        self.pos
+    }
+
+    pub fn rewind(&mut self, mark: usize) -> ZResult<()> {
+        if mark > self.buf.len() {
+            zbail!(ZE::CapacityExceeded);
+        }
+
+        self.pos = mark;
+
+        Ok(())
     }
 
     pub fn remaining(&self) -> usize {
@@ -190,6 +211,27 @@ impl<'a> ZBufWriter<'a> {
         self.pos += len;
 
         Ok(len)
+    }
+
+    pub fn write_slot(
+        &mut self,
+        len: usize,
+        writer: impl FnOnce(&mut [u8]) -> usize,
+    ) -> ZResult<()> {
+        if self.remaining() < len {
+            zbail!(ZE::WriteFailure);
+        }
+
+        let slot = &mut self.buf.0[self.pos..self.pos + len];
+        let written = writer(slot);
+
+        if written > len {
+            zbail!(ZE::WriteFailure);
+        }
+
+        self.pos += written;
+
+        Ok(())
     }
 
     pub fn into_inner(self) -> ZBufMut<'a> {

@@ -13,9 +13,9 @@ use zenoh_protocol::{
 };
 use zenoh_result::{zbail, zctx, WithContext, ZE};
 
-use crate::{common::extension, RCodec, WCodec, Zenoh080};
+use crate::{common::extension, RCodec, WCodec, ZCodec};
 
-impl<'a> WCodec<'a, (&ext::QueryTarget, bool)> for Zenoh080 {
+impl<'a> WCodec<'a, (&ext::QueryTarget, bool)> for ZCodec {
     fn write(
         &self,
         message: (&ext::QueryTarget, bool),
@@ -35,7 +35,7 @@ impl<'a> WCodec<'a, (&ext::QueryTarget, bool)> for Zenoh080 {
     }
 }
 
-impl<'a> RCodec<'a, (ext::QueryTarget, bool)> for Zenoh080 {
+impl<'a> RCodec<'a, (ext::QueryTarget, bool)> for ZCodec {
     fn read_knowing_header(
         &self,
         reader: &mut zenoh_buffer::ZBufReader<'a>,
@@ -55,7 +55,7 @@ impl<'a> RCodec<'a, (ext::QueryTarget, bool)> for Zenoh080 {
     }
 }
 
-impl<'a> WCodec<'a, &Request<'_>> for Zenoh080 {
+impl<'a> WCodec<'a, &Request<'_>> for ZCodec {
     fn write(
         &self,
         message: &Request<'_>,
@@ -136,7 +136,7 @@ impl<'a> WCodec<'a, &Request<'_>> for Zenoh080 {
     }
 }
 
-impl<'a> RCodec<'a, Request<'a>> for Zenoh080 {
+impl<'a> RCodec<'a, Request<'a>> for ZCodec {
     fn read_knowing_header(
         &self,
         reader: &mut zenoh_buffer::ZBufReader<'a>,

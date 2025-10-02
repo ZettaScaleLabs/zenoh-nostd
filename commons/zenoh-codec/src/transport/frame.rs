@@ -10,9 +10,9 @@ use zenoh_protocol::{
 };
 use zenoh_result::{zbail, zctx, WithContext, ZResult, ZE};
 
-use crate::{common::extension, RCodec, WCodec, Zenoh080};
+use crate::{common::extension, RCodec, WCodec, ZCodec};
 
-impl<'a> WCodec<'a, &FrameHeader> for Zenoh080 {
+impl<'a> WCodec<'a, &FrameHeader> for ZCodec {
     fn write(&self, message: &FrameHeader, writer: &mut crate::ZBufWriter<'a>) -> ZResult<()> {
         let FrameHeader {
             reliability,
@@ -41,7 +41,7 @@ impl<'a> WCodec<'a, &FrameHeader> for Zenoh080 {
     }
 }
 
-impl<'a> RCodec<'a, FrameHeader> for Zenoh080 {
+impl<'a> RCodec<'a, FrameHeader> for ZCodec {
     fn read_knowing_header(
         &self,
         reader: &mut crate::ZBufReader<'a>,
@@ -88,7 +88,7 @@ impl<'a> RCodec<'a, FrameHeader> for Zenoh080 {
     }
 }
 
-impl<'a> WCodec<'a, &Frame<'_>> for Zenoh080 {
+impl<'a> WCodec<'a, &Frame<'_>> for ZCodec {
     fn write(&self, message: &Frame<'_>, writer: &mut zenoh_buffer::ZBufWriter<'a>) -> ZResult<()> {
         let Frame {
             reliability,
@@ -114,7 +114,7 @@ pub struct FrameReader<'a> {
     pub sn: TransportSn,
     pub ext_qos: ext::QoSType,
     pub reader: ZBufReader<'a>,
-    pub codec: Zenoh080,
+    pub codec: ZCodec,
 }
 
 impl<'a> Iterator for FrameReader<'a> {

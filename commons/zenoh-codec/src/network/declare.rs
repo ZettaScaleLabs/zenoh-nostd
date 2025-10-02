@@ -9,10 +9,9 @@ use zenoh_protocol::{
 };
 use zenoh_result::{zbail, zctx, WithContext, ZResult, ZE};
 
-use crate::{common::extension, RCodec, WCodec, Zenoh080};
+use crate::{common::extension, RCodec, WCodec, ZCodec};
 
-// Declaration
-impl<'a> WCodec<'a, &DeclareBody<'_>> for Zenoh080 {
+impl<'a> WCodec<'a, &DeclareBody<'_>> for ZCodec {
     fn write(&self, message: &DeclareBody, writer: &mut ZBufWriter<'a>) -> ZResult<()> {
         match message {
             DeclareBody::DeclareKeyExpr(r) => self.write(r, writer).ctx(zctx!())?,
@@ -30,7 +29,7 @@ impl<'a> WCodec<'a, &DeclareBody<'_>> for Zenoh080 {
     }
 }
 
-impl<'a> RCodec<'a, DeclareBody<'a>> for Zenoh080 {
+impl<'a> RCodec<'a, DeclareBody<'a>> for ZCodec {
     fn read(&self, reader: &mut ZBufReader<'a>) -> ZResult<DeclareBody<'a>> {
         let header: u8 = self.read(reader).ctx(zctx!())?;
 
@@ -69,8 +68,7 @@ impl<'a> RCodec<'a, DeclareBody<'a>> for Zenoh080 {
     }
 }
 
-// Declare
-impl<'a> WCodec<'a, &Declare<'_>> for Zenoh080 {
+impl<'a> WCodec<'a, &Declare<'_>> for ZCodec {
     fn write(&self, message: &Declare<'_>, writer: &mut ZBufWriter<'a>) -> ZResult<()> {
         let Declare {
             interest_id,
@@ -121,7 +119,7 @@ impl<'a> WCodec<'a, &Declare<'_>> for Zenoh080 {
     }
 }
 
-impl<'a> RCodec<'a, Declare<'a>> for Zenoh080 {
+impl<'a> RCodec<'a, Declare<'a>> for ZCodec {
     fn read_knowing_header(&self, reader: &mut ZBufReader<'a>, header: u8) -> ZResult<Declare<'a>> {
         if imsg::mid(header) != id::DECLARE {
             zbail!(ZE::ReadFailure);
@@ -183,14 +181,14 @@ impl<'a> RCodec<'a, Declare<'a>> for Zenoh080 {
 }
 
 // Final
-impl<'a> WCodec<'a, &common::DeclareFinal> for Zenoh080 {
+impl<'a> WCodec<'a, &common::DeclareFinal> for ZCodec {
     fn write(&self, _: &common::DeclareFinal, writer: &mut ZBufWriter<'a>) -> ZResult<()> {
         let header = declare::id::D_FINAL;
         self.write(header, writer).ctx(zctx!())
     }
 }
 
-impl<'a> RCodec<'a, common::DeclareFinal> for Zenoh080 {
+impl<'a> RCodec<'a, common::DeclareFinal> for ZCodec {
     fn read_knowing_header(
         &self,
         reader: &mut ZBufReader<'a>,
@@ -214,7 +212,7 @@ impl<'a> RCodec<'a, common::DeclareFinal> for Zenoh080 {
     }
 }
 
-impl<'a> WCodec<'a, &keyexpr::DeclareKeyExpr<'_>> for Zenoh080 {
+impl<'a> WCodec<'a, &keyexpr::DeclareKeyExpr<'_>> for ZCodec {
     fn write(&self, message: &keyexpr::DeclareKeyExpr, writer: &mut ZBufWriter<'a>) -> ZResult<()> {
         let keyexpr::DeclareKeyExpr { id, wire_expr } = message;
 
@@ -229,7 +227,7 @@ impl<'a> WCodec<'a, &keyexpr::DeclareKeyExpr<'_>> for Zenoh080 {
     }
 }
 
-impl<'a> RCodec<'a, keyexpr::DeclareKeyExpr<'a>> for Zenoh080 {
+impl<'a> RCodec<'a, keyexpr::DeclareKeyExpr<'a>> for ZCodec {
     fn read_knowing_header(
         &self,
         reader: &mut ZBufReader<'a>,
@@ -259,7 +257,7 @@ impl<'a> RCodec<'a, keyexpr::DeclareKeyExpr<'a>> for Zenoh080 {
 }
 
 // UndeclareKeyExpr
-impl<'a> WCodec<'a, &keyexpr::UndeclareKeyExpr> for Zenoh080 {
+impl<'a> WCodec<'a, &keyexpr::UndeclareKeyExpr> for ZCodec {
     fn write(
         &self,
         message: &keyexpr::UndeclareKeyExpr,
@@ -274,7 +272,7 @@ impl<'a> WCodec<'a, &keyexpr::UndeclareKeyExpr> for Zenoh080 {
     }
 }
 
-impl<'a> RCodec<'a, keyexpr::UndeclareKeyExpr> for Zenoh080 {
+impl<'a> RCodec<'a, keyexpr::UndeclareKeyExpr> for ZCodec {
     fn read_knowing_header(
         &self,
         reader: &mut ZBufReader<'a>,
@@ -301,7 +299,7 @@ impl<'a> RCodec<'a, keyexpr::UndeclareKeyExpr> for Zenoh080 {
     }
 }
 
-impl<'a> WCodec<'a, &subscriber::DeclareSubscriber<'_>> for Zenoh080 {
+impl<'a> WCodec<'a, &subscriber::DeclareSubscriber<'_>> for ZCodec {
     fn write(
         &self,
         message: &subscriber::DeclareSubscriber,
@@ -323,7 +321,7 @@ impl<'a> WCodec<'a, &subscriber::DeclareSubscriber<'_>> for Zenoh080 {
     }
 }
 
-impl<'a> RCodec<'a, subscriber::DeclareSubscriber<'a>> for Zenoh080 {
+impl<'a> RCodec<'a, subscriber::DeclareSubscriber<'a>> for ZCodec {
     fn read_knowing_header(
         &self,
         reader: &mut ZBufReader<'a>,
@@ -358,7 +356,7 @@ impl<'a> RCodec<'a, subscriber::DeclareSubscriber<'a>> for Zenoh080 {
     }
 }
 
-impl<'a> WCodec<'a, &subscriber::UndeclareSubscriber<'_>> for Zenoh080 {
+impl<'a> WCodec<'a, &subscriber::UndeclareSubscriber<'_>> for ZCodec {
     fn write(
         &self,
         message: &subscriber::UndeclareSubscriber<'_>,
@@ -381,7 +379,7 @@ impl<'a> WCodec<'a, &subscriber::UndeclareSubscriber<'_>> for Zenoh080 {
     }
 }
 
-impl<'a> RCodec<'a, subscriber::UndeclareSubscriber<'a>> for Zenoh080 {
+impl<'a> RCodec<'a, subscriber::UndeclareSubscriber<'a>> for ZCodec {
     fn read_knowing_header(
         &self,
         reader: &mut ZBufReader<'a>,
@@ -421,7 +419,7 @@ impl<'a> RCodec<'a, subscriber::UndeclareSubscriber<'a>> for Zenoh080 {
 }
 
 // QueryableInfo
-impl<'a> WCodec<'a, (&queryable::ext::QueryableInfoType, bool)> for Zenoh080 {
+impl<'a> WCodec<'a, (&queryable::ext::QueryableInfoType, bool)> for ZCodec {
     fn write(
         &self,
         message: (&queryable::ext::QueryableInfoType, bool),
@@ -440,7 +438,7 @@ impl<'a> WCodec<'a, (&queryable::ext::QueryableInfoType, bool)> for Zenoh080 {
     }
 }
 
-impl<'a> RCodec<'a, (queryable::ext::QueryableInfoType, bool)> for Zenoh080 {
+impl<'a> RCodec<'a, (queryable::ext::QueryableInfoType, bool)> for ZCodec {
     fn read_knowing_header(
         &self,
         reader: &mut ZBufReader<'a>,
@@ -459,7 +457,7 @@ impl<'a> RCodec<'a, (queryable::ext::QueryableInfoType, bool)> for Zenoh080 {
     }
 }
 
-impl<'a> WCodec<'a, &queryable::DeclareQueryable<'_>> for Zenoh080 {
+impl<'a> WCodec<'a, &queryable::DeclareQueryable<'_>> for ZCodec {
     fn write(
         &self,
         message: &queryable::DeclareQueryable<'_>,
@@ -501,7 +499,7 @@ impl<'a> WCodec<'a, &queryable::DeclareQueryable<'_>> for Zenoh080 {
     }
 }
 
-impl<'a> RCodec<'a, queryable::DeclareQueryable<'a>> for Zenoh080 {
+impl<'a> RCodec<'a, queryable::DeclareQueryable<'a>> for ZCodec {
     fn read_knowing_header(
         &self,
         reader: &mut ZBufReader<'a>,
@@ -554,7 +552,7 @@ impl<'a> RCodec<'a, queryable::DeclareQueryable<'a>> for Zenoh080 {
     }
 }
 
-impl<'a> WCodec<'a, &queryable::UndeclareQueryable<'_>> for Zenoh080 {
+impl<'a> WCodec<'a, &queryable::UndeclareQueryable<'_>> for ZCodec {
     fn write(
         &self,
         message: &queryable::UndeclareQueryable,
@@ -570,7 +568,7 @@ impl<'a> WCodec<'a, &queryable::UndeclareQueryable<'_>> for Zenoh080 {
     }
 }
 
-impl<'a> RCodec<'a, queryable::UndeclareQueryable<'a>> for Zenoh080 {
+impl<'a> RCodec<'a, queryable::UndeclareQueryable<'a>> for ZCodec {
     fn read_knowing_header(
         &self,
         reader: &mut ZBufReader<'a>,
@@ -611,7 +609,7 @@ impl<'a> RCodec<'a, queryable::UndeclareQueryable<'a>> for Zenoh080 {
     }
 }
 
-impl<'a> WCodec<'a, &token::DeclareToken<'_>> for Zenoh080 {
+impl<'a> WCodec<'a, &token::DeclareToken<'_>> for ZCodec {
     fn write(&self, message: &token::DeclareToken, writer: &mut ZBufWriter<'a>) -> ZResult<()> {
         let token::DeclareToken { id, wire_expr } = message;
 
@@ -631,7 +629,7 @@ impl<'a> WCodec<'a, &token::DeclareToken<'_>> for Zenoh080 {
     }
 }
 
-impl<'a> RCodec<'a, token::DeclareToken<'a>> for Zenoh080 {
+impl<'a> RCodec<'a, token::DeclareToken<'a>> for ZCodec {
     fn read_knowing_header(
         &self,
         reader: &mut ZBufReader<'a>,
@@ -667,7 +665,7 @@ impl<'a> RCodec<'a, token::DeclareToken<'a>> for Zenoh080 {
 }
 
 // UndeclareToken
-impl<'a> WCodec<'a, &token::UndeclareToken<'_>> for Zenoh080 {
+impl<'a> WCodec<'a, &token::UndeclareToken<'_>> for ZCodec {
     fn write(
         &self,
         message: &token::UndeclareToken<'_>,
@@ -683,7 +681,7 @@ impl<'a> WCodec<'a, &token::UndeclareToken<'_>> for Zenoh080 {
     }
 }
 
-impl<'a> RCodec<'a, token::UndeclareToken<'a>> for Zenoh080 {
+impl<'a> RCodec<'a, token::UndeclareToken<'a>> for ZCodec {
     fn read_knowing_header(
         &self,
         reader: &mut ZBufReader<'a>,
@@ -723,7 +721,7 @@ impl<'a> RCodec<'a, token::UndeclareToken<'a>> for Zenoh080 {
 
 // LLIMIT
 
-impl<'a> WCodec<'a, (&common::ext::WireExprType<'_>, bool)> for Zenoh080 {
+impl<'a> WCodec<'a, (&common::ext::WireExprType<'_>, bool)> for ZCodec {
     fn write(
         &self,
         message: (&common::ext::WireExprType, bool),
@@ -768,7 +766,7 @@ impl<'a> WCodec<'a, (&common::ext::WireExprType<'_>, bool)> for Zenoh080 {
     }
 }
 
-impl<'a> RCodec<'a, (common::ext::WireExprType<'a>, bool)> for Zenoh080 {
+impl<'a> RCodec<'a, (common::ext::WireExprType<'a>, bool)> for ZCodec {
     fn read_knowing_header(
         &self,
         reader: &mut zenoh_buffer::ZBufReader<'a>,

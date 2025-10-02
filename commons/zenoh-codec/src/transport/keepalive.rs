@@ -7,9 +7,9 @@ use zenoh_protocol::{
 };
 use zenoh_result::{zbail, zctx, WithContext, ZE};
 
-use crate::{common::extension, RCodec, WCodec, Zenoh080};
+use crate::{common::extension, RCodec, WCodec, ZCodec};
 
-impl<'a> WCodec<'a, KeepAlive> for Zenoh080 {
+impl<'a> WCodec<'a, KeepAlive> for ZCodec {
     fn write(
         &self,
         _: KeepAlive,
@@ -21,7 +21,7 @@ impl<'a> WCodec<'a, KeepAlive> for Zenoh080 {
     }
 }
 
-impl<'a> RCodec<'a, KeepAlive> for Zenoh080 {
+impl<'a> RCodec<'a, KeepAlive> for ZCodec {
     fn read_knowing_header(
         &self,
         reader: &mut zenoh_buffer::ZBufReader<'a>,

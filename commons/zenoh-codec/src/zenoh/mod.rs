@@ -6,14 +6,14 @@ use zenoh_protocol::{
 };
 use zenoh_result::{zbail, zctx, WithContext, ZE};
 
-use crate::{LCodec, RCodec, WCodec, Zenoh080};
+use crate::{LCodec, RCodec, WCodec, ZCodec};
 
 pub mod err;
 pub mod put;
 pub mod query;
 pub mod reply;
 
-impl<'a> WCodec<'a, &PushBody<'_>> for Zenoh080 {
+impl<'a> WCodec<'a, &PushBody<'_>> for ZCodec {
     fn write(
         &self,
         message: &PushBody<'_>,
@@ -25,7 +25,7 @@ impl<'a> WCodec<'a, &PushBody<'_>> for Zenoh080 {
     }
 }
 
-impl<'a> RCodec<'a, PushBody<'a>> for Zenoh080 {
+impl<'a> RCodec<'a, PushBody<'a>> for ZCodec {
     fn read(
         &self,
         reader: &mut zenoh_buffer::ZBufReader<'a>,
@@ -41,7 +41,7 @@ impl<'a> RCodec<'a, PushBody<'a>> for Zenoh080 {
     }
 }
 
-impl<'a> WCodec<'a, &RequestBody<'_>> for Zenoh080 {
+impl<'a> WCodec<'a, &RequestBody<'_>> for ZCodec {
     fn write(
         &self,
         message: &RequestBody<'_>,
@@ -53,7 +53,7 @@ impl<'a> WCodec<'a, &RequestBody<'_>> for Zenoh080 {
     }
 }
 
-impl<'a> RCodec<'a, RequestBody<'a>> for Zenoh080 {
+impl<'a> RCodec<'a, RequestBody<'a>> for ZCodec {
     fn read(
         &self,
         reader: &mut zenoh_buffer::ZBufReader<'a>,
@@ -69,7 +69,7 @@ impl<'a> RCodec<'a, RequestBody<'a>> for Zenoh080 {
     }
 }
 
-impl<'a> WCodec<'a, &ResponseBody<'_>> for Zenoh080 {
+impl<'a> WCodec<'a, &ResponseBody<'_>> for ZCodec {
     fn write(
         &self,
         message: &ResponseBody<'_>,
@@ -82,7 +82,7 @@ impl<'a> WCodec<'a, &ResponseBody<'_>> for Zenoh080 {
     }
 }
 
-impl<'a> RCodec<'a, ResponseBody<'a>> for Zenoh080 {
+impl<'a> RCodec<'a, ResponseBody<'a>> for ZCodec {
     fn read(
         &self,
         reader: &mut zenoh_buffer::ZBufReader<'a>,
@@ -101,7 +101,7 @@ impl<'a> RCodec<'a, ResponseBody<'a>> for Zenoh080 {
     }
 }
 
-impl<'a, const ID: u8> LCodec<'a, &ext::SourceInfoType<{ ID }>> for Zenoh080 {
+impl<'a, const ID: u8> LCodec<'a, &ext::SourceInfoType<{ ID }>> for ZCodec {
     fn w_len(&self, message: &ext::SourceInfoType<{ ID }>) -> usize {
         let ext::SourceInfoType { id, sn } = message;
 
@@ -109,7 +109,7 @@ impl<'a, const ID: u8> LCodec<'a, &ext::SourceInfoType<{ ID }>> for Zenoh080 {
     }
 }
 
-impl<'a, const ID: u8> WCodec<'a, (&ext::SourceInfoType<{ ID }>, bool)> for Zenoh080 {
+impl<'a, const ID: u8> WCodec<'a, (&ext::SourceInfoType<{ ID }>, bool)> for ZCodec {
     fn write(
         &self,
         message: (&ext::SourceInfoType<{ ID }>, bool),
@@ -133,7 +133,7 @@ impl<'a, const ID: u8> WCodec<'a, (&ext::SourceInfoType<{ ID }>, bool)> for Zeno
     }
 }
 
-impl<'a, const ID: u8> RCodec<'a, (ext::SourceInfoType<{ ID }>, bool)> for Zenoh080 {
+impl<'a, const ID: u8> RCodec<'a, (ext::SourceInfoType<{ ID }>, bool)> for ZCodec {
     fn read_knowing_header(
         &self,
         reader: &mut zenoh_buffer::ZBufReader<'a>,
@@ -161,7 +161,7 @@ impl<'a, const ID: u8> RCodec<'a, (ext::SourceInfoType<{ ID }>, bool)> for Zenoh
 }
 
 impl<'a, const VID: u8, const SID: u8> WCodec<'a, (&ext::ValueType<'_, { VID }, { SID }>, bool)>
-    for Zenoh080
+    for ZCodec
 {
     fn write(
         &self,
@@ -188,7 +188,7 @@ impl<'a, const VID: u8, const SID: u8> WCodec<'a, (&ext::ValueType<'_, { VID }, 
 }
 
 impl<'a, const VID: u8, const SID: u8> RCodec<'a, (ext::ValueType<'a, { VID }, { SID }>, bool)>
-    for Zenoh080
+    for ZCodec
 {
     fn read_knowing_header(
         &self,
@@ -209,7 +209,7 @@ impl<'a, const VID: u8, const SID: u8> RCodec<'a, (ext::ValueType<'a, { VID }, {
     }
 }
 
-impl<'a, const ID: u8> WCodec<'a, (&ext::AttachmentType<'_, { ID }>, bool)> for Zenoh080 {
+impl<'a, const ID: u8> WCodec<'a, (&ext::AttachmentType<'_, { ID }>, bool)> for ZCodec {
     fn write(
         &self,
         message: (&ext::AttachmentType<'_, { ID }>, bool),
@@ -226,7 +226,7 @@ impl<'a, const ID: u8> WCodec<'a, (&ext::AttachmentType<'_, { ID }>, bool)> for 
     }
 }
 
-impl<'a, const ID: u8> RCodec<'a, (ext::AttachmentType<'a, { ID }>, bool)> for Zenoh080 {
+impl<'a, const ID: u8> RCodec<'a, (ext::AttachmentType<'a, { ID }>, bool)> for ZCodec {
     fn read_knowing_header(
         &self,
         reader: &mut zenoh_buffer::ZBufReader<'a>,
