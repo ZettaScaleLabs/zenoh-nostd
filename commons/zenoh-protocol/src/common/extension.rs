@@ -3,7 +3,7 @@ use core::{
     fmt::{self, Debug},
 };
 
-use zenoh_buffer::{ZBuf, ZBufReader};
+use zenoh_buffer::ZBuf;
 use zenoh_result::{zbail, zerr, ZError, ZResult, ZE};
 
 /// # Zenoh extensions

@@ -1,6 +1,7 @@
 #![no_std]
 
 use zenoh_buffer::{ZBufReader, ZBufWriter};
+use zenoh_protocol::core::Reliability;
 use zenoh_result::{zbail, ZResult, ZE};
 
 pub mod common;
@@ -51,6 +52,16 @@ pub trait RCodec<'a, Message> {
 
     fn read_knowing_length(&self, reader: &mut ZBufReader<'a>, length: usize) -> ZResult<Message> {
         let _ = (reader, length);
+
+        zbail!(ZE::UnImplemented)
+    }
+
+    fn read_with_reliability(
+        &self,
+        reader: &mut ZBufReader<'a>,
+        reliability: Reliability,
+    ) -> ZResult<Message> {
+        let _ = (reader, reliability);
 
         zbail!(ZE::UnImplemented)
     }

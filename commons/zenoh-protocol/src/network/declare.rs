@@ -75,7 +75,7 @@ pub enum DeclareBody<'a> {
     UndeclareSubscriber(UndeclareSubscriber<'a>),
     DeclareQueryable(DeclareQueryable<'a>),
     UndeclareQueryable(UndeclareQueryable<'a>),
-    DeclareToken(DeclareToken),
+    DeclareToken(DeclareToken<'a>),
     UndeclareToken(UndeclareToken<'a>),
     DeclareFinal(DeclareFinal),
 }
@@ -396,9 +396,9 @@ pub mod token {
     ///
     /// ```
     #[derive(Debug, Clone, PartialEq, Eq)]
-    pub struct DeclareToken {
+    pub struct DeclareToken<'a> {
         pub id: TokenId,
-        pub wire_expr: WireExpr<'static>,
+        pub wire_expr: WireExpr<'a>,
     }
 
     /// ```text
