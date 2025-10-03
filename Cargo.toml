@@ -1,25 +1,20 @@
 [workspace]
-members = [ "commons/zenoh-buffer","commons/zenoh-codec", "commons/zenoh-keyexpr","commons/zenoh-log", "commons/zenoh-protocol", "commons/zenoh-result"]
+members = ["zenoh-commons"]
 resolver = "2"
 
 [workspace.package]
 authors = []
 categories = ["network-programming"]
 description = "Zenoh: The Zero Overhead Pub/Sub/Query Protocol."
-edition = "2021"
+edition = "2024"
 homepage = "http://zenoh.io"
 license = "EPL-2.0 OR Apache-2.0"
 repository = "https://github.com/ZettaScaleLabs/zenoh-nostd"
-rust-version = "1.75.0"
+rust-version = "1.90.0"
 version = "1.5.1"
 
 [workspace.dependencies]
-zenoh-log = { version = "1.5.1", path = "commons/zenoh-log" }
-zenoh-result = { version = "1.5.1", path = "commons/zenoh-result" }
-zenoh-buffer = { version = "1.5.1", path = "commons/zenoh-buffer" }
-zenoh-keyexpr = { version = "1.5.1", path = "commons/zenoh-keyexpr" }
-zenoh-protocol = { version = "1.5.1", path = "commons/zenoh-protocol" }
-zenoh-codec = { version = "1.5.1", path = "commons/zenoh-codec" }
+zenoh-commons = { version = "1.5.1", path = "commons/zenoh-commons" }
 
 rand = "0.8.5"
 const_format = "0.2.34"
@@ -28,3 +23,14 @@ log = { version = "0.4.28" }
 web-sys = { version = "0.3.81" }
 heapless = { version = "0.9.1" }
 uhlc = { version = "0.8.1", git = "https://github.com/Hennzau/uhlc-rs", branch = "no-alloc", default-features = false }
+
+[profile.dev]
+debug = true
+opt-level = 0
+
+[profile.release]
+codegen-units = 1
+debug = false
+lto = "fat"
+opt-level = 3
+panic = "abort"
