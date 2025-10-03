@@ -1,0 +1,5 @@
+check:
+    cargo +esp check -Zbuild-std=core,alloc --target xtensa-esp32s3-none-elf --release
+
+esp32s3 example *args:
+    cd example-esp32s3 && just esp32s3 {{example}} {{args}}

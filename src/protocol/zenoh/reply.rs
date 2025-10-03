@@ -1,0 +1,75 @@
+use crate::{
+    protocol::{
+        ZCodecError,
+        common::{extension, imsg},
+        zenoh::{PushBody, id, query::ConsolidationMode},
+    },
+    result::ZResult,
+    zbail,
+    zbuf::{ZBufReader, ZBufWriter},
+};
+
+pub mod flag {
+    pub const C: u8 = 1 << 5;
+
+    pub const Z: u8 = 1 << 7;
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Reply<'a> {
+    pub consolidation: ConsolidationMode,
+    pub payload: ReplyBody<'a>,
+}
+
+pub type ReplyBody<'a> = PushBody<'a>;
+
+impl<'a> Reply<'a> {
+    pub fn encode(&self, writer: &mut ZBufWriter<'_>) -> ZResult<(), ZCodecError> {
+        let mut header = id::REPLY;
+
+        if self.consolidation != ConsolidationMode::DEFAULT {
+            header |= flag::C;
+        }
+
+        crate::protocol::zcodec::encode_u8(header, writer)?;
+
+        if self.consolidation != ConsolidationMode::DEFAULT {
+            self.consolidation.encode(writer)?;
+        }
+
+        self.payload.encode(writer)
+    }
+
+    pub fn decode(header: u8, reader: &mut ZBufReader<'a>) -> ZResult<Self, ZCodecError> {
+        if imsg::mid(header) != id::REPLY {
+            zbail!(ZCodecError::Invalid);
+        }
+
+        let mut consolidation = ConsolidationMode::DEFAULT;
+        if imsg::has_flag(header, flag::C) {
+            consolidation = ConsolidationMode::decode(reader)?;
+        }
+
+        if imsg::has_flag(header, flag::Z) {
+            extension::skip_all("Reply", reader)?;
+        }
+
+        let payload = ReplyBody::decode(reader)?;
+
+        Ok(Reply {
+            consolidation,
+            payload,
+        })
+    }
+
+    #[cfg(test)]
+    pub fn rand(zbuf: &mut ZBufWriter<'a>) -> Self {
+        let payload = ReplyBody::rand(zbuf);
+        let consolidation = ConsolidationMode::rand();
+
+        Self {
+            consolidation,
+            payload,
+        }
+    }
+}

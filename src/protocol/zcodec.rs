@@ -1,0 +1,254 @@
+use uhlc::{ID, NTP64, Timestamp};
+
+use crate::{
+    protocol::ZCodecError,
+    result::ZResult,
+    zbuf::{BufReaderExt, BufWriterExt, ZBuf, ZBufReader, ZBufWriter},
+};
+
+const VLE_LEN_MAX: usize = vle_len(u64::MAX);
+
+const fn vle_len(x: u64) -> usize {
+    const B1: u64 = u64::MAX << 7;
+    const B2: u64 = u64::MAX << (7 * 2);
+    const B3: u64 = u64::MAX << (7 * 3);
+    const B4: u64 = u64::MAX << (7 * 4);
+    const B5: u64 = u64::MAX << (7 * 5);
+    const B6: u64 = u64::MAX << (7 * 6);
+    const B7: u64 = u64::MAX << (7 * 7);
+    const B8: u64 = u64::MAX << (7 * 8);
+
+    if (x & B1) == 0 {
+        1
+    } else if (x & B2) == 0 {
+        2
+    } else if (x & B3) == 0 {
+        3
+    } else if (x & B4) == 0 {
+        4
+    } else if (x & B5) == 0 {
+        5
+    } else if (x & B6) == 0 {
+        6
+    } else if (x & B7) == 0 {
+        7
+    } else if (x & B8) == 0 {
+        8
+    } else {
+        9
+    }
+}
+
+pub fn encoded_len_u64(x: u64) -> usize {
+    vle_len(x)
+}
+
+pub fn encode_u64(mut x: u64, writer: &mut ZBufWriter<'_>) -> ZResult<(), ZCodecError> {
+    writer.write_slot(VLE_LEN_MAX, |buffer: &mut [u8]| {
+        let mut len = 0;
+
+        while (x & !0x7f_u64) != 0 {
+            unsafe {
+                *buffer.get_unchecked_mut(len) = (x as u8) | 0x80_u8;
+            }
+
+            len += 1;
+            x >>= 7;
+        }
+
+        if len != VLE_LEN_MAX {
+            unsafe {
+                *buffer.get_unchecked_mut(len) = x as u8;
+            }
+            len += 1;
+        }
+
+        len
+    })?;
+
+    Ok(())
+}
+
+pub fn decode_u64(reader: &mut ZBufReader<'_>) -> ZResult<u64, ZCodecError> {
+    let mut b = crate::protocol::zcodec::decode_u8(reader)?;
+
+    let mut v = 0;
+    let mut i = 0;
+
+    while (b & 0x80_u8) != 0 && i != 7 * (VLE_LEN_MAX - 1) {
+        v |= ((b & 0x7f_u8) as u64) << i;
+        b = crate::protocol::zcodec::decode_u8(reader)?;
+        i += 7;
+    }
+
+    v |= (b as u64) << i;
+
+    Ok(v)
+}
+
+pub fn encoded_len_u32(x: u32) -> usize {
+    vle_len(x as u64)
+}
+
+pub fn encode_u32(x: u32, writer: &mut ZBufWriter<'_>) -> ZResult<(), ZCodecError> {
+    encode_u64(x as u64, writer)
+}
+
+pub fn decode_u32(reader: &mut ZBufReader<'_>) -> ZResult<u32, ZCodecError> {
+    decode_u64(reader).and_then(|v| {
+        if v <= u32::MAX as u64 {
+            Ok(v as u32)
+        } else {
+            Err(ZCodecError::Overflow)
+        }
+    })
+}
+
+pub fn encoded_len_u16(x: u16) -> usize {
+    vle_len(x as u64)
+}
+
+pub fn encode_u16(x: u16, writer: &mut ZBufWriter<'_>) -> ZResult<(), ZCodecError> {
+    encode_u64(x as u64, writer)
+}
+
+pub fn decode_u16(reader: &mut ZBufReader<'_>) -> ZResult<u16, ZCodecError> {
+    decode_u64(reader).and_then(|v| {
+        if v <= u16::MAX as u64 {
+            Ok(v as u16)
+        } else {
+            Err(ZCodecError::Overflow)
+        }
+    })
+}
+
+pub fn encoded_len_u8(_: u8) -> usize {
+    1
+}
+
+pub fn encode_u8(x: u8, writer: &mut ZBufWriter<'_>) -> ZResult<(), ZCodecError> {
+    writer.write_u8(x)?;
+
+    Ok(())
+}
+
+pub fn decode_u8(reader: &mut ZBufReader<'_>) -> ZResult<u8, ZCodecError> {
+    Ok(reader.read_u8()?)
+}
+
+pub fn encoded_len_usize(x: usize) -> usize {
+    vle_len(x as u64)
+}
+
+pub fn encode_usize(x: usize, writer: &mut ZBufWriter<'_>) -> ZResult<(), ZCodecError> {
+    encode_u64(x as u64, writer)
+}
+
+pub fn decode_usize(reader: &mut ZBufReader<'_>) -> ZResult<usize, ZCodecError> {
+    decode_u64(reader).and_then(|v| {
+        if v <= usize::MAX as u64 {
+            Ok(v as usize)
+        } else {
+            Err(ZCodecError::Overflow)
+        }
+    })
+}
+
+pub fn encoded_len_zbuf(len: bool, zbuf: ZBuf<'_>) -> usize {
+    if len {
+        encoded_len_usize(zbuf.len()) + zbuf.len()
+    } else {
+        zbuf.len()
+    }
+}
+
+pub fn encode_zbuf(
+    len: bool,
+    zbuf: ZBuf<'_>,
+    writer: &mut ZBufWriter<'_>,
+) -> ZResult<(), ZCodecError> {
+    if len {
+        encode_usize(zbuf.len(), writer)?;
+    }
+
+    if zbuf.is_empty() {
+        return Ok(());
+    }
+
+    writer.write_exact(zbuf)?;
+
+    Ok(())
+}
+
+pub fn decode_zbuf<'a>(
+    len: Option<usize>,
+    reader: &mut ZBufReader<'a>,
+) -> ZResult<ZBuf<'a>, ZCodecError> {
+    let len = match len {
+        Some(l) => l,
+        None => decode_usize(reader)?,
+    };
+
+    Ok(reader.read_zbuf(len)?)
+}
+
+pub fn encoded_len_str(len: bool, s: &str) -> usize {
+    encoded_len_zbuf(len, s.as_bytes())
+}
+
+pub fn encode_str(len: bool, s: &str, writer: &mut ZBufWriter<'_>) -> ZResult<(), ZCodecError> {
+    encode_zbuf(len, s.as_bytes(), writer)
+}
+
+pub fn decode_str<'a>(
+    len: Option<usize>,
+    reader: &mut ZBufReader<'a>,
+) -> ZResult<&'a str, ZCodecError> {
+    let zbuf = decode_zbuf(len, reader)?;
+    match core::str::from_utf8(zbuf) {
+        Ok(s) => Ok(s),
+        Err(_) => Err(ZCodecError::DidNotRead),
+    }
+}
+
+pub fn encoded_len_timestamp(x: &Timestamp) -> usize {
+    let id = x.get_id();
+    let bytes = &id.to_le_bytes()[..id.size()];
+
+    encoded_len_u64(x.get_time().as_u64()) + encoded_len_zbuf(true, bytes)
+}
+
+pub fn encode_timestamp(x: &Timestamp, writer: &mut ZBufWriter<'_>) -> ZResult<(), ZCodecError> {
+    encode_u64(x.get_time().as_u64(), writer)?;
+    let id = x.get_id();
+    let bytes = &id.to_le_bytes()[..id.size()];
+    encode_zbuf(true, bytes, writer)?;
+    Ok(())
+}
+
+pub fn decode_timestamp(reader: &mut ZBufReader<'_>) -> ZResult<Timestamp, ZCodecError> {
+    let time = decode_u64(reader)?;
+    let bytes = decode_zbuf(Some(decode_usize(reader)?), reader)?;
+    let id = ID::try_from(bytes).map_err(|_| ZCodecError::Invalid)?;
+
+    let time = NTP64(time);
+    Ok(Timestamp::new(time, id))
+}
+
+pub fn encode_array<const N: usize>(
+    x: &[u8; N],
+    writer: &mut ZBufWriter<'_>,
+) -> ZResult<(), ZCodecError> {
+    writer.write_exact(x)?;
+
+    Ok(())
+}
+
+pub fn decode_array<const N: usize>(
+    reader: &'_ mut ZBufReader<'_>,
+) -> ZResult<[u8; N], ZCodecError> {
+    let mut data = [0u8; N];
+    reader.read(&mut data)?;
+
+    Ok(data)
+}

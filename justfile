@@ -1,44 +1,23 @@
-version:
-    @echo "zenoh-nostd version 1.5.1"
+test:
+    cargo check
+    cargo check --features=platform-std
+    cargo check --features=log,
+    cargo check --features=defmt
+    cargo check --features=web_console
 
-check-std:
-    cargo check -p zenoh
+    cargo check --examples --features=platform-std,
+    cargo check --examples --features=platform-std,log
 
-check-wasm:
-    cargo check -p zenoh --target wasm32-unknown-unknown
+    cargo test codec
 
-check-esp:
-    cargo +esp check -Zbuild-std=core,alloc -p zenoh --target xtensa-esp32-none-elf
+bench:
+    cargo bench
 
-check: check-std check-wasm check-esp
+std example *args:
+    RUST_LOG=info cargo run --example {{example}} --features=platform-std,log -- {{args}}
 
-build-std:
-    cargo build -p zenoh
+wasm example *args:
+    cd platforms/zenoh-nostd-wasm && just wasm {{example}} {{args}}
 
-build-wasm:
-    cargo build -p zenoh --target wasm32-unknown-unknown
-
-build-esp:
-    cargo +esp build -Zbuild-std=core,alloc -p zenoh --target xtensa-esp32-none-elf
-
-build: build-std build-wasm build-esp
-
-release-std:
-    cargo build -p zenoh --release
-
-release-wasm:
-    cargo build -p zenoh --target wasm32-unknown-unknown --release
-
-release-esp:
-    cargo +esp build -Zbuild-std=core,alloc -p zenoh --target xtensa-esp32-none-elf --release
-
-release: release-std release-wasm release-esp
-
-z_put-std:
-    cd platform/zenoh-platforms/zenoh-platform-std && cargo run --example z_put
-
-z_put-wasm:
-    cd platform/zenoh-platforms/zenoh-platform-wasm && just run_z_put
-
-z_put-esp32s3:
-    cd platform/zenoh-platforms/zenoh-platform-embassy/example-esp32s3 && cargo run --example z_put
+esp32s3 example *args:
+    cd platforms/zenoh-nostd-embassy && just esp32s3 {{example}} {{args}}
