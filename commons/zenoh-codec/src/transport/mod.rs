@@ -1,20 +1,12 @@
-use zenoh_buffer::ZBufReader;
 use zenoh_protocol::{
-    common::{extension::ZExtZ64, imsg},
-    transport::{
-        ext,
-        frame::FrameHeader,
-        id,
-        init::{InitAck, InitSyn},
-        keepalive::KeepAlive,
-        open::{OpenAck, OpenSyn},
-        TransportBody, TransportMessage,
-    },
+    common::extension::ZExtZ64,
+    transport::{ext, TransportBody, TransportMessage},
 };
 use zenoh_result::{zctx, WithContext, ZResult};
 
-use crate::{transport::frame::FrameReader, RCodec, WCodec, ZCodec};
+use crate::{RCodec, WCodec, ZCodec};
 
+pub mod batch;
 pub mod frame;
 pub mod init;
 pub mod keepalive;
@@ -33,114 +25,6 @@ impl<'a> WCodec<'a, &TransportMessage<'_>> for ZCodec {
             TransportBody::OpenAck(b) => self.write(b, writer).ctx(zctx!()),
             TransportBody::KeepAlive(b) => self.write(*b, writer).ctx(zctx!()),
             TransportBody::Frame(b) => self.write(b, writer).ctx(zctx!()),
-        }
-    }
-}
-
-#[derive(Debug, PartialEq, Eq)]
-pub enum TransportMessageReader<'a> {
-    InitSyn(InitSyn<'a>),
-    InitAck(InitAck<'a>),
-    OpenSyn(OpenSyn<'a>),
-    OpenAck(OpenAck<'a>),
-    KeepAlive(KeepAlive),
-    Frame(FrameReader<'a>),
-}
-
-#[derive(Debug, PartialEq, Eq, Hash)]
-pub struct TransportMessageBatch<'a> {
-    reader: ZBufReader<'a>,
-    codec: ZCodec,
-}
-
-impl<'a> RCodec<'a, TransportMessageBatch<'a>> for ZCodec {
-    fn read(
-        &self,
-        reader: &mut ZBufReader<'a>,
-    ) -> zenoh_result::ZResult<TransportMessageBatch<'a>> {
-        Ok(TransportMessageBatch {
-            reader: reader.clone(),
-            codec: self.clone(),
-        })
-    }
-}
-
-impl<'a> Iterator for TransportMessageBatch<'a> {
-    type Item = TransportMessageReader<'a>;
-
-    fn next(&mut self) -> Option<TransportMessageReader<'a>> {
-        extern crate std;
-        std::println!(
-            "Trying to read next transport message... starting at {} = {:?}",
-            self.reader.pos(),
-            self.reader.current()
-        );
-
-        if !self.reader.can_read() {
-            std::println!("No more data to read.");
-            return None;
-        }
-
-        let header: u8 = self.codec.read(&mut self.reader).ok()?;
-        std::println!("Read header: {}", header);
-        match imsg::mid(header) {
-            id::FRAME => {
-                std::println!("Detected FRAME message.");
-                let header: FrameHeader = self
-                    .codec
-                    .read_knowing_header(&mut self.reader, header)
-                    .ok()?;
-
-                let FrameHeader {
-                    reliability,
-                    sn,
-                    ext_qos,
-                } = header;
-
-                Some(TransportMessageReader::Frame(FrameReader {
-                    reliability,
-                    sn,
-                    ext_qos,
-                    reader: self.reader.clone(),
-                    codec: self.codec.clone(),
-                }))
-            }
-            id::KEEP_ALIVE => Some(TransportMessageReader::KeepAlive(
-                self.codec
-                    .read_knowing_header(&mut self.reader, header)
-                    .ok()?,
-            )),
-            id::INIT => {
-                if !imsg::has_flag(header, zenoh_protocol::transport::init::flag::A) {
-                    Some(TransportMessageReader::InitSyn(
-                        self.codec
-                            .read_knowing_header(&mut self.reader, header)
-                            .ok()?,
-                    ))
-                } else {
-                    Some(TransportMessageReader::InitAck(
-                        self.codec
-                            .read_knowing_header(&mut self.reader, header)
-                            .ok()?,
-                    ))
-                }
-            }
-            id::OPEN => {
-                if !imsg::has_flag(header, zenoh_protocol::transport::open::flag::A) {
-                    Some(TransportMessageReader::OpenSyn(
-                        self.codec
-                            .read_knowing_header(&mut self.reader, header)
-                            .ok()?,
-                    ))
-                } else {
-                    Some(TransportMessageReader::OpenAck(
-                        self.codec
-                            .read_knowing_header(&mut self.reader, header)
-                            .ok()?,
-                    ))
-                }
-            }
-            _ => None,
         }
     }
 }

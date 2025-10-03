@@ -1,8 +1,6 @@
-use zenoh_buffer::ZBufReader;
 use zenoh_protocol::{
     common::{extension::iext, imsg},
     core::Reliability,
-    network::NetworkMessage,
     transport::{
         frame::{ext, flag, Frame, FrameHeader},
         id, TransportSn,
@@ -110,60 +108,5 @@ impl<'a> WCodec<'a, &Frame<'_>> for ZCodec {
         }
 
         Ok(())
-    }
-}
-
-#[derive(Debug, PartialEq, Eq)]
-pub struct FrameReader<'a> {
-    pub reliability: Reliability,
-    pub sn: TransportSn,
-    pub ext_qos: ext::QoSType,
-    pub reader: ZBufReader<'a>,
-    pub codec: ZCodec,
-}
-
-impl<'a> Iterator for FrameReader<'a> {
-    type Item = NetworkMessage<'a>;
-
-    fn next(&mut self) -> Option<NetworkMessage<'a>> {
-        let mark = self.reader.mark();
-        extern crate std;
-        std::println!(
-            "FrameReader: reading message at mark {} = {:?}",
-            mark,
-            self.reader.get(mark)
-        );
-
-        let msg: ZResult<NetworkMessage<'a>> = self
-            .codec
-            .read_with_reliability(&mut self.reader, self.reliability)
-            .ctx(zctx!());
-
-        match msg {
-            Ok(m) => {
-                extern crate std;
-                std::println!("FrameReader: read message");
-
-                Some(m)
-            }
-            Err(_) => {
-                extern crate std;
-                std::println!(
-                    "FrameReader: stopping iteration due to error going back to mark {} = {:?}",
-                    mark,
-                    self.reader.get(mark)
-                );
-                self.reader.rewind(mark).unwrap();
-                None
-            }
-        }
-    }
-}
-
-impl<'a> Drop for FrameReader<'a> {
-    fn drop(&mut self) {
-        extern crate std;
-        std::println!("FrameReader: dropped");
-        for _ in self {}
     }
 }

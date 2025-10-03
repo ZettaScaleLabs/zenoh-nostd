@@ -2,14 +2,17 @@
 
 use heapless::Vec;
 use zenoh_buffer::{ZBuf, ZBufMut};
-use zenoh_codec::{transport::TransportMessageBatch, RCodec, WCodec, ZCodec};
+use zenoh_codec::{WCodec, ZCodec};
 use zenoh_protocol::{
     core::{encoding::Encoding, wire_expr::WireExpr},
     network::{push::Push, NetworkBody, NetworkMessage},
-    transport::{frame::Frame, TransportBody, TransportMessage},
+    transport::{
+        frame::{Frame, FrameHeader},
+        TransportBody, TransportMessage,
+    },
     zenoh::{put::Put, PushBody},
 };
-use zenoh_result::ZResult;
+use zenoh_result::{zctx, WithContext, ZResult};
 
 fn network_msg(payload: ZBuf<'_>) -> NetworkMessage<'_> {
     NetworkMessage {
@@ -52,7 +55,11 @@ fn res_main() -> ZResult<()> {
     {
         let payload1 = ZBuf(b"Hello, World");
         let payload2 = ZBuf(b"Another message");
-        let msgs1 = [network_msg(payload1), network_msg(payload2)];
+        let msgs1 = [
+            network_msg(payload1),
+            network_msg(payload2.clone()),
+            network_msg(payload2),
+        ];
 
         let frame1 = frame(&msgs1);
 
@@ -82,26 +89,26 @@ fn res_main() -> ZResult<()> {
     let zbuf = ZBuf(&data);
     let mut reader = zbuf.reader();
 
-    let batch: TransportMessageBatch = ZCodec.read(&mut reader)?;
     let mut payloads = Vec::<ZBuf<'_>, 256>::new();
 
-    for msg in batch {
-        match msg {
-            zenoh_codec::transport::TransportMessageReader::Frame(frame) => {
-                for frame in frame {
-                    match frame.body {
-                        NetworkBody::Push(push) => match push.payload {
-                            PushBody::Put(put) => {
-                                payloads.push(put.payload).unwrap();
-                            }
-                        },
-                        _ => {}
-                    }
+    ZCodec
+        .read_batch(
+            &mut reader,
+            |_: FrameHeader, msg: NetworkMessage| {
+                match msg.body {
+                    NetworkBody::Push(push) => match push.payload {
+                        PushBody::Put(put) => {
+                            payloads.push(put.payload).unwrap();
+                        }
+                    },
+                    _ => {}
                 }
-            }
-            _ => {}
-        }
-    }
+
+                Ok(())
+            },
+            |_: TransportBody| Ok(()),
+        )
+        .ctx(zctx!())?;
 
     for payload in payloads {
         std::println!("Decoded payload: {:?}", payload.as_str());
