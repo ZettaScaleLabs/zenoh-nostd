@@ -58,6 +58,16 @@ path = "src/benches/codec.rs"
 harness = false
 name = "codec"
 
+[[example]]
+path = "examples/z_put.rs"
+name = "z_put"
+required-features = ["platform-std"]
+
+[[example]]
+path = "examples/z_sub.rs"
+name = "z_sub"
+required-features = ["platform-std"]
+
 [profile.dev]
 debug = true
 opt-level = 0

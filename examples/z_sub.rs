@@ -6,6 +6,8 @@ use zenoh_nostd::{
     protocol::core::endpoint::EndPoint,
 };
 
+const CONNECT: Option<&str> = option_env!("CONNECT");
+
 #[embassy_executor::main]
 async fn main(spawner: Spawner) {
     #[cfg(feature = "log")]
@@ -15,7 +17,7 @@ async fn main(spawner: Spawner) {
 
     let mut session = zenoh_nostd::open!(
         PlatformStd: (spawner, PlatformStd {}),
-        EndPoint::<32>::from_str("tcp/127.0.0.1:7447").unwrap()
+        EndPoint::<32>::from_str(CONNECT.unwrap_or("tcp/127.0.0.1:7447")).unwrap()
     )
     .unwrap();
 
