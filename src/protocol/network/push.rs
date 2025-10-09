@@ -1,0 +1,157 @@
+use crate::{
+    protocol::{
+        ZCodecError,
+        common::{
+            extension::{self, iext},
+            imsg,
+        },
+        core::wire_expr::WireExpr,
+        network::{Mapping, id},
+        zenoh::PushBody,
+    },
+    result::ZResult,
+    zbail,
+    zbuf::{ZBufReader, ZBufWriter},
+};
+
+pub mod flag {
+    pub const N: u8 = 1 << 5;
+    pub const M: u8 = 1 << 6;
+    pub const Z: u8 = 1 << 7;
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Push<'a> {
+    pub wire_expr: WireExpr<'a>,
+    pub ext_qos: ext::QoSType,
+    pub ext_tstamp: Option<ext::TimestampType>,
+    pub ext_nodeid: ext::NodeIdType,
+    pub payload: PushBody<'a>,
+}
+
+impl<'a> Push<'a> {
+    pub fn encode(&self, writer: &mut ZBufWriter<'_>) -> ZResult<(), ZCodecError> {
+        let mut header = id::PUSH;
+        let mut n_exts = ((self.ext_qos != ext::QoSType::DEFAULT) as u8)
+            + (self.ext_tstamp.is_some() as u8)
+            + ((self.ext_nodeid != ext::NodeIdType::DEFAULT) as u8);
+
+        if n_exts != 0 {
+            header |= flag::Z;
+        }
+
+        if self.wire_expr.mapping != Mapping::DEFAULT {
+            header |= flag::M;
+        }
+
+        if self.wire_expr.has_suffix() {
+            header |= flag::N;
+        }
+
+        crate::protocol::zcodec::encode_u8(header, writer)?;
+        self.wire_expr.encode(writer)?;
+
+        if self.ext_qos != ext::QoSType::DEFAULT {
+            n_exts -= 1;
+            self.ext_qos.encode(n_exts != 0, writer)?;
+        }
+
+        if let Some(ts) = self.ext_tstamp.as_ref() {
+            n_exts -= 1;
+            ts.encode(n_exts != 0, writer)?;
+        }
+
+        if self.ext_nodeid != ext::NodeIdType::DEFAULT {
+            n_exts -= 1;
+            self.ext_nodeid.encode(n_exts != 0, writer)?;
+        }
+
+        self.payload.encode(writer)
+    }
+
+    pub fn decode(header: u8, reader: &mut ZBufReader<'a>) -> ZResult<Self, ZCodecError> {
+        if imsg::mid(header) != id::PUSH {
+            zbail!(ZCodecError::Invalid);
+        }
+
+        let mut wire_expr: WireExpr<'_> =
+            WireExpr::decode(imsg::has_flag(header, flag::N), reader)?;
+
+        wire_expr.mapping = if imsg::has_flag(header, flag::M) {
+            Mapping::Sender
+        } else {
+            Mapping::Receiver
+        };
+
+        let mut ext_qos = ext::QoSType::DEFAULT;
+        let mut ext_tstamp = None;
+        let mut ext_nodeid = ext::NodeIdType::DEFAULT;
+
+        let mut has_ext = imsg::has_flag(header, flag::Z);
+        while has_ext {
+            let ext = crate::protocol::zcodec::decode_u8(reader)?;
+
+            match iext::eid(ext) {
+                ext::QoS::ID => {
+                    let (q, ext) = ext::QoSType::decode(ext, reader)?;
+                    ext_qos = q;
+                    has_ext = ext;
+                }
+                ext::Timestamp::ID => {
+                    let (t, ext) = ext::TimestampType::decode(ext, reader)?;
+                    ext_tstamp = Some(t);
+                    has_ext = ext;
+                }
+                ext::NodeId::ID => {
+                    let (nid, ext) = ext::NodeIdType::decode(ext, reader)?;
+                    ext_nodeid = nid;
+                    has_ext = ext;
+                }
+                _ => {
+                    has_ext = extension::skip("Push", ext, reader)?;
+                }
+            }
+        }
+
+        let payload = PushBody::decode(reader)?;
+
+        Ok(Push {
+            wire_expr,
+            payload,
+            ext_qos,
+            ext_tstamp,
+            ext_nodeid,
+        })
+    }
+
+    #[cfg(test)]
+    pub fn rand(zbuf: &mut ZBufWriter<'a>) -> Self {
+        use rand::Rng;
+
+        let mut rng = rand::thread_rng();
+        let wire_expr = WireExpr::rand(zbuf);
+        let payload = PushBody::rand(zbuf);
+        let ext_qos = ext::QoSType::rand();
+        let ext_tstamp = rng.gen_bool(0.5).then(ext::TimestampType::rand);
+        let ext_nodeid = ext::NodeIdType::rand();
+
+        Self {
+            wire_expr,
+            payload,
+            ext_tstamp,
+            ext_qos,
+            ext_nodeid,
+        }
+    }
+}
+
+pub mod ext {
+    pub type QoS = crate::zextz64!(0x1, false);
+    pub type QoSType = crate::protocol::network::ext::QoSType<{ QoS::ID }>;
+
+    pub type Timestamp<'a> = crate::zextzbuf!('a, 0x2, false);
+    pub type TimestampType = crate::protocol::network::ext::TimestampType<{ Timestamp::ID }>;
+
+    pub type NodeId = crate::zextz64!(0x3, true);
+    pub type NodeIdType = crate::protocol::network::ext::NodeIdType<{ NodeId::ID }>;
+}
