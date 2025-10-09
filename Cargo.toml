@@ -1,0 +1,81 @@
+[package]
+name = "zenoh-nostd"
+authors = []
+categories = ["network-programming"]
+description = "Zenoh: The Zero Overhead Pub/Sub/Query Protocol."
+edition = "2024"
+homepage = "http://zenoh.io"
+license = "EPL-2.0 OR Apache-2.0"
+repository = "https://github.com/ZettaScaleLabs/zenoh-nostd"
+rust-version = "1.89.0"
+version = "1.5.1"
+
+[features]
+log = ["dep:log"] # Use `log` crate for logging
+defmt = ["dep:defmt"] # Use `defmt` crate for logging in embedded
+web_console = ["dep:web-sys"] # Use `web-sys` crate for logging in webassembly
+
+platform-std = [
+    "dep:async-net",
+    "dep:futures-lite",
+    "dep:socket2"
+] # Use built-in std support (disabled by default)
+
+[dependencies]
+# Logging
+defmt = { version = "1.0.1", optional = true }
+log = { version = "0.4.28", optional = true }
+web-sys = { version = "0.3.81", features = ["console"], optional = true }
+
+# Heapless
+heapless = { version = "0.9.1" }
+
+# Other
+uhlc = { version = "0.8.1", git = "https://github.com/Hennzau/uhlc-rs", branch = "no-alloc", default-features = false }
+const_format = "0.2.34"
+sha3 = { version = "0.10.8", default-features = false }
+embassy-sync = "0.7.2"
+embassy-futures = "0.1.2"
+embassy-time = "0.5.0"
+
+# Built-in std support (disabled by default)
+async-net = { version = "2.0.0", optional = true }
+socket2 = { version = "0.6.0", optional = true, features = ["all"] }
+futures-lite = { version = "2.6.1", optional = true }
+
+[dev-dependencies]
+rand = "0.8.5"
+env_logger = "0.10.0"
+criterion = { version = "0.7.0" }
+paste = "1.0.15"
+static_cell = "2.1.1"
+embassy-executor = { version = "0.9.1", features = ["arch-std", "executor-thread"] }
+embassy-time = { version = "0.5.0", features = ["std"] }
+critical-section = { version = "1.2.0", features = ["std"] }
+
+[[bench]]
+path = "src/benches/codec.rs"
+harness = false
+name = "codec"
+
+[[example]]
+path = "examples/z_put.rs"
+name = "z_put"
+required-features = ["platform-std"]
+
+[[example]]
+path = "examples/z_sub.rs"
+name = "z_sub"
+required-features = ["platform-std"]
+
+[profile.dev]
+debug = true
+opt-level = 0
+panic = "abort"
+
+[profile.release]
+codegen-units = 1
+debug = false
+lto = "fat"
+opt-level = 3
+panic = "abort"
