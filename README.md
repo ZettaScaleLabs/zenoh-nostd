@@ -64,7 +64,7 @@ Here’s a simple example of sending a payload with `zenoh-nostd`:
 async fn main(spawner: Spawner) {
     let mut session = zenoh_nostd::open!(
         PlatformStd: (spawner, PlatformStd {}),
-        EndPoint::<32>::from_str(CONNECT.unwrap_or("tcp/127.0.0.1:7447")).unwrap()
+        EndPoint::try_from(CONNECT.unwrap_or("tcp/127.0.0.1:7447")).unwrap()
     )
     .unwrap();
 

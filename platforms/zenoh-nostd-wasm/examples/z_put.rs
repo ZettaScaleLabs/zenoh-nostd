@@ -1,5 +1,3 @@
-use core::str::FromStr;
-
 use embassy_executor::Spawner;
 use zenoh_nostd::{keyexpr::borrowed::keyexpr, protocol::core::endpoint::EndPoint};
 use zenoh_nostd_wasm::PlatformWasm;
@@ -12,7 +10,7 @@ async fn main(spawner: Spawner) {
 
     let mut session = zenoh_nostd::open!(
         PlatformWasm: (spawner, PlatformWasm {}),
-        EndPoint::<32>::from_str(CONNECT.unwrap_or("ws/127.0.0.1:7447")).unwrap()
+        EndPoint::try_from(CONNECT.unwrap_or("ws/127.0.0.1:7447")).unwrap()
     )
     .unwrap();
 

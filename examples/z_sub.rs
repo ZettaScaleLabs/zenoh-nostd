@@ -1,5 +1,3 @@
-use core::str::FromStr;
-
 use embassy_executor::Spawner;
 use zenoh_nostd::{
     keyexpr::borrowed::keyexpr, platform::platform_std::PlatformStd,
@@ -17,7 +15,7 @@ async fn main(spawner: Spawner) {
 
     let mut session = zenoh_nostd::open!(
         PlatformStd: (spawner, PlatformStd {}),
-        EndPoint::<32>::from_str(CONNECT.unwrap_or("tcp/127.0.0.1:7447")).unwrap()
+        EndPoint::try_from(CONNECT.unwrap_or("tcp/127.0.0.1:7447")).unwrap()
     )
     .unwrap();
 

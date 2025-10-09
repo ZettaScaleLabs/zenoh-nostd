@@ -19,17 +19,11 @@ use crate::{
 
 pub type TimestampId = uhlc::ID;
 
-pub mod whatami;
-
-pub mod wire_expr;
-
 pub mod encoding;
-
-pub mod locator;
-
 pub mod endpoint;
-
 pub mod resolution;
+pub mod whatami;
+pub mod wire_expr;
 
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 #[repr(transparent)]

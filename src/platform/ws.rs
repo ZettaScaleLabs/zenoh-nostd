@@ -29,31 +29,23 @@ impl PALWebSocket for DummyWebSocket {
         1500
     }
 
-    fn write(
+    async fn write(
         &mut self,
         _buffer: &[u8],
-    ) -> impl Future<Output = ZResult<usize, ZCommunicationError>> {
-        async { Err(ZCommunicationError::Invalid) }
-    }
+    ) -> ZResult<usize, ZCommunicationError> { Err(ZCommunicationError::Invalid) }
 
-    fn write_all(
+    async fn write_all(
         &mut self,
         _buffer: &[u8],
-    ) -> impl Future<Output = ZResult<(), ZCommunicationError>> {
-        async { Err(ZCommunicationError::Invalid) }
-    }
+    ) -> ZResult<(), ZCommunicationError> { Err(ZCommunicationError::Invalid) }
 
-    fn read(
+    async fn read(
         &mut self,
         _buffer: &mut [u8],
-    ) -> impl Future<Output = ZResult<usize, ZCommunicationError>> {
-        async { Err(ZCommunicationError::Invalid) }
-    }
+    ) -> ZResult<usize, ZCommunicationError> { Err(ZCommunicationError::Invalid) }
 
-    fn read_exact(
+    async fn read_exact(
         &mut self,
         _buffer: &mut [u8],
-    ) -> impl Future<Output = ZResult<(), ZCommunicationError>> {
-        async { Err(ZCommunicationError::Invalid) }
-    }
+    ) -> ZResult<(), ZCommunicationError> { Err(ZCommunicationError::Invalid) }
 }

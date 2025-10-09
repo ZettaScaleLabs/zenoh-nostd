@@ -2,7 +2,7 @@ extern crate std;
 
 use crate::{
     protocol::{
-        core::{encoding::*, locator::*, *},
+        core::{encoding::*, *},
         network::{
             declare::{keyexpr::*, queryable::*, subscriber::*, *},
             interest::*,
@@ -227,11 +227,6 @@ macro_rules! run {
 #[test]
 fn codec_zid() {
     run!(args, ZenohIdProto, (), (true), (None))
-}
-
-#[test]
-fn codec_locator() {
-    run!(no_args, Locator<32>, ());
 }
 
 #[test]

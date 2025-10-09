@@ -29,31 +29,23 @@ impl PALTcpStream for DummyTcpStream {
         0
     }
 
-    fn write(
+    async fn write(
         &mut self,
         _buffer: &[u8],
-    ) -> impl Future<Output = ZResult<usize, ZCommunicationError>> {
-        async { Ok(0) }
-    }
+    ) -> ZResult<usize, ZCommunicationError> { Ok(0) }
 
-    fn write_all(
+    async fn write_all(
         &mut self,
         _buffer: &[u8],
-    ) -> impl Future<Output = ZResult<(), ZCommunicationError>> {
-        async { Ok(()) }
-    }
+    ) -> ZResult<(), ZCommunicationError> { Ok(()) }
 
-    fn read(
+    async fn read(
         &mut self,
         _buffer: &mut [u8],
-    ) -> impl Future<Output = ZResult<usize, ZCommunicationError>> {
-        async { Ok(0) }
-    }
+    ) -> ZResult<usize, ZCommunicationError> { Ok(0) }
 
-    fn read_exact(
+    async fn read_exact(
         &mut self,
         _buffer: &mut [u8],
-    ) -> impl Future<Output = ZResult<(), ZCommunicationError>> {
-        async { Ok(()) }
-    }
+    ) -> ZResult<(), ZCommunicationError> { Ok(()) }
 }
