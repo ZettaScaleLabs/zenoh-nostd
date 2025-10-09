@@ -1,0 +1,124 @@
+use crate::{
+    protocol::{
+        ZCodecError,
+        common::{
+            extension::{self, iext},
+            imsg,
+        },
+        core::encoding::Encoding,
+        zcodec::{decode_zbuf, encode_zbuf},
+        zenoh::id,
+    },
+    result::ZResult,
+    zbail,
+    zbuf::{ZBufReader, ZBufWriter},
+};
+
+pub mod flag {
+
+    pub const E: u8 = 1 << 6;
+    pub const Z: u8 = 1 << 7;
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Err<'a> {
+    pub encoding: Encoding<'a>,
+    pub ext_sinfo: Option<ext::SourceInfoType>,
+
+    pub payload: crate::zbuf::ZBuf<'a>,
+}
+
+impl<'a> Err<'a> {
+    pub fn encode(&self, writer: &mut ZBufWriter<'_>) -> ZResult<(), ZCodecError> {
+        let mut header = id::ERR;
+        if self.encoding != Encoding::empty() {
+            header |= flag::E;
+        }
+
+        let mut n_exts = self.ext_sinfo.is_some() as u8;
+        if n_exts != 0 {
+            header |= flag::Z;
+        }
+
+        crate::protocol::zcodec::encode_u8(header, writer)?;
+
+        if self.encoding != Encoding::empty() {
+            self.encoding.encode(writer)?;
+        }
+
+        if let Some(sinfo) = self.ext_sinfo.as_ref() {
+            n_exts -= 1;
+            sinfo.encode(n_exts != 0, writer)?;
+        }
+
+        encode_zbuf(true, self.payload, writer)
+    }
+
+    pub fn decode(header: u8, reader: &mut ZBufReader<'a>) -> ZResult<Self, ZCodecError> {
+        if imsg::mid(header) != id::ERR {
+            zbail!(ZCodecError::Invalid);
+        }
+
+        let mut encoding = Encoding::empty();
+        if imsg::has_flag(header, flag::E) {
+            encoding = Encoding::decode(reader)?;
+        }
+
+        let mut ext_sinfo: Option<ext::SourceInfoType> = None;
+
+        let mut has_ext = imsg::has_flag(header, flag::Z);
+        while has_ext {
+            let ext = crate::protocol::zcodec::decode_u8(reader)?;
+            match iext::eid(ext) {
+                ext::SourceInfo::ID => {
+                    let (s, ext) = ext::SourceInfoType::decode(ext, reader)?;
+
+                    ext_sinfo = Some(s);
+                    has_ext = ext;
+                }
+                _ => {
+                    has_ext = extension::skip("Err", ext, reader)?;
+                }
+            }
+        }
+
+        let payload = decode_zbuf(None, reader)?;
+
+        Ok(Err {
+            encoding,
+            ext_sinfo,
+
+            payload,
+        })
+    }
+
+    #[cfg(test)]
+    pub fn rand(zbuf: &mut ZBufWriter<'a>) -> Self {
+        use rand::Rng;
+
+        use crate::zbuf::BufWriterExt;
+
+        let mut rng = rand::thread_rng();
+
+        let encoding = Encoding::rand(zbuf);
+        let ext_sinfo = rng.gen_bool(0.5).then_some(ext::SourceInfoType::rand());
+        let payload = zbuf
+            .write_slot_return(rng.gen_range(0..=64), |b: &mut [u8]| {
+                rng.fill(b);
+                b.len()
+            })
+            .unwrap();
+
+        Self {
+            encoding,
+            ext_sinfo,
+            payload,
+        }
+    }
+}
+
+pub mod ext {
+
+    pub type SourceInfo<'a> = crate::zextzbuf!('a, 0x1, false);
+    pub type SourceInfoType = crate::protocol::zenoh::ext::SourceInfoType<{ SourceInfo::ID }>;
+}

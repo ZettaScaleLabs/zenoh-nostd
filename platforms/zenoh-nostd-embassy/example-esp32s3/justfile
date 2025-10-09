@@ -1,0 +1,2 @@
+esp32s3 example *args:
+    cargo run --example {{example}} --features='zenoh-nostd/defmt' -- {{args}}

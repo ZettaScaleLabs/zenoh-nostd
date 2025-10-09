@@ -1,4 +1,0 @@
-run_z_put:
-    RUSTFLAGS='--cfg getrandom_backend="wasm_js"' cargo build --example z_put --target wasm32-unknown-unknown
-    wasm-bindgen --target web --out-dir web/ target/wasm32-unknown-unknown/debug/examples/z_put.wasm --out-name z_example
-    basic-http-server web
