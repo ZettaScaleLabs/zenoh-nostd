@@ -8,7 +8,7 @@
 
 ## 📦 Overview
 
-> ⚠️ This project is in early development.
+⚠️ This project is in early development.
 
 **zenoh-nostd** is a Rust-native, `#![no_std]`, `no_alloc` library that provides a **zero-overhead network abstraction layer** for ultra-constrained and bare-metal environments.
 
@@ -188,6 +188,8 @@ platforms/
 ---
 
 ## 📚 Documentation
+
+The base project has been implemented in ([#6](https://github.com/ZettaScaleLabs/zenoh-nostd/pull/6))
 
 > 📖 **Note**: Docs require `rustdoc` to be run with `--no-default-features`.
 
