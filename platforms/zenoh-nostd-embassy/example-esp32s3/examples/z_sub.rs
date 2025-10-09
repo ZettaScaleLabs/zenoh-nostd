@@ -9,7 +9,7 @@ use zenoh_nostd::{keyexpr::borrowed::keyexpr, protocol::core::endpoint::EndPoint
 use zenoh_nostd_embassy::PlatformEmbassy;
 
 use core::num::NonZeroU32;
-use core::str::FromStr;
+
 
 use embassy_executor::Spawner;
 use embassy_net::{DhcpConfig, Runner, Stack, StackResources};
@@ -48,7 +48,7 @@ async fn main(spawner: Spawner) {
 
     let mut session = zenoh_nostd::open!(
         PlatformEmbassy: (spawner, PlatformEmbassy { stack: net_stack }),
-        EndPoint::<32>::from_str(CONNECT).unwrap()
+        EndPoint::try_from(CONNECT).unwrap()
     )
     .unwrap();
 

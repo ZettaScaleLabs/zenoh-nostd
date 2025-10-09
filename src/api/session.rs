@@ -73,10 +73,7 @@ pub struct Session<T: Platform + 'static> {
 }
 
 impl<T: Platform + 'static> Session<T> {
-    pub async fn new<const N: usize>(
-        platform: T,
-        endpoint: EndPoint<N>,
-    ) -> ZResult<(Self, SessionDriver<T>)> {
+    pub async fn new(platform: T, endpoint: EndPoint) -> ZResult<(Self, SessionDriver<T>)> {
         let config = SingleLinkTransportMineConfig {
             mine_zid: ZenohIdProto::default(),
             mine_lease: core::time::Duration::from_secs(20),
@@ -208,19 +205,16 @@ impl<T: Platform> Session<T> {
             None::<fn(OpenAck) -> ZResult<()>>,
             None::<fn() -> ZResult<()>>,
             Some(async |_: &FrameHeader, msg: NetworkMessage<'a>| {
-                match msg.body {
-                    NetworkBody::Push(push) => {
-                        // TODO: confronting the wire_expr with the mapping is not sufficient. If we subcribed to foo/* we may receive foo/bar...
-                        let id = self.mapping.get(&push.wire_expr).copied().unwrap();
+                if let NetworkBody::Push(push) = msg.body {
+                    // TODO: confronting the wire_expr with the mapping is not sufficient. If we subcribed to foo/* we may receive foo/bar...
+                    let id = self.mapping.get(&push.wire_expr).copied().unwrap();
 
-                        match push.payload {
-                            PushBody::Put(put) => {
-                                let zbuf: ZBuf<'a> = put.payload;
-                                on_sample(id, zbuf).await;
-                            }
+                    match push.payload {
+                        PushBody::Put(put) => {
+                            let zbuf: ZBuf<'a> = put.payload;
+                            on_sample(id, zbuf).await;
                         }
                     }
-                    _ => {}
                 }
 
                 Ok(())

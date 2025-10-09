@@ -114,7 +114,7 @@ impl<T: Platform> SingleLinkTransport<T> {
         .await
         {
             embassy_futures::select::Either::First(_) => {
-                zbail!(ZCommunicationError::TimedOut.into());
+                zbail!(ZCommunicationError::TimedOut);
             }
             embassy_futures::select::Either::Second(res) => res,
         }

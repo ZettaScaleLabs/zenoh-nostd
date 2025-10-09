@@ -1,12 +1,12 @@
 test:
-    cargo check
-    cargo check --features=platform-std
-    cargo check --features=log,
-    cargo check --features=defmt
-    cargo check --features=web_console
+    cargo clippy
+    cargo clippy --features=platform-std
+    cargo clippy --features=log,
+    cargo clippy --features=defmt
+    cargo clippy --features=web_console
 
-    cargo check --examples --features=platform-std,
-    cargo check --examples --features=platform-std,log
+    cargo clippy --examples --features=platform-std,
+    cargo clippy --examples --features=platform-std,log
 
     cargo test codec
 

@@ -19,7 +19,7 @@ use crate::{
         },
         network::NetworkMessage,
         transport::{
-            BatchSize, TransportBody, TransportMessage, TransportSn, batch_size,
+            BatchSize, TransportBody, TransportMessage, TransportSn,
             ext::PatchType,
             frame::FrameHeader,
             init::{InitAck, InitSyn},
@@ -99,7 +99,7 @@ impl<'a> RecvInitAckOut<'a> {
         )?;
 
         let Some(init_ack) = init_ack else {
-            zbail!(ZCommunicationError::Invalid.into());
+            zbail!(ZCommunicationError::Invalid);
         };
 
         state.resolution = {
@@ -206,7 +206,7 @@ impl RecvOpenAckOut {
         )?;
 
         let Some(open_ack) = msg else {
-            zbail!(ZCommunicationError::Invalid.into());
+            zbail!(ZCommunicationError::Invalid);
         };
 
         let output = RecvOpenAckOut {
@@ -225,7 +225,7 @@ pub async fn open_link<T: Platform, const TX: usize, const RX: usize>(
     let mut tx_zbuf = [0u8; TX];
     let mut rx_zbuf = [0u8; RX];
 
-    let batch_size = link.get_mtu().min(batch_size::UNICAST);
+    let batch_size = link.get_mtu();
 
     let mut link = SingleLinkTransport::new(link);
 

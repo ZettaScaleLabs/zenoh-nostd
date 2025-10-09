@@ -1,4 +1,4 @@
-use core::{future::Future, time::Duration};
+use core::time::Duration;
 
 use async_wsocket::{Url, WebSocket};
 use zenoh_nostd::platform::{Platform, ZCommunicationError};
@@ -11,37 +11,31 @@ impl Platform for PlatformWasm {
     type PALTcpStream = zenoh_nostd::platform::tcp::DummyTcpStream;
     type PALWebSocket = ws::WasmWebSocket;
 
-    fn new_tcp_stream(
+    async fn new_tcp_stream(
         &self,
         _addr: &std::net::SocketAddr,
-    ) -> impl Future<
-        Output = zenoh_nostd::result::ZResult<
+    ) -> zenoh_nostd::result::ZResult<
             Self::PALTcpStream,
             zenoh_nostd::platform::ZCommunicationError,
-        >,
-    > {
-        async move { Err(ZCommunicationError::Invalid) }
-    }
+        > { Err(ZCommunicationError::Invalid) }
 
-    fn new_websocket(
+    async fn new_websocket(
         &self,
         addr: &std::net::SocketAddr,
-    ) -> impl Future<Output = zenoh_nostd::result::ZResult<Self::PALWebSocket, ZCommunicationError>>
+    ) -> zenoh_nostd::result::ZResult<Self::PALWebSocket, ZCommunicationError>
     {
-        async move {
-            let url = Url::parse(&format!("ws://{}", addr)).unwrap();
+        let url = Url::parse(&format!("ws://{}", addr)).unwrap();
 
-            let socket = WebSocket::connect(
-                &url,
-                &async_wsocket::ConnectionMode::Direct,
-                Duration::from_secs(120),
-            )
-            .await
-            .map_err(|_| ZCommunicationError::ConnectionClosed)?;
+        let socket = WebSocket::connect(
+            &url,
+            &async_wsocket::ConnectionMode::Direct,
+            Duration::from_secs(120),
+        )
+        .await
+        .map_err(|_| ZCommunicationError::ConnectionClosed)?;
 
-            let peer_addr = *addr;
+        let peer_addr = *addr;
 
-            Ok(Self::PALWebSocket { peer_addr, socket })
-        }
+        Ok(Self::PALWebSocket { peer_addr, socket })
     }
 }

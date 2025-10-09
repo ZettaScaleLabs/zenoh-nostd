@@ -65,10 +65,7 @@ impl<T: Platform> Link<T> {
         }
     }
 
-    pub async fn new<const N: usize>(
-        platform: &T,
-        endpoint: EndPoint<N>,
-    ) -> ZResult<Self, ZCommunicationError> {
+    pub async fn new(platform: &T, endpoint: EndPoint) -> ZResult<Self, ZCommunicationError> {
         let protocol = endpoint.protocol();
         let address = endpoint.address();
 
