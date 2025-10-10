@@ -1,6 +1,5 @@
-
 use crate::{
-    platform::{Platform, ZCommunicationError, platform_std::tcp::StdTcpStream},
+    platform::{Platform, ZCommunicationError},
     result::ZResult,
 };
 
@@ -9,13 +8,12 @@ pub mod tcp;
 pub struct PlatformStd;
 
 impl Platform for PlatformStd {
-    type PALTcpStream = StdTcpStream;
-    type PALWebSocket = crate::platform::ws::DummyWebSocket;
+    type AbstractedTcpStream = tcp::StdTcpStream;
 
     async fn new_tcp_stream(
         &self,
         addr: &core::net::SocketAddr,
-    ) -> ZResult<Self::PALTcpStream, ZCommunicationError> {
+    ) -> ZResult<Self::AbstractedTcpStream, ZCommunicationError> {
         let socket = async_net::TcpStream::connect(addr)
             .await
             .map_err(|_| ZCommunicationError::ConnectionClosed)?;
@@ -46,11 +44,6 @@ impl Platform for PlatformStd {
             mtu = (mtu as u32).min(tgt) as u16;
         }
 
-        Ok(Self::PALTcpStream { socket, mtu })
+        Ok(tcp::StdTcpStream::new(socket, mtu))
     }
-
-    async fn new_websocket(
-        &self,
-        _addr: &core::net::SocketAddr,
-    ) -> ZResult<Self::PALWebSocket, ZCommunicationError> { Err(ZCommunicationError::Invalid) }
 }
