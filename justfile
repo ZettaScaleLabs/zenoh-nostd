@@ -18,7 +18,7 @@ bench:
     cargo bench
 
 std example *args:
-    RUST_LOG=info cargo run --example {{example}} --features=platform-std,log -- {{args}}
+    RUST_LOG=trace cargo run --example {{example}} --features=platform-std,log -- {{args}}
 
 wasm example *args:
     cd platforms/zenoh-nostd-wasm && just wasm {{example}} {{args}}

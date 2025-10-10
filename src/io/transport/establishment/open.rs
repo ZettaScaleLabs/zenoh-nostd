@@ -4,9 +4,8 @@ use crate::{
     io::{
         link::Link,
         transport::{
-            SingleLinkTransport, SingleLinkTransportConfig, SingleLinkTransportMineConfig,
-            SingleLinkTransportNegociatedConfig, SingleLinkTransportOtherConfig,
-            establishment::compute_sn,
+            Transport, TransportConfig, TransportMineConfig, TransportNegociatedConfig,
+            TransportOtherConfig, establishment::compute_sn,
         },
     },
     platform::{Platform, ZCommunicationError},
@@ -46,7 +45,7 @@ impl SendInitSynIn {
     pub async fn send<T: Platform>(
         &self,
         tx_zbuf: ZBufMut<'_>,
-        link: &mut SingleLinkTransport<T>,
+        transport: &mut Transport<T>,
         state: &StateTransport,
     ) -> ZResult<(), ZCommunicationError> {
         let msg = TransportMessage {
@@ -66,7 +65,7 @@ impl SendInitSynIn {
             }),
         };
 
-        link.send(tx_zbuf, &msg).await
+        transport.send(tx_zbuf, &msg).await
     }
 }
 
@@ -79,10 +78,10 @@ pub struct RecvInitAckOut<'a> {
 impl<'a> RecvInitAckOut<'a> {
     pub async fn recv<T: Platform>(
         rx_zbuf: ZBufMut<'a>,
-        link: &mut SingleLinkTransport<T>,
+        transport: &mut Transport<T>,
         state: &mut StateTransport,
     ) -> ZResult<Self, ZCommunicationError> {
-        let mut reader = link.recv(rx_zbuf).await?;
+        let mut reader = transport.recv(rx_zbuf).await?;
 
         let mut init_ack = Option::<InitAck<'a>>::None;
         TransportMessage::decode_batch(
@@ -148,7 +147,7 @@ impl<'a> SendOpenSynIn<'a> {
     pub async fn send<T: Platform>(
         &self,
         tx_zbuf: ZBufMut<'_>,
-        link: &mut SingleLinkTransport<T>,
+        transport: &mut Transport<T>,
         state: &StateTransport,
     ) -> ZResult<SendOpenSynOut, ZCommunicationError> {
         let mine_initial_sn = compute_sn(self.mine_zid, self.other_zid, state.resolution);
@@ -166,7 +165,7 @@ impl<'a> SendOpenSynIn<'a> {
             }),
         };
 
-        link.send(tx_zbuf, &msg).await?;
+        transport.send(tx_zbuf, &msg).await?;
 
         let output = SendOpenSynOut { mine_initial_sn };
 
@@ -186,9 +185,9 @@ pub struct RecvOpenAckOut {
 impl RecvOpenAckOut {
     pub async fn recv<'a, T: Platform>(
         rx_zbuf: ZBufMut<'a>,
-        link: &mut SingleLinkTransport<T>,
+        transport: &mut Transport<T>,
     ) -> ZResult<Self, ZCommunicationError> {
-        let mut reader = link.recv(rx_zbuf).await?;
+        let mut reader = transport.recv(rx_zbuf).await?;
 
         let mut msg = Option::<OpenAck<'a>>::None;
 
@@ -218,16 +217,15 @@ impl RecvOpenAckOut {
     }
 }
 
-pub async fn open_link<T: Platform, const TX: usize, const RX: usize>(
+pub async fn open_link<T: Platform>(
     link: Link<T>,
-    config: SingleLinkTransportMineConfig,
-) -> ZResult<(SingleLinkTransport<T>, SingleLinkTransportConfig), ZCommunicationError> {
-    let mut tx_zbuf = [0u8; TX];
-    let mut rx_zbuf = [0u8; RX];
+    config: TransportMineConfig,
+    mut tx_zbuf: ZBufMut<'_>,
+    mut rx_zbuf: ZBufMut<'_>,
+) -> ZResult<(Transport<T>, TransportConfig), ZCommunicationError> {
+    let batch_size = link.mtu();
 
-    let batch_size = link.get_mtu();
-
-    let mut link = SingleLinkTransport::new(link);
+    let mut transport = Transport { link };
 
     let mut state = StateTransport {
         batch_size,
@@ -240,8 +238,10 @@ pub async fn open_link<T: Platform, const TX: usize, const RX: usize>(
         mine_whatami: WhatAmI::Client,
     };
 
-    isyn_in.send::<_>(&mut tx_zbuf, &mut link, &state).await?;
-    let iack_out = RecvInitAckOut::recv::<_>(&mut rx_zbuf, &mut link, &mut state).await?;
+    isyn_in
+        .send::<_>(&mut tx_zbuf, &mut transport, &state)
+        .await?;
+    let iack_out = RecvInitAckOut::recv::<_>(&mut rx_zbuf, &mut transport, &mut state).await?;
 
     let other_zid = iack_out.other_zid;
     let other_whatami = iack_out.other_whatami;
@@ -253,20 +253,22 @@ pub async fn open_link<T: Platform, const TX: usize, const RX: usize>(
         other_cookie: iack_out.other_cookie,
     };
 
-    let osyn_out = osyn_in.send::<_>(&mut tx_zbuf, &mut link, &state).await?;
-    let oack_out = RecvOpenAckOut::recv::<_>(&mut rx_zbuf, &mut link).await?;
+    let osyn_out = osyn_in
+        .send::<_>(&mut tx_zbuf, &mut transport, &state)
+        .await?;
+    let oack_out = RecvOpenAckOut::recv::<_>(&mut rx_zbuf, &mut transport).await?;
 
     Ok((
-        link,
-        SingleLinkTransportConfig {
+        transport,
+        TransportConfig {
             mine_config: config,
-            other_config: SingleLinkTransportOtherConfig {
+            other_config: TransportOtherConfig {
                 other_zid,
                 other_whatami,
                 other_sn: osyn_out.mine_initial_sn,
                 other_lease: oack_out.other_lease,
             },
-            negociated_config: SingleLinkTransportNegociatedConfig {
+            negociated_config: TransportNegociatedConfig {
                 mine_sn: osyn_out.mine_initial_sn,
                 batch_size: state.batch_size,
                 resolution: state.resolution,

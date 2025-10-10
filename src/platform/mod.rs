@@ -3,24 +3,17 @@ use core::net::SocketAddr;
 use crate::{protocol::ZCodecError, result::ZResult};
 
 pub mod tcp;
-pub mod ws;
 
 #[cfg(feature = "platform-std")]
 pub mod platform_std;
 
 pub trait Platform {
-    type PALTcpStream: tcp::PALTcpStream;
-    type PALWebSocket: ws::PALWebSocket;
+    type AbstractedTcpStream: tcp::AbstractedTcpStream;
 
     fn new_tcp_stream(
         &self,
         addr: &SocketAddr,
-    ) -> impl Future<Output = ZResult<Self::PALTcpStream, ZCommunicationError>>;
-
-    fn new_websocket(
-        &self,
-        addr: &SocketAddr,
-    ) -> impl Future<Output = ZResult<Self::PALWebSocket, ZCommunicationError>>;
+    ) -> impl Future<Output = ZResult<Self::AbstractedTcpStream, ZCommunicationError>>;
 }
 
 crate::__internal_zerr! {
