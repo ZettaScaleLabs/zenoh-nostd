@@ -10,7 +10,6 @@ use zenoh_nostd_embassy::PlatformEmbassy;
 
 use core::num::NonZeroU32;
 
-
 use embassy_executor::Spawner;
 use embassy_net::{DhcpConfig, Runner, Stack, StackResources};
 use embassy_time::{Duration, Timer};
@@ -63,15 +62,18 @@ async fn main(spawner: Spawner) {
     let mut rx_buffer = [0u8; 512];
     loop {
         session
-            .read(rx_buffer.as_mut_slice(), async |subscription, sample| {
-                if subscription == subscription_1 {
-                    zenoh_nostd::info!(
-                        "[Subscription] Received Sample ('{}': '{:?}')",
-                        ke.as_str(),
-                        core::str::from_utf8(sample).unwrap()
-                    );
-                }
-            })
+            .read(
+                rx_buffer.as_mut_slice(),
+                async |subscription, ke, sample| {
+                    if subscription == subscription_1 {
+                        zenoh_nostd::info!(
+                            "[Subscription] Received Sample ('{}': '{:?}')",
+                            ke.as_str(),
+                            core::str::from_utf8(sample).unwrap()
+                        );
+                    }
+                },
+            )
             .await
             .unwrap();
     }

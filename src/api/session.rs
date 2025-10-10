@@ -8,7 +8,10 @@ use crate::{
             SingleLinkTransport, SingleLinkTransportConfig, SingleLinkTransportMineConfig,
         },
     },
-    keyexpr::borrowed::keyexpr,
+    keyexpr::{
+        borrowed::keyexpr,
+        intersect::{DEFAULT_INTERSECTOR, Intersector},
+    },
     platform::Platform,
     protocol::{
         core::{
@@ -192,7 +195,7 @@ impl<T: Platform> Session<T> {
     pub async fn read<'a>(
         &self,
         rx_buffer: ZBufMut<'a>,
-        mut on_sample: impl AsyncFnMut(u32, ZBuf<'a>),
+        mut on_sample: impl AsyncFnMut(u32, &keyexpr, ZBuf<'a>),
     ) -> ZResult<()> {
         let mut link = self.driver.as_ref().unwrap().link.lock().await;
         let mut reader: ZBufReader<'a> = link.recv(rx_buffer).await?;
@@ -206,13 +209,22 @@ impl<T: Platform> Session<T> {
             None::<fn() -> ZResult<()>>,
             Some(async |_: &FrameHeader, msg: NetworkMessage<'a>| {
                 if let NetworkBody::Push(push) = msg.body {
-                    // TODO: confronting the wire_expr with the mapping is not sufficient. If we subcribed to foo/* we may receive foo/bar...
-                    let id = self.mapping.get(&push.wire_expr).copied().unwrap();
-
                     match push.payload {
                         PushBody::Put(put) => {
                             let zbuf: ZBuf<'a> = put.payload;
-                            on_sample(id, zbuf).await;
+
+                            let wke: &keyexpr = push.wire_expr.as_str().try_into().unwrap();
+
+                            if let Some(id) = self.mapping.iter().find_map(|(k, &v)| {
+                                let ke = k.as_str().try_into().unwrap();
+                                if DEFAULT_INTERSECTOR.intersect(ke, wke) {
+                                    Some(v)
+                                } else {
+                                    None
+                                }
+                            }) {
+                                on_sample(id, wke, zbuf).await;
+                            }
                         }
                     }
                 }
@@ -223,19 +235,5 @@ impl<T: Platform> Session<T> {
         .await?;
 
         Ok(())
-    }
-
-    pub async fn try_read<'a>(
-        &self,
-        rx_buffer: ZBufMut<'a>,
-        mut callback: impl AsyncFnMut(u32, ZBuf<'a>),
-        timeout: core::time::Duration,
-    ) -> ZResult<()> {
-        embassy_time::with_timeout(
-            timeout.try_into().unwrap(),
-            self.read(rx_buffer, &mut callback),
-        )
-        .await
-        .map_err(|_| crate::result::ZError::TimedOut)?
     }
 }

@@ -19,7 +19,7 @@ async fn main(spawner: Spawner) {
     )
     .unwrap();
 
-    let ke: &'static keyexpr = "demo/example".try_into().unwrap();
+    let ke: &'static keyexpr = "demo/example/**".try_into().unwrap();
 
     let mut tx_zbuf = [0u8; 256];
     let subscription_1 = session
@@ -30,15 +30,18 @@ async fn main(spawner: Spawner) {
     let mut rx_buffer = [0u8; 512];
     loop {
         session
-            .read(rx_buffer.as_mut_slice(), async |subscription, sample| {
-                if subscription == subscription_1 {
-                    zenoh_nostd::info!(
-                        "[Subscription] Received Sample ('{}': '{:?}')",
-                        ke.as_str(),
-                        core::str::from_utf8(sample).unwrap()
-                    );
-                }
-            })
+            .read(
+                rx_buffer.as_mut_slice(),
+                async |subscription, ke, sample| {
+                    if subscription == subscription_1 {
+                        zenoh_nostd::info!(
+                            "[Subscription] Received Sample ('{}': '{:?}')",
+                            ke.as_str(),
+                            core::str::from_utf8(sample).unwrap()
+                        );
+                    }
+                },
+            )
             .await
             .unwrap();
     }
