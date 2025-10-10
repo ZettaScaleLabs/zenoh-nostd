@@ -11,7 +11,7 @@ use zenoh_nostd::{
             init::{InitAck, InitSyn},
             open::{OpenAck, OpenSyn},
         },
-        zcodec::{decode_u64, encode_u64},
+        zcodec::{decode_str, decode_u64, encode_str, encode_u64},
         zenoh::{PushBody, put::Put},
     },
     result::ZResult,
@@ -27,6 +27,17 @@ fn criterion_benchmark(c: &mut Criterion) {
             encode_u64(u64::MAX, &mut writer).unwrap();
             let mut reader = zbuf.reader();
             let _: u64 = decode_u64(&mut reader).unwrap();
+        })
+    });
+
+    let mut buff = [0u8; 64];
+    let mut zbuf: ZBufMut = buff.as_mut_slice();
+    c.bench_function("Encode b'Hello, world!'", |b| {
+        b.iter(|| {
+            let mut writer = zbuf.writer();
+            encode_str(true, "Hello, world!", &mut writer).unwrap();
+            let mut reader = zbuf.reader();
+            let _: &str = decode_str(None, &mut reader).unwrap();
         })
     });
 

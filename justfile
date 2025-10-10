@@ -1,4 +1,4 @@
-test:
+clippy:
     cargo clippy
     cargo clippy --features=platform-std
     cargo clippy --features=log,
@@ -8,6 +8,10 @@ test:
     cargo clippy --examples --features=platform-std,
     cargo clippy --examples --features=platform-std,log
 
+wasm-clippy:
+    cd platforms/zenoh-nostd-wasm && just clippy
+
+test:
     cargo test codec
 
 bench:
