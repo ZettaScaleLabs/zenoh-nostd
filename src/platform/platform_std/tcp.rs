@@ -17,7 +17,7 @@ pub struct StdTcpStream {
 impl StdTcpStream {
     pub fn new(socket: async_net::TcpStream, mtu: u16) -> Self {
         Self {
-            socket: socket,
+            socket,
             mtu,
         }
     }

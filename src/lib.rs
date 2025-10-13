@@ -23,23 +23,21 @@ pub mod tests;
 /// The driver task is used to send the KeepAlive messages and maintain the session alive.
 #[macro_export]
 macro_rules! open {
-    ($type:ident : ($spawner:expr, $platform:expr), TX: $TX:expr, RX: $RX:expr, CALLBACKS: $CALLBACKS:expr, $endpoint:expr) => {{
+    ($type:ident : ($spawner:expr, $platform:expr), TX: $TX:expr, RX: $RX:expr, SUBSCRIBERS: $SUBSCRIBERS:expr, $endpoint:expr) => {{
         static TX_ZBUF: static_cell::StaticCell<[u8; $TX]> = static_cell::StaticCell::new();
         static RX_ZBUF: static_cell::StaticCell<[u8; $RX]> = static_cell::StaticCell::new();
 
-        static CALLBACKS: static_cell::StaticCell<
-            heapless::index_map::FnvIndexMap<
-                $crate::protocol::core::wire_expr::WireExpr<'static>,
-                $crate::api::subscriber::ZCallback,
-                $CALLBACKS,
-            >,
+        static SUBSCRIBERS: static_cell::StaticCell<
+            $crate::api::subscriber::ZSubscriberCallbackStorage<$SUBSCRIBERS>,
         > = static_cell::StaticCell::new();
 
         let zconfig = $crate::api::ZConfig {
             platform: $platform,
             tx_zbuf: TX_ZBUF.init([0u8; $TX]).as_mut_slice(),
             rx_zbuf: RX_ZBUF.init([0u8; $RX]).as_mut_slice(),
-            callbacks: CALLBACKS.init(heapless::index_map::FnvIndexMap::new()),
+            subscribers: SUBSCRIBERS.init($crate::api::subscriber::ZSubscriberCallbackStorage::<
+                $SUBSCRIBERS,
+            >::new()),
         };
 
         let (mut session, driver) = $crate::api::session::Session::new(zconfig, $endpoint)

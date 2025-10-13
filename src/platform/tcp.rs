@@ -69,63 +69,47 @@ impl AbstractedTcpStream for DummyTcpStream {
         0
     }
 
-    fn write(
+    async fn write(
         &mut self,
         _buffer: &[u8],
-    ) -> impl core::future::Future<Output = ZResult<usize, ZCommunicationError>> {
-        async { Err(ZCommunicationError::DidNotWrite) }
-    }
+    ) -> ZResult<usize, ZCommunicationError> { Err(ZCommunicationError::DidNotWrite) }
 
-    fn write_all(
+    async fn write_all(
         &mut self,
         _buffer: &[u8],
-    ) -> impl core::future::Future<Output = ZResult<(), ZCommunicationError>> {
-        async { Err(ZCommunicationError::DidNotWrite) }
-    }
+    ) -> ZResult<(), ZCommunicationError> { Err(ZCommunicationError::DidNotWrite) }
 
-    fn read(
+    async fn read(
         &mut self,
         _buffer: &mut [u8],
-    ) -> impl core::future::Future<Output = ZResult<usize, ZCommunicationError>> {
-        async { Err(ZCommunicationError::DidNotRead) }
-    }
+    ) -> ZResult<usize, ZCommunicationError> { Err(ZCommunicationError::DidNotRead) }
 
-    fn read_exact(
+    async fn read_exact(
         &mut self,
         _buffer: &mut [u8],
-    ) -> impl core::future::Future<Output = ZResult<(), ZCommunicationError>> {
-        async { Err(ZCommunicationError::DidNotRead) }
-    }
+    ) -> ZResult<(), ZCommunicationError> { Err(ZCommunicationError::DidNotRead) }
 }
 
 impl AbstractedTcpTx for DummyTcpTx {
-    fn write(
+    async fn write(
         &mut self,
         _buffer: &[u8],
-    ) -> impl core::future::Future<Output = ZResult<usize, ZCommunicationError>> {
-        async { Err(ZCommunicationError::DidNotWrite) }
-    }
+    ) -> ZResult<usize, ZCommunicationError> { Err(ZCommunicationError::DidNotWrite) }
 
-    fn write_all(
+    async fn write_all(
         &mut self,
         _buffer: &[u8],
-    ) -> impl core::future::Future<Output = ZResult<(), ZCommunicationError>> {
-        async { Err(ZCommunicationError::DidNotWrite) }
-    }
+    ) -> ZResult<(), ZCommunicationError> { Err(ZCommunicationError::DidNotWrite) }
 }
 
 impl AbstractedTcpRx for DummyTcpRx {
-    fn read(
+    async fn read(
         &mut self,
         _buffer: &mut [u8],
-    ) -> impl core::future::Future<Output = ZResult<usize, ZCommunicationError>> {
-        async { Err(ZCommunicationError::DidNotRead) }
-    }
+    ) -> ZResult<usize, ZCommunicationError> { Err(ZCommunicationError::DidNotRead) }
 
-    fn read_exact(
+    async fn read_exact(
         &mut self,
         _buffer: &mut [u8],
-    ) -> impl core::future::Future<Output = ZResult<(), ZCommunicationError>> {
-        async { Err(ZCommunicationError::DidNotRead) }
-    }
+    ) -> ZResult<(), ZCommunicationError> { Err(ZCommunicationError::DidNotRead) }
 }

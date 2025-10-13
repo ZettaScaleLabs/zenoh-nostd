@@ -1,8 +1,9 @@
+use embassy_sync::channel::DynamicReceiver;
+
 use crate::{
     api::{
-        ZConfig,
-        driver::SessionDriver,
-        subscriber::{Subscriber, ZCallback},
+        ZConfig, callback::ZCallback, driver::SessionDriver, sample::ZOwnedSample,
+        subscriber::ZSubscriber,
     },
     io::{
         link::Link,
@@ -54,7 +55,7 @@ impl<T: Platform + 'static> Session<T> {
                 tconfig,
                 (config.tx_zbuf, tx),
                 (config.rx_zbuf, rx),
-                config.callbacks,
+                config.subscribers,
             ),
         ))
     }
@@ -86,12 +87,15 @@ impl<T: Platform + 'static> Session<T> {
         Ok(())
     }
 
-    pub async fn declare_subscriber(
+    pub async fn declare_subscriber<const KE: usize, const PL: usize>(
         &mut self,
         ke: &'static keyexpr,
-        callback: ZCallback,
-    ) -> ZResult<Subscriber> {
-        let ke = WireExpr::from(ke);
+        config: (
+            ZCallback,
+            Option<DynamicReceiver<'static, ZOwnedSample<KE, PL>>>,
+        ),
+    ) -> ZResult<ZSubscriber<KE, PL>> {
+        let wke = WireExpr::from(ke);
 
         let id = self.next_id;
         self.next_id += 1;
@@ -103,21 +107,56 @@ impl<T: Platform + 'static> Session<T> {
                 ext_qos: network::declare::ext::QoSType::DECLARE,
                 ext_tstamp: None,
                 ext_nodeid: network::declare::ext::NodeIdType::DEFAULT,
-                body: DeclareBody::DeclareSubscriber(DeclareSubscriber {
-                    id,
-                    wire_expr: ke.clone(),
-                }),
+                body: DeclareBody::DeclareSubscriber(DeclareSubscriber { id, wire_expr: wke }),
             }),
         };
 
         self.driver.as_ref().unwrap().send(msg).await?;
 
+        let is_async = config.0.is_async();
+
         self.driver
             .as_ref()
             .unwrap()
-            .register_callback(ke, callback)
+            .register_subscriber_callback(id, ke, config.0)
             .await?;
 
-        Ok(Subscriber::Sync)
+        if is_async {
+            Ok(ZSubscriber::async_sub(id, ke, config.1.unwrap()))
+        } else {
+            Ok(ZSubscriber::sync_sub(id, ke))
+        }
     }
+}
+
+#[macro_export]
+macro_rules! zsubscriber {
+    ($sync:expr) => {
+        (
+            $crate::api::callback::ZCallback::Sync($sync),
+            None::<
+                embassy_sync::channel::DynamicReceiver<
+                    'static,
+                    $crate::api::sample::ZOwnedSample<0, 0>,
+                >,
+            >,
+        )
+    };
+
+    (QUEUE: $queue:expr, KE: $ke:expr, PL: $pl:expr) => {{
+        static CHANNEL: static_cell::StaticCell<
+            embassy_sync::channel::Channel<
+                embassy_sync::blocking_mutex::raw::CriticalSectionRawMutex,
+                $crate::api::sample::ZOwnedSample<$ke, $pl>,
+                $queue,
+            >,
+        > = static_cell::StaticCell::new();
+
+        let channel = CHANNEL.init(embassy_sync::channel::Channel::new());
+
+        (
+            $crate::api::callback::ZCallback::Async(channel),
+            Some(channel.dyn_receiver()),
+        )
+    }};
 }
