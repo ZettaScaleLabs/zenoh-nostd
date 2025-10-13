@@ -1,12 +1,12 @@
 clippy:
-    cargo clippy
-    cargo clippy --features=platform-std
-    cargo clippy --features=log,
-    cargo clippy --features=defmt
-    cargo clippy --features=web_console
+    cargo clippy --fix --lib --allow-dirty --allow-staged
+    cargo clippy --features=platform-std --fix --lib --allow-dirty --allow-staged
+    cargo clippy --features=log --fix --lib --allow-dirty --allow-staged
+    cargo clippy --features=defmt --fix --lib --allow-dirty --allow-staged
+    cargo clippy --features=web_console --fix --lib --allow-dirty --allow-staged
 
-    cargo clippy --examples --features=platform-std,
-    cargo clippy --examples --features=platform-std,log
+    cargo clippy --examples --features=platform-std, --fix --lib --allow-dirty --allow-staged
+    cargo clippy --examples --features=platform-std,log --fix --lib --allow-dirty --allow-staged
 
 wasm-clippy:
     cd platforms/zenoh-nostd-wasm && just clippy

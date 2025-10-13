@@ -1,5 +1,6 @@
-use crate::api::subscriber::ZCallbackMap;
+use crate::api::subscriber::ZSubscriberCallbacks;
 
+pub mod callback;
 pub mod sample;
 
 pub mod driver;
@@ -13,5 +14,5 @@ pub struct ZConfig<T> {
     pub tx_zbuf: &'static mut [u8],
     pub rx_zbuf: &'static mut [u8],
 
-    pub callbacks: &'static mut dyn ZCallbackMap,
+    pub subscribers: &'static mut dyn ZSubscriberCallbacks,
 }

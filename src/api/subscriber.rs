@@ -1,56 +1,104 @@
-use heapless::index_map::FnvIndexMap;
+use embassy_sync::channel::DynamicReceiver;
+use heapless::index_map::{FnvIndexMap, Iter};
 
-use crate::{api::sample::ZSample, protocol::core::wire_expr::WireExpr, result::ZResult};
+use crate::{
+    api::{callback::ZCallback, sample::ZOwnedSample},
+    keyexpr::borrowed::keyexpr,
+    result::{ZError, ZResult},
+    zbail,
+};
 
-pub enum ZCallback {
-    Sync(fn(&ZSample) -> ()),
+pub enum ZSubscriberInner<const KE: usize, const PL: usize> {
+    Sync,
+    Async(DynamicReceiver<'static, ZOwnedSample<KE, PL>>),
 }
 
-impl ZCallback {
-    pub async fn call(&self, sample: &ZSample<'_>) {
-        match self {
-            ZCallback::Sync(cb) => cb(sample),
+pub struct ZSubscriber<const KE: usize, const PL: usize> {
+    id: u32,
+    ke: &'static keyexpr,
+    inner: ZSubscriberInner<KE, PL>,
+}
+
+impl<const KE: usize, const PL: usize> ZSubscriber<KE, PL> {
+    pub fn sync_sub(id: u32, ke: &'static keyexpr) -> Self {
+        Self {
+            id,
+            ke,
+            inner: ZSubscriberInner::Sync,
+        }
+    }
+
+    pub fn async_sub(
+        id: u32,
+        ke: &'static keyexpr,
+        rx: DynamicReceiver<'static, ZOwnedSample<KE, PL>>,
+    ) -> Self {
+        ZSubscriber {
+            id,
+            ke,
+            inner: ZSubscriberInner::Async(rx),
+        }
+    }
+
+    pub fn id(&self) -> u32 {
+        self.id
+    }
+
+    pub fn keyexpr(&self) -> &'static keyexpr {
+        self.ke
+    }
+
+    pub async fn recv(&self) -> ZResult<ZOwnedSample<KE, PL>> {
+        match &self.inner {
+            ZSubscriberInner::Sync => Err(ZError::Invalid),
+            ZSubscriberInner::Async(rx) => Ok(rx.receive().await),
         }
     }
 }
 
-pub enum Subscriber {
-    Sync,
+pub trait ZSubscriberCallbacks {
+    fn insert(&mut self, id: u32, ke: &'static keyexpr, callback: ZCallback) -> ZResult<()>;
+    fn intersects(&self, id: &u32, ke: &'_ keyexpr) -> bool;
+    fn iter(&self) -> Iter<'_, u32, ZCallback>;
 }
 
-pub trait ZCallbackMap {
-    fn get_callback(&self, ke: WireExpr<'static>) -> Option<&ZCallback>;
-    fn insert_callback(
-        &mut self,
-        ke: WireExpr<'static>,
-        callback: ZCallback,
-    ) -> ZResult<Option<ZCallback>>;
-
-    fn iter(&self) -> heapless::index_map::Iter<'_, WireExpr<'static>, ZCallback>;
+pub struct ZSubscriberCallbackStorage<const N: usize> {
+    lookup: FnvIndexMap<u32, &'static keyexpr, N>,
+    callbacks: FnvIndexMap<u32, ZCallback, N>,
 }
 
-impl<const N: usize> ZCallbackMap for FnvIndexMap<WireExpr<'static>, ZCallback, N> {
-    fn get_callback(&self, ke: WireExpr<'static>) -> Option<&ZCallback> {
-        self.get(&ke)
-    }
-
-    fn insert_callback(
-        &mut self,
-        ke: WireExpr<'static>,
-        callback: ZCallback,
-    ) -> ZResult<Option<ZCallback>> {
-        self.insert(ke, callback)
-            .map_err(|_| crate::result::ZError::Invalid)
-    }
-
-    fn iter(&self) -> heapless::index_map::Iter<'_, WireExpr<'static>, ZCallback> {
-        self.iter()
+impl<const N: usize> ZSubscriberCallbackStorage<N> {
+    pub fn new() -> Self {
+        Self {
+            lookup: FnvIndexMap::new(),
+            callbacks: FnvIndexMap::new(),
+        }
     }
 }
 
-#[macro_export]
-macro_rules! zcallback {
-    ($sync:expr) => {
-        $crate::api::subscriber::ZCallback::Sync($sync)
-    };
+impl<const N: usize> ZSubscriberCallbacks for ZSubscriberCallbackStorage<N> {
+    fn insert(&mut self, id: u32, ke: &'static keyexpr, callback: ZCallback) -> ZResult<()> {
+        if self.lookup.contains_key(&id) {
+            zbail!(ZError::Invalid)
+        }
+
+        self.lookup.insert(id, ke).map_err(|_| ZError::Invalid)?;
+
+        self.callbacks
+            .insert(id, callback)
+            .map_err(|_| ZError::Invalid)
+            .map(|_| ())
+    }
+
+    fn intersects(&self, id: &u32, ke: &'_ keyexpr) -> bool {
+        if let Some(stored_ke) = self.lookup.get(id) {
+            return stored_ke.intersects(ke);
+        }
+
+        false
+    }
+
+    fn iter(&self) -> Iter<'_, u32, ZCallback> {
+        self.callbacks.iter()
+    }
 }

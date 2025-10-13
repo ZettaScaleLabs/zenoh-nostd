@@ -220,8 +220,8 @@ impl RecvOpenAckOut {
 pub async fn open_link<T: Platform>(
     link: Link<T>,
     config: TransportMineConfig,
-    mut tx_zbuf: ZBufMut<'_>,
-    mut rx_zbuf: ZBufMut<'_>,
+    tx_zbuf: ZBufMut<'_>,
+    rx_zbuf: ZBufMut<'_>,
 ) -> ZResult<(Transport<T>, TransportConfig), ZCommunicationError> {
     let batch_size = link.mtu();
 
@@ -239,9 +239,9 @@ pub async fn open_link<T: Platform>(
     };
 
     isyn_in
-        .send::<_>(&mut tx_zbuf, &mut transport, &state)
+        .send::<_>(tx_zbuf, &mut transport, &state)
         .await?;
-    let iack_out = RecvInitAckOut::recv::<_>(&mut rx_zbuf, &mut transport, &mut state).await?;
+    let iack_out = RecvInitAckOut::recv::<_>(rx_zbuf, &mut transport, &mut state).await?;
 
     let other_zid = iack_out.other_zid;
     let other_whatami = iack_out.other_whatami;
@@ -254,9 +254,9 @@ pub async fn open_link<T: Platform>(
     };
 
     let osyn_out = osyn_in
-        .send::<_>(&mut tx_zbuf, &mut transport, &state)
+        .send::<_>(tx_zbuf, &mut transport, &state)
         .await?;
-    let oack_out = RecvOpenAckOut::recv::<_>(&mut rx_zbuf, &mut transport).await?;
+    let oack_out = RecvOpenAckOut::recv::<_>(rx_zbuf, &mut transport).await?;
 
     Ok((
         transport,

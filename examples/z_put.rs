@@ -16,7 +16,7 @@ async fn main(spawner: embassy_executor::Spawner) {
         PlatformStd: (spawner, PlatformStd {}),
         TX: 512,
         RX: 512,
-        CALLBACKS: 0,
+        SUBSCRIBERS: 2,
         EndPoint::try_from(CONNECT.unwrap_or("tcp/127.0.0.1:7447")).unwrap()
     )
     .unwrap();
