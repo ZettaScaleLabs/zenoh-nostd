@@ -13,10 +13,12 @@ async fn main(spawner: embassy_executor::Spawner) {
     zenoh_nostd::info!("zenoh-nostd z_put example");
 
     let mut session = zenoh_nostd::open!(
-        PlatformStd: (spawner, PlatformStd {}),
-        TX: 512,
-        RX: 512,
-        SUBSCRIBERS: 2,
+        zenoh_nostd::zconfig!(
+                PlatformStd: (spawner, PlatformStd {}),
+                TX: 512,
+                RX: 512,
+                SUBSCRIBERS: 2
+        ),
         EndPoint::try_from(CONNECT.unwrap_or("tcp/127.0.0.1:7447")).unwrap()
     )
     .unwrap();

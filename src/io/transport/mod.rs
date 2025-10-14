@@ -50,12 +50,12 @@ pub struct Transport<T: Platform> {
     link: Link<T>,
 }
 
-pub struct TransportTx<T: Platform> {
-    link: LinkTx<T>,
+pub struct TransportTx<'a, T: Platform> {
+    link: LinkTx<'a, T>,
 }
 
-pub struct TransportRx<T: Platform> {
-    link: LinkRx<T>,
+pub struct TransportRx<'a, T: Platform> {
+    link: LinkRx<'a, T>,
 }
 
 impl<T: Platform> Transport<T> {
@@ -78,7 +78,7 @@ impl<T: Platform> Transport<T> {
         }
     }
 
-    pub fn split(self) -> (TransportTx<T>, TransportRx<T>) {
+    pub fn split(&mut self) -> (TransportTx<'_, T>, TransportRx<'_, T>) {
         let (link_tx, link_rx) = self.link.split();
 
         (TransportTx { link: link_tx }, TransportRx { link: link_rx })
@@ -133,8 +133,8 @@ impl<T: Platform> Transport<T> {
     }
 }
 
-impl<T: Platform> TransportTx<T> {
-    pub fn new(link: LinkTx<T>) -> Self {
+impl<'a, T: Platform> TransportTx<'a, T> {
+    pub fn new(link: LinkTx<'a, T>) -> Self {
         Self { link }
     }
 
@@ -167,15 +167,15 @@ impl<T: Platform> TransportTx<T> {
     }
 }
 
-impl<T: Platform> TransportRx<T> {
-    pub fn new(link: LinkRx<T>) -> Self {
+impl<'a, T: Platform> TransportRx<'a, T> {
+    pub fn new(link: LinkRx<'a, T>) -> Self {
         Self { link }
     }
 
-    pub async fn recv<'a>(
+    pub async fn recv<'b>(
         &mut self,
-        rx_zbuf: ZBufMut<'a>,
-    ) -> ZResult<ZBufReader<'a>, ZCommunicationError> {
+        rx_zbuf: ZBufMut<'b>,
+    ) -> ZResult<ZBufReader<'b>, ZCommunicationError> {
         let n = if self.link.is_streamed() {
             let mut len = BatchSize::MIN.to_le_bytes();
             self.link.read_exact(&mut len).await?;
@@ -188,7 +188,7 @@ impl<T: Platform> TransportRx<T> {
             self.link.read(rx_zbuf.as_mut()).await?
         };
 
-        let slice: &'a [u8] = &rx_zbuf[..n];
+        let slice: &'b [u8] = &rx_zbuf[..n];
         Ok(slice.reader())
     }
 }

@@ -28,11 +28,7 @@
 
 ## 🚀 Use Cases
 
-| Use Case               | Suitability     |
-|------------------------|-----------------|
-| IoT microcontrollers   | ✅ Perfect       |
-| Space/Aerospace/Robotics | ✅ Safety-critical |
-| Linux/macOS/Windows    | ✅ Ideal         |
+Soon.
 
 ---
 
@@ -112,7 +108,7 @@ Use the following command structure:
 just <platform> <example> [args]
 ```
 
-* **Platforms**: `std`, `wasm`, `esp32s3`
+* **Platforms**: `std`, `esp32s3`
 * **Examples**: `z_put`, `z_sub`
 
 Set the `CONNECT=<endpoint>` environment variable to specify the endpoint (default is `tcp/127.0.0.1:7447`).
@@ -141,30 +137,6 @@ just std z_put
 # Terminal 2
 just std z_sub
 ```
-
-### Example: WebSocket + WASM
-
-Run a Zenoh router with:
-
-```bash
-zenohd -l tcp/127.0.0.1:7447 -l ws/127.0.0.1:7446
-```
-
-Then:
-
-```bash
-# Terminal 1 (WASM)
-CONNECT=ws/127.0.0.1:7446 just wasm z_put
-
-# Terminal 2 (STD)
-just std z_sub
-```
-
-> 📦 Note: For WASM, ensure you have:
->
-> * `wasm32-unknown-unknown` target
-> * `wasm-bindgen-cli`
-> * `basic-http-server` (or similar)
 
 ---
 

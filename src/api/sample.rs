@@ -49,7 +49,7 @@ impl<const KE: usize, const PL: usize> ZOwnedSample<KE, PL> {
         keyexpr::from_str_unchecked(self.keyexpr.as_str())
     }
 
-    pub fn payload(&self) -> &[u8] {
+    pub fn payload(&self) -> ZBuf<'_> {
         &self.payload
     }
 }

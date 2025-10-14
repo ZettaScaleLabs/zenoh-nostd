@@ -23,41 +23,19 @@ pub mod tests;
 /// The driver task is used to send the KeepAlive messages and maintain the session alive.
 #[macro_export]
 macro_rules! open {
-    ($type:ident : ($spawner:expr, $platform:expr), TX: $TX:expr, RX: $RX:expr, SUBSCRIBERS: $SUBSCRIBERS:expr, $endpoint:expr) => {{
-        static TX_ZBUF: static_cell::StaticCell<[u8; $TX]> = static_cell::StaticCell::new();
-        static RX_ZBUF: static_cell::StaticCell<[u8; $RX]> = static_cell::StaticCell::new();
+    ($zconfig:expr, $endpoint:expr) => {{
+        let spawner = $zconfig.spawner.clone();
+        let task = $zconfig.task.clone();
+        let driver_cell = $zconfig.driver.clone();
 
-        static SUBSCRIBERS: static_cell::StaticCell<
-            $crate::api::subscriber::ZSubscriberCallbackStorage<$SUBSCRIBERS>,
-        > = static_cell::StaticCell::new();
-
-        let zconfig = $crate::api::ZConfig {
-            platform: $platform,
-            tx_zbuf: TX_ZBUF.init([0u8; $TX]).as_mut_slice(),
-            rx_zbuf: RX_ZBUF.init([0u8; $RX]).as_mut_slice(),
-            subscribers: SUBSCRIBERS.init($crate::api::subscriber::ZSubscriberCallbackStorage::<
-                $SUBSCRIBERS,
-            >::new()),
-        };
-
-        let (mut session, driver) = $crate::api::session::Session::new(zconfig, $endpoint)
+        let (mut session, driver) = $crate::api::session::Session::new($zconfig, $endpoint)
             .await
             .unwrap();
 
-        static DRIVER: static_cell::StaticCell<$crate::api::driver::SessionDriver<$type>> =
-            static_cell::StaticCell::new();
-
-        let driver: &'static $crate::api::driver::SessionDriver<$type> = DRIVER.init(driver);
+        let driver = driver_cell.init(driver);
         session.set_driver(driver);
 
-        #[embassy_executor::task]
-        async fn session_task(runner: &'static $crate::api::driver::SessionDriver<$type>) {
-            if let Err(e) = runner.run().await {
-                $crate::error!("Session driver task ended with error: {}", e);
-            }
-        }
-
-        $spawner.spawn(session_task(driver)).unwrap();
+        spawner.spawn((task)(driver)).unwrap();
 
         Ok::<_, $crate::result::ZError>(session)
     }};

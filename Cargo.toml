@@ -27,16 +27,20 @@ defmt = { version = "1.0.1", optional = true }
 log = { version = "0.4.28", optional = true }
 web-sys = { version = "0.3.81", features = ["console"], optional = true }
 
-# Heapless
+# Embassy (for async/await support)
+embassy-sync = "0.7.2"
+embassy-futures = "0.1.2"
+embassy-time = "0.5.0"
+embassy-executor = "0.9.1"
+
+# Heapless / static
 heapless = { version = "0.9.1" }
+static_cell = "2.1.1"
 
 # Other
 uhlc = { version = "0.8.1", git = "https://github.com/Hennzau/uhlc-rs", branch = "no-alloc", default-features = false }
 const_format = "0.2.34"
 sha3 = { version = "0.10.8", default-features = false }
-embassy-sync = "0.7.2"
-embassy-futures = "0.1.2"
-embassy-time = "0.5.0"
 
 # Built-in std support (disabled by default)
 async-net = { version = "2.0.0", optional = true }
@@ -48,7 +52,6 @@ rand = "0.8.5"
 env_logger = "0.10.0"
 criterion = { version = "0.7.0" }
 paste = "1.0.15"
-static_cell = "2.1.1"
 embassy-executor = { version = "0.9.1", features = ["arch-std", "executor-thread"] }
 embassy-time = { version = "0.5.0", features = ["std"] }
 critical-section = { version = "1.2.0", features = ["std"] }

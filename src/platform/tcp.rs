@@ -1,10 +1,15 @@
 use crate::{platform::ZCommunicationError, result::ZResult};
 
 pub trait AbstractedTcpStream {
-    type Tx: AbstractedTcpTx;
-    type Rx: AbstractedTcpRx;
+    type Tx<'a>: AbstractedTcpTx
+    where
+        Self: 'a;
 
-    fn split(self) -> (Self::Tx, Self::Rx);
+    type Rx<'a>: AbstractedTcpRx
+    where
+        Self: 'a;
+
+    fn split(&mut self) -> (Self::Tx<'_>, Self::Rx<'_>);
 
     fn mtu(&self) -> u16;
 
@@ -58,10 +63,10 @@ pub struct DummyTcpTx;
 pub struct DummyTcpRx;
 
 impl AbstractedTcpStream for DummyTcpStream {
-    type Tx = DummyTcpTx;
-    type Rx = DummyTcpRx;
+    type Tx<'a> = DummyTcpTx;
+    type Rx<'a> = DummyTcpRx;
 
-    fn split(self) -> (Self::Tx, Self::Rx) {
+    fn split(&mut self) -> (Self::Tx<'_>, Self::Rx<'_>) {
         (DummyTcpTx, DummyTcpRx)
     }
 
@@ -69,47 +74,39 @@ impl AbstractedTcpStream for DummyTcpStream {
         0
     }
 
-    async fn write(
-        &mut self,
-        _buffer: &[u8],
-    ) -> ZResult<usize, ZCommunicationError> { Err(ZCommunicationError::DidNotWrite) }
+    async fn write(&mut self, _buffer: &[u8]) -> ZResult<usize, ZCommunicationError> {
+        Err(ZCommunicationError::DidNotWrite)
+    }
 
-    async fn write_all(
-        &mut self,
-        _buffer: &[u8],
-    ) -> ZResult<(), ZCommunicationError> { Err(ZCommunicationError::DidNotWrite) }
+    async fn write_all(&mut self, _buffer: &[u8]) -> ZResult<(), ZCommunicationError> {
+        Err(ZCommunicationError::DidNotWrite)
+    }
 
-    async fn read(
-        &mut self,
-        _buffer: &mut [u8],
-    ) -> ZResult<usize, ZCommunicationError> { Err(ZCommunicationError::DidNotRead) }
+    async fn read(&mut self, _buffer: &mut [u8]) -> ZResult<usize, ZCommunicationError> {
+        Err(ZCommunicationError::DidNotRead)
+    }
 
-    async fn read_exact(
-        &mut self,
-        _buffer: &mut [u8],
-    ) -> ZResult<(), ZCommunicationError> { Err(ZCommunicationError::DidNotRead) }
+    async fn read_exact(&mut self, _buffer: &mut [u8]) -> ZResult<(), ZCommunicationError> {
+        Err(ZCommunicationError::DidNotRead)
+    }
 }
 
 impl AbstractedTcpTx for DummyTcpTx {
-    async fn write(
-        &mut self,
-        _buffer: &[u8],
-    ) -> ZResult<usize, ZCommunicationError> { Err(ZCommunicationError::DidNotWrite) }
+    async fn write(&mut self, _buffer: &[u8]) -> ZResult<usize, ZCommunicationError> {
+        Err(ZCommunicationError::DidNotWrite)
+    }
 
-    async fn write_all(
-        &mut self,
-        _buffer: &[u8],
-    ) -> ZResult<(), ZCommunicationError> { Err(ZCommunicationError::DidNotWrite) }
+    async fn write_all(&mut self, _buffer: &[u8]) -> ZResult<(), ZCommunicationError> {
+        Err(ZCommunicationError::DidNotWrite)
+    }
 }
 
 impl AbstractedTcpRx for DummyTcpRx {
-    async fn read(
-        &mut self,
-        _buffer: &mut [u8],
-    ) -> ZResult<usize, ZCommunicationError> { Err(ZCommunicationError::DidNotRead) }
+    async fn read(&mut self, _buffer: &mut [u8]) -> ZResult<usize, ZCommunicationError> {
+        Err(ZCommunicationError::DidNotRead)
+    }
 
-    async fn read_exact(
-        &mut self,
-        _buffer: &mut [u8],
-    ) -> ZResult<(), ZCommunicationError> { Err(ZCommunicationError::DidNotRead) }
+    async fn read_exact(&mut self, _buffer: &mut [u8]) -> ZResult<(), ZCommunicationError> {
+        Err(ZCommunicationError::DidNotRead)
+    }
 }

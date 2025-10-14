@@ -9,12 +9,22 @@ use crate::{
 
 pub mod tcp;
 
-pub enum LinkTx<T: Platform> {
-    LinkTcpTx(LinkTcpTx<<T::AbstractedTcpStream as crate::platform::tcp::AbstractedTcpStream>::Tx>),
+pub enum LinkTx<'a, T: Platform>
+where
+    T: 'a,
+{
+    LinkTcpTx(
+        LinkTcpTx<<T::AbstractedTcpStream as crate::platform::tcp::AbstractedTcpStream>::Tx<'a>>,
+    ),
 }
 
-pub enum LinkRx<T: Platform> {
-    LinkTcpRx(LinkTcpRx<<T::AbstractedTcpStream as crate::platform::tcp::AbstractedTcpStream>::Rx>),
+pub enum LinkRx<'a, T: Platform>
+where
+    T: 'a,
+{
+    LinkTcpRx(
+        LinkTcpRx<<T::AbstractedTcpStream as crate::platform::tcp::AbstractedTcpStream>::Rx<'a>>,
+    ),
 }
 
 pub enum Link<T: Platform> {
@@ -39,7 +49,7 @@ impl<T: Platform> Link<T> {
         }
     }
 
-    pub fn split(self) -> (LinkTx<T>, LinkRx<T>) {
+    pub fn split(&mut self) -> (LinkTx<'_, T>, LinkRx<'_, T>) {
         match self {
             Self::LinkTcp(tcp) => {
                 let (tx, rx) = tcp.split();
@@ -91,7 +101,7 @@ impl<T: Platform> Link<T> {
     }
 }
 
-impl<T: Platform> LinkTx<T> {
+impl<T: Platform> LinkTx<'_, T> {
     pub fn is_streamed(&self) -> bool {
         match self {
             Self::LinkTcpTx(tcp) => tcp.is_streamed(),
@@ -117,7 +127,7 @@ impl<T: Platform> LinkTx<T> {
     }
 }
 
-impl<T: Platform> LinkRx<T> {
+impl<T: Platform> LinkRx<'_, T> {
     pub fn is_streamed(&self) -> bool {
         match self {
             Self::LinkTcpRx(tcp) => tcp.is_streamed(),
