@@ -7,8 +7,7 @@ use crate::{
 };
 
 pub struct LinkTcp<T: AbstractedTcpStream> {
-    tx: LinkTcpTx<T::Tx>,
-    rx: LinkTcpRx<T::Rx>,
+    stream: T,
 
     mtu: u16,
 }
@@ -28,17 +27,15 @@ pub struct LinkTcpRx<T: AbstractedTcpRx> {
 impl<T: AbstractedTcpStream> LinkTcp<T> {
     pub fn new(stream: T) -> Self {
         let mtu = stream.mtu();
-        let (tx, rx) = stream.split();
 
-        Self {
-            tx: LinkTcpTx { tx, mtu },
-            rx: LinkTcpRx { rx, mtu },
-            mtu,
-        }
+        Self { stream, mtu }
     }
 
-    pub fn split(self) -> (LinkTcpTx<T::Tx>, LinkTcpRx<T::Rx>) {
-        (self.tx, self.rx)
+    pub fn split(&mut self) -> (LinkTcpTx<T::Tx<'_>>, LinkTcpRx<T::Rx<'_>>) {
+        let (tx, rx) = self.stream.split();
+        let tx = LinkTcpTx { tx, mtu: self.mtu };
+        let rx = LinkTcpRx { rx, mtu: self.mtu };
+        (tx, rx)
     }
 
     pub fn mtu(&self) -> u16 {
@@ -54,19 +51,19 @@ impl<T: AbstractedTcpStream> LinkTcp<T> {
     }
 
     pub async fn write(&mut self, buffer: &[u8]) -> ZResult<usize, ZCommunicationError> {
-        self.tx.write(buffer).await
+        self.stream.write(buffer).await
     }
 
     pub async fn write_all(&mut self, buffer: &[u8]) -> ZResult<(), ZCommunicationError> {
-        self.tx.write_all(buffer).await
+        self.stream.write_all(buffer).await
     }
 
     pub async fn read(&mut self, buffer: &mut [u8]) -> ZResult<usize, ZCommunicationError> {
-        self.rx.read(buffer).await
+        self.stream.read(buffer).await
     }
 
     pub async fn read_exact(&mut self, buffer: &mut [u8]) -> ZResult<(), ZCommunicationError> {
-        self.rx.read_exact(buffer).await
+        self.stream.read_exact(buffer).await
     }
 }
 

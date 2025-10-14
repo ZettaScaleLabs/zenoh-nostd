@@ -237,6 +237,13 @@ macro_rules! __internal_zerr {
                     write!(f, "{}: {}", $err, zerror)
                 }
             }
+
+            #[cfg(feature = "defmt")]
+            impl defmt::Format for $name {
+                fn format(&self, f: defmt::Formatter) {
+                    defmt::write!(f, "{}({}): {}", $err, *self as u8, self);
+                }
+            }
         )*
     };
 }

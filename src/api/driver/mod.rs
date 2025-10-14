@@ -16,24 +16,24 @@ use crate::{
     result::ZResult,
 };
 
-pub struct TxState<T: Platform> {
+pub struct TxState<T: Platform + 'static> {
     tx_zbuf: &'static mut [u8],
-    tx: TransportTx<T>,
+    tx: TransportTx<'static, T>,
     sn: TransportSn,
 
     next_keepalive: Instant,
 }
 
-pub struct RxState<T: Platform> {
+pub struct RxState<T: Platform + 'static> {
     rx_zbuf: &'static mut [u8],
-    rx: TransportRx<T>,
+    rx: TransportRx<'static, T>,
 }
 
 pub struct SubscriberState {
     callbacks: &'static mut dyn ZSubscriberCallbacks,
 }
 
-pub struct SessionDriver<T: Platform> {
+pub struct SessionDriver<T: Platform + 'static> {
     config: TransportConfig,
 
     tx: Mutex<CriticalSectionRawMutex, TxState<T>>,
@@ -45,8 +45,8 @@ pub struct SessionDriver<T: Platform> {
 impl<T: Platform> SessionDriver<T> {
     pub fn new(
         config: TransportConfig,
-        tx: (&'static mut [u8], TransportTx<T>),
-        rx: (&'static mut [u8], TransportRx<T>),
+        tx: (&'static mut [u8], TransportTx<'static, T>),
+        rx: (&'static mut [u8], TransportRx<'static, T>),
         subscribers: &'static mut dyn ZSubscriberCallbacks,
     ) -> SessionDriver<T> {
         SessionDriver {

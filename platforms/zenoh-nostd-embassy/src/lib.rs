@@ -1,10 +1,9 @@
 #![no_std]
 
-
 use embassy_net::{IpAddress, IpEndpoint, Stack, tcp::TcpSocket};
 use static_cell::StaticCell;
 use zenoh_nostd::{
-    platform::{Platform, ZCommunicationError, ws::DummyWebSocket},
+    platform::{Platform, ZCommunicationError},
     result::ZResult,
     zbail,
 };
@@ -16,13 +15,12 @@ pub struct PlatformEmbassy {
 }
 
 impl Platform for PlatformEmbassy {
-    type PALTcpStream = tcp::EmbassyTcpStream;
-    type PALWebSocket = DummyWebSocket;
+    type AbstractedTcpStream = tcp::EmbassyTcpStream;
 
     async fn new_tcp_stream(
         &self,
         addr: &core::net::SocketAddr,
-    ) -> ZResult<Self::PALTcpStream, ZCommunicationError> {
+    ) -> ZResult<Self::AbstractedTcpStream, ZCommunicationError> {
         static RX_BUF: StaticCell<[u8; 1024]> = StaticCell::new();
         static TX_BUF: StaticCell<[u8; 1024]> = StaticCell::new();
         let (rx_buf, tx_buf) = (RX_BUF.init([0; 1024]), TX_BUF.init([0; 1024]));
@@ -41,22 +39,6 @@ impl Platform for PlatformEmbassy {
             .await
             .map_err(|_| ZCommunicationError::ConnectionClosed)?;
 
-        let local_addr = match socket.local_endpoint().unwrap().addr {
-            IpAddress::Ipv4(v4) => core::net::SocketAddr::new(
-                core::net::IpAddr::V4(v4),
-                socket.local_endpoint().unwrap().port,
-            ),
-        };
-
-        Ok(Self::PALTcpStream {
-            socket,
-            local_addr,
-            peer_addr: *addr,
-        })
+        Ok(Self::AbstractedTcpStream { socket, mtu: 1024 })
     }
-
-    async fn new_websocket(
-        &self,
-        _: &core::net::SocketAddr,
-    ) -> ZResult<Self::PALWebSocket, ZCommunicationError> { Err(ZCommunicationError::Invalid) }
 }

@@ -32,7 +32,10 @@ pub struct Session<T: Platform + 'static> {
 }
 
 impl<T: Platform + 'static> Session<T> {
-    pub async fn new(config: ZConfig<T>, endpoint: EndPoint) -> ZResult<(Self, SessionDriver<T>)> {
+    pub async fn new<S>(
+        config: ZConfig<T, S>,
+        endpoint: EndPoint,
+    ) -> ZResult<(Self, SessionDriver<T>)> {
         let transport = TransportMineConfig {
             mine_zid: ZenohIdProto::default(),
             mine_lease: core::time::Duration::from_secs(20),
@@ -44,7 +47,7 @@ impl<T: Platform + 'static> Session<T> {
         let (transport, tconfig) =
             open_link(link, transport, config.tx_zbuf, config.rx_zbuf).await?;
 
-        let (tx, rx) = transport.split();
+        let (tx, rx) = config.transport.init(transport).split();
 
         Ok((
             Self {
