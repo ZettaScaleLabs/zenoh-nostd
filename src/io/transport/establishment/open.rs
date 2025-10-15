@@ -30,19 +30,19 @@ use crate::{
     zbuf::{ZBuf, ZBufMut},
 };
 
-pub struct StateTransport {
-    pub batch_size: BatchSize,
-    pub resolution: Resolution,
+pub(crate) struct StateTransport {
+    pub(crate) batch_size: BatchSize,
+    pub(crate) resolution: Resolution,
 }
 
-pub struct SendInitSynIn {
-    pub mine_version: u8,
-    pub mine_zid: ZenohIdProto,
-    pub mine_whatami: WhatAmI,
+pub(crate) struct SendInitSynIn {
+    pub(crate) mine_version: u8,
+    pub(crate) mine_zid: ZenohIdProto,
+    pub(crate) mine_whatami: WhatAmI,
 }
 
 impl SendInitSynIn {
-    pub async fn send<T: Platform>(
+    pub(crate) async fn send<T: Platform>(
         &self,
         tx_zbuf: ZBufMut<'_>,
         transport: &mut Transport<T>,
@@ -69,14 +69,14 @@ impl SendInitSynIn {
     }
 }
 
-pub struct RecvInitAckOut<'a> {
-    pub other_zid: ZenohIdProto,
-    pub other_whatami: WhatAmI,
-    pub other_cookie: ZBuf<'a>,
+pub(crate) struct RecvInitAckOut<'a> {
+    pub(crate) other_zid: ZenohIdProto,
+    pub(crate) other_whatami: WhatAmI,
+    pub(crate) other_cookie: ZBuf<'a>,
 }
 
 impl<'a> RecvInitAckOut<'a> {
-    pub async fn recv<T: Platform>(
+    pub(crate) async fn recv<T: Platform>(
         rx_zbuf: ZBufMut<'a>,
         transport: &mut Transport<T>,
         state: &mut StateTransport,
@@ -136,15 +136,15 @@ impl<'a> RecvInitAckOut<'a> {
     }
 }
 
-pub struct SendOpenSynIn<'a> {
-    pub mine_zid: ZenohIdProto,
-    pub mine_lease: Duration,
-    pub other_zid: ZenohIdProto,
-    pub other_cookie: ZBuf<'a>,
+pub(crate) struct SendOpenSynIn<'a> {
+    pub(crate) mine_zid: ZenohIdProto,
+    pub(crate) mine_lease: Duration,
+    pub(crate) other_zid: ZenohIdProto,
+    pub(crate) other_cookie: ZBuf<'a>,
 }
 
 impl<'a> SendOpenSynIn<'a> {
-    pub async fn send<T: Platform>(
+    pub(crate) async fn send<T: Platform>(
         &self,
         tx_zbuf: ZBufMut<'_>,
         transport: &mut Transport<T>,
@@ -173,17 +173,17 @@ impl<'a> SendOpenSynIn<'a> {
     }
 }
 
-pub struct SendOpenSynOut {
-    pub mine_initial_sn: TransportSn,
+pub(crate) struct SendOpenSynOut {
+    pub(crate) mine_initial_sn: TransportSn,
 }
 
-pub struct RecvOpenAckOut {
-    pub other_lease: Duration,
-    pub other_initial_sn: TransportSn,
+pub(crate) struct RecvOpenAckOut {
+    pub(crate) other_lease: Duration,
+    pub(crate) other_initial_sn: TransportSn,
 }
 
 impl RecvOpenAckOut {
-    pub async fn recv<'a, T: Platform>(
+    pub(crate) async fn recv<'a, T: Platform>(
         rx_zbuf: ZBufMut<'a>,
         transport: &mut Transport<T>,
     ) -> ZResult<Self, ZCommunicationError> {
@@ -217,7 +217,7 @@ impl RecvOpenAckOut {
     }
 }
 
-pub async fn open_link<T: Platform>(
+pub(crate) async fn open_link<T: Platform>(
     link: Link<T>,
     config: TransportMineConfig,
     tx_zbuf: ZBufMut<'_>,
@@ -238,9 +238,7 @@ pub async fn open_link<T: Platform>(
         mine_whatami: WhatAmI::Client,
     };
 
-    isyn_in
-        .send::<_>(tx_zbuf, &mut transport, &state)
-        .await?;
+    isyn_in.send::<_>(tx_zbuf, &mut transport, &state).await?;
     let iack_out = RecvInitAckOut::recv::<_>(rx_zbuf, &mut transport, &mut state).await?;
 
     let other_zid = iack_out.other_zid;
@@ -253,9 +251,7 @@ pub async fn open_link<T: Platform>(
         other_cookie: iack_out.other_cookie,
     };
 
-    let osyn_out = osyn_in
-        .send::<_>(tx_zbuf, &mut transport, &state)
-        .await?;
+    let osyn_out = osyn_in.send::<_>(tx_zbuf, &mut transport, &state).await?;
     let oack_out = RecvOpenAckOut::recv::<_>(rx_zbuf, &mut transport).await?;
 
     Ok((

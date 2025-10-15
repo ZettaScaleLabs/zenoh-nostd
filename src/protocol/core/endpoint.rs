@@ -1,8 +1,8 @@
 use core::{convert::TryFrom, fmt};
 
-pub const PROTO_SEPARATOR: char = '/';
-pub const METADATA_SEPARATOR: char = '?';
-pub const CONFIG_SEPARATOR: char = '#';
+pub(crate) const PROTO_SEPARATOR: char = '/';
+pub(crate) const METADATA_SEPARATOR: char = '?';
+pub(crate) const CONFIG_SEPARATOR: char = '#';
 
 pub(super) fn protocol(s: &str) -> &str {
     let pdix = s.find(PROTO_SEPARATOR).unwrap_or(s.len());
@@ -18,10 +18,10 @@ pub(super) fn address(s: &str) -> &str {
 
 #[repr(transparent)]
 #[derive(Copy, Clone, PartialEq, Eq, Hash)]
-pub struct Protocol<'a>(pub(super) &'a str);
+pub(crate) struct Protocol<'a>(pub(super) &'a str);
 
 impl<'a> Protocol<'a> {
-    pub fn as_str(&self) -> &'_ str {
+    pub(crate) fn as_str(&self) -> &'_ str {
         self.0
     }
 }
@@ -46,10 +46,10 @@ impl fmt::Debug for Protocol<'_> {
 
 #[repr(transparent)]
 #[derive(Copy, Clone, PartialEq, Eq, Hash)]
-pub struct Address<'a>(pub(super) &'a str);
+pub(crate) struct Address<'a>(pub(super) &'a str);
 
 impl<'a> Address<'a> {
-    pub fn as_str(&self) -> &'_ str {
+    pub(crate) fn as_str(&self) -> &'_ str {
         self.0
     }
 }
@@ -84,7 +84,7 @@ pub struct EndPoint {
 }
 
 impl EndPoint {
-    pub fn new(
+    pub(crate) fn new(
         protocol: &'static str,
         address: &'static str,
     ) -> crate::result::ZResult<Self, crate::protocol::ZProtocolError> {
@@ -100,19 +100,19 @@ impl EndPoint {
         Self::try_from(s)
     }
 
-    pub fn as_str(&self) -> &str {
+    pub(crate) fn as_str(&self) -> &str {
         self.inner
     }
 
-    pub fn split(&self) -> (Protocol<'_>, Address<'_>) {
+    pub(crate) fn split(&self) -> (Protocol<'_>, Address<'_>) {
         (self.protocol(), self.address())
     }
 
-    pub fn protocol(&self) -> Protocol<'_> {
+    pub(crate) fn protocol(&self) -> Protocol<'_> {
         Protocol(protocol(self.inner))
     }
 
-    pub fn address(&self) -> Address<'_> {
+    pub(crate) fn address(&self) -> Address<'_> {
         Address(address(self.inner))
     }
 }

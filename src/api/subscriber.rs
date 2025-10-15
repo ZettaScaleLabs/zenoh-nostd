@@ -20,7 +20,7 @@ pub struct ZSubscriber<const KE: usize, const PL: usize> {
 }
 
 impl<const KE: usize, const PL: usize> ZSubscriber<KE, PL> {
-    pub fn sync_sub(id: u32, ke: &'static keyexpr) -> Self {
+    pub(crate) fn new_sync(id: u32, ke: &'static keyexpr) -> Self {
         Self {
             id,
             ke,
@@ -28,7 +28,7 @@ impl<const KE: usize, const PL: usize> ZSubscriber<KE, PL> {
         }
     }
 
-    pub fn async_sub(
+    pub(crate) fn new_async(
         id: u32,
         ke: &'static keyexpr,
         rx: DynamicReceiver<'static, ZOwnedSample<KE, PL>>,
@@ -113,13 +113,8 @@ impl<const N: usize> ZSubscriberCallbacks for ZSubscriberCallbackStorage<N> {
 macro_rules! zsubscriber {
     ($sync:expr) => {
         (
-            $crate::api::callback::ZCallback::Sync($sync),
-            None::<
-                embassy_sync::channel::DynamicReceiver<
-                    'static,
-                    $crate::api::sample::ZOwnedSample<0, 0>,
-                >,
-            >,
+            $crate::ZCallback::new_sync($sync),
+            None::<embassy_sync::channel::DynamicReceiver<'static, $crate::ZOwnedSample<0, 0>>>,
         )
     };
 
@@ -127,7 +122,7 @@ macro_rules! zsubscriber {
         static CHANNEL: static_cell::StaticCell<
             embassy_sync::channel::Channel<
                 embassy_sync::blocking_mutex::raw::CriticalSectionRawMutex,
-                $crate::api::sample::ZOwnedSample<$ke, $pl>,
+                $crate::ZOwnedSample<$ke, $pl>,
                 $queue,
             >,
         > = static_cell::StaticCell::new();
@@ -135,7 +130,7 @@ macro_rules! zsubscriber {
         let channel = CHANNEL.init(embassy_sync::channel::Channel::new());
 
         (
-            $crate::api::callback::ZCallback::Async(channel),
+            $crate::ZCallback::new_async(channel),
             Some(channel.dyn_receiver()),
         )
     }};

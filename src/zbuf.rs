@@ -12,17 +12,16 @@ crate::__internal_zerr! {
 
 pub type ZBuf<'a> = &'a [u8];
 pub type ZBufMut<'a> = &'a mut [u8];
+pub(crate) type ZBufReader<'a> = &'a [u8];
+pub(crate) type ZBufWriter<'a> = &'a mut [u8];
 
-pub type ZBufReader<'a> = &'a [u8];
-pub type ZBufWriter<'a> = &'a mut [u8];
-
-pub trait ZBufExt<'a> {
+pub(crate) trait ZBufExt<'a> {
     fn as_bytes(&self) -> &[u8];
     fn as_str(&self) -> ZResult<&'a str, ZIOError>;
     fn reader(&self) -> ZBufReader<'a>;
 }
 
-pub trait ZBufMutExt<'a> {
+pub(crate) trait ZBufMutExt<'a> {
     fn as_bytes(&self) -> &[u8];
     fn as_str(&'a self) -> ZResult<&'a str, ZIOError>;
     fn reader(&'a self) -> ZBufReader<'a>;
@@ -66,14 +65,14 @@ impl<'a> ZBufMutExt<'a> for ZBufMut<'a> {
     }
 }
 
-pub struct SliceMark<'s> {
+pub(crate) struct SliceMark<'s> {
     ptr: *const u8,
     len: usize,
 
     _phantom: core::marker::PhantomData<&'s [u8]>,
 }
 
-pub trait BufReaderExt<'a> {
+pub(crate) trait BufReaderExt<'a> {
     fn mark(&self) -> ZBuf<'a>;
     fn rewind(&mut self, mark: ZBuf<'a>);
     fn remaining(&self) -> usize;
@@ -84,7 +83,7 @@ pub trait BufReaderExt<'a> {
     fn read_zbuf(&mut self, len: usize) -> ZResult<ZBuf<'a>, ZIOError>;
 }
 
-pub trait BufWriterExt<'a> {
+pub(crate) trait BufWriterExt<'a> {
     fn mark(&mut self) -> SliceMark<'a>;
     fn rewind(&mut self, mark: SliceMark<'a>);
     fn remaining(&self) -> usize;

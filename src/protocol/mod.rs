@@ -1,16 +1,16 @@
 use crate::zbuf::ZIOError;
 
-pub mod common;
-pub mod core;
+pub(crate) mod common;
+pub(crate) mod core;
 
-pub mod zenoh;
+pub(crate) mod zenoh;
 
-pub mod network;
-pub mod transport;
+pub(crate) mod network;
+pub(crate) mod transport;
 
-pub mod zcodec;
+pub(crate) mod zcodec;
 
-pub const VERSION: u8 = 0x09;
+pub(crate) const VERSION: u8 = 0x09;
 
 crate::__internal_zerr! {
     /// Errors related to Zenoh protocol

@@ -18,36 +18,36 @@ use crate::{
     zbuf::{ZBufReader, ZBufWriter},
 };
 
-pub mod declare;
-pub mod interest;
-pub mod push;
-pub mod request;
-pub mod response;
+pub(crate) mod declare;
+pub(crate) mod interest;
+pub(crate) mod push;
+pub(crate) mod request;
+pub(crate) mod response;
 
-pub mod id {
-    pub const OAM: u8 = 0x1f;
-    pub const DECLARE: u8 = 0x1e;
-    pub const PUSH: u8 = 0x1d;
-    pub const REQUEST: u8 = 0x1c;
-    pub const RESPONSE: u8 = 0x1b;
-    pub const RESPONSE_FINAL: u8 = 0x1a;
-    pub const INTEREST: u8 = 0x19;
+pub(crate) mod id {
+    pub(crate) const OAM: u8 = 0x1f;
+    pub(crate) const DECLARE: u8 = 0x1e;
+    pub(crate) const PUSH: u8 = 0x1d;
+    pub(crate) const REQUEST: u8 = 0x1c;
+    pub(crate) const RESPONSE: u8 = 0x1b;
+    pub(crate) const RESPONSE_FINAL: u8 = 0x1a;
+    pub(crate) const INTEREST: u8 = 0x19;
 }
 
 #[repr(u8)]
 #[derive(Debug, Default, Clone, Copy, Hash, PartialEq, Eq)]
-pub enum Mapping {
+pub(crate) enum Mapping {
     #[default]
     Receiver = 0,
     Sender = 1,
 }
 
 impl Mapping {
-    pub const DEFAULT: Self = Self::Receiver;
+    pub(crate) const DEFAULT: Self = Self::Receiver;
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub enum NetworkBody<'a> {
+pub(crate) enum NetworkBody<'a> {
     Push(Push<'a>),
     Request(Request<'a>),
     Response(Response<'a>),
@@ -57,26 +57,26 @@ pub enum NetworkBody<'a> {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct NetworkMessage<'a> {
-    pub body: NetworkBody<'a>,
-    pub reliability: Reliability,
+pub(crate) struct NetworkMessage<'a> {
+    pub(crate) body: NetworkBody<'a>,
+    pub(crate) reliability: Reliability,
 }
 
 impl<'a> NetworkMessage<'a> {
-    pub fn body(&self) -> &'_ NetworkBody<'_> {
+    pub(crate) fn body(&self) -> &'_ NetworkBody<'_> {
         &self.body
     }
 
-    pub fn reliability(&self) -> Reliability {
+    pub(crate) fn reliability(&self) -> Reliability {
         self.reliability
     }
 
     #[inline]
-    pub fn is_reliable(&self) -> bool {
+    pub(crate) fn is_reliable(&self) -> bool {
         self.reliability() == Reliability::Reliable
     }
 
-    pub fn encode(&self, writer: &mut ZBufWriter<'_>) -> ZResult<(), ZCodecError> {
+    pub(crate) fn encode(&self, writer: &mut ZBufWriter<'_>) -> ZResult<(), ZCodecError> {
         match &self.body {
             NetworkBody::Declare(m) => m.encode(writer),
             NetworkBody::Push(m) => m.encode(writer),
@@ -87,7 +87,7 @@ impl<'a> NetworkMessage<'a> {
         }
     }
 
-    pub fn decode(
+    pub(crate) fn decode(
         reliability: Reliability,
         reader: &mut ZBufReader<'a>,
     ) -> ZResult<Self, ZCodecError> {
@@ -110,7 +110,7 @@ impl<'a> NetworkMessage<'a> {
     }
 
     #[cfg(test)]
-    pub fn rand(zbuf: &mut ZBufWriter<'a>) -> Self {
+    pub(crate) fn rand(zbuf: &mut ZBufWriter<'a>) -> Self {
         use rand::Rng;
 
         let mut rng = rand::thread_rng();
@@ -151,7 +151,7 @@ impl<'a> From<NetworkBody<'a>> for NetworkMessage<'a> {
     }
 }
 
-pub mod ext {
+pub(crate) mod ext {
     use core::fmt;
 
     use crate::{
@@ -173,7 +173,7 @@ pub mod ext {
 
     #[repr(transparent)]
     #[derive(Clone, Copy, PartialEq, Eq)]
-    pub struct QoSType<const ID: u8> {
+    pub(crate) struct QoSType<const ID: u8> {
         inner: u8,
     }
 
@@ -183,26 +183,29 @@ pub mod ext {
         const E_FLAG: u8 = 0b00010000;
         const F_FLAG: u8 = 0b00100000;
 
-        pub const DEFAULT: Self = Self::new(Priority::DEFAULT, CongestionControl::DEFAULT, false);
+        pub(crate) const DEFAULT: Self =
+            Self::new(Priority::DEFAULT, CongestionControl::DEFAULT, false);
 
-        pub const DECLARE: Self =
+        pub(crate) const DECLARE: Self =
             Self::new(Priority::Control, CongestionControl::DEFAULT_DECLARE, false);
-        pub const PUSH: Self = Self::new(Priority::DEFAULT, CongestionControl::DEFAULT_PUSH, false);
-        pub const REQUEST: Self =
+        pub(crate) const PUSH: Self =
+            Self::new(Priority::DEFAULT, CongestionControl::DEFAULT_PUSH, false);
+        pub(crate) const REQUEST: Self =
             Self::new(Priority::DEFAULT, CongestionControl::DEFAULT_REQUEST, false);
-        pub const RESPONSE: Self = Self::new(
+        pub(crate) const RESPONSE: Self = Self::new(
             Priority::DEFAULT,
             CongestionControl::DEFAULT_RESPONSE,
             false,
         );
-        pub const RESPONSE_FINAL: Self = Self::new(
+        pub(crate) const RESPONSE_FINAL: Self = Self::new(
             Priority::DEFAULT,
             CongestionControl::DEFAULT_RESPONSE,
             false,
         );
-        pub const OAM: Self = Self::new(Priority::Control, CongestionControl::DEFAULT_OAM, false);
+        pub(crate) const OAM: Self =
+            Self::new(Priority::Control, CongestionControl::DEFAULT_OAM, false);
 
-        pub const fn new(
+        pub(crate) const fn new(
             priority: Priority,
             congestion_control: CongestionControl,
             is_express: bool,
@@ -219,15 +222,15 @@ pub mod ext {
             Self { inner }
         }
 
-        pub fn set_priority(&mut self, priority: Priority) {
+        pub(crate) fn set_priority(&mut self, priority: Priority) {
             self.inner = imsg::set_bitfield(self.inner, priority as u8, Self::P_MASK);
         }
 
-        pub const fn get_priority(&self) -> Priority {
+        pub(crate) const fn get_priority(&self) -> Priority {
             unsafe { core::mem::transmute(self.inner & Self::P_MASK) }
         }
 
-        pub fn set_congestion_control(&mut self, cctrl: CongestionControl) {
+        pub(crate) fn set_congestion_control(&mut self, cctrl: CongestionControl) {
             match cctrl {
                 CongestionControl::Block => {
                     self.inner = imsg::set_flag(self.inner, Self::D_FLAG);
@@ -240,7 +243,7 @@ pub mod ext {
             }
         }
 
-        pub const fn get_congestion_control(&self) -> CongestionControl {
+        pub(crate) const fn get_congestion_control(&self) -> CongestionControl {
             match (
                 imsg::has_flag(self.inner, Self::D_FLAG),
                 imsg::has_flag(self.inner, Self::F_FLAG),
@@ -251,23 +254,27 @@ pub mod ext {
             }
         }
 
-        pub fn set_is_express(&mut self, is_express: bool) {
+        pub(crate) fn set_is_express(&mut self, is_express: bool) {
             match is_express {
                 true => self.inner = imsg::set_flag(self.inner, Self::E_FLAG),
                 false => self.inner = imsg::unset_flag(self.inner, Self::E_FLAG),
             }
         }
 
-        pub const fn is_express(&self) -> bool {
+        pub(crate) const fn is_express(&self) -> bool {
             imsg::has_flag(self.inner, Self::E_FLAG)
         }
 
-        pub fn encode(&self, more: bool, writer: &mut ZBufWriter<'_>) -> ZResult<(), ZCodecError> {
+        pub(crate) fn encode(
+            &self,
+            more: bool,
+            writer: &mut ZBufWriter<'_>,
+        ) -> ZResult<(), ZCodecError> {
             let ext: ZExtZ64<{ ID }> = (*self).into();
             ext.encode(more, writer)
         }
 
-        pub fn decode(
+        pub(crate) fn decode(
             header: u8,
             reader: &mut ZBufReader<'_>,
         ) -> ZResult<(Self, bool), ZCodecError> {
@@ -276,7 +283,7 @@ pub mod ext {
         }
 
         #[cfg(test)]
-        pub fn rand() -> Self {
+        pub(crate) fn rand() -> Self {
             use rand::Rng;
             let mut rng = rand::thread_rng();
 
@@ -316,19 +323,23 @@ pub mod ext {
     }
 
     #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-    pub struct TimestampType<const ID: u8> {
-        pub timestamp: uhlc::Timestamp,
+    pub(crate) struct TimestampType<const ID: u8> {
+        pub(crate) timestamp: uhlc::Timestamp,
     }
 
     impl<const ID: u8> TimestampType<{ ID }> {
-        pub fn encode(&self, more: bool, writer: &mut ZBufWriter<'_>) -> ZResult<(), ZCodecError> {
+        pub(crate) fn encode(
+            &self,
+            more: bool,
+            writer: &mut ZBufWriter<'_>,
+        ) -> ZResult<(), ZCodecError> {
             let header: ZExtZBufHeader<{ ID }> =
                 ZExtZBufHeader::new(encoded_len_timestamp(&self.timestamp));
             header.encode(more, writer)?;
             encode_timestamp(&self.timestamp, writer)
         }
 
-        pub fn decode(
+        pub(crate) fn decode(
             header: u8,
             reader: &mut ZBufReader<'_>,
         ) -> ZResult<(Self, bool), ZCodecError> {
@@ -338,7 +349,7 @@ pub mod ext {
         }
 
         #[cfg(test)]
-        pub fn rand() -> Self {
+        pub(crate) fn rand() -> Self {
             use rand::Rng;
             let mut rng = rand::thread_rng();
 
@@ -350,19 +361,23 @@ pub mod ext {
     }
 
     #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-    pub struct NodeIdType<const ID: u8> {
-        pub node_id: u16,
+    pub(crate) struct NodeIdType<const ID: u8> {
+        pub(crate) node_id: u16,
     }
 
     impl<const ID: u8> NodeIdType<{ ID }> {
-        pub const DEFAULT: Self = Self { node_id: 0 };
+        pub(crate) const DEFAULT: Self = Self { node_id: 0 };
 
-        pub fn encode(&self, more: bool, writer: &mut ZBufWriter<'_>) -> ZResult<(), ZCodecError> {
+        pub(crate) fn encode(
+            &self,
+            more: bool,
+            writer: &mut ZBufWriter<'_>,
+        ) -> ZResult<(), ZCodecError> {
             let ext: ZExtZ64<{ ID }> = (*self).into();
             ext.encode(more, writer)
         }
 
-        pub fn decode(
+        pub(crate) fn decode(
             header: u8,
             reader: &mut ZBufReader<'_>,
         ) -> ZResult<(Self, bool), ZCodecError> {
@@ -371,7 +386,7 @@ pub mod ext {
         }
 
         #[cfg(test)]
-        pub fn rand() -> Self {
+        pub(crate) fn rand() -> Self {
             use rand::Rng;
             let mut rng = rand::thread_rng();
             let node_id = rng.r#gen();
@@ -400,17 +415,21 @@ pub mod ext {
     }
 
     #[derive(Debug, Clone, PartialEq, Eq)]
-    pub struct EntityGlobalIdType<const ID: u8> {
-        pub zid: ZenohIdProto,
-        pub eid: EntityId,
+    pub(crate) struct EntityGlobalIdType<const ID: u8> {
+        pub(crate) zid: ZenohIdProto,
+        pub(crate) eid: EntityId,
     }
 
     impl<const ID: u8> EntityGlobalIdType<{ ID }> {
-        pub fn encoded_len(&self) -> usize {
+        pub(crate) fn encoded_len(&self) -> usize {
             1 + self.zid.encoded_len(false) + encoded_len_u32(self.eid)
         }
 
-        pub fn encode(&self, more: bool, writer: &mut ZBufWriter<'_>) -> ZResult<(), ZCodecError> {
+        pub(crate) fn encode(
+            &self,
+            more: bool,
+            writer: &mut ZBufWriter<'_>,
+        ) -> ZResult<(), ZCodecError> {
             let header = ZExtZBufHeader::<{ ID }>::new(self.encoded_len());
             header.encode(more, writer)?;
 
@@ -420,7 +439,7 @@ pub mod ext {
             encode_u32(self.eid, writer)
         }
 
-        pub fn decode(
+        pub(crate) fn decode(
             header: u8,
             reader: &mut ZBufReader<'_>,
         ) -> ZResult<(Self, bool), ZCodecError> {
@@ -435,7 +454,7 @@ pub mod ext {
         }
 
         #[cfg(test)]
-        pub fn rand() -> Self {
+        pub(crate) fn rand() -> Self {
             use rand::Rng;
             let mut rng = rand::thread_rng();
 

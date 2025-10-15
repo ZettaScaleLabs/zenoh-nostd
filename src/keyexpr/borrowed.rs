@@ -18,7 +18,7 @@ use crate::{
 pub struct keyexpr(str);
 
 impl keyexpr {
-    pub fn new<'a, T>(t: &'a T) -> ZResult<&'a Self, ZKeyError>
+    pub(crate) fn new<'a, T>(t: &'a T) -> ZResult<&'a Self, ZKeyError>
     where
         &'a Self: TryFrom<&'a T, Error = ZKeyError>,
         T: ?Sized,
@@ -26,7 +26,7 @@ impl keyexpr {
         t.try_into()
     }
 
-    pub fn autocanonize<'a, T>(t: &'a mut T) -> ZResult<&'a Self, ZKeyError>
+    pub(crate) fn autocanonize<'a, T>(t: &'a mut T) -> ZResult<&'a Self, ZKeyError>
     where
         &'a Self: TryFrom<&'a T, Error = ZKeyError>,
         T: Canonize + ?Sized,
@@ -35,12 +35,12 @@ impl keyexpr {
         Self::new(t)
     }
 
-    pub fn intersects(&self, other: &Self) -> bool {
+    pub(crate) fn intersects(&self, other: &Self) -> bool {
         use super::intersect::Intersector;
         super::intersect::DEFAULT_INTERSECTOR.intersect(self, other)
     }
 
-    pub fn includes(&self, other: &Self) -> bool {
+    pub(crate) fn includes(&self, other: &Self) -> bool {
         use super::include::Includer;
         super::include::DEFAULT_INCLUDER.includes(self, other)
     }
@@ -49,7 +49,7 @@ impl keyexpr {
         self.0.contains(super::SINGLE_WILD as char)
     }
 
-    pub const fn is_double_wild(&self) -> bool {
+    pub(crate) const fn is_double_wild(&self) -> bool {
         let bytes = self.0.as_bytes();
         bytes.len() == 2 && bytes[0] == b'*'
     }
@@ -58,15 +58,15 @@ impl keyexpr {
         &self.0
     }
 
-    pub const fn from_str_unchecked(s: &str) -> &Self {
+    pub(crate) const fn from_str_unchecked(s: &str) -> &Self {
         unsafe { core::mem::transmute(s) }
     }
 
-    pub fn from_slice_unchecked(s: &[u8]) -> &Self {
+    pub(crate) fn from_slice_unchecked(s: &[u8]) -> &Self {
         unsafe { core::mem::transmute(s) }
     }
 
-    pub fn first_byte(&self) -> u8 {
+    pub(crate) fn first_byte(&self) -> u8 {
         unsafe { *self.as_bytes().get_unchecked(0) }
     }
 }
@@ -208,10 +208,10 @@ impl PartialEq<keyexpr> for str {
 #[allow(non_camel_case_types)]
 #[repr(transparent)]
 #[derive(PartialEq, Eq, Hash, PartialOrd, Ord, Debug)]
-pub struct nonwild_keyexpr(keyexpr);
+pub(crate) struct nonwild_keyexpr(keyexpr);
 
 impl nonwild_keyexpr {
-    pub fn new<'a, T, E>(t: &'a T) -> Result<&'a Self, ZKeyError>
+    pub(crate) fn new<'a, T, E>(t: &'a T) -> Result<&'a Self, ZKeyError>
     where
         &'a keyexpr: TryFrom<&'a T, Error = E>,
         E: Into<ZKeyError>,
@@ -222,7 +222,7 @@ impl nonwild_keyexpr {
     }
 
     /// # Safety
-    pub const fn from_str_unchecked(s: &str) -> &Self {
+    pub(crate) const fn from_str_unchecked(s: &str) -> &Self {
         unsafe { core::mem::transmute(s) }
     }
 }

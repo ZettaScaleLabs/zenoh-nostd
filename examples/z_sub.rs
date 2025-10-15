@@ -1,12 +1,4 @@
-use embassy_executor::Spawner;
-
-use zenoh_nostd::{
-    api::{sample::ZSample, subscriber::ZSubscriber},
-    keyexpr::borrowed::keyexpr,
-    platform::platform_std::PlatformStd,
-    protocol::core::endpoint::EndPoint,
-    zsubscriber,
-};
+use zenoh_nostd::{EndPoint, PlatformStd, ZSample, ZSubscriber, ke, zsubscriber};
 
 const CONNECT: Option<&str> = option_env!("CONNECT");
 
@@ -30,7 +22,7 @@ async fn callback_2(subscriber: ZSubscriber<32, 128>) {
 }
 
 #[embassy_executor::main]
-async fn main(spawner: Spawner) {
+async fn main(spawner: embassy_executor::Spawner) {
     #[cfg(feature = "log")]
     env_logger::init();
 
@@ -47,7 +39,7 @@ async fn main(spawner: Spawner) {
     )
     .unwrap();
 
-    let ke: &'static keyexpr = "demo/example/**".try_into().unwrap();
+    let ke: &'static ke = "demo/example/**".try_into().unwrap();
 
     let _sync_sub = session
         .declare_subscriber(ke, zsubscriber!(callback_1))

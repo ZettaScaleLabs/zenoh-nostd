@@ -3,7 +3,7 @@ use crate::{
     result::ZResult,
 };
 
-pub mod tcp;
+pub(crate) mod tcp;
 
 pub struct PlatformStd;
 

@@ -15,24 +15,24 @@ use crate::{
 };
 use uhlc::Timestamp;
 
-pub mod flag {
-    pub const T: u8 = 1 << 5;
-    pub const E: u8 = 1 << 6;
-    pub const Z: u8 = 1 << 7;
+pub(crate) mod flag {
+    pub(crate) const T: u8 = 1 << 5;
+    pub(crate) const E: u8 = 1 << 6;
+    pub(crate) const Z: u8 = 1 << 7;
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct Put<'a> {
-    pub timestamp: Option<Timestamp>,
-    pub encoding: Encoding<'a>,
-    pub ext_sinfo: Option<ext::SourceInfoType>,
-    pub ext_attachment: Option<ext::AttachmentType<'a>>,
+pub(crate) struct Put<'a> {
+    pub(crate) timestamp: Option<Timestamp>,
+    pub(crate) encoding: Encoding<'a>,
+    pub(crate) ext_sinfo: Option<ext::SourceInfoType>,
+    pub(crate) ext_attachment: Option<ext::AttachmentType<'a>>,
 
-    pub payload: crate::zbuf::ZBuf<'a>,
+    pub(crate) payload: crate::zbuf::ZBuf<'a>,
 }
 
 impl<'a> Put<'a> {
-    pub fn encode(&self, writer: &mut ZBufWriter<'_>) -> ZResult<(), ZCodecError> {
+    pub(crate) fn encode(&self, writer: &mut ZBufWriter<'_>) -> ZResult<(), ZCodecError> {
         let mut header = id::PUT;
 
         if self.timestamp.is_some() {
@@ -72,7 +72,7 @@ impl<'a> Put<'a> {
         encode_zbuf(true, self.payload, writer)
     }
 
-    pub fn decode(header: u8, reader: &mut ZBufReader<'a>) -> ZResult<Self, ZCodecError> {
+    pub(crate) fn decode(header: u8, reader: &mut ZBufReader<'a>) -> ZResult<Self, ZCodecError> {
         if imsg::mid(header) != id::PUT {
             zbail!(ZCodecError::Invalid);
         }
@@ -126,7 +126,7 @@ impl<'a> Put<'a> {
     }
 
     #[cfg(test)]
-    pub fn rand(zbuf: &mut ZBufWriter<'a>) -> Self {
+    pub(crate) fn rand(zbuf: &mut ZBufWriter<'a>) -> Self {
         use rand::Rng;
 
         use crate::zbuf::BufWriterExt;
@@ -159,11 +159,12 @@ impl<'a> Put<'a> {
     }
 }
 
-pub mod ext {
-    pub type SourceInfo<'a> = crate::zextzbuf!('a, 0x1, false);
-    pub type SourceInfoType = crate::protocol::zenoh::ext::SourceInfoType<{ SourceInfo::ID }>;
+pub(crate) mod ext {
+    pub(crate) type SourceInfo<'a> = crate::zextzbuf!('a, 0x1, false);
+    pub(crate) type SourceInfoType =
+        crate::protocol::zenoh::ext::SourceInfoType<{ SourceInfo::ID }>;
 
-    pub type Attachment<'a> = crate::zextzbuf!('a, 0x3, false);
-    pub type AttachmentType<'a> =
+    pub(crate) type Attachment<'a> = crate::zextzbuf!('a, 0x3, false);
+    pub(crate) type AttachmentType<'a> =
         crate::protocol::zenoh::ext::AttachmentType<'a, { Attachment::ID }>;
 }

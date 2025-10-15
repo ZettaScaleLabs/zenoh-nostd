@@ -1,6 +1,6 @@
 use heapless::String;
 
-pub trait Canonize {
+pub(crate) trait Canonize {
     fn canonize(&mut self);
 }
 

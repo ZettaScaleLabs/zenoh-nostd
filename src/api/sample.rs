@@ -14,7 +14,7 @@ pub struct ZSample<'a> {
 }
 
 impl<'a> ZSample<'a> {
-    pub fn new(keyexpr: &'a keyexpr, payload: ZBuf<'a>) -> ZSample<'a> {
+    pub(crate) fn new(keyexpr: &'a keyexpr, payload: ZBuf<'a>) -> ZSample<'a> {
         ZSample { keyexpr, payload }
     }
 
@@ -26,7 +26,9 @@ impl<'a> ZSample<'a> {
         self.payload
     }
 
-    pub fn into_owned<const KE: usize, const PL: usize>(self) -> ZResult<ZOwnedSample<KE, PL>> {
+    pub(crate) fn into_owned<const KE: usize, const PL: usize>(
+        self,
+    ) -> ZResult<ZOwnedSample<KE, PL>> {
         Ok(ZOwnedSample::new(
             String::from_str(self.keyexpr.as_str()).map_err(|_| ZError::Invalid)?,
             Vec::from_slice(self.payload).map_err(|_| ZError::Invalid)?,
@@ -41,7 +43,7 @@ pub struct ZOwnedSample<const KE: usize, const PL: usize> {
 }
 
 impl<const KE: usize, const PL: usize> ZOwnedSample<KE, PL> {
-    pub fn new(keyexpr: String<KE>, payload: Vec<u8, PL>) -> ZOwnedSample<KE, PL> {
+    pub(crate) fn new(keyexpr: String<KE>, payload: Vec<u8, PL>) -> ZOwnedSample<KE, PL> {
         ZOwnedSample { keyexpr, payload }
     }
 

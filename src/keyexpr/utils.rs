@@ -1,5 +1,5 @@
 #[derive(Debug)]
-pub struct Splitter<'a, S: ?Sized, D: ?Sized> {
+pub(crate) struct Splitter<'a, S: ?Sized, D: ?Sized> {
     s: Option<&'a S>,
     d: &'a D,
 }
@@ -38,7 +38,7 @@ impl<S: Split<D> + ?Sized, D: ?Sized> DoubleEndedIterator for Splitter<'_, S, D>
         }
     }
 }
-pub trait Split<Delimiter: ?Sized> {
+pub(crate) trait Split<Delimiter: ?Sized> {
     fn split_once<'a>(&'a self, delimiter: &Delimiter) -> (&'a Self, &'a Self);
     fn try_split_once<'a>(&'a self, delimiter: &Delimiter) -> (&'a Self, Option<&'a Self>);
     fn try_rsplit_once<'a>(&'a self, delimiter: &Delimiter) -> (Option<&'a Self>, &'a Self);

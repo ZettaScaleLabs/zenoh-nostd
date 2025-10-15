@@ -11,7 +11,7 @@ use crate::protocol::{
     transport::TransportSn,
 };
 
-pub mod open;
+pub(crate) mod open;
 
 const RES_U8: TransportSn = (u8::MAX >> 1) as TransportSn; // 1 byte max when encoded
 const RES_U16: TransportSn = (u16::MAX >> 2) as TransportSn; // 2 bytes max when encoded

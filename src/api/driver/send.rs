@@ -7,16 +7,13 @@ use crate::{
     platform::{Platform, ZCommunicationError},
     protocol::{
         network::NetworkMessage,
-        transport::{
-            self, TransportMessage,
-            frame::Frame,
-        },
+        transport::{self, TransportMessage, frame::Frame},
     },
     result::ZResult,
 };
 
 impl<T: Platform> SessionDriver<T> {
-    pub async fn send(&self, msg: NetworkMessage<'_>) -> ZResult<(), ZCommunicationError> {
+    pub(crate) async fn send(&self, msg: NetworkMessage<'_>) -> ZResult<(), ZCommunicationError> {
         let mut tx_guard = self.tx.lock().await;
         let tx = tx_guard.deref_mut();
 

@@ -1,3 +1,5 @@
+# Project
+
 clippy:
     cargo clippy --fix --lib --allow-dirty --allow-staged
     cargo clippy --features=platform-std --fix --lib --allow-dirty --allow-staged
@@ -8,14 +10,13 @@ clippy:
     cargo clippy --examples --features=platform-std, --fix --lib --allow-dirty --allow-staged
     cargo clippy --examples --features=platform-std,log --fix --lib --allow-dirty --allow-staged
 
-wasm-clippy:
-    cd platforms/zenoh-nostd-wasm && just clippy
-
 test:
     cargo test codec
 
 bench:
-    cargo bench
+    cargo test --profile=release -- --nocapture bench --
+
+# Examples
 
 std example *args:
     RUST_LOG=trace cargo run --example {{example}} --features=platform-std,log -- {{args}}

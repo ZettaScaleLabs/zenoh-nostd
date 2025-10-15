@@ -6,7 +6,6 @@ use core::{
     str::FromStr,
 };
 
-pub use uhlc::{NTP64, Timestamp};
 
 use crate::{
     protocol::{
@@ -17,44 +16,51 @@ use crate::{
     zbuf::{ZBufReader, ZBufWriter},
 };
 
-pub type TimestampId = uhlc::ID;
+pub(crate) type TimestampId = uhlc::ID;
 
-pub mod encoding;
-pub mod endpoint;
-pub mod resolution;
-pub mod whatami;
-pub mod wire_expr;
+pub(crate) mod encoding;
+pub(crate) mod endpoint;
+pub(crate) mod resolution;
+pub(crate) mod whatami;
+pub(crate) mod wire_expr;
 
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 #[repr(transparent)]
-pub struct ZenohIdProto(uhlc::ID);
+pub(crate) struct ZenohIdProto(uhlc::ID);
 
 impl ZenohIdProto {
-    pub const MAX_SIZE: usize = 16;
+    pub(crate) const MAX_SIZE: usize = 16;
 
     #[inline]
-    pub fn size(&self) -> usize {
+    pub(crate) fn size(&self) -> usize {
         self.0.size()
     }
 
     #[inline]
-    pub fn to_le_bytes(&self) -> [u8; uhlc::ID::MAX_SIZE] {
+    pub(crate) fn to_le_bytes(&self) -> [u8; uhlc::ID::MAX_SIZE] {
         self.0.to_le_bytes()
     }
 
-    pub fn rand() -> ZenohIdProto {
+    pub(crate) fn rand() -> ZenohIdProto {
         ZenohIdProto(uhlc::ID::rand())
     }
 
-    pub fn encoded_len(&self, len: bool) -> usize {
+    pub(crate) fn encoded_len(&self, len: bool) -> usize {
         encoded_len_zbuf(len, &self.to_le_bytes()[..self.size()])
     }
 
-    pub fn encode(&self, len: bool, writer: &mut ZBufWriter<'_>) -> ZResult<(), ZCodecError> {
+    pub(crate) fn encode(
+        &self,
+        len: bool,
+        writer: &mut ZBufWriter<'_>,
+    ) -> ZResult<(), ZCodecError> {
         encode_zbuf(len, &self.to_le_bytes()[..self.size()], writer)
     }
 
-    pub fn decode(len: Option<usize>, reader: &mut ZBufReader<'_>) -> ZResult<Self, ZCodecError> {
+    pub(crate) fn decode(
+        len: Option<usize>,
+        reader: &mut ZBufReader<'_>,
+    ) -> ZResult<Self, ZCodecError> {
         let zbuf = decode_zbuf(len, reader)?;
 
         Ok(Self::try_from(zbuf)?)
@@ -153,17 +159,17 @@ impl From<ZenohIdProto> for uhlc::ID {
     }
 }
 
-pub type EntityId = u32;
+pub(crate) type EntityId = u32;
 
 #[derive(Debug, Default, Copy, Clone, Eq, Hash, PartialEq)]
-pub struct EntityGlobalIdProto {
-    pub zid: ZenohIdProto,
-    pub eid: EntityId,
+pub(crate) struct EntityGlobalIdProto {
+    pub(crate) zid: ZenohIdProto,
+    pub(crate) eid: EntityId,
 }
 
 impl EntityGlobalIdProto {
     #[cfg(test)]
-    pub fn rand() -> Self {
+    pub(crate) fn rand() -> Self {
         use rand::Rng;
         Self {
             zid: ZenohIdProto::rand(),
@@ -174,7 +180,7 @@ impl EntityGlobalIdProto {
 
 #[repr(u8)]
 #[derive(Debug, Default, Copy, Clone, Eq, Hash, PartialEq, PartialOrd, Ord)]
-pub enum Priority {
+pub(crate) enum Priority {
     Control = 0,
     RealTime = 1,
     InteractiveHigh = 2,
@@ -188,7 +194,7 @@ pub enum Priority {
 
 #[derive(Debug, Clone, Eq, Hash, PartialEq)]
 
-pub struct PriorityRange(RangeInclusive<Priority>);
+pub(crate) struct PriorityRange(RangeInclusive<Priority>);
 
 impl Deref for PriorityRange {
     type Target = RangeInclusive<Priority>;
@@ -199,24 +205,24 @@ impl Deref for PriorityRange {
 }
 
 impl PriorityRange {
-    pub fn new(range: RangeInclusive<Priority>) -> Self {
+    pub(crate) fn new(range: RangeInclusive<Priority>) -> Self {
         Self(range)
     }
 
-    pub fn includes(&self, other: &PriorityRange) -> bool {
+    pub(crate) fn includes(&self, other: &PriorityRange) -> bool {
         self.start() <= other.start() && other.end() <= self.end()
     }
 
-    pub fn len(&self) -> usize {
+    pub(crate) fn len(&self) -> usize {
         *self.end() as usize - *self.start() as usize + 1
     }
 
-    pub fn is_empty(&self) -> bool {
+    pub(crate) fn is_empty(&self) -> bool {
         false
     }
 
     #[cfg(test)]
-    pub fn rand() -> Self {
+    pub(crate) fn rand() -> Self {
         use rand::Rng;
         let mut rng = rand::thread_rng();
         let start = rng.gen_range(Priority::MAX as u8..Priority::MIN as u8);
@@ -267,13 +273,13 @@ impl FromStr for PriorityRange {
 }
 
 impl Priority {
-    pub const DEFAULT: Self = Self::Data;
+    pub(crate) const DEFAULT: Self = Self::Data;
 
-    pub const MIN: Self = Self::Background;
+    pub(crate) const MIN: Self = Self::Background;
 
-    pub const MAX: Self = Self::Control;
+    pub(crate) const MAX: Self = Self::Control;
 
-    pub const NUM: usize = 1 + Self::MIN as usize - Self::MAX as usize;
+    pub(crate) const NUM: usize = 1 + Self::MIN as usize - Self::MAX as usize;
 }
 
 impl TryFrom<u8> for Priority {
@@ -296,17 +302,17 @@ impl TryFrom<u8> for Priority {
 
 #[derive(Debug, Default, Copy, Clone, PartialEq, Eq, Hash)]
 #[repr(u8)]
-pub enum Reliability {
+pub(crate) enum Reliability {
     BestEffort = 0,
     #[default]
     Reliable = 1,
 }
 
 impl Reliability {
-    pub const DEFAULT: Self = Self::Reliable;
+    pub(crate) const DEFAULT: Self = Self::Reliable;
 
     #[cfg(test)]
-    pub fn rand() -> Self {
+    pub(crate) fn rand() -> Self {
         use rand::Rng;
 
         let mut rng = rand::thread_rng();
@@ -363,13 +369,13 @@ impl FromStr for Reliability {
 }
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Default)]
-pub struct Channel {
-    pub priority: Priority,
-    pub reliability: Reliability,
+pub(crate) struct Channel {
+    pub(crate) priority: Priority,
+    pub(crate) reliability: Reliability,
 }
 
 impl Channel {
-    pub const DEFAULT: Self = Self {
+    pub(crate) const DEFAULT: Self = Self {
         priority: Priority::DEFAULT,
         reliability: Reliability::DEFAULT,
     };
@@ -377,7 +383,7 @@ impl Channel {
 
 #[derive(Debug, Default, Copy, Clone, PartialEq, Eq, Hash)]
 #[repr(u8)]
-pub enum CongestionControl {
+pub(crate) enum CongestionControl {
     #[default]
     Drop = 0,
 
@@ -385,7 +391,7 @@ pub enum CongestionControl {
 }
 
 impl CongestionControl {
-    pub const DEFAULT: Self = Self::Drop;
+    pub(crate) const DEFAULT: Self = Self::Drop;
 
     pub(crate) const DEFAULT_PUSH: Self = Self::Drop;
     pub(crate) const DEFAULT_REQUEST: Self = Self::Block;

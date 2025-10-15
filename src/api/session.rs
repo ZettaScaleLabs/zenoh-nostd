@@ -7,7 +7,7 @@ use crate::{
     },
     io::{
         link::Link,
-        transport::{TransportMineConfig, establishment::open::open_link},
+        transport::{Transport, TransportMineConfig},
     },
     keyexpr::borrowed::keyexpr,
     platform::Platform,
@@ -45,7 +45,7 @@ impl<T: Platform + 'static> Session<T> {
 
         let link = Link::new(&config.platform, endpoint).await?;
         let (transport, tconfig) =
-            open_link(link, transport, config.tx_zbuf, config.rx_zbuf).await?;
+            Transport::open(link, transport, config.tx_zbuf, config.rx_zbuf).await?;
 
         let (tx, rx) = config.transport.init(transport).split();
 
@@ -125,9 +125,9 @@ impl<T: Platform + 'static> Session<T> {
             .await?;
 
         if is_async {
-            Ok(ZSubscriber::async_sub(id, ke, config.1.unwrap()))
+            Ok(ZSubscriber::new_async(id, ke, config.1.unwrap()))
         } else {
-            Ok(ZSubscriber::sync_sub(id, ke))
+            Ok(ZSubscriber::new_sync(id, ke))
         }
     }
 }

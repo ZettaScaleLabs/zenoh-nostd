@@ -11,24 +11,24 @@ use crate::{
     zbuf::{BufReaderExt, ZBuf, ZBufReader, ZBufWriter},
 };
 
-pub mod iext {
+pub(crate) mod iext {
     use core::fmt;
 
-    pub const ID_BITS: u8 = 4;
-    pub const ID_MASK: u8 = !(u8::MAX << ID_BITS);
+    pub(crate) const ID_BITS: u8 = 4;
+    pub(crate) const ID_MASK: u8 = !(u8::MAX << ID_BITS);
 
-    pub const FLAG_M: u8 = 1 << 4;
-    pub const ENC_UNIT: u8 = 0b00 << 5;
-    pub const ENC_Z64: u8 = 0b01 << 5;
-    pub const ENC_ZBUF: u8 = 0b10 << 5;
-    pub const ENC_MASK: u8 = 0b11 << 5;
-    pub const FLAG_Z: u8 = 1 << 7;
+    pub(crate) const FLAG_M: u8 = 1 << 4;
+    pub(crate) const ENC_UNIT: u8 = 0b00 << 5;
+    pub(crate) const ENC_Z64: u8 = 0b01 << 5;
+    pub(crate) const ENC_ZBUF: u8 = 0b10 << 5;
+    pub(crate) const ENC_MASK: u8 = 0b11 << 5;
+    pub(crate) const FLAG_Z: u8 = 1 << 7;
 
-    pub const fn eid(header: u8) -> u8 {
+    pub(crate) const fn eid(header: u8) -> u8 {
         header & !FLAG_Z
     }
 
-    pub const fn mid(header: u8) -> u8 {
+    pub(crate) const fn mid(header: u8) -> u8 {
         header & ID_MASK
     }
 
@@ -64,7 +64,7 @@ pub mod iext {
 
 #[repr(transparent)]
 #[derive(Clone, Copy, PartialEq, Eq)]
-pub struct ZExtUnit<const ID: u8>;
+pub(crate) struct ZExtUnit<const ID: u8>;
 
 impl<const ID: u8> Default for ZExtUnit<{ ID }> {
     fn default() -> Self {
@@ -73,25 +73,29 @@ impl<const ID: u8> Default for ZExtUnit<{ ID }> {
 }
 
 impl<const ID: u8> ZExtUnit<{ ID }> {
-    pub const ID: u8 = ID;
+    pub(crate) const ID: u8 = ID;
 
-    pub const fn new() -> Self {
+    pub(crate) const fn new() -> Self {
         Self
     }
 
-    pub const fn id(mandatory: bool) -> u8 {
+    pub(crate) const fn id(mandatory: bool) -> u8 {
         iext::id(ID, mandatory, iext::ENC_UNIT)
     }
 
-    pub const fn is_mandatory(&self) -> bool {
+    pub(crate) const fn is_mandatory(&self) -> bool {
         iext::is_mandatory(ID)
     }
 
-    pub const fn transmute<const DI: u8>(self) -> ZExtUnit<{ DI }> {
+    pub(crate) const fn transmute<const DI: u8>(self) -> ZExtUnit<{ DI }> {
         ZExtUnit::new()
     }
 
-    pub fn encode(&self, more: bool, writer: &mut ZBufWriter<'_>) -> ZResult<usize, ZCodecError> {
+    pub(crate) fn encode(
+        &self,
+        more: bool,
+        writer: &mut ZBufWriter<'_>,
+    ) -> ZResult<usize, ZCodecError> {
         let mut header: u8 = ID;
         if more {
             header |= iext::FLAG_Z;
@@ -102,7 +106,7 @@ impl<const ID: u8> ZExtUnit<{ ID }> {
         Ok(1)
     }
 
-    pub fn decode(header: u8) -> ZResult<(Self, bool), ZCodecError> {
+    pub(crate) fn decode(header: u8) -> ZResult<(Self, bool), ZCodecError> {
         if iext::eid(header) != ID {
             zbail!(ZCodecError::Invalid);
         }
@@ -111,7 +115,7 @@ impl<const ID: u8> ZExtUnit<{ ID }> {
     }
 
     #[cfg(test)]
-    pub fn rand() -> Self {
+    pub(crate) fn rand() -> Self {
         Self::new()
     }
 }
@@ -126,30 +130,34 @@ impl<const ID: u8> Debug for ZExtUnit<{ ID }> {
 
 #[repr(transparent)]
 #[derive(Clone, Copy, PartialEq, Eq)]
-pub struct ZExtZ64<const ID: u8> {
-    pub value: u64,
+pub(crate) struct ZExtZ64<const ID: u8> {
+    pub(crate) value: u64,
 }
 
 impl<const ID: u8> ZExtZ64<{ ID }> {
-    pub const ID: u8 = ID;
+    pub(crate) const ID: u8 = ID;
 
-    pub const fn new(value: u64) -> Self {
+    pub(crate) const fn new(value: u64) -> Self {
         Self { value }
     }
 
-    pub const fn id(mandatory: bool) -> u8 {
+    pub(crate) const fn id(mandatory: bool) -> u8 {
         iext::id(ID, mandatory, iext::ENC_Z64)
     }
 
-    pub const fn is_mandatory(&self) -> bool {
+    pub(crate) const fn is_mandatory(&self) -> bool {
         iext::is_mandatory(ID)
     }
 
-    pub const fn transmute<const DI: u8>(self) -> ZExtZ64<{ DI }> {
+    pub(crate) const fn transmute<const DI: u8>(self) -> ZExtZ64<{ DI }> {
         ZExtZ64::new(self.value)
     }
 
-    pub fn encode(&self, more: bool, writer: &mut ZBufWriter<'_>) -> ZResult<(), ZCodecError> {
+    pub(crate) fn encode(
+        &self,
+        more: bool,
+        writer: &mut ZBufWriter<'_>,
+    ) -> ZResult<(), ZCodecError> {
         let mut header: u8 = ID;
         if more {
             header |= iext::FLAG_Z;
@@ -160,7 +168,10 @@ impl<const ID: u8> ZExtZ64<{ ID }> {
         encode_u64(self.value, writer)
     }
 
-    pub fn decode(header: u8, reader: &mut ZBufReader<'_>) -> ZResult<(Self, bool), ZCodecError> {
+    pub(crate) fn decode(
+        header: u8,
+        reader: &mut ZBufReader<'_>,
+    ) -> ZResult<(Self, bool), ZCodecError> {
         if iext::eid(header) != ID {
             zbail!(ZCodecError::Invalid);
         }
@@ -171,7 +182,7 @@ impl<const ID: u8> ZExtZ64<{ ID }> {
     }
 
     #[cfg(test)]
-    pub fn rand() -> Self {
+    pub(crate) fn rand() -> Self {
         use rand::Rng;
 
         let mut rng = rand::thread_rng();
@@ -190,30 +201,34 @@ impl<const ID: u8> Debug for ZExtZ64<{ ID }> {
 
 #[repr(transparent)]
 #[derive(Clone, PartialEq, Eq)]
-pub struct ZExtZBuf<'a, const ID: u8> {
-    pub value: ZBuf<'a>,
+pub(crate) struct ZExtZBuf<'a, const ID: u8> {
+    pub(crate) value: ZBuf<'a>,
 }
 
 impl<'a, const ID: u8> ZExtZBuf<'a, { ID }> {
-    pub const ID: u8 = ID;
+    pub(crate) const ID: u8 = ID;
 
-    pub const fn new(value: ZBuf<'a>) -> Self {
+    pub(crate) const fn new(value: ZBuf<'a>) -> Self {
         Self { value }
     }
 
-    pub const fn id(mandatory: bool) -> u8 {
+    pub(crate) const fn id(mandatory: bool) -> u8 {
         iext::id(ID, mandatory, iext::ENC_ZBUF)
     }
 
-    pub const fn is_mandatory(&self) -> bool {
+    pub(crate) const fn is_mandatory(&self) -> bool {
         iext::is_mandatory(ID)
     }
 
-    pub fn transmute<const DI: u8>(self) -> ZExtZBuf<'a, { DI }> {
+    pub(crate) fn transmute<const DI: u8>(self) -> ZExtZBuf<'a, { DI }> {
         ZExtZBuf::new(self.value)
     }
 
-    pub fn encode(&self, more: bool, writer: &mut ZBufWriter<'_>) -> ZResult<(), ZCodecError> {
+    pub(crate) fn encode(
+        &self,
+        more: bool,
+        writer: &mut ZBufWriter<'_>,
+    ) -> ZResult<(), ZCodecError> {
         let mut header: u8 = ID;
         if more {
             header |= iext::FLAG_Z;
@@ -225,7 +240,10 @@ impl<'a, const ID: u8> ZExtZBuf<'a, { ID }> {
         Ok(())
     }
 
-    pub fn decode(header: u8, reader: &mut ZBufReader<'a>) -> ZResult<(Self, bool), ZCodecError> {
+    pub(crate) fn decode(
+        header: u8,
+        reader: &mut ZBufReader<'a>,
+    ) -> ZResult<(Self, bool), ZCodecError> {
         if iext::eid(header) != ID {
             zbail!(ZCodecError::Invalid);
         }
@@ -236,7 +254,7 @@ impl<'a, const ID: u8> ZExtZBuf<'a, { ID }> {
     }
 
     #[cfg(test)]
-    pub fn rand(zbuf: &mut ZBufWriter<'a>) -> Self {
+    pub(crate) fn rand(zbuf: &mut ZBufWriter<'a>) -> Self {
         use rand::Rng;
 
         use crate::zbuf::BufWriterExt;
@@ -261,26 +279,30 @@ impl<const ID: u8> Debug for ZExtZBuf<'_, { ID }> {
 }
 
 #[derive(Clone, PartialEq, Eq)]
-pub struct ZExtZBufHeader<const ID: u8> {
-    pub len: usize,
+pub(crate) struct ZExtZBufHeader<const ID: u8> {
+    pub(crate) len: usize,
 }
 
 impl<const ID: u8> ZExtZBufHeader<{ ID }> {
-    pub const ID: u8 = ID;
+    pub(crate) const ID: u8 = ID;
 
-    pub const fn new(len: usize) -> Self {
+    pub(crate) const fn new(len: usize) -> Self {
         Self { len }
     }
 
-    pub const fn id(mandatory: bool) -> u8 {
+    pub(crate) const fn id(mandatory: bool) -> u8 {
         iext::id(ID, mandatory, iext::ENC_ZBUF)
     }
 
-    pub const fn is_mandatory(&self) -> bool {
+    pub(crate) const fn is_mandatory(&self) -> bool {
         iext::is_mandatory(ID)
     }
 
-    pub fn encode(&self, more: bool, writer: &mut ZBufWriter<'_>) -> ZResult<(), ZCodecError> {
+    pub(crate) fn encode(
+        &self,
+        more: bool,
+        writer: &mut ZBufWriter<'_>,
+    ) -> ZResult<(), ZCodecError> {
         let mut header: u8 = ID;
         if more {
             header |= iext::FLAG_Z;
@@ -292,7 +314,10 @@ impl<const ID: u8> ZExtZBufHeader<{ ID }> {
         Ok(())
     }
 
-    pub fn decode(header: u8, reader: &mut ZBufReader<'_>) -> ZResult<(Self, bool), ZCodecError> {
+    pub(crate) fn decode(
+        header: u8,
+        reader: &mut ZBufReader<'_>,
+    ) -> ZResult<(Self, bool), ZCodecError> {
         if iext::eid(header) != ID {
             zbail!(ZCodecError::Invalid);
         }
@@ -311,7 +336,11 @@ impl<const ID: u8> Debug for ZExtZBufHeader<{ ID }> {
     }
 }
 
-pub fn skip(_s: &str, header: u8, reader: &mut ZBufReader<'_>) -> ZResult<bool, ZCodecError> {
+pub(crate) fn skip(
+    _s: &str,
+    header: u8,
+    reader: &mut ZBufReader<'_>,
+) -> ZResult<bool, ZCodecError> {
     let id = header & !iext::FLAG_Z;
 
     if iext::is_mandatory(id) {
@@ -340,7 +369,7 @@ pub fn skip(_s: &str, header: u8, reader: &mut ZBufReader<'_>) -> ZResult<bool, 
     Ok(has_flag(header, iext::FLAG_Z))
 }
 
-pub fn skip_all(s: &str, reader: &mut ZBufReader<'_>) -> ZResult<(), ZCodecError> {
+pub(crate) fn skip_all(s: &str, reader: &mut ZBufReader<'_>) -> ZResult<(), ZCodecError> {
     let mut has_ext = reader.can_read();
 
     while has_ext {

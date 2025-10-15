@@ -14,23 +14,23 @@ use crate::{
     zbuf::{ZBufReader, ZBufWriter},
 };
 
-pub mod flag {
-    pub const N: u8 = 1 << 5;
-    pub const M: u8 = 1 << 6;
-    pub const Z: u8 = 1 << 7;
+pub(crate) mod flag {
+    pub(crate) const N: u8 = 1 << 5;
+    pub(crate) const M: u8 = 1 << 6;
+    pub(crate) const Z: u8 = 1 << 7;
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct Push<'a> {
-    pub wire_expr: WireExpr<'a>,
-    pub ext_qos: ext::QoSType,
-    pub ext_tstamp: Option<ext::TimestampType>,
-    pub ext_nodeid: ext::NodeIdType,
-    pub payload: PushBody<'a>,
+pub(crate) struct Push<'a> {
+    pub(crate) wire_expr: WireExpr<'a>,
+    pub(crate) ext_qos: ext::QoSType,
+    pub(crate) ext_tstamp: Option<ext::TimestampType>,
+    pub(crate) ext_nodeid: ext::NodeIdType,
+    pub(crate) payload: PushBody<'a>,
 }
 
 impl<'a> Push<'a> {
-    pub fn encode(&self, writer: &mut ZBufWriter<'_>) -> ZResult<(), ZCodecError> {
+    pub(crate) fn encode(&self, writer: &mut ZBufWriter<'_>) -> ZResult<(), ZCodecError> {
         let mut header = id::PUSH;
         let mut n_exts = ((self.ext_qos != ext::QoSType::DEFAULT) as u8)
             + (self.ext_tstamp.is_some() as u8)
@@ -69,7 +69,7 @@ impl<'a> Push<'a> {
         self.payload.encode(writer)
     }
 
-    pub fn decode(header: u8, reader: &mut ZBufReader<'a>) -> ZResult<Self, ZCodecError> {
+    pub(crate) fn decode(header: u8, reader: &mut ZBufReader<'a>) -> ZResult<Self, ZCodecError> {
         if imsg::mid(header) != id::PUSH {
             zbail!(ZCodecError::Invalid);
         }
@@ -125,7 +125,7 @@ impl<'a> Push<'a> {
     }
 
     #[cfg(test)]
-    pub fn rand(zbuf: &mut ZBufWriter<'a>) -> Self {
+    pub(crate) fn rand(zbuf: &mut ZBufWriter<'a>) -> Self {
         use rand::Rng;
 
         let mut rng = rand::thread_rng();
@@ -145,13 +145,13 @@ impl<'a> Push<'a> {
     }
 }
 
-pub mod ext {
-    pub type QoS = crate::zextz64!(0x1, false);
-    pub type QoSType = crate::protocol::network::ext::QoSType<{ QoS::ID }>;
+pub(crate) mod ext {
+    pub(crate) type QoS = crate::zextz64!(0x1, false);
+    pub(crate) type QoSType = crate::protocol::network::ext::QoSType<{ QoS::ID }>;
 
-    pub type Timestamp<'a> = crate::zextzbuf!('a, 0x2, false);
-    pub type TimestampType = crate::protocol::network::ext::TimestampType<{ Timestamp::ID }>;
+    pub(crate) type Timestamp<'a> = crate::zextzbuf!('a, 0x2, false);
+    pub(crate) type TimestampType = crate::protocol::network::ext::TimestampType<{ Timestamp::ID }>;
 
-    pub type NodeId = crate::zextz64!(0x3, true);
-    pub type NodeIdType = crate::protocol::network::ext::NodeIdType<{ NodeId::ID }>;
+    pub(crate) type NodeId = crate::zextz64!(0x3, true);
+    pub(crate) type NodeIdType = crate::protocol::network::ext::NodeIdType<{ NodeId::ID }>;
 }

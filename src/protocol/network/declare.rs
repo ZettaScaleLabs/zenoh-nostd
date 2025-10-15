@@ -19,23 +19,23 @@ use crate::{
     zbuf::{ZBufReader, ZBufWriter},
 };
 
-pub mod flag {
-    pub const I: u8 = 1 << 5;
+pub(crate) mod flag {
+    pub(crate) const I: u8 = 1 << 5;
 
-    pub const Z: u8 = 1 << 7;
+    pub(crate) const Z: u8 = 1 << 7;
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct Declare<'a> {
-    pub interest_id: Option<super::interest::InterestId>,
-    pub ext_qos: ext::QoSType,
-    pub ext_tstamp: Option<ext::TimestampType>,
-    pub ext_nodeid: ext::NodeIdType,
-    pub body: DeclareBody<'a>,
+pub(crate) struct Declare<'a> {
+    pub(crate) interest_id: Option<super::interest::InterestId>,
+    pub(crate) ext_qos: ext::QoSType,
+    pub(crate) ext_tstamp: Option<ext::TimestampType>,
+    pub(crate) ext_nodeid: ext::NodeIdType,
+    pub(crate) body: DeclareBody<'a>,
 }
 
 impl<'a> Declare<'a> {
-    pub fn encode(&self, writer: &mut ZBufWriter<'_>) -> ZResult<(), ZCodecError> {
+    pub(crate) fn encode(&self, writer: &mut ZBufWriter<'_>) -> ZResult<(), ZCodecError> {
         let mut header = crate::protocol::network::id::DECLARE;
 
         if self.interest_id.is_some() {
@@ -72,7 +72,7 @@ impl<'a> Declare<'a> {
         self.body.encode(writer)
     }
 
-    pub fn decode(header: u8, reader: &mut ZBufReader<'a>) -> ZResult<Self, ZCodecError> {
+    pub(crate) fn decode(header: u8, reader: &mut ZBufReader<'a>) -> ZResult<Self, ZCodecError> {
         if imsg::mid(header) != crate::protocol::network::id::DECLARE {
             zbail!(ZCodecError::Invalid)
         }
@@ -124,7 +124,7 @@ impl<'a> Declare<'a> {
     }
 
     #[cfg(test)]
-    pub fn rand(zbuf: &mut ZBufWriter<'a>) -> Self {
+    pub(crate) fn rand(zbuf: &mut ZBufWriter<'a>) -> Self {
         use rand::Rng;
 
         let mut rng = rand::thread_rng();
@@ -147,35 +147,35 @@ impl<'a> Declare<'a> {
     }
 }
 
-pub mod ext {
-    pub type QoS = crate::zextz64!(0x1, false);
-    pub type QoSType = crate::protocol::network::ext::QoSType<{ QoS::ID }>;
+pub(crate) mod ext {
+    pub(crate) type QoS = crate::zextz64!(0x1, false);
+    pub(crate) type QoSType = crate::protocol::network::ext::QoSType<{ QoS::ID }>;
 
-    pub type Timestamp<'a> = crate::zextzbuf!('a, 0x2, false);
-    pub type TimestampType = crate::protocol::network::ext::TimestampType<{ Timestamp::ID }>;
+    pub(crate) type Timestamp<'a> = crate::zextzbuf!('a, 0x2, false);
+    pub(crate) type TimestampType = crate::protocol::network::ext::TimestampType<{ Timestamp::ID }>;
 
-    pub type NodeId = crate::zextz64!(0x3, true);
-    pub type NodeIdType = crate::protocol::network::ext::NodeIdType<{ NodeId::ID }>;
+    pub(crate) type NodeId = crate::zextz64!(0x3, true);
+    pub(crate) type NodeIdType = crate::protocol::network::ext::NodeIdType<{ NodeId::ID }>;
 }
 
-pub mod id {
-    pub const D_KEYEXPR: u8 = 0x00;
-    pub const U_KEYEXPR: u8 = 0x01;
+pub(crate) mod id {
+    pub(crate) const D_KEYEXPR: u8 = 0x00;
+    pub(crate) const U_KEYEXPR: u8 = 0x01;
 
-    pub const D_SUBSCRIBER: u8 = 0x02;
-    pub const U_SUBSCRIBER: u8 = 0x03;
+    pub(crate) const D_SUBSCRIBER: u8 = 0x02;
+    pub(crate) const U_SUBSCRIBER: u8 = 0x03;
 
-    pub const D_QUERYABLE: u8 = 0x04;
-    pub const U_QUERYABLE: u8 = 0x05;
+    pub(crate) const D_QUERYABLE: u8 = 0x04;
+    pub(crate) const U_QUERYABLE: u8 = 0x05;
 
-    pub const D_TOKEN: u8 = 0x06;
-    pub const U_TOKEN: u8 = 0x07;
+    pub(crate) const D_TOKEN: u8 = 0x06;
+    pub(crate) const U_TOKEN: u8 = 0x07;
 
-    pub const D_FINAL: u8 = 0x1A;
+    pub(crate) const D_FINAL: u8 = 0x1A;
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub enum DeclareBody<'a> {
+pub(crate) enum DeclareBody<'a> {
     DeclareKeyExpr(DeclareKeyExpr<'a>),
     UndeclareKeyExpr(UndeclareKeyExpr),
     DeclareSubscriber(DeclareSubscriber<'a>),
@@ -186,7 +186,7 @@ pub enum DeclareBody<'a> {
 }
 
 impl<'a> DeclareBody<'a> {
-    pub fn encode(&self, writer: &mut ZBufWriter<'_>) -> ZResult<(), ZCodecError> {
+    pub(crate) fn encode(&self, writer: &mut ZBufWriter<'_>) -> ZResult<(), ZCodecError> {
         match self {
             DeclareBody::DeclareKeyExpr(r) => r.encode(writer),
             DeclareBody::UndeclareKeyExpr(r) => r.encode(writer),
@@ -198,7 +198,7 @@ impl<'a> DeclareBody<'a> {
         }
     }
 
-    pub fn decode(reader: &mut ZBufReader<'a>) -> ZResult<Self, ZCodecError> {
+    pub(crate) fn decode(reader: &mut ZBufReader<'a>) -> ZResult<Self, ZCodecError> {
         let header: u8 = crate::protocol::zcodec::decode_u8(reader)?;
 
         Ok(match imsg::mid(header) {
@@ -228,7 +228,7 @@ impl<'a> DeclareBody<'a> {
     }
 
     #[cfg(test)]
-    pub fn rand(zbuf: &mut ZBufWriter<'a>) -> Self {
+    pub(crate) fn rand(zbuf: &mut ZBufWriter<'a>) -> Self {
         use rand::Rng;
 
         let mut rng = rand::thread_rng();
@@ -246,7 +246,7 @@ impl<'a> DeclareBody<'a> {
     }
 }
 
-pub mod common {
+pub(crate) mod common {
     use crate::{
         protocol::{
             ZCodecError,
@@ -260,16 +260,19 @@ pub mod common {
     };
 
     #[derive(Debug, Clone, PartialEq, Eq)]
-    pub struct DeclareFinal;
+    pub(crate) struct DeclareFinal;
 
     impl DeclareFinal {
-        pub fn encode(&self, writer: &mut ZBufWriter<'_>) -> ZResult<(), ZCodecError> {
+        pub(crate) fn encode(&self, writer: &mut ZBufWriter<'_>) -> ZResult<(), ZCodecError> {
             encode_u8(declare::id::D_FINAL, writer)?;
 
             Ok(())
         }
 
-        pub fn decode(header: u8, reader: &mut ZBufReader<'_>) -> ZResult<Self, ZCodecError> {
+        pub(crate) fn decode(
+            header: u8,
+            reader: &mut ZBufReader<'_>,
+        ) -> ZResult<Self, ZCodecError> {
             if imsg::mid(header) != declare::id::D_FINAL {
                 zbail!(ZCodecError::Invalid);
             }
@@ -283,12 +286,12 @@ pub mod common {
         }
 
         #[cfg(test)]
-        pub fn rand() -> Self {
+        pub(crate) fn rand() -> Self {
             Self
         }
     }
 
-    pub mod ext {
+    pub(crate) mod ext {
         use crate::{
             protocol::{
                 ZCodecError,
@@ -301,14 +304,14 @@ pub mod common {
             zbuf::{BufReaderExt, BufWriterExt, ZBuf, ZBufExt, ZBufMutExt, ZBufReader, ZBufWriter},
         };
 
-        pub type WireExprExt<'a> = crate::zextzbuf!('a, 0x0f, true);
+        pub(crate) type WireExprExt<'a> = crate::zextzbuf!('a, 0x0f, true);
         #[derive(Debug, Clone, PartialEq, Eq)]
-        pub struct WireExprType<'a> {
-            pub wire_expr: WireExpr<'a>,
+        pub(crate) struct WireExprType<'a> {
+            pub(crate) wire_expr: WireExpr<'a>,
         }
 
         impl<'a> WireExprType<'a> {
-            pub fn null() -> Self {
+            pub(crate) fn null() -> Self {
                 Self {
                     wire_expr: WireExpr {
                         scope: ExprId::MIN,
@@ -318,11 +321,11 @@ pub mod common {
                 }
             }
 
-            pub fn is_null(&self) -> bool {
+            pub(crate) fn is_null(&self) -> bool {
                 self.wire_expr.is_empty()
             }
 
-            pub fn encode(
+            pub(crate) fn encode(
                 &self,
                 more: bool,
                 writer: &mut ZBufWriter<'_>,
@@ -355,7 +358,7 @@ pub mod common {
                 ext.encode(more, writer)
             }
 
-            pub fn decode(
+            pub(crate) fn decode(
                 header: u8,
                 reader: &mut ZBufReader<'a>,
             ) -> ZResult<(Self, bool), ZCodecError> {
@@ -393,7 +396,7 @@ pub mod common {
             }
 
             #[cfg(test)]
-            pub fn rand(zbuf: &mut ZBufWriter<'a>) -> Self {
+            pub(crate) fn rand(zbuf: &mut ZBufWriter<'a>) -> Self {
                 Self {
                     wire_expr: WireExpr::rand(zbuf),
                 }
@@ -402,7 +405,7 @@ pub mod common {
     }
 }
 
-pub mod keyexpr {
+pub(crate) mod keyexpr {
     use crate::{
         protocol::{
             ZCodecError,
@@ -416,20 +419,20 @@ pub mod keyexpr {
         zbuf::{ZBufReader, ZBufWriter},
     };
 
-    pub mod flag {
-        pub const N: u8 = 1 << 5;
+    pub(crate) mod flag {
+        pub(crate) const N: u8 = 1 << 5;
 
-        pub const Z: u8 = 1 << 7;
+        pub(crate) const Z: u8 = 1 << 7;
     }
 
     #[derive(Debug, Clone, PartialEq, Eq)]
-    pub struct DeclareKeyExpr<'a> {
-        pub id: ExprId,
-        pub wire_expr: WireExpr<'a>,
+    pub(crate) struct DeclareKeyExpr<'a> {
+        pub(crate) id: ExprId,
+        pub(crate) wire_expr: WireExpr<'a>,
     }
 
     impl<'a> DeclareKeyExpr<'a> {
-        pub fn encode(&self, writer: &mut ZBufWriter<'_>) -> ZResult<(), ZCodecError> {
+        pub(crate) fn encode(&self, writer: &mut ZBufWriter<'_>) -> ZResult<(), ZCodecError> {
             let mut header = declare::id::D_KEYEXPR;
             if self.wire_expr.has_suffix() {
                 header |= keyexpr::flag::N;
@@ -440,7 +443,10 @@ pub mod keyexpr {
             self.wire_expr.encode(writer)
         }
 
-        pub fn decode(header: u8, reader: &mut ZBufReader<'a>) -> ZResult<Self, ZCodecError> {
+        pub(crate) fn decode(
+            header: u8,
+            reader: &mut ZBufReader<'a>,
+        ) -> ZResult<Self, ZCodecError> {
             if imsg::mid(header) != declare::id::D_KEYEXPR {
                 zbail!(ZCodecError::Invalid);
             }
@@ -458,7 +464,7 @@ pub mod keyexpr {
         }
 
         #[cfg(test)]
-        pub fn rand(zbuf: &mut ZBufWriter<'a>) -> Self {
+        pub(crate) fn rand(zbuf: &mut ZBufWriter<'a>) -> Self {
             use rand::Rng;
             let mut rng = rand::thread_rng();
 
@@ -470,19 +476,22 @@ pub mod keyexpr {
     }
 
     #[derive(Debug, Clone, PartialEq, Eq)]
-    pub struct UndeclareKeyExpr {
-        pub id: ExprId,
+    pub(crate) struct UndeclareKeyExpr {
+        pub(crate) id: ExprId,
     }
 
     impl UndeclareKeyExpr {
-        pub fn encode(&self, writer: &mut ZBufWriter<'_>) -> ZResult<(), ZCodecError> {
+        pub(crate) fn encode(&self, writer: &mut ZBufWriter<'_>) -> ZResult<(), ZCodecError> {
             let header = declare::id::U_KEYEXPR;
 
             crate::protocol::zcodec::encode_u8(header, writer)?;
             encode_u16(self.id, writer)
         }
 
-        pub fn decode(header: u8, reader: &mut ZBufReader<'_>) -> ZResult<Self, ZCodecError> {
+        pub(crate) fn decode(
+            header: u8,
+            reader: &mut ZBufReader<'_>,
+        ) -> ZResult<Self, ZCodecError> {
             if imsg::mid(header) != declare::id::U_KEYEXPR {
                 zbail!(ZCodecError::Invalid);
             }
@@ -498,7 +507,7 @@ pub mod keyexpr {
         }
 
         #[cfg(test)]
-        pub fn rand() -> Self {
+        pub(crate) fn rand() -> Self {
             use rand::Rng;
             let mut rng = rand::thread_rng();
 
@@ -509,7 +518,7 @@ pub mod keyexpr {
     }
 }
 
-pub mod subscriber {
+pub(crate) mod subscriber {
     use super::*;
     use crate::{
         protocol::{
@@ -527,22 +536,22 @@ pub mod subscriber {
         zbuf::{ZBufReader, ZBufWriter},
     };
 
-    pub type SubscriberId = EntityId;
+    pub(crate) type SubscriberId = EntityId;
 
-    pub mod flag {
-        pub const N: u8 = 1 << 5;
-        pub const M: u8 = 1 << 6;
-        pub const Z: u8 = 1 << 7;
+    pub(crate) mod flag {
+        pub(crate) const N: u8 = 1 << 5;
+        pub(crate) const M: u8 = 1 << 6;
+        pub(crate) const Z: u8 = 1 << 7;
     }
 
     #[derive(Debug, Clone, PartialEq, Eq)]
-    pub struct DeclareSubscriber<'a> {
-        pub id: SubscriberId,
-        pub wire_expr: WireExpr<'a>,
+    pub(crate) struct DeclareSubscriber<'a> {
+        pub(crate) id: SubscriberId,
+        pub(crate) wire_expr: WireExpr<'a>,
     }
 
     impl<'a> DeclareSubscriber<'a> {
-        pub fn encode(&self, writer: &mut ZBufWriter<'_>) -> ZResult<(), ZCodecError> {
+        pub(crate) fn encode(&self, writer: &mut ZBufWriter<'_>) -> ZResult<(), ZCodecError> {
             let mut header = declare::id::D_SUBSCRIBER;
 
             if self.wire_expr.mapping != Mapping::DEFAULT {
@@ -558,7 +567,10 @@ pub mod subscriber {
             self.wire_expr.encode(writer)
         }
 
-        pub fn decode(header: u8, reader: &mut ZBufReader<'a>) -> ZResult<Self, ZCodecError> {
+        pub(crate) fn decode(
+            header: u8,
+            reader: &mut ZBufReader<'a>,
+        ) -> ZResult<Self, ZCodecError> {
             if imsg::mid(header) != declare::id::D_SUBSCRIBER {
                 zbail!(ZCodecError::Invalid);
             }
@@ -583,7 +595,7 @@ pub mod subscriber {
         }
 
         #[cfg(test)]
-        pub fn rand(zbuf: &mut ZBufWriter<'a>) -> Self {
+        pub(crate) fn rand(zbuf: &mut ZBufWriter<'a>) -> Self {
             use rand::Rng;
             let mut rng = rand::thread_rng();
 
@@ -595,13 +607,13 @@ pub mod subscriber {
     }
 
     #[derive(Debug, Clone, PartialEq, Eq)]
-    pub struct UndeclareSubscriber<'a> {
-        pub id: SubscriberId,
-        pub ext_wire_expr: common::ext::WireExprType<'a>,
+    pub(crate) struct UndeclareSubscriber<'a> {
+        pub(crate) id: SubscriberId,
+        pub(crate) ext_wire_expr: common::ext::WireExprType<'a>,
     }
 
     impl<'a> UndeclareSubscriber<'a> {
-        pub fn encode(&self, writer: &mut ZBufWriter<'_>) -> ZResult<(), ZCodecError> {
+        pub(crate) fn encode(&self, writer: &mut ZBufWriter<'_>) -> ZResult<(), ZCodecError> {
             let mut header = declare::id::U_SUBSCRIBER;
 
             if !self.ext_wire_expr.is_null() {
@@ -618,7 +630,10 @@ pub mod subscriber {
             Ok(())
         }
 
-        pub fn decode(header: u8, reader: &mut ZBufReader<'a>) -> ZResult<Self, ZCodecError> {
+        pub(crate) fn decode(
+            header: u8,
+            reader: &mut ZBufReader<'a>,
+        ) -> ZResult<Self, ZCodecError> {
             if imsg::mid(header) != declare::id::U_SUBSCRIBER {
                 zbail!(ZCodecError::Invalid);
             }
@@ -646,7 +661,7 @@ pub mod subscriber {
         }
 
         #[cfg(test)]
-        pub fn rand(zbuf: &mut ZBufWriter<'a>) -> Self {
+        pub(crate) fn rand(zbuf: &mut ZBufWriter<'a>) -> Self {
             use rand::Rng;
             let mut rng = rand::thread_rng();
 
@@ -658,7 +673,7 @@ pub mod subscriber {
     }
 }
 
-pub mod queryable {
+pub(crate) mod queryable {
     use super::*;
     use crate::{
         protocol::{
@@ -676,23 +691,23 @@ pub mod queryable {
         zbuf::{ZBufReader, ZBufWriter},
     };
 
-    pub type QueryableId = EntityId;
+    pub(crate) type QueryableId = EntityId;
 
-    pub mod flag {
-        pub const N: u8 = 1 << 5;
-        pub const M: u8 = 1 << 6;
-        pub const Z: u8 = 1 << 7;
+    pub(crate) mod flag {
+        pub(crate) const N: u8 = 1 << 5;
+        pub(crate) const M: u8 = 1 << 6;
+        pub(crate) const Z: u8 = 1 << 7;
     }
 
     #[derive(Debug, Clone, PartialEq, Eq)]
-    pub struct DeclareQueryable<'a> {
-        pub id: QueryableId,
-        pub wire_expr: WireExpr<'a>,
-        pub ext_info: ext::QueryableInfoType,
+    pub(crate) struct DeclareQueryable<'a> {
+        pub(crate) id: QueryableId,
+        pub(crate) wire_expr: WireExpr<'a>,
+        pub(crate) ext_info: ext::QueryableInfoType,
     }
 
     impl<'a> DeclareQueryable<'a> {
-        pub fn encode(&self, writer: &mut ZBufWriter<'_>) -> ZResult<(), ZCodecError> {
+        pub(crate) fn encode(&self, writer: &mut ZBufWriter<'_>) -> ZResult<(), ZCodecError> {
             let mut header = declare::id::D_QUERYABLE;
 
             let mut n_exts = (self.ext_info != queryable::ext::QueryableInfoType::DEFAULT) as u8;
@@ -721,7 +736,10 @@ pub mod queryable {
             Ok(())
         }
 
-        pub fn decode(header: u8, reader: &mut ZBufReader<'a>) -> ZResult<Self, ZCodecError> {
+        pub(crate) fn decode(
+            header: u8,
+            reader: &mut ZBufReader<'a>,
+        ) -> ZResult<Self, ZCodecError> {
             if imsg::mid(header) != declare::id::D_QUERYABLE {
                 zbail!(ZCodecError::Invalid);
             }
@@ -762,7 +780,7 @@ pub mod queryable {
         }
 
         #[cfg(test)]
-        pub fn rand(zbuf: &mut ZBufWriter<'a>) -> Self {
+        pub(crate) fn rand(zbuf: &mut ZBufWriter<'a>) -> Self {
             use rand::Rng;
             let mut rng = rand::thread_rng();
 
@@ -778,32 +796,32 @@ pub mod queryable {
         }
     }
 
-    pub mod ext {
+    pub(crate) mod ext {
         use crate::{
             protocol::{ZCodecError, common::imsg, network::declare::queryable},
             result::ZResult,
             zbuf::{ZBufReader, ZBufWriter},
         };
 
-        pub type QueryableInfo = crate::zextz64!(0x01, false);
+        pub(crate) type QueryableInfo = crate::zextz64!(0x01, false);
 
-        pub mod flag {
-            pub const C: u8 = 1;
+        pub(crate) mod flag {
+            pub(crate) const C: u8 = 1;
         }
 
         #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-        pub struct QueryableInfoType {
-            pub complete: bool,
-            pub distance: u16,
+        pub(crate) struct QueryableInfoType {
+            pub(crate) complete: bool,
+            pub(crate) distance: u16,
         }
 
         impl QueryableInfoType {
-            pub const DEFAULT: Self = Self {
+            pub(crate) const DEFAULT: Self = Self {
                 complete: false,
                 distance: 0,
             };
 
-            pub fn encode(
+            pub(crate) fn encode(
                 &self,
                 more: bool,
                 writer: &mut ZBufWriter<'_>,
@@ -818,7 +836,7 @@ pub mod queryable {
                 ext.encode(more, writer)
             }
 
-            pub fn decode(
+            pub(crate) fn decode(
                 header: u8,
                 reader: &mut ZBufReader<'_>,
             ) -> ZResult<(Self, bool), ZCodecError> {
@@ -834,7 +852,7 @@ pub mod queryable {
             }
 
             #[cfg(test)]
-            pub fn rand() -> Self {
+            pub(crate) fn rand() -> Self {
                 use rand::Rng;
                 let mut rng = rand::thread_rng();
                 let complete: bool = rng.gen_bool(0.5);
@@ -852,20 +870,23 @@ pub mod queryable {
     }
 
     #[derive(Debug, Clone, PartialEq, Eq)]
-    pub struct UndeclareQueryable<'a> {
-        pub id: QueryableId,
-        pub ext_wire_expr: common::ext::WireExprType<'a>,
+    pub(crate) struct UndeclareQueryable<'a> {
+        pub(crate) id: QueryableId,
+        pub(crate) ext_wire_expr: common::ext::WireExprType<'a>,
     }
 
     impl<'a> UndeclareQueryable<'a> {
-        pub fn encode(&self, writer: &mut ZBufWriter<'_>) -> ZResult<(), ZCodecError> {
+        pub(crate) fn encode(&self, writer: &mut ZBufWriter<'_>) -> ZResult<(), ZCodecError> {
             let header = declare::id::U_QUERYABLE | queryable::flag::Z;
             crate::protocol::zcodec::encode_u8(header, writer)?;
             encode_u32(self.id, writer)?;
             self.ext_wire_expr.encode(false, writer)
         }
 
-        pub fn decode(header: u8, reader: &mut ZBufReader<'a>) -> ZResult<Self, ZCodecError> {
+        pub(crate) fn decode(
+            header: u8,
+            reader: &mut ZBufReader<'a>,
+        ) -> ZResult<Self, ZCodecError> {
             if imsg::mid(header) != declare::id::U_QUERYABLE {
                 zbail!(ZCodecError::Invalid);
             }
@@ -893,7 +914,7 @@ pub mod queryable {
         }
 
         #[cfg(test)]
-        pub fn rand(zbuf: &mut ZBufWriter<'a>) -> Self {
+        pub(crate) fn rand(zbuf: &mut ZBufWriter<'a>) -> Self {
             use rand::Rng;
             let mut rng = rand::thread_rng();
 
@@ -905,12 +926,12 @@ pub mod queryable {
     }
 }
 
-pub mod token {
-    pub type TokenId = u32;
+pub(crate) mod token {
+    pub(crate) type TokenId = u32;
 
-    pub mod flag {
-        pub const N: u8 = 1 << 5; // 0x20 Named         if N==1 then the key expr has name/suffix
-        pub const M: u8 = 1 << 6; // 0x40 Mapping       if M==1 then key expr mapping is the one declared by the sender, else it is the one declared by the receiver
-        pub const Z: u8 = 1 << 7; // 0x80 Extensions    if Z==1 then an extension will follow
+    pub(crate) mod flag {
+        pub(crate) const N: u8 = 1 << 5; // 0x20 Named         if N==1 then the key expr has name/suffix
+        pub(crate) const M: u8 = 1 << 6; // 0x40 Mapping       if M==1 then key expr mapping is the one declared by the sender, else it is the one declared by the receiver
+        pub(crate) const Z: u8 = 1 << 7; // 0x80 Extensions    if Z==1 then an extension will follow
     }
 }

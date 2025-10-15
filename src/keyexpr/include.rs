@@ -2,9 +2,9 @@ use crate::keyexpr::borrowed::keyexpr;
 
 use super::{DELIMITER, DOUBLE_WILD, STAR_DSL, intersect::MayHaveVerbatim, utils::Split};
 
-pub const DEFAULT_INCLUDER: LTRIncluder = LTRIncluder;
+pub(crate) const DEFAULT_INCLUDER: LTRIncluder = LTRIncluder;
 
-pub trait Includer<Left, Right> {
+pub(crate) trait Includer<Left, Right> {
     fn includes(&self, left: Left, right: Right) -> bool;
 }
 
@@ -19,7 +19,7 @@ impl<T: for<'a> Includer<&'a [u8], &'a [u8]>> Includer<&keyexpr, &keyexpr> for T
     }
 }
 
-pub struct LTRIncluder;
+pub(crate) struct LTRIncluder;
 impl Includer<&[u8], &[u8]> for LTRIncluder {
     fn includes(&self, mut left: &[u8], mut right: &[u8]) -> bool {
         loop {

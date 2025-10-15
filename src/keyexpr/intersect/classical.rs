@@ -99,13 +99,13 @@ fn it_intersect<const STAR_DSL: bool>(mut it1: &[u8], mut it2: &[u8]) -> bool {
 }
 
 #[inline(always)]
-pub fn intersect<const STAR_DSL: bool>(s1: &[u8], s2: &[u8]) -> bool {
+pub(crate) fn intersect<const STAR_DSL: bool>(s1: &[u8], s2: &[u8]) -> bool {
     it_intersect::<STAR_DSL>(s1, s2)
 }
 
 use super::{Intersector, MayHaveVerbatim, restriction::NoSubWilds};
 
-pub struct ClassicIntersector;
+pub(crate) struct ClassicIntersector;
 impl Intersector<NoSubWilds<&[u8]>, NoSubWilds<&[u8]>> for ClassicIntersector {
     fn intersect(&self, left: NoSubWilds<&[u8]>, right: NoSubWilds<&[u8]>) -> bool {
         intersect::<false>(left.0, right.0)

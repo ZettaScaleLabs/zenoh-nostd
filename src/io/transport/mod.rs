@@ -16,50 +16,50 @@ use crate::{
     zbuf::{BufWriterExt, ZBufExt, ZBufMut, ZBufMutExt, ZBufReader},
 };
 
-pub mod establishment;
+pub(crate) mod establishment;
 
-pub struct TransportMineConfig {
-    pub mine_zid: ZenohIdProto,
-    pub mine_lease: Duration,
+pub(crate) struct TransportMineConfig {
+    pub(crate) mine_zid: ZenohIdProto,
+    pub(crate) mine_lease: Duration,
 
-    pub keep_alive: usize,
-    pub open_timeout: Duration,
+    pub(crate) keep_alive: usize,
+    pub(crate) open_timeout: Duration,
 }
 
-pub struct TransportOtherConfig {
-    pub other_whatami: WhatAmI,
-    pub other_zid: ZenohIdProto,
-    pub other_sn: TransportSn,
-    pub other_lease: Duration,
+pub(crate) struct TransportOtherConfig {
+    pub(crate) other_whatami: WhatAmI,
+    pub(crate) other_zid: ZenohIdProto,
+    pub(crate) other_sn: TransportSn,
+    pub(crate) other_lease: Duration,
 }
 
-pub struct TransportNegociatedConfig {
-    pub mine_sn: TransportSn,
+pub(crate) struct TransportNegociatedConfig {
+    pub(crate) mine_sn: TransportSn,
 
-    pub resolution: Resolution,
-    pub batch_size: BatchSize,
+    pub(crate) resolution: Resolution,
+    pub(crate) batch_size: BatchSize,
 }
 
-pub struct TransportConfig {
-    pub mine_config: TransportMineConfig,
-    pub other_config: TransportOtherConfig,
-    pub negociated_config: TransportNegociatedConfig,
+pub(crate) struct TransportConfig {
+    pub(crate) mine_config: TransportMineConfig,
+    pub(crate) other_config: TransportOtherConfig,
+    pub(crate) negociated_config: TransportNegociatedConfig,
 }
 
 pub struct Transport<T: Platform> {
     link: Link<T>,
 }
 
-pub struct TransportTx<'a, T: Platform> {
+pub(crate) struct TransportTx<'a, T: Platform> {
     link: LinkTx<'a, T>,
 }
 
-pub struct TransportRx<'a, T: Platform> {
+pub(crate) struct TransportRx<'a, T: Platform> {
     link: LinkRx<'a, T>,
 }
 
 impl<T: Platform> Transport<T> {
-    pub async fn open(
+    pub(crate) async fn open(
         link: Link<T>,
         config: TransportMineConfig,
         tx_zbuf: ZBufMut<'_>,
@@ -78,13 +78,13 @@ impl<T: Platform> Transport<T> {
         }
     }
 
-    pub fn split(&mut self) -> (TransportTx<'_, T>, TransportRx<'_, T>) {
+    pub(crate) fn split(&mut self) -> (TransportTx<'_, T>, TransportRx<'_, T>) {
         let (link_tx, link_rx) = self.link.split();
 
         (TransportTx { link: link_tx }, TransportRx { link: link_rx })
     }
 
-    pub async fn send(
+    pub(crate) async fn send(
         &mut self,
         mut tx_zbuf: ZBufMut<'_>,
         msg: &TransportMessage<'_, '_>,
@@ -112,7 +112,7 @@ impl<T: Platform> Transport<T> {
             .await
     }
 
-    pub async fn recv<'a>(
+    pub(crate) async fn recv<'a>(
         &mut self,
         rx_zbuf: ZBufMut<'a>,
     ) -> ZResult<ZBufReader<'a>, ZCommunicationError> {
@@ -134,11 +134,11 @@ impl<T: Platform> Transport<T> {
 }
 
 impl<'a, T: Platform> TransportTx<'a, T> {
-    pub fn new(link: LinkTx<'a, T>) -> Self {
+    pub(crate) fn new(link: LinkTx<'a, T>) -> Self {
         Self { link }
     }
 
-    pub async fn send(
+    pub(crate) async fn send(
         &mut self,
         mut tx_zbuf: ZBufMut<'_>,
         msg: &TransportMessage<'_, '_>,
@@ -168,11 +168,11 @@ impl<'a, T: Platform> TransportTx<'a, T> {
 }
 
 impl<'a, T: Platform> TransportRx<'a, T> {
-    pub fn new(link: LinkRx<'a, T>) -> Self {
+    pub(crate) fn new(link: LinkRx<'a, T>) -> Self {
         Self { link }
     }
 
-    pub async fn recv<'b>(
+    pub(crate) async fn recv<'b>(
         &mut self,
         rx_zbuf: ZBufMut<'b>,
     ) -> ZResult<ZBufReader<'b>, ZCommunicationError> {

@@ -6,10 +6,7 @@ use embassy_time::{Instant, Timer};
 use crate::{
     api::driver::SessionDriver,
     platform::{Platform, ZCommunicationError},
-    protocol::transport::{
-            self, TransportMessage,
-            keepalive::KeepAlive,
-        },
+    protocol::transport::{self, TransportMessage, keepalive::KeepAlive},
     result::ZResult,
 };
 

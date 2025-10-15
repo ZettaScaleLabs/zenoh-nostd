@@ -56,11 +56,6 @@ embassy-executor = { version = "0.9.1", features = ["arch-std", "executor-thread
 embassy-time = { version = "0.5.0", features = ["std"] }
 critical-section = { version = "1.2.0", features = ["std"] }
 
-[[bench]]
-path = "src/benches/codec.rs"
-harness = false
-name = "codec"
-
 [[example]]
 path = "examples/z_put.rs"
 name = "z_put"

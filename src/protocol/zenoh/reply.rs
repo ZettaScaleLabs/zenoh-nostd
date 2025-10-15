@@ -9,22 +9,22 @@ use crate::{
     zbuf::{ZBufReader, ZBufWriter},
 };
 
-pub mod flag {
-    pub const C: u8 = 1 << 5;
+pub(crate) mod flag {
+    pub(crate) const C: u8 = 1 << 5;
 
-    pub const Z: u8 = 1 << 7;
+    pub(crate) const Z: u8 = 1 << 7;
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct Reply<'a> {
-    pub consolidation: ConsolidationMode,
-    pub payload: ReplyBody<'a>,
+pub(crate) struct Reply<'a> {
+    pub(crate) consolidation: ConsolidationMode,
+    pub(crate) payload: ReplyBody<'a>,
 }
 
-pub type ReplyBody<'a> = PushBody<'a>;
+pub(crate) type ReplyBody<'a> = PushBody<'a>;
 
 impl<'a> Reply<'a> {
-    pub fn encode(&self, writer: &mut ZBufWriter<'_>) -> ZResult<(), ZCodecError> {
+    pub(crate) fn encode(&self, writer: &mut ZBufWriter<'_>) -> ZResult<(), ZCodecError> {
         let mut header = id::REPLY;
 
         if self.consolidation != ConsolidationMode::DEFAULT {
@@ -40,7 +40,7 @@ impl<'a> Reply<'a> {
         self.payload.encode(writer)
     }
 
-    pub fn decode(header: u8, reader: &mut ZBufReader<'a>) -> ZResult<Self, ZCodecError> {
+    pub(crate) fn decode(header: u8, reader: &mut ZBufReader<'a>) -> ZResult<Self, ZCodecError> {
         if imsg::mid(header) != id::REPLY {
             zbail!(ZCodecError::Invalid);
         }
@@ -63,7 +63,7 @@ impl<'a> Reply<'a> {
     }
 
     #[cfg(test)]
-    pub fn rand(zbuf: &mut ZBufWriter<'a>) -> Self {
+    pub(crate) fn rand(zbuf: &mut ZBufWriter<'a>) -> Self {
         let payload = ReplyBody::rand(zbuf);
         let consolidation = ConsolidationMode::rand();
 

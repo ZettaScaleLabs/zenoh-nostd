@@ -13,21 +13,21 @@ use crate::{
     zbuf::{ZBufReader, ZBufWriter},
 };
 
-pub type ExprId = u16;
-pub type ExprLen = u16;
+pub(crate) type ExprId = u16;
+pub(crate) type ExprLen = u16;
 
-pub type AtomicExprId = AtomicU16;
-pub const EMPTY_EXPR_ID: ExprId = 0;
+pub(crate) type AtomicExprId = AtomicU16;
+pub(crate) const EMPTY_EXPR_ID: ExprId = 0;
 
 #[derive(PartialEq, Eq, Hash, Clone, Debug)]
-pub struct WireExpr<'a> {
-    pub scope: ExprId,
-    pub suffix: &'a str,
-    pub mapping: Mapping,
+pub(crate) struct WireExpr<'a> {
+    pub(crate) scope: ExprId,
+    pub(crate) suffix: &'a str,
+    pub(crate) mapping: Mapping,
 }
 
 impl<'a> WireExpr<'a> {
-    pub fn new(scope: ExprId, suffix: &'a str, mapping: Mapping) -> Self {
+    pub(crate) fn new(scope: ExprId, suffix: &'a str, mapping: Mapping) -> Self {
         WireExpr {
             scope,
             suffix,
@@ -35,7 +35,7 @@ impl<'a> WireExpr<'a> {
         }
     }
 
-    pub fn empty() -> Self {
+    pub(crate) fn empty() -> Self {
         WireExpr {
             scope: 0,
             suffix: "",
@@ -43,11 +43,11 @@ impl<'a> WireExpr<'a> {
         }
     }
 
-    pub fn is_empty(&self) -> bool {
+    pub(crate) fn is_empty(&self) -> bool {
         self.scope == 0 && self.suffix.is_empty()
     }
 
-    pub fn as_str(&self) -> &'_ str {
+    pub(crate) fn as_str(&self) -> &'_ str {
         if self.scope == 0 {
             self.suffix
         } else {
@@ -55,7 +55,9 @@ impl<'a> WireExpr<'a> {
         }
     }
 
-    pub fn try_as_str(&self) -> crate::result::ZResult<&'_ str, crate::protocol::ZProtocolError> {
+    pub(crate) fn try_as_str(
+        &self,
+    ) -> crate::result::ZResult<&'_ str, crate::protocol::ZProtocolError> {
         if self.scope == EMPTY_EXPR_ID {
             Ok(self.suffix)
         } else {
@@ -63,11 +65,13 @@ impl<'a> WireExpr<'a> {
         }
     }
 
-    pub fn as_id(&self) -> ExprId {
+    pub(crate) fn as_id(&self) -> ExprId {
         self.scope
     }
 
-    pub fn try_as_id(&self) -> crate::result::ZResult<ExprId, crate::protocol::ZProtocolError> {
+    pub(crate) fn try_as_id(
+        &self,
+    ) -> crate::result::ZResult<ExprId, crate::protocol::ZProtocolError> {
         if self.has_suffix() {
             crate::zbail!(crate::protocol::ZProtocolError::Invalid);
         } else {
@@ -75,15 +79,15 @@ impl<'a> WireExpr<'a> {
         }
     }
 
-    pub fn as_id_and_suffix(&self) -> (ExprId, &'_ str) {
+    pub(crate) fn as_id_and_suffix(&self) -> (ExprId, &'_ str) {
         (self.scope, self.suffix)
     }
 
-    pub fn has_suffix(&self) -> bool {
+    pub(crate) fn has_suffix(&self) -> bool {
         !self.suffix.is_empty()
     }
 
-    pub fn with_suffix(&self, suffix: &'a str) -> Self {
+    pub(crate) fn with_suffix(&self, suffix: &'a str) -> Self {
         WireExpr {
             scope: self.scope,
             suffix,
@@ -91,7 +95,7 @@ impl<'a> WireExpr<'a> {
         }
     }
 
-    pub fn encode(&self, writer: &mut ZBufWriter<'_>) -> ZResult<(), ZCodecError> {
+    pub(crate) fn encode(&self, writer: &mut ZBufWriter<'_>) -> ZResult<(), ZCodecError> {
         encode_u16(self.scope, writer)?;
 
         if !self.suffix.is_empty() {
@@ -101,7 +105,10 @@ impl<'a> WireExpr<'a> {
         Ok(())
     }
 
-    pub fn decode(condition: bool, reader: &mut ZBufReader<'a>) -> ZResult<Self, ZCodecError> {
+    pub(crate) fn decode(
+        condition: bool,
+        reader: &mut ZBufReader<'a>,
+    ) -> ZResult<Self, ZCodecError> {
         let scope = decode_u16(reader)?;
 
         let suffix = if condition {
@@ -118,7 +125,7 @@ impl<'a> WireExpr<'a> {
     }
 
     #[cfg(test)]
-    pub fn rand(zbuf: &mut ZBufWriter<'a>) -> Self {
+    pub(crate) fn rand(zbuf: &mut ZBufWriter<'a>) -> Self {
         use crate::zbuf::BufWriterExt;
         use rand::Rng;
         use rand::distributions::Alphanumeric;

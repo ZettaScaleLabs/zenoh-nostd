@@ -14,30 +14,30 @@ use crate::{
     zbuf::{ZBuf, ZBufReader, ZBufWriter},
 };
 
-pub mod flag {
-    pub const A: u8 = 1 << 5;
-    pub const S: u8 = 1 << 6;
-    pub const Z: u8 = 1 << 7;
+pub(crate) mod flag {
+    pub(crate) const A: u8 = 1 << 5;
+    pub(crate) const S: u8 = 1 << 6;
+    pub(crate) const Z: u8 = 1 << 7;
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct InitSyn<'a> {
-    pub version: u8,
-    pub whatami: WhatAmI,
-    pub zid: ZenohIdProto,
-    pub resolution: Resolution,
-    pub batch_size: BatchSize,
-    pub ext_qos: Option<ext::QoS>,
-    pub ext_qos_link: Option<ext::QoSLink>,
-    pub ext_auth: Option<ext::Auth<'a>>,
-    pub ext_mlink: Option<ext::MultiLink<'a>>,
-    pub ext_lowlatency: Option<ext::LowLatency>,
-    pub ext_compression: Option<ext::Compression>,
-    pub ext_patch: ext::PatchType,
+pub(crate) struct InitSyn<'a> {
+    pub(crate) version: u8,
+    pub(crate) whatami: WhatAmI,
+    pub(crate) zid: ZenohIdProto,
+    pub(crate) resolution: Resolution,
+    pub(crate) batch_size: BatchSize,
+    pub(crate) ext_qos: Option<ext::QoS>,
+    pub(crate) ext_qos_link: Option<ext::QoSLink>,
+    pub(crate) ext_auth: Option<ext::Auth<'a>>,
+    pub(crate) ext_mlink: Option<ext::MultiLink<'a>>,
+    pub(crate) ext_lowlatency: Option<ext::LowLatency>,
+    pub(crate) ext_compression: Option<ext::Compression>,
+    pub(crate) ext_patch: ext::PatchType,
 }
 
 impl<'a> InitSyn<'a> {
-    pub fn encode(&self, writer: &mut ZBufWriter<'_>) -> ZResult<(), ZCodecError> {
+    pub(crate) fn encode(&self, writer: &mut ZBufWriter<'_>) -> ZResult<(), ZCodecError> {
         let mut header = id::INIT;
         if self.resolution != Resolution::default() || self.batch_size != batch_size::UNICAST {
             header |= flag::S;
@@ -110,7 +110,7 @@ impl<'a> InitSyn<'a> {
         Ok(())
     }
 
-    pub fn decode(header: u8, reader: &mut ZBufReader<'a>) -> ZResult<Self, ZCodecError> {
+    pub(crate) fn decode(header: u8, reader: &mut ZBufReader<'a>) -> ZResult<Self, ZCodecError> {
         if imsg::mid(header) != id::INIT || imsg::has_flag(header, flag::A) {
             zbail!(ZCodecError::Invalid)
         }
@@ -210,7 +210,7 @@ impl<'a> InitSyn<'a> {
     }
 
     #[cfg(test)]
-    pub fn rand(zbuf: &mut ZBufWriter<'a>) -> Self {
+    pub(crate) fn rand(zbuf: &mut ZBufWriter<'a>) -> Self {
         use rand::Rng;
 
         use crate::protocol::common::extension::{ZExtUnit, ZExtZ64, ZExtZBuf};
@@ -247,41 +247,41 @@ impl<'a> InitSyn<'a> {
     }
 }
 
-pub mod ext {
-    pub type QoS = crate::zextunit!(0x1, false);
-    pub type QoSLink = crate::zextz64!(0x1, false);
+pub(crate) mod ext {
+    pub(crate) type QoS = crate::zextunit!(0x1, false);
+    pub(crate) type QoSLink = crate::zextz64!(0x1, false);
 
-    pub type Auth<'a> = crate::zextzbuf!('a, 0x3, false);
+    pub(crate) type Auth<'a> = crate::zextzbuf!('a, 0x3, false);
 
-    pub type MultiLink<'a> = crate::zextzbuf!('a, 0x4, false);
+    pub(crate) type MultiLink<'a> = crate::zextzbuf!('a, 0x4, false);
 
-    pub type LowLatency = crate::zextunit!(0x5, false);
+    pub(crate) type LowLatency = crate::zextunit!(0x5, false);
 
-    pub type Compression = crate::zextunit!(0x6, false);
+    pub(crate) type Compression = crate::zextunit!(0x6, false);
 
-    pub type Patch = crate::zextz64!(0x7, false);
-    pub type PatchType = crate::protocol::transport::ext::PatchType<{ Patch::ID }>;
+    pub(crate) type Patch = crate::zextz64!(0x7, false);
+    pub(crate) type PatchType = crate::protocol::transport::ext::PatchType<{ Patch::ID }>;
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct InitAck<'a> {
-    pub version: u8,
-    pub whatami: WhatAmI,
-    pub zid: ZenohIdProto,
-    pub resolution: Resolution,
-    pub batch_size: BatchSize,
-    pub cookie: ZBuf<'a>,
-    pub ext_qos: Option<ext::QoS>,
-    pub ext_qos_link: Option<ext::QoSLink>,
-    pub ext_auth: Option<ext::Auth<'a>>,
-    pub ext_mlink: Option<ext::MultiLink<'a>>,
-    pub ext_lowlatency: Option<ext::LowLatency>,
-    pub ext_compression: Option<ext::Compression>,
-    pub ext_patch: ext::PatchType,
+pub(crate) struct InitAck<'a> {
+    pub(crate) version: u8,
+    pub(crate) whatami: WhatAmI,
+    pub(crate) zid: ZenohIdProto,
+    pub(crate) resolution: Resolution,
+    pub(crate) batch_size: BatchSize,
+    pub(crate) cookie: ZBuf<'a>,
+    pub(crate) ext_qos: Option<ext::QoS>,
+    pub(crate) ext_qos_link: Option<ext::QoSLink>,
+    pub(crate) ext_auth: Option<ext::Auth<'a>>,
+    pub(crate) ext_mlink: Option<ext::MultiLink<'a>>,
+    pub(crate) ext_lowlatency: Option<ext::LowLatency>,
+    pub(crate) ext_compression: Option<ext::Compression>,
+    pub(crate) ext_patch: ext::PatchType,
 }
 
 impl<'a> InitAck<'a> {
-    pub fn encode(&self, writer: &mut ZBufWriter<'_>) -> ZResult<(), ZCodecError> {
+    pub(crate) fn encode(&self, writer: &mut ZBufWriter<'_>) -> ZResult<(), ZCodecError> {
         let mut header = id::INIT | flag::A;
         if self.resolution != Resolution::default() || self.batch_size != batch_size::UNICAST {
             header |= flag::S;
@@ -356,7 +356,7 @@ impl<'a> InitAck<'a> {
         Ok(())
     }
 
-    pub fn decode(header: u8, reader: &mut ZBufReader<'a>) -> ZResult<Self, ZCodecError> {
+    pub(crate) fn decode(header: u8, reader: &mut ZBufReader<'a>) -> ZResult<Self, ZCodecError> {
         if imsg::mid(header) != id::INIT || !imsg::has_flag(header, flag::A) {
             zbail!(ZCodecError::Invalid)
         }
@@ -457,7 +457,7 @@ impl<'a> InitAck<'a> {
     }
 
     #[cfg(test)]
-    pub fn rand(zbuf: &mut ZBufWriter<'a>) -> Self {
+    pub(crate) fn rand(zbuf: &mut ZBufWriter<'a>) -> Self {
         use rand::Rng;
 
         use crate::{

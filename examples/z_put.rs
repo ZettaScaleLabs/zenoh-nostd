@@ -1,7 +1,4 @@
-use zenoh_nostd::{
-    keyexpr::borrowed::keyexpr, platform::platform_std::PlatformStd,
-    protocol::core::endpoint::EndPoint,
-};
+use zenoh_nostd::{EndPoint, PlatformStd, ke};
 
 const CONNECT: Option<&str> = option_env!("CONNECT");
 
@@ -23,7 +20,7 @@ async fn main(spawner: embassy_executor::Spawner) {
     )
     .unwrap();
 
-    let ke: &'static keyexpr = "demo/example".try_into().unwrap();
+    let ke: &'static ke = "demo/example".try_into().unwrap();
     let payload = b"Hello, from std!";
 
     loop {

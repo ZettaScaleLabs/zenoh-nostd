@@ -15,22 +15,32 @@ pub trait ZAsyncCallback {
     fn call(&self, sample: ZSample<'_>) -> ZResult<()>;
 }
 
-pub enum ZCallback {
+pub(crate) enum ZCallbackInner {
     Sync(fn(&ZSample<'_>) -> ()),
     Async(&'static dyn ZAsyncCallback),
 }
 
+pub struct ZCallback(ZCallbackInner);
+
 impl ZCallback {
-    pub fn is_async(&self) -> bool {
-        matches!(self, ZCallback::Async(_))
+    pub fn new_sync(f: fn(&ZSample<'_>) -> ()) -> Self {
+        Self(ZCallbackInner::Sync(f))
     }
 
-    pub async fn call(&self, sample: ZSample<'_>) -> ZResult<()> {
-        match self {
-            ZCallback::Sync(f) => {
+    pub fn new_async(f: &'static dyn ZAsyncCallback) -> Self {
+        Self(ZCallbackInner::Async(f))
+    }
+
+    pub(crate) fn is_async(&self) -> bool {
+        matches!(self.0, ZCallbackInner::Async(_))
+    }
+
+    pub(crate) async fn call(&self, sample: ZSample<'_>) -> ZResult<()> {
+        match self.0 {
+            ZCallbackInner::Sync(f) => {
                 f(&sample);
             }
-            ZCallback::Async(f) => {
+            ZCallbackInner::Async(f) => {
                 poll_fn(|cx| f.poll_ready_to_send(cx)).await;
                 f.call(sample)?;
             }

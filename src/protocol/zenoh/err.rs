@@ -14,22 +14,22 @@ use crate::{
     zbuf::{ZBufReader, ZBufWriter},
 };
 
-pub mod flag {
+pub(crate) mod flag {
 
-    pub const E: u8 = 1 << 6;
-    pub const Z: u8 = 1 << 7;
+    pub(crate) const E: u8 = 1 << 6;
+    pub(crate) const Z: u8 = 1 << 7;
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct Err<'a> {
-    pub encoding: Encoding<'a>,
-    pub ext_sinfo: Option<ext::SourceInfoType>,
+pub(crate) struct Err<'a> {
+    pub(crate) encoding: Encoding<'a>,
+    pub(crate) ext_sinfo: Option<ext::SourceInfoType>,
 
-    pub payload: crate::zbuf::ZBuf<'a>,
+    pub(crate) payload: crate::zbuf::ZBuf<'a>,
 }
 
 impl<'a> Err<'a> {
-    pub fn encode(&self, writer: &mut ZBufWriter<'_>) -> ZResult<(), ZCodecError> {
+    pub(crate) fn encode(&self, writer: &mut ZBufWriter<'_>) -> ZResult<(), ZCodecError> {
         let mut header = id::ERR;
         if self.encoding != Encoding::empty() {
             header |= flag::E;
@@ -54,7 +54,7 @@ impl<'a> Err<'a> {
         encode_zbuf(true, self.payload, writer)
     }
 
-    pub fn decode(header: u8, reader: &mut ZBufReader<'a>) -> ZResult<Self, ZCodecError> {
+    pub(crate) fn decode(header: u8, reader: &mut ZBufReader<'a>) -> ZResult<Self, ZCodecError> {
         if imsg::mid(header) != id::ERR {
             zbail!(ZCodecError::Invalid);
         }
@@ -93,7 +93,7 @@ impl<'a> Err<'a> {
     }
 
     #[cfg(test)]
-    pub fn rand(zbuf: &mut ZBufWriter<'a>) -> Self {
+    pub(crate) fn rand(zbuf: &mut ZBufWriter<'a>) -> Self {
         use rand::Rng;
 
         use crate::zbuf::BufWriterExt;
@@ -117,8 +117,9 @@ impl<'a> Err<'a> {
     }
 }
 
-pub mod ext {
+pub(crate) mod ext {
 
-    pub type SourceInfo<'a> = crate::zextzbuf!('a, 0x1, false);
-    pub type SourceInfoType = crate::protocol::zenoh::ext::SourceInfoType<{ SourceInfo::ID }>;
+    pub(crate) type SourceInfo<'a> = crate::zextzbuf!('a, 0x1, false);
+    pub(crate) type SourceInfoType =
+        crate::protocol::zenoh::ext::SourceInfoType<{ SourceInfo::ID }>;
 }

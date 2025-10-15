@@ -5,22 +5,30 @@
 
 pub mod logging;
 pub mod result;
-pub mod zbuf;
 
-pub mod keyexpr;
-pub mod protocol;
+pub(crate) mod zbuf;
 
-pub mod platform;
+pub(crate) mod keyexpr;
+pub use keyexpr::borrowed::keyexpr as ke;
 
-pub mod io;
+pub(crate) mod protocol;
+pub use protocol::core::endpoint::EndPoint;
 
-pub mod api;
+pub(crate) mod platform;
+#[cfg(feature = "platform-std")]
+pub use platform::platform_std::PlatformStd;
+pub use platform::{Platform, tcp::*};
+
+pub(crate) mod io;
+pub use io::transport::Transport;
+
+pub(crate) mod api;
+pub use api::*;
 
 #[cfg(test)]
-pub mod tests;
+pub(crate) mod tests;
 
 /// This macro opens a new Zenoh session and spawns its driver task.
-/// The driver task is used to send the KeepAlive messages and maintain the session alive.
 #[macro_export]
 macro_rules! open {
     ($zconfig:expr, $endpoint:expr) => {{
@@ -28,9 +36,7 @@ macro_rules! open {
         let task = $zconfig.task.clone();
         let driver_cell = $zconfig.driver.clone();
 
-        let (mut session, driver) = $crate::api::session::Session::new($zconfig, $endpoint)
-            .await
-            .unwrap();
+        let (mut session, driver) = $crate::Session::new($zconfig, $endpoint).await.unwrap();
 
         let driver = driver_cell.init(driver);
         session.set_driver(driver);

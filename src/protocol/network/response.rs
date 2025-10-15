@@ -15,24 +15,24 @@ use crate::{
     zbuf::{ZBufReader, ZBufWriter},
 };
 
-pub mod flag {
-    pub const N: u8 = 1 << 5;
-    pub const M: u8 = 1 << 6;
-    pub const Z: u8 = 1 << 7;
+pub(crate) mod flag {
+    pub(crate) const N: u8 = 1 << 5;
+    pub(crate) const M: u8 = 1 << 6;
+    pub(crate) const Z: u8 = 1 << 7;
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct Response<'a> {
-    pub rid: RequestId,
-    pub wire_expr: WireExpr<'a>,
-    pub payload: ResponseBody<'a>,
-    pub ext_qos: ext::QoSType,
-    pub ext_tstamp: Option<ext::TimestampType>,
-    pub ext_respid: Option<ext::ResponderIdType>,
+pub(crate) struct Response<'a> {
+    pub(crate) rid: RequestId,
+    pub(crate) wire_expr: WireExpr<'a>,
+    pub(crate) payload: ResponseBody<'a>,
+    pub(crate) ext_qos: ext::QoSType,
+    pub(crate) ext_tstamp: Option<ext::TimestampType>,
+    pub(crate) ext_respid: Option<ext::ResponderIdType>,
 }
 
 impl<'a> Response<'a> {
-    pub fn encode(&self, writer: &mut ZBufWriter<'_>) -> ZResult<(), ZCodecError> {
+    pub(crate) fn encode(&self, writer: &mut ZBufWriter<'_>) -> ZResult<(), ZCodecError> {
         let mut header = id::RESPONSE;
         let mut n_exts = ((self.ext_qos != ext::QoSType::DEFAULT) as u8)
             + (self.ext_tstamp.is_some() as u8)
@@ -72,7 +72,7 @@ impl<'a> Response<'a> {
         self.payload.encode(writer)
     }
 
-    pub fn decode(header: u8, reader: &mut ZBufReader<'a>) -> ZResult<Self, ZCodecError> {
+    pub(crate) fn decode(header: u8, reader: &mut ZBufReader<'a>) -> ZResult<Self, ZCodecError> {
         if imsg::mid(header) != id::RESPONSE {
             zbail!(ZCodecError::Invalid);
         }
@@ -129,7 +129,7 @@ impl<'a> Response<'a> {
     }
 
     #[cfg(test)]
-    pub fn rand(zbuf: &mut ZBufWriter<'a>) -> Self {
+    pub(crate) fn rand(zbuf: &mut ZBufWriter<'a>) -> Self {
         use rand::Rng;
         let mut rng = rand::thread_rng();
 
@@ -151,27 +151,27 @@ impl<'a> Response<'a> {
     }
 }
 
-pub mod ext {
-    pub type QoS = crate::zextz64!(0x1, false);
-    pub type QoSType = crate::protocol::network::ext::QoSType<{ QoS::ID }>;
+pub(crate) mod ext {
+    pub(crate) type QoS = crate::zextz64!(0x1, false);
+    pub(crate) type QoSType = crate::protocol::network::ext::QoSType<{ QoS::ID }>;
 
-    pub type Timestamp<'a> = crate::zextzbuf!('a, 0x2, false);
-    pub type TimestampType = crate::protocol::network::ext::TimestampType<{ Timestamp::ID }>;
+    pub(crate) type Timestamp<'a> = crate::zextzbuf!('a, 0x2, false);
+    pub(crate) type TimestampType = crate::protocol::network::ext::TimestampType<{ Timestamp::ID }>;
 
-    pub type ResponderId<'a> = crate::zextzbuf!('a, 0x3, false);
-    pub type ResponderIdType =
+    pub(crate) type ResponderId<'a> = crate::zextzbuf!('a, 0x3, false);
+    pub(crate) type ResponderIdType =
         crate::protocol::network::ext::EntityGlobalIdType<{ ResponderId::ID }>;
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct ResponseFinal {
-    pub rid: RequestId,
-    pub ext_qos: ext::QoSType,
-    pub ext_tstamp: Option<ext::TimestampType>,
+pub(crate) struct ResponseFinal {
+    pub(crate) rid: RequestId,
+    pub(crate) ext_qos: ext::QoSType,
+    pub(crate) ext_tstamp: Option<ext::TimestampType>,
 }
 
 impl ResponseFinal {
-    pub fn encode(&self, writer: &mut ZBufWriter<'_>) -> ZResult<(), ZCodecError> {
+    pub(crate) fn encode(&self, writer: &mut ZBufWriter<'_>) -> ZResult<(), ZCodecError> {
         let mut header = id::RESPONSE_FINAL;
         let mut n_exts =
             ((self.ext_qos != ext::QoSType::DEFAULT) as u8) + (self.ext_tstamp.is_some() as u8);
@@ -196,7 +196,7 @@ impl ResponseFinal {
         Ok(())
     }
 
-    pub fn decode(header: u8, reader: &mut ZBufReader<'_>) -> ZResult<Self, ZCodecError> {
+    pub(crate) fn decode(header: u8, reader: &mut ZBufReader<'_>) -> ZResult<Self, ZCodecError> {
         if imsg::mid(header) != id::RESPONSE_FINAL {
             zbail!(ZCodecError::Invalid)
         }
@@ -234,7 +234,7 @@ impl ResponseFinal {
     }
 
     #[cfg(test)]
-    pub fn rand() -> Self {
+    pub(crate) fn rand() -> Self {
         use rand::Rng;
 
         let mut rng = rand::thread_rng();

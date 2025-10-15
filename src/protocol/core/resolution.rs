@@ -4,7 +4,7 @@ use crate::protocol::{network::request::RequestId, transport::TransportSn};
 
 #[repr(u8)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
-pub enum Bits {
+pub(crate) enum Bits {
     U8 = 0b00,
     U16 = 0b01,
     U32 = 0b10,
@@ -17,7 +17,7 @@ impl Bits {
     const S32: &'static str = "32bit";
     const S64: &'static str = "64bit";
 
-    pub const fn bits(&self) -> u32 {
+    pub(crate) const fn bits(&self) -> u32 {
         match self {
             Bits::U8 => u8::BITS,
             Bits::U16 => u16::BITS,
@@ -26,7 +26,7 @@ impl Bits {
         }
     }
 
-    pub const fn mask(&self) -> u64 {
+    pub(crate) const fn mask(&self) -> u64 {
         match self {
             Bits::U8 => u8::MAX as u64,
             Bits::U16 => u16::MAX as u64,
@@ -35,7 +35,7 @@ impl Bits {
         }
     }
 
-    pub const fn to_str(self) -> &'static str {
+    pub(crate) const fn to_str(self) -> &'static str {
         match self {
             Bits::U8 => Self::S8,
             Bits::U16 => Self::S16,
@@ -91,32 +91,32 @@ impl fmt::Display for Bits {
 
 #[repr(u8)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum Field {
+pub(crate) enum Field {
     FrameSN = 0,
     RequestID = 2,
 }
 
 #[repr(transparent)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
-pub struct Resolution(u8);
+pub(crate) struct Resolution(u8);
 
 impl Resolution {
-    pub const fn as_u8(&self) -> u8 {
+    pub(crate) const fn as_u8(&self) -> u8 {
         self.0
     }
 
-    pub const fn get(&self, field: Field) -> Bits {
+    pub(crate) const fn get(&self, field: Field) -> Bits {
         let value = (self.0 >> (field as u8)) & 0b11;
         unsafe { core::mem::transmute(value) }
     }
 
-    pub fn set(&mut self, field: Field, bits: Bits) {
+    pub(crate) fn set(&mut self, field: Field, bits: Bits) {
         self.0 &= !(0b11 << field as u8);
         self.0 |= (bits as u8) << (field as u8);
     }
 
     #[cfg(test)]
-    pub fn rand() -> Self {
+    pub(crate) fn rand() -> Self {
         use rand::Rng;
 
         let mut rng = rand::thread_rng();

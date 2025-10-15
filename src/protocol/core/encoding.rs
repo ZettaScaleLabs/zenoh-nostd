@@ -12,27 +12,27 @@ use crate::{
     zbuf::{ZBuf, ZBufReader, ZBufWriter},
 };
 
-pub type EncodingId = u16;
+pub(crate) type EncodingId = u16;
 
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
-pub struct Encoding<'a> {
-    pub id: EncodingId,
-    pub schema: Option<ZBuf<'a>>,
+pub(crate) struct Encoding<'a> {
+    pub(crate) id: EncodingId,
+    pub(crate) schema: Option<ZBuf<'a>>,
 }
 
-pub mod flag {
-    pub const S: u32 = 1;
+pub(crate) mod flag {
+    pub(crate) const S: u32 = 1;
 }
 
 impl<'a> Encoding<'a> {
-    pub const fn empty() -> Self {
+    pub(crate) const fn empty() -> Self {
         Self {
             id: 0,
             schema: None,
         }
     }
 
-    pub fn encoded_len(&self) -> usize {
+    pub(crate) fn encoded_len(&self) -> usize {
         let mut len = encoded_len_u32((self.id as u32) << 1);
 
         if let Some(schema) = &self.schema {
@@ -42,7 +42,7 @@ impl<'a> Encoding<'a> {
         len
     }
 
-    pub fn encode(&self, writer: &mut ZBufWriter<'_>) -> ZResult<(), ZCodecError> {
+    pub(crate) fn encode(&self, writer: &mut ZBufWriter<'_>) -> ZResult<(), ZCodecError> {
         let mut id = (self.id as u32) << 1;
 
         if self.schema.is_some() {
@@ -58,7 +58,7 @@ impl<'a> Encoding<'a> {
         Ok(())
     }
 
-    pub fn decode(reader: &mut ZBufReader<'a>) -> ZResult<Self, ZCodecError> {
+    pub(crate) fn decode(reader: &mut ZBufReader<'a>) -> ZResult<Self, ZCodecError> {
         let id = decode_u32(reader)?;
 
         let has_schema = imsg::has_flag(id as u8, flag::S as u8);
@@ -75,7 +75,7 @@ impl<'a> Encoding<'a> {
     }
 
     #[cfg(test)]
-    pub fn rand(zbuf: &mut ZBufWriter<'a>) -> Self {
+    pub(crate) fn rand(zbuf: &mut ZBufWriter<'a>) -> Self {
         use rand::Rng;
 
         let mut rng = rand::thread_rng();

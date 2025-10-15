@@ -17,30 +17,30 @@ use crate::{
     zbuf::{ZBufReader, ZBufWriter},
 };
 
-pub type RequestId = u32;
-pub type AtomicRequestId = AtomicU32;
+pub(crate) type RequestId = u32;
+pub(crate) type AtomicRequestId = AtomicU32;
 
-pub mod flag {
-    pub const N: u8 = 1 << 5;
-    pub const M: u8 = 1 << 6;
-    pub const Z: u8 = 1 << 7;
+pub(crate) mod flag {
+    pub(crate) const N: u8 = 1 << 5;
+    pub(crate) const M: u8 = 1 << 6;
+    pub(crate) const Z: u8 = 1 << 7;
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct Request<'a> {
-    pub id: RequestId,
-    pub wire_expr: WireExpr<'a>,
-    pub ext_qos: ext::QoSType,
-    pub ext_tstamp: Option<ext::TimestampType>,
-    pub ext_nodeid: ext::NodeIdType,
-    pub ext_target: ext::QueryTarget,
-    pub ext_budget: Option<ext::BudgetType>,
-    pub ext_timeout: Option<ext::TimeoutType>,
-    pub payload: RequestBody<'a>,
+pub(crate) struct Request<'a> {
+    pub(crate) id: RequestId,
+    pub(crate) wire_expr: WireExpr<'a>,
+    pub(crate) ext_qos: ext::QoSType,
+    pub(crate) ext_tstamp: Option<ext::TimestampType>,
+    pub(crate) ext_nodeid: ext::NodeIdType,
+    pub(crate) ext_target: ext::QueryTarget,
+    pub(crate) ext_budget: Option<ext::BudgetType>,
+    pub(crate) ext_timeout: Option<ext::TimeoutType>,
+    pub(crate) payload: RequestBody<'a>,
 }
 
 impl<'a> Request<'a> {
-    pub fn encode(&self, writer: &mut ZBufWriter<'_>) -> ZResult<(), ZCodecError> {
+    pub(crate) fn encode(&self, writer: &mut ZBufWriter<'_>) -> ZResult<(), ZCodecError> {
         let mut header = id::REQUEST;
         let mut n_exts = ((self.ext_qos != ext::QoSType::DEFAULT) as u8)
             + (self.ext_tstamp.is_some() as u8)
@@ -100,7 +100,7 @@ impl<'a> Request<'a> {
         self.payload.encode(writer)
     }
 
-    pub fn decode(header: u8, reader: &mut ZBufReader<'a>) -> ZResult<Self, ZCodecError> {
+    pub(crate) fn decode(header: u8, reader: &mut ZBufReader<'a>) -> ZResult<Self, ZCodecError> {
         if imsg::mid(header) != id::REQUEST {
             zbail!(ZCodecError::Invalid);
         }
@@ -179,7 +179,7 @@ impl<'a> Request<'a> {
     }
 
     #[cfg(test)]
-    pub fn rand(zbuf: &mut ZBufWriter<'a>) -> Self {
+    pub(crate) fn rand(zbuf: &mut ZBufWriter<'a>) -> Self {
         use core::num::NonZeroU32;
 
         use rand::Rng;
@@ -217,7 +217,7 @@ impl<'a> Request<'a> {
     }
 }
 
-pub mod ext {
+pub(crate) mod ext {
     use core::{num::NonZeroU32, time::Duration};
 
     use crate::{
@@ -227,20 +227,20 @@ pub mod ext {
         zbuf::{ZBufReader, ZBufWriter},
     };
 
-    pub type QoS = crate::zextz64!(0x1, false);
-    pub type QoSType = crate::protocol::network::ext::QoSType<{ QoS::ID }>;
+    pub(crate) type QoS = crate::zextz64!(0x1, false);
+    pub(crate) type QoSType = crate::protocol::network::ext::QoSType<{ QoS::ID }>;
 
-    pub type Timestamp<'a> = crate::zextzbuf!('a, 0x2, false);
-    pub type TimestampType = crate::protocol::network::ext::TimestampType<{ Timestamp::ID }>;
+    pub(crate) type Timestamp<'a> = crate::zextzbuf!('a, 0x2, false);
+    pub(crate) type TimestampType = crate::protocol::network::ext::TimestampType<{ Timestamp::ID }>;
 
-    pub type NodeId = crate::zextz64!(0x3, true);
-    pub type NodeIdType = crate::protocol::network::ext::NodeIdType<{ NodeId::ID }>;
+    pub(crate) type NodeId = crate::zextz64!(0x3, true);
+    pub(crate) type NodeIdType = crate::protocol::network::ext::NodeIdType<{ NodeId::ID }>;
 
-    pub type Target = crate::zextz64!(0x4, true);
+    pub(crate) type Target = crate::zextz64!(0x4, true);
 
     #[repr(u8)]
     #[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
-    pub enum QueryTarget {
+    pub(crate) enum QueryTarget {
         #[default]
         BestMatching,
 
@@ -250,9 +250,13 @@ pub mod ext {
     }
 
     impl QueryTarget {
-        pub const DEFAULT: Self = Self::BestMatching;
+        pub(crate) const DEFAULT: Self = Self::BestMatching;
 
-        pub fn encode(&self, more: bool, writer: &mut ZBufWriter<'_>) -> ZResult<(), ZCodecError> {
+        pub(crate) fn encode(
+            &self,
+            more: bool,
+            writer: &mut ZBufWriter<'_>,
+        ) -> ZResult<(), ZCodecError> {
             let v = match self {
                 ext::QueryTarget::BestMatching => 0,
                 ext::QueryTarget::All => 1,
@@ -263,7 +267,7 @@ pub mod ext {
             ext.encode(more, writer)
         }
 
-        pub fn decode(
+        pub(crate) fn decode(
             header: u8,
             reader: &mut ZBufReader<'_>,
         ) -> ZResult<(Self, bool), ZCodecError> {
@@ -280,7 +284,7 @@ pub mod ext {
         }
 
         #[cfg(test)]
-        pub fn rand() -> Self {
+        pub(crate) fn rand() -> Self {
             use rand::prelude::*;
             let mut rng = rand::thread_rng();
 
@@ -294,9 +298,9 @@ pub mod ext {
         }
     }
 
-    pub type Budget = crate::zextz64!(0x5, false);
-    pub type BudgetType = NonZeroU32;
+    pub(crate) type Budget = crate::zextz64!(0x5, false);
+    pub(crate) type BudgetType = NonZeroU32;
 
-    pub type Timeout = crate::zextz64!(0x6, false);
-    pub type TimeoutType = Duration;
+    pub(crate) type Timeout = crate::zextz64!(0x6, false);
+    pub(crate) type TimeoutType = Duration;
 }

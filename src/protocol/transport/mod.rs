@@ -1,7 +1,7 @@
-pub mod frame;
-pub mod init;
-pub mod keepalive;
-pub mod open;
+pub(crate) mod frame;
+pub(crate) mod init;
+pub(crate) mod keepalive;
+pub(crate) mod open;
 
 use core::fmt;
 
@@ -25,43 +25,43 @@ use crate::{
     zbuf::{BufReaderExt, ZBufReader, ZBufWriter},
 };
 
-pub type BatchSize = u16;
-pub type AtomicBatchSize = core::sync::atomic::AtomicU16;
+pub(crate) type BatchSize = u16;
+pub(crate) type AtomicBatchSize = core::sync::atomic::AtomicU16;
 
-pub mod batch_size {
+pub(crate) mod batch_size {
     use super::BatchSize;
 
-    pub const UNICAST: BatchSize = BatchSize::MAX;
-    pub const MULTICAST: BatchSize = 8_192;
+    pub(crate) const UNICAST: BatchSize = BatchSize::MAX;
+    pub(crate) const MULTICAST: BatchSize = 8_192;
 }
 
-pub mod id {
-    pub const OAM: u8 = 0x00;
-    pub const INIT: u8 = 0x01;
-    pub const OPEN: u8 = 0x02;
-    pub const CLOSE: u8 = 0x03;
-    pub const KEEP_ALIVE: u8 = 0x04;
-    pub const FRAME: u8 = 0x05;
-    pub const FRAGMENT: u8 = 0x06;
-    pub const JOIN: u8 = 0x07;
+pub(crate) mod id {
+    pub(crate) const OAM: u8 = 0x00;
+    pub(crate) const INIT: u8 = 0x01;
+    pub(crate) const OPEN: u8 = 0x02;
+    pub(crate) const CLOSE: u8 = 0x03;
+    pub(crate) const KEEP_ALIVE: u8 = 0x04;
+    pub(crate) const FRAME: u8 = 0x05;
+    pub(crate) const FRAGMENT: u8 = 0x06;
+    pub(crate) const JOIN: u8 = 0x07;
 }
 
-pub type TransportSn = u32;
+pub(crate) type TransportSn = u32;
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
-pub struct PrioritySn {
-    pub reliable: TransportSn,
-    pub best_effort: TransportSn,
+pub(crate) struct PrioritySn {
+    pub(crate) reliable: TransportSn,
+    pub(crate) best_effort: TransportSn,
 }
 
 impl PrioritySn {
-    pub const DEFAULT: Self = Self {
+    pub(crate) const DEFAULT: Self = Self {
         reliable: TransportSn::MIN,
         best_effort: TransportSn::MIN,
     };
 
     #[cfg(test)]
-    pub fn rand() -> Self {
+    pub(crate) fn rand() -> Self {
         use rand::Rng;
         let mut rng = rand::thread_rng();
 
@@ -73,7 +73,7 @@ impl PrioritySn {
 }
 
 #[derive(Debug, PartialEq, Eq)]
-pub enum TransportBody<'a, 'b> {
+pub(crate) enum TransportBody<'a, 'b> {
     InitSyn(InitSyn<'a>),
     InitAck(InitAck<'a>),
     OpenSyn(OpenSyn<'a>),
@@ -83,12 +83,12 @@ pub enum TransportBody<'a, 'b> {
 }
 
 #[derive(Debug, PartialEq, Eq)]
-pub struct TransportMessage<'a, 'b> {
-    pub body: TransportBody<'a, 'b>,
+pub(crate) struct TransportMessage<'a, 'b> {
+    pub(crate) body: TransportBody<'a, 'b>,
 }
 
 impl<'a, 'b> TransportMessage<'a, 'b> {
-    pub fn encode(&self, writer: &mut ZBufWriter<'_>) -> ZResult<(), ZCodecError> {
+    pub(crate) fn encode(&self, writer: &mut ZBufWriter<'_>) -> ZResult<(), ZCodecError> {
         match &self.body {
             TransportBody::InitSyn(m) => m.encode(writer),
             TransportBody::InitAck(m) => m.encode(writer),
@@ -128,7 +128,7 @@ impl<'a, 'b> TransportMessage<'a, 'b> {
         Ok(())
     }
 
-    pub fn decode_single(
+    pub(crate) fn decode_single(
         reader: &mut ZBufReader<'a>,
         mut on_init_syn: Option<impl FnMut(InitSyn<'a>) -> ZResult<()>>,
         mut on_init_ack: Option<impl FnMut(InitAck<'a>) -> ZResult<()>>,
@@ -196,7 +196,7 @@ impl<'a, 'b> TransportMessage<'a, 'b> {
         Ok(true)
     }
 
-    pub fn decode_batch(
+    pub(crate) fn decode_batch(
         reader: &mut ZBufReader<'a>,
         mut on_init_syn: Option<impl FnMut(InitSyn<'a>) -> ZResult<()>>,
         mut on_init_ack: Option<impl FnMut(InitAck<'a>) -> ZResult<()>>,
@@ -255,7 +255,7 @@ impl<'a, 'b> TransportMessage<'a, 'b> {
         Ok(())
     }
 
-    pub async fn decode_single_async(
+    pub(crate) async fn decode_single_async(
         reader: &mut ZBufReader<'a>,
         mut on_init_syn: Option<impl FnMut(InitSyn<'a>) -> ZResult<()>>,
         mut on_init_ack: Option<impl FnMut(InitAck<'a>) -> ZResult<()>>,
@@ -325,7 +325,7 @@ impl<'a, 'b> TransportMessage<'a, 'b> {
         Ok(true)
     }
 
-    pub async fn decode_batch_async(
+    pub(crate) async fn decode_batch_async(
         reader: &mut ZBufReader<'a>,
         mut on_init_syn: Option<impl FnMut(InitSyn<'a>) -> ZResult<()>>,
         mut on_init_ack: Option<impl FnMut(InitAck<'a>) -> ZResult<()>>,
@@ -357,7 +357,10 @@ impl<'a, 'b> TransportMessage<'a, 'b> {
     }
 
     #[cfg(test)]
-    pub fn rand(zbuf: &mut ZBufWriter<'a>, vec: &'b mut Vec<NetworkMessage<'a>, 16>) -> Self {
+    pub(crate) fn rand(
+        zbuf: &mut ZBufWriter<'a>,
+        vec: &'b mut Vec<NetworkMessage<'a>, 16>,
+    ) -> Self {
         use rand::Rng;
 
         let mut rng = rand::thread_rng();
@@ -390,7 +393,7 @@ impl fmt::Display for TransportMessage<'_, '_> {
     }
 }
 
-pub mod ext {
+pub(crate) mod ext {
     use crate::{
         protocol::{ZCodecError, common::extension::ZExtZ64, core::Priority},
         result::ZResult,
@@ -399,30 +402,34 @@ pub mod ext {
 
     #[repr(transparent)]
     #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-    pub struct QoSType<const ID: u8> {
+    pub(crate) struct QoSType<const ID: u8> {
         inner: u8,
     }
 
     impl<const ID: u8> QoSType<{ ID }> {
         const P_MASK: u8 = 0b00000111;
-        pub const DEFAULT: Self = Self::new(Priority::DEFAULT);
+        pub(crate) const DEFAULT: Self = Self::new(Priority::DEFAULT);
 
-        pub const fn new(priority: Priority) -> Self {
+        pub(crate) const fn new(priority: Priority) -> Self {
             Self {
                 inner: priority as u8,
             }
         }
 
-        pub const fn priority(&self) -> Priority {
+        pub(crate) const fn priority(&self) -> Priority {
             unsafe { core::mem::transmute(self.inner & Self::P_MASK) }
         }
 
-        pub fn encode(&self, more: bool, writer: &mut ZBufWriter<'_>) -> ZResult<(), ZCodecError> {
+        pub(crate) fn encode(
+            &self,
+            more: bool,
+            writer: &mut ZBufWriter<'_>,
+        ) -> ZResult<(), ZCodecError> {
             let ext: ZExtZ64<{ ID }> = (*self).into();
             ext.encode(more, writer)
         }
 
-        pub fn decode(
+        pub(crate) fn decode(
             header: u8,
             reader: &mut ZBufReader<'_>,
         ) -> ZResult<(Self, bool), ZCodecError> {
@@ -431,7 +438,7 @@ pub mod ext {
         }
 
         #[cfg(test)]
-        pub fn rand() -> Self {
+        pub(crate) fn rand() -> Self {
             use rand::Rng;
             let mut rng = rand::thread_rng();
 
@@ -461,30 +468,34 @@ pub mod ext {
     }
 
     #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
-    pub struct PatchType<const ID: u8>(u8);
+    pub(crate) struct PatchType<const ID: u8>(u8);
 
     impl<const ID: u8> PatchType<ID> {
-        pub const NONE: Self = Self(0);
-        pub const CURRENT: Self = Self(1);
+        pub(crate) const NONE: Self = Self(0);
+        pub(crate) const CURRENT: Self = Self(1);
 
-        pub fn new(int: u8) -> Self {
+        pub(crate) fn new(int: u8) -> Self {
             Self(int)
         }
 
-        pub fn raw(self) -> u8 {
+        pub(crate) fn raw(self) -> u8 {
             self.0
         }
 
-        pub fn has_fragmentation_markers(&self) -> bool {
+        pub(crate) fn has_fragmentation_markers(&self) -> bool {
             self.0 >= 1
         }
 
-        pub fn encode(&self, more: bool, writer: &mut ZBufWriter<'_>) -> ZResult<(), ZCodecError> {
+        pub(crate) fn encode(
+            &self,
+            more: bool,
+            writer: &mut ZBufWriter<'_>,
+        ) -> ZResult<(), ZCodecError> {
             let ext: ZExtZ64<{ ID }> = (*self).into();
             ext.encode(more, writer)
         }
 
-        pub fn decode(
+        pub(crate) fn decode(
             header: u8,
             reader: &mut ZBufReader<'_>,
         ) -> ZResult<(Self, bool), ZCodecError> {
@@ -493,7 +504,7 @@ pub mod ext {
         }
 
         #[cfg(test)]
-        pub fn rand() -> Self {
+        pub(crate) fn rand() -> Self {
             use rand::Rng;
             Self(rand::thread_rng().r#gen())
         }

@@ -7,9 +7,9 @@ use crate::{
     result::ZResult,
 };
 
-pub mod tcp;
+pub(crate) mod tcp;
 
-pub enum LinkTx<'a, T: Platform>
+pub(crate) enum LinkTx<'a, T: Platform>
 where
     T: 'a,
 {
@@ -18,7 +18,7 @@ where
     ),
 }
 
-pub enum LinkRx<'a, T: Platform>
+pub(crate) enum LinkRx<'a, T: Platform>
 where
     T: 'a,
 {
@@ -27,12 +27,15 @@ where
     ),
 }
 
-pub enum Link<T: Platform> {
+pub(crate) enum Link<T: Platform> {
     LinkTcp(LinkTcp<T::AbstractedTcpStream>),
 }
 
 impl<T: Platform> Link<T> {
-    pub async fn new(platform: &T, endpoint: EndPoint) -> ZResult<Self, ZCommunicationError> {
+    pub(crate) async fn new(
+        platform: &T,
+        endpoint: EndPoint,
+    ) -> ZResult<Self, ZCommunicationError> {
         let protocol = endpoint.protocol();
         let address = endpoint.address();
 
@@ -49,7 +52,7 @@ impl<T: Platform> Link<T> {
         }
     }
 
-    pub fn split(&mut self) -> (LinkTx<'_, T>, LinkRx<'_, T>) {
+    pub(crate) fn split(&mut self) -> (LinkTx<'_, T>, LinkRx<'_, T>) {
         match self {
             Self::LinkTcp(tcp) => {
                 let (tx, rx) = tcp.split();
@@ -58,43 +61,46 @@ impl<T: Platform> Link<T> {
         }
     }
 
-    pub fn is_reliable(&self) -> bool {
+    pub(crate) fn is_reliable(&self) -> bool {
         match self {
             Self::LinkTcp(tcp) => tcp.is_reliable(),
         }
     }
 
-    pub fn is_streamed(&self) -> bool {
+    pub(crate) fn is_streamed(&self) -> bool {
         match self {
             Self::LinkTcp(tcp) => tcp.is_streamed(),
         }
     }
 
-    pub fn mtu(&self) -> u16 {
+    pub(crate) fn mtu(&self) -> u16 {
         match self {
             Self::LinkTcp(tcp) => tcp.mtu(),
         }
     }
 
-    pub async fn write(&mut self, buffer: &[u8]) -> ZResult<usize, ZCommunicationError> {
+    pub(crate) async fn write(&mut self, buffer: &[u8]) -> ZResult<usize, ZCommunicationError> {
         match self {
             Self::LinkTcp(tcp) => tcp.write(buffer).await,
         }
     }
 
-    pub async fn write_all(&mut self, buffer: &[u8]) -> ZResult<(), ZCommunicationError> {
+    pub(crate) async fn write_all(&mut self, buffer: &[u8]) -> ZResult<(), ZCommunicationError> {
         match self {
             Self::LinkTcp(tcp) => tcp.write_all(buffer).await,
         }
     }
 
-    pub async fn read(&mut self, buffer: &mut [u8]) -> ZResult<usize, ZCommunicationError> {
+    pub(crate) async fn read(&mut self, buffer: &mut [u8]) -> ZResult<usize, ZCommunicationError> {
         match self {
             Self::LinkTcp(tcp) => tcp.read(buffer).await,
         }
     }
 
-    pub async fn read_exact(&mut self, buffer: &mut [u8]) -> ZResult<(), ZCommunicationError> {
+    pub(crate) async fn read_exact(
+        &mut self,
+        buffer: &mut [u8],
+    ) -> ZResult<(), ZCommunicationError> {
         match self {
             Self::LinkTcp(tcp) => tcp.read_exact(buffer).await,
         }
@@ -102,25 +108,25 @@ impl<T: Platform> Link<T> {
 }
 
 impl<T: Platform> LinkTx<'_, T> {
-    pub fn is_streamed(&self) -> bool {
+    pub(crate) fn is_streamed(&self) -> bool {
         match self {
             Self::LinkTcpTx(tcp) => tcp.is_streamed(),
         }
     }
 
-    pub fn mtu(&self) -> u16 {
+    pub(crate) fn mtu(&self) -> u16 {
         match self {
             Self::LinkTcpTx(tcp) => tcp.mtu(),
         }
     }
 
-    pub async fn write(&mut self, buffer: &[u8]) -> ZResult<usize, ZCommunicationError> {
+    pub(crate) async fn write(&mut self, buffer: &[u8]) -> ZResult<usize, ZCommunicationError> {
         match self {
             Self::LinkTcpTx(tcp) => tcp.write(buffer).await,
         }
     }
 
-    pub async fn write_all(&mut self, buffer: &[u8]) -> ZResult<(), ZCommunicationError> {
+    pub(crate) async fn write_all(&mut self, buffer: &[u8]) -> ZResult<(), ZCommunicationError> {
         match self {
             Self::LinkTcpTx(tcp) => tcp.write_all(buffer).await,
         }
@@ -128,25 +134,28 @@ impl<T: Platform> LinkTx<'_, T> {
 }
 
 impl<T: Platform> LinkRx<'_, T> {
-    pub fn is_streamed(&self) -> bool {
+    pub(crate) fn is_streamed(&self) -> bool {
         match self {
             Self::LinkTcpRx(tcp) => tcp.is_streamed(),
         }
     }
 
-    pub fn mtu(&self) -> u16 {
+    pub(crate) fn mtu(&self) -> u16 {
         match self {
             Self::LinkTcpRx(tcp) => tcp.mtu(),
         }
     }
 
-    pub async fn read(&mut self, buffer: &mut [u8]) -> ZResult<usize, ZCommunicationError> {
+    pub(crate) async fn read(&mut self, buffer: &mut [u8]) -> ZResult<usize, ZCommunicationError> {
         match self {
             Self::LinkTcpRx(tcp) => tcp.read(buffer).await,
         }
     }
 
-    pub async fn read_exact(&mut self, buffer: &mut [u8]) -> ZResult<(), ZCommunicationError> {
+    pub(crate) async fn read_exact(
+        &mut self,
+        buffer: &mut [u8],
+    ) -> ZResult<(), ZCommunicationError> {
         match self {
             Self::LinkTcpRx(tcp) => tcp.read_exact(buffer).await,
         }

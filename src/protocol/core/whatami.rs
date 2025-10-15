@@ -4,7 +4,7 @@ use const_format::formatcp;
 
 #[repr(u8)]
 #[derive(Debug, Default, Clone, Copy, PartialEq, Eq, Hash)]
-pub enum WhatAmI {
+pub(crate) enum WhatAmI {
     Router = 0b001,
     #[default]
     Peer = 0b010,
@@ -20,7 +20,7 @@ impl WhatAmI {
     const U8_P: u8 = Self::Peer as u8;
     const U8_C: u8 = Self::Client as u8;
 
-    pub const fn to_str(self) -> &'static str {
+    pub(crate) const fn to_str(self) -> &'static str {
         match self {
             Self::Router => Self::STR_R,
             Self::Peer => Self::STR_P,
@@ -29,7 +29,7 @@ impl WhatAmI {
     }
 
     #[cfg(test)]
-    pub fn rand() -> Self {
+    pub(crate) fn rand() -> Self {
         use rand::prelude::SliceRandom;
         let mut rng = rand::thread_rng();
 
@@ -79,7 +79,7 @@ impl From<WhatAmI> for u8 {
 
 #[repr(transparent)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub struct WhatAmIMatcher(NonZeroU8);
+pub(crate) struct WhatAmIMatcher(NonZeroU8);
 
 impl WhatAmIMatcher {
     const U8_0: u8 = 1 << 7;
@@ -91,31 +91,31 @@ impl WhatAmIMatcher {
     const U8_R_C: u8 = Self::U8_0 | WhatAmI::U8_R | WhatAmI::U8_C;
     const U8_R_P_C: u8 = Self::U8_0 | WhatAmI::U8_R | WhatAmI::U8_P | WhatAmI::U8_C;
 
-    pub const fn empty() -> Self {
+    pub(crate) const fn empty() -> Self {
         Self(unsafe { NonZeroU8::new_unchecked(Self::U8_0) })
     }
 
-    pub const fn router(self) -> Self {
+    pub(crate) const fn router(self) -> Self {
         Self(unsafe { NonZeroU8::new_unchecked(self.0.get() | Self::U8_R) })
     }
 
-    pub const fn peer(self) -> Self {
+    pub(crate) const fn peer(self) -> Self {
         Self(unsafe { NonZeroU8::new_unchecked(self.0.get() | Self::U8_P) })
     }
 
-    pub const fn client(self) -> Self {
+    pub(crate) const fn client(self) -> Self {
         Self(unsafe { NonZeroU8::new_unchecked(self.0.get() | Self::U8_C) })
     }
 
-    pub const fn is_empty(&self) -> bool {
+    pub(crate) const fn is_empty(&self) -> bool {
         self.0.get() == Self::U8_0
     }
 
-    pub const fn matches(&self, w: WhatAmI) -> bool {
+    pub(crate) const fn matches(&self, w: WhatAmI) -> bool {
         (self.0.get() & w as u8) != 0
     }
 
-    pub const fn to_str(self) -> &'static str {
+    pub(crate) const fn to_str(self) -> &'static str {
         match self.0.get() {
             Self::U8_0 => "",
             Self::U8_R => WhatAmI::STR_R,

@@ -15,26 +15,26 @@ use crate::{
     zbuf::{ZBuf, ZBufReader, ZBufWriter},
 };
 
-pub mod flag {
-    pub const A: u8 = 1 << 5;
-    pub const T: u8 = 1 << 6;
-    pub const Z: u8 = 1 << 7;
+pub(crate) mod flag {
+    pub(crate) const A: u8 = 1 << 5;
+    pub(crate) const T: u8 = 1 << 6;
+    pub(crate) const Z: u8 = 1 << 7;
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct OpenSyn<'a> {
-    pub lease: Duration,
-    pub initial_sn: TransportSn,
-    pub cookie: ZBuf<'a>,
-    pub ext_qos: Option<ext::QoS>,
-    pub ext_auth: Option<ext::Auth<'a>>,
-    pub ext_mlink: Option<ext::MultiLinkSyn<'a>>,
-    pub ext_lowlatency: Option<ext::LowLatency>,
-    pub ext_compression: Option<ext::Compression>,
+pub(crate) struct OpenSyn<'a> {
+    pub(crate) lease: Duration,
+    pub(crate) initial_sn: TransportSn,
+    pub(crate) cookie: ZBuf<'a>,
+    pub(crate) ext_qos: Option<ext::QoS>,
+    pub(crate) ext_auth: Option<ext::Auth<'a>>,
+    pub(crate) ext_mlink: Option<ext::MultiLinkSyn<'a>>,
+    pub(crate) ext_lowlatency: Option<ext::LowLatency>,
+    pub(crate) ext_compression: Option<ext::Compression>,
 }
 
 impl<'a> OpenSyn<'a> {
-    pub fn encode(&self, writer: &mut ZBufWriter<'_>) -> ZResult<(), ZCodecError> {
+    pub(crate) fn encode(&self, writer: &mut ZBufWriter<'_>) -> ZResult<(), ZCodecError> {
         let mut header = id::OPEN;
 
         if self.lease.as_millis().is_multiple_of(1_000) {
@@ -87,7 +87,7 @@ impl<'a> OpenSyn<'a> {
         Ok(())
     }
 
-    pub fn decode(header: u8, reader: &mut ZBufReader<'a>) -> ZResult<Self, ZCodecError> {
+    pub(crate) fn decode(header: u8, reader: &mut ZBufReader<'a>) -> ZResult<Self, ZCodecError> {
         if imsg::mid(header) != id::OPEN || imsg::has_flag(header, flag::A) {
             zbail!(ZCodecError::Invalid)
         }
@@ -155,7 +155,7 @@ impl<'a> OpenSyn<'a> {
     }
 
     #[cfg(test)]
-    pub fn rand(zbuf: &mut ZBufWriter<'a>) -> Self {
+    pub(crate) fn rand(zbuf: &mut ZBufWriter<'a>) -> Self {
         use rand::Rng;
 
         use crate::{
@@ -200,33 +200,33 @@ impl<'a> OpenSyn<'a> {
     }
 }
 
-pub mod ext {
+pub(crate) mod ext {
 
-    pub type QoS = crate::zextunit!(0x1, false);
+    pub(crate) type QoS = crate::zextunit!(0x1, false);
 
-    pub type Auth<'a> = crate::zextzbuf!('a, 0x3, false);
+    pub(crate) type Auth<'a> = crate::zextzbuf!('a, 0x3, false);
 
-    pub type MultiLinkSyn<'a> = crate::zextzbuf!('a, 0x4, false);
-    pub type MultiLinkAck = crate::zextunit!(0x4, false);
+    pub(crate) type MultiLinkSyn<'a> = crate::zextzbuf!('a, 0x4, false);
+    pub(crate) type MultiLinkAck = crate::zextunit!(0x4, false);
 
-    pub type LowLatency = crate::zextunit!(0x5, false);
+    pub(crate) type LowLatency = crate::zextunit!(0x5, false);
 
-    pub type Compression = crate::zextunit!(0x6, false);
+    pub(crate) type Compression = crate::zextunit!(0x6, false);
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct OpenAck<'a> {
-    pub lease: Duration,
-    pub initial_sn: TransportSn,
-    pub ext_qos: Option<ext::QoS>,
-    pub ext_auth: Option<ext::Auth<'a>>,
-    pub ext_mlink: Option<ext::MultiLinkAck>,
-    pub ext_lowlatency: Option<ext::LowLatency>,
-    pub ext_compression: Option<ext::Compression>,
+pub(crate) struct OpenAck<'a> {
+    pub(crate) lease: Duration,
+    pub(crate) initial_sn: TransportSn,
+    pub(crate) ext_qos: Option<ext::QoS>,
+    pub(crate) ext_auth: Option<ext::Auth<'a>>,
+    pub(crate) ext_mlink: Option<ext::MultiLinkAck>,
+    pub(crate) ext_lowlatency: Option<ext::LowLatency>,
+    pub(crate) ext_compression: Option<ext::Compression>,
 }
 
 impl<'a> OpenAck<'a> {
-    pub fn encode(&self, writer: &mut ZBufWriter) -> ZResult<(), ZCodecError> {
+    pub(crate) fn encode(&self, writer: &mut ZBufWriter) -> ZResult<(), ZCodecError> {
         let mut header = id::OPEN;
         header |= flag::A;
 
@@ -282,7 +282,7 @@ impl<'a> OpenAck<'a> {
         Ok(())
     }
 
-    pub fn decode(header: u8, reader: &mut ZBufReader<'a>) -> ZResult<Self, ZCodecError> {
+    pub(crate) fn decode(header: u8, reader: &mut ZBufReader<'a>) -> ZResult<Self, ZCodecError> {
         if imsg::mid(header) != id::OPEN || !imsg::has_flag(header, flag::A) {
             zbail!(ZCodecError::Invalid)
         }
@@ -350,7 +350,7 @@ impl<'a> OpenAck<'a> {
     }
 
     #[cfg(test)]
-    pub fn rand(zbuf: &mut ZBufWriter<'a>) -> Self {
+    pub(crate) fn rand(zbuf: &mut ZBufWriter<'a>) -> Self {
         use rand::Rng;
 
         use crate::protocol::common::extension::{ZExtUnit, ZExtZBuf};

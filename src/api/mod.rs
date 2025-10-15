@@ -1,19 +1,24 @@
 use embassy_executor::{SpawnToken, Spawner};
 use static_cell::StaticCell;
 
-use crate::{
-    api::{driver::SessionDriver, subscriber::ZSubscriberCallbacks},
-    io::transport::Transport,
-    platform::Platform,
-};
+use crate::{api::subscriber::ZSubscriberCallbacks, io::transport::Transport, platform::Platform};
 
-pub mod callback;
-pub mod sample;
+pub(crate) mod callback;
+pub use callback::ZCallback;
 
-pub mod driver;
-pub mod publisher;
-pub mod session;
-pub mod subscriber;
+pub(crate) mod sample;
+pub use sample::{ZOwnedSample, ZSample};
+
+pub(crate) mod driver;
+pub use driver::SessionDriver;
+
+pub(crate) mod publisher;
+
+pub(crate) mod session;
+pub use session::Session;
+
+pub(crate) mod subscriber;
+pub use subscriber::{ZSubscriber, ZSubscriberCallbackStorage};
 
 pub struct ZConfig<T: Platform + 'static, S> {
     pub spawner: Spawner,
@@ -32,27 +37,27 @@ pub struct ZConfig<T: Platform + 'static, S> {
 #[macro_export]
 macro_rules! zconfig {
     ($type:ident : ($spawner:expr, $platform:expr), TX: $TX:expr, RX: $RX:expr, SUBSCRIBERS: $SUBSCRIBERS:expr) => {{
-        static DRIVER: static_cell::StaticCell<$crate::api::driver::SessionDriver<$type>> =
+        static DRIVER: static_cell::StaticCell<$crate::SessionDriver<$type>> =
             static_cell::StaticCell::new();
 
-        static TRANSPORT: static_cell::StaticCell<$crate::io::transport::Transport<$type>> =
+        static TRANSPORT: static_cell::StaticCell<$crate::Transport<$type>> =
             static_cell::StaticCell::new();
 
         static TX_ZBUF: static_cell::StaticCell<[u8; $TX]> = static_cell::StaticCell::new();
         static RX_ZBUF: static_cell::StaticCell<[u8; $RX]> = static_cell::StaticCell::new();
 
         static SUBSCRIBERS: static_cell::StaticCell<
-            $crate::api::subscriber::ZSubscriberCallbackStorage<$SUBSCRIBERS>,
+            $crate::ZSubscriberCallbackStorage<$SUBSCRIBERS>,
         > = static_cell::StaticCell::new();
 
         #[embassy_executor::task]
-        async fn session_task(runner: &'static $crate::api::driver::SessionDriver<$type>) {
+        async fn session_task(runner: &'static $crate::SessionDriver<$type>) {
             if let Err(e) = runner.run().await {
                 $crate::error!("Session driver task ended with error: {}", e);
             }
         }
 
-        let zconfig = $crate::api::ZConfig {
+        let zconfig = $crate::ZConfig {
             spawner: $spawner,
             platform: $platform,
             task: session_task,
@@ -62,9 +67,8 @@ macro_rules! zconfig {
 
             tx_zbuf: TX_ZBUF.init([0u8; $TX]).as_mut_slice(),
             rx_zbuf: RX_ZBUF.init([0u8; $RX]).as_mut_slice(),
-            subscribers: SUBSCRIBERS.init($crate::api::subscriber::ZSubscriberCallbackStorage::<
-                $SUBSCRIBERS,
-            >::new()),
+            subscribers: SUBSCRIBERS
+                .init($crate::ZSubscriberCallbackStorage::<$SUBSCRIBERS>::new()),
         };
 
         zconfig

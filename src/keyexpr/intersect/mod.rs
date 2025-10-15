@@ -1,18 +1,18 @@
 use crate::keyexpr::{DELIMITER, borrowed::keyexpr};
 
 mod classical;
-pub use classical::ClassicIntersector;
+pub(crate) use classical::ClassicIntersector;
 
-pub const DEFAULT_INTERSECTOR: ClassicIntersector = ClassicIntersector;
+pub(crate) const DEFAULT_INTERSECTOR: ClassicIntersector = ClassicIntersector;
 
-pub trait Intersector<Left, Right> {
+pub(crate) trait Intersector<Left, Right> {
     fn intersect(&self, left: Left, right: Right) -> bool;
 }
 
 pub(crate) mod restriction {
     #[repr(transparent)]
     #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-    pub struct NoSubWilds<T>(pub T);
+    pub(crate) struct NoSubWilds<T>(pub(crate) T);
 }
 #[repr(u8)]
 enum MatchComplexity {

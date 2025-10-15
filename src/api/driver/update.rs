@@ -19,7 +19,7 @@ use crate::{
 };
 
 impl<T: Platform> SessionDriver<T> {
-    pub async fn internal_update<'a>(
+    pub(crate) async fn internal_update<'a>(
         &self,
         mut reader: ZBufReader<'a>,
     ) -> ZResult<(), ZCommunicationError> {
