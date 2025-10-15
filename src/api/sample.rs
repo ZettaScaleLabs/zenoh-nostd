@@ -29,7 +29,7 @@ impl<'a> ZSample<'a> {
     pub fn into_owned<const KE: usize, const PL: usize>(self) -> ZResult<ZOwnedSample<KE, PL>> {
         Ok(ZOwnedSample::new(
             String::from_str(self.keyexpr.as_str()).map_err(|_| ZError::Invalid)?,
-            Vec::from_slice(self.payload.as_ref()).map_err(|_| ZError::Invalid)?,
+            Vec::from_slice(self.payload).map_err(|_| ZError::Invalid)?,
         ))
     }
 }

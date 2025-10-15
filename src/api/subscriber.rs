@@ -67,6 +67,12 @@ pub struct ZSubscriberCallbackStorage<const N: usize> {
     callbacks: FnvIndexMap<u32, ZCallback, N>,
 }
 
+impl<const N: usize> Default for ZSubscriberCallbackStorage<N> {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl<const N: usize> ZSubscriberCallbackStorage<N> {
     pub fn new() -> Self {
         Self {
