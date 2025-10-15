@@ -242,7 +242,7 @@ fn codec_timestamp() {
 
         let value: Timestamp = {
             let time = uhlc::NTP64(thread_rng().r#gen());
-            let id = uhlc::ID::try_from(ZenohIdProto::rand().to_le_bytes()).unwrap();
+            let id = uhlc::ID::try_from(ZenohIdProto::rand().as_le_bytes()).unwrap();
             Timestamp::new(time, id)
         };
         encode_timestamp(&value, &mut writer).unwrap();

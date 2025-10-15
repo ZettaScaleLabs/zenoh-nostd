@@ -1,4 +1,4 @@
-use core::{convert::TryInto, fmt, sync::atomic::AtomicU16};
+use core::{convert::TryInto, fmt};
 
 use heapless::String;
 
@@ -16,9 +16,6 @@ use crate::{
 pub(crate) type ExprId = u16;
 pub(crate) type ExprLen = u16;
 
-pub(crate) type AtomicExprId = AtomicU16;
-pub(crate) const EMPTY_EXPR_ID: ExprId = 0;
-
 #[derive(PartialEq, Eq, Hash, Clone, Debug)]
 pub(crate) struct WireExpr<'a> {
     pub(crate) scope: ExprId,
@@ -27,46 +24,8 @@ pub(crate) struct WireExpr<'a> {
 }
 
 impl<'a> WireExpr<'a> {
-    pub(crate) fn new(scope: ExprId, suffix: &'a str, mapping: Mapping) -> Self {
-        WireExpr {
-            scope,
-            suffix,
-            mapping,
-        }
-    }
-
-    pub(crate) fn empty() -> Self {
-        WireExpr {
-            scope: 0,
-            suffix: "",
-            mapping: Mapping::Sender,
-        }
-    }
-
     pub(crate) fn is_empty(&self) -> bool {
         self.scope == 0 && self.suffix.is_empty()
-    }
-
-    pub(crate) fn as_str(&self) -> &'_ str {
-        if self.scope == 0 {
-            self.suffix
-        } else {
-            "<encoded_expr>"
-        }
-    }
-
-    pub(crate) fn try_as_str(
-        &self,
-    ) -> crate::result::ZResult<&'_ str, crate::protocol::ZProtocolError> {
-        if self.scope == EMPTY_EXPR_ID {
-            Ok(self.suffix)
-        } else {
-            crate::zbail!(crate::protocol::ZProtocolError::Invalid)
-        }
-    }
-
-    pub(crate) fn as_id(&self) -> ExprId {
-        self.scope
     }
 
     pub(crate) fn try_as_id(
@@ -79,20 +38,8 @@ impl<'a> WireExpr<'a> {
         }
     }
 
-    pub(crate) fn as_id_and_suffix(&self) -> (ExprId, &'_ str) {
-        (self.scope, self.suffix)
-    }
-
     pub(crate) fn has_suffix(&self) -> bool {
         !self.suffix.is_empty()
-    }
-
-    pub(crate) fn with_suffix(&self, suffix: &'a str) -> Self {
-        WireExpr {
-            scope: self.scope,
-            suffix,
-            mapping: self.mapping,
-        }
     }
 
     pub(crate) fn encode(&self, writer: &mut ZBufWriter<'_>) -> ZResult<(), ZCodecError> {

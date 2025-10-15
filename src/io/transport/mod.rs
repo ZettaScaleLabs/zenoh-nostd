@@ -26,6 +26,7 @@ pub(crate) struct TransportMineConfig {
     pub(crate) open_timeout: Duration,
 }
 
+#[allow(dead_code)]
 pub(crate) struct TransportOtherConfig {
     pub(crate) other_whatami: WhatAmI,
     pub(crate) other_zid: ZenohIdProto,
@@ -33,6 +34,7 @@ pub(crate) struct TransportOtherConfig {
     pub(crate) other_lease: Duration,
 }
 
+#[allow(dead_code)]
 pub(crate) struct TransportNegociatedConfig {
     pub(crate) mine_sn: TransportSn,
 
@@ -134,10 +136,6 @@ impl<T: Platform> Transport<T> {
 }
 
 impl<'a, T: Platform> TransportTx<'a, T> {
-    pub(crate) fn new(link: LinkTx<'a, T>) -> Self {
-        Self { link }
-    }
-
     pub(crate) async fn send(
         &mut self,
         mut tx_zbuf: ZBufMut<'_>,
@@ -168,10 +166,6 @@ impl<'a, T: Platform> TransportTx<'a, T> {
 }
 
 impl<'a, T: Platform> TransportRx<'a, T> {
-    pub(crate) fn new(link: LinkRx<'a, T>) -> Self {
-        Self { link }
-    }
-
     pub(crate) async fn recv<'b>(
         &mut self,
         rx_zbuf: ZBufMut<'b>,

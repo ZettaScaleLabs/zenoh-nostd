@@ -83,14 +83,6 @@ impl<const ID: u8> ZExtUnit<{ ID }> {
         iext::id(ID, mandatory, iext::ENC_UNIT)
     }
 
-    pub(crate) const fn is_mandatory(&self) -> bool {
-        iext::is_mandatory(ID)
-    }
-
-    pub(crate) const fn transmute<const DI: u8>(self) -> ZExtUnit<{ DI }> {
-        ZExtUnit::new()
-    }
-
     pub(crate) fn encode(
         &self,
         more: bool,
@@ -143,14 +135,6 @@ impl<const ID: u8> ZExtZ64<{ ID }> {
 
     pub(crate) const fn id(mandatory: bool) -> u8 {
         iext::id(ID, mandatory, iext::ENC_Z64)
-    }
-
-    pub(crate) const fn is_mandatory(&self) -> bool {
-        iext::is_mandatory(ID)
-    }
-
-    pub(crate) const fn transmute<const DI: u8>(self) -> ZExtZ64<{ DI }> {
-        ZExtZ64::new(self.value)
     }
 
     pub(crate) fn encode(
@@ -208,20 +192,8 @@ pub(crate) struct ZExtZBuf<'a, const ID: u8> {
 impl<'a, const ID: u8> ZExtZBuf<'a, { ID }> {
     pub(crate) const ID: u8 = ID;
 
-    pub(crate) const fn new(value: ZBuf<'a>) -> Self {
-        Self { value }
-    }
-
     pub(crate) const fn id(mandatory: bool) -> u8 {
         iext::id(ID, mandatory, iext::ENC_ZBUF)
-    }
-
-    pub(crate) const fn is_mandatory(&self) -> bool {
-        iext::is_mandatory(ID)
-    }
-
-    pub(crate) fn transmute<const DI: u8>(self) -> ZExtZBuf<'a, { DI }> {
-        ZExtZBuf::new(self.value)
     }
 
     pub(crate) fn encode(
@@ -284,18 +256,8 @@ pub(crate) struct ZExtZBufHeader<const ID: u8> {
 }
 
 impl<const ID: u8> ZExtZBufHeader<{ ID }> {
-    pub(crate) const ID: u8 = ID;
-
     pub(crate) const fn new(len: usize) -> Self {
         Self { len }
-    }
-
-    pub(crate) const fn id(mandatory: bool) -> u8 {
-        iext::id(ID, mandatory, iext::ENC_ZBUF)
-    }
-
-    pub(crate) const fn is_mandatory(&self) -> bool {
-        iext::is_mandatory(ID)
     }
 
     pub(crate) fn encode(

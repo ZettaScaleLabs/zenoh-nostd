@@ -17,24 +17,6 @@ impl Bits {
     const S32: &'static str = "32bit";
     const S64: &'static str = "64bit";
 
-    pub(crate) const fn bits(&self) -> u32 {
-        match self {
-            Bits::U8 => u8::BITS,
-            Bits::U16 => u16::BITS,
-            Bits::U32 => u32::BITS,
-            Bits::U64 => u64::BITS,
-        }
-    }
-
-    pub(crate) const fn mask(&self) -> u64 {
-        match self {
-            Bits::U8 => u8::MAX as u64,
-            Bits::U16 => u16::MAX as u64,
-            Bits::U32 => u32::MAX as u64,
-            Bits::U64 => u64::MAX,
-        }
-    }
-
     pub(crate) const fn to_str(self) -> &'static str {
         match self {
             Bits::U8 => Self::S8,

@@ -84,30 +84,6 @@ pub struct EndPoint {
 }
 
 impl EndPoint {
-    pub(crate) fn new(
-        protocol: &'static str,
-        address: &'static str,
-    ) -> crate::result::ZResult<Self, crate::protocol::ZProtocolError> {
-        let len = protocol.len() + address.len();
-        if len > u8::MAX as usize {
-            crate::zbail!(crate::protocol::ZProtocolError::Invalid);
-        }
-
-        let s: &'static str = format_args!("{protocol}{PROTO_SEPARATOR}{address}")
-            .as_str()
-            .ok_or(crate::protocol::ZProtocolError::Invalid)?;
-
-        Self::try_from(s)
-    }
-
-    pub(crate) fn as_str(&self) -> &str {
-        self.inner
-    }
-
-    pub(crate) fn split(&self) -> (Protocol<'_>, Address<'_>) {
-        (self.protocol(), self.address())
-    }
-
     pub(crate) fn protocol(&self) -> Protocol<'_> {
         Protocol(protocol(self.inner))
     }

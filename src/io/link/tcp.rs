@@ -14,14 +14,10 @@ pub(crate) struct LinkTcp<T: AbstractedTcpStream> {
 
 pub(crate) struct LinkTcpTx<T: AbstractedTcpTx> {
     tx: T,
-
-    mtu: u16,
 }
 
 pub(crate) struct LinkTcpRx<T: AbstractedTcpRx> {
     rx: T,
-
-    mtu: u16,
 }
 
 impl<T: AbstractedTcpStream> LinkTcp<T> {
@@ -33,8 +29,8 @@ impl<T: AbstractedTcpStream> LinkTcp<T> {
 
     pub(crate) fn split(&mut self) -> (LinkTcpTx<T::Tx<'_>>, LinkTcpRx<T::Rx<'_>>) {
         let (tx, rx) = self.stream.split();
-        let tx = LinkTcpTx { tx, mtu: self.mtu };
-        let rx = LinkTcpRx { rx, mtu: self.mtu };
+        let tx = LinkTcpTx { tx };
+        let rx = LinkTcpRx { rx };
         (tx, rx)
     }
 
@@ -42,16 +38,8 @@ impl<T: AbstractedTcpStream> LinkTcp<T> {
         self.mtu
     }
 
-    pub(crate) fn is_reliable(&self) -> bool {
-        true
-    }
-
     pub(crate) fn is_streamed(&self) -> bool {
         true
-    }
-
-    pub(crate) async fn write(&mut self, buffer: &[u8]) -> ZResult<usize, ZCommunicationError> {
-        self.stream.write(buffer).await
     }
 
     pub(crate) async fn write_all(&mut self, buffer: &[u8]) -> ZResult<(), ZCommunicationError> {
@@ -71,20 +59,8 @@ impl<T: AbstractedTcpStream> LinkTcp<T> {
 }
 
 impl<T: AbstractedTcpTx> LinkTcpTx<T> {
-    pub(crate) fn mtu(&self) -> u16 {
-        self.mtu
-    }
-
-    pub(crate) fn is_reliable(&self) -> bool {
-        true
-    }
-
     pub(crate) fn is_streamed(&self) -> bool {
         true
-    }
-
-    pub(crate) async fn write(&mut self, buffer: &[u8]) -> ZResult<usize, ZCommunicationError> {
-        self.tx.write(buffer).await
     }
 
     pub(crate) async fn write_all(&mut self, buffer: &[u8]) -> ZResult<(), ZCommunicationError> {
@@ -93,14 +69,6 @@ impl<T: AbstractedTcpTx> LinkTcpTx<T> {
 }
 
 impl<T: AbstractedTcpRx> LinkTcpRx<T> {
-    pub(crate) fn mtu(&self) -> u16 {
-        self.mtu
-    }
-
-    pub(crate) fn is_reliable(&self) -> bool {
-        true
-    }
-
     pub(crate) fn is_streamed(&self) -> bool {
         true
     }

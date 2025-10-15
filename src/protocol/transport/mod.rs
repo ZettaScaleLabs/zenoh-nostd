@@ -5,9 +5,6 @@ pub(crate) mod open;
 
 use core::fmt;
 
-#[cfg(test)]
-use heapless::Vec;
-
 use crate::{
     protocol::{
         ZCodecError,
@@ -26,57 +23,29 @@ use crate::{
 };
 
 pub(crate) type BatchSize = u16;
-pub(crate) type AtomicBatchSize = core::sync::atomic::AtomicU16;
 
 pub(crate) mod batch_size {
     use super::BatchSize;
 
     pub(crate) const UNICAST: BatchSize = BatchSize::MAX;
-    pub(crate) const MULTICAST: BatchSize = 8_192;
 }
 
 pub(crate) mod id {
-    pub(crate) const OAM: u8 = 0x00;
     pub(crate) const INIT: u8 = 0x01;
     pub(crate) const OPEN: u8 = 0x02;
-    pub(crate) const CLOSE: u8 = 0x03;
     pub(crate) const KEEP_ALIVE: u8 = 0x04;
     pub(crate) const FRAME: u8 = 0x05;
-    pub(crate) const FRAGMENT: u8 = 0x06;
-    pub(crate) const JOIN: u8 = 0x07;
 }
 
 pub(crate) type TransportSn = u32;
 
-#[derive(Debug, Copy, Clone, PartialEq, Eq)]
-pub(crate) struct PrioritySn {
-    pub(crate) reliable: TransportSn,
-    pub(crate) best_effort: TransportSn,
-}
-
-impl PrioritySn {
-    pub(crate) const DEFAULT: Self = Self {
-        reliable: TransportSn::MIN,
-        best_effort: TransportSn::MIN,
-    };
-
-    #[cfg(test)]
-    pub(crate) fn rand() -> Self {
-        use rand::Rng;
-        let mut rng = rand::thread_rng();
-
-        Self {
-            reliable: rng.r#gen(),
-            best_effort: rng.r#gen(),
-        }
-    }
-}
-
 #[derive(Debug, PartialEq, Eq)]
 pub(crate) enum TransportBody<'a, 'b> {
     InitSyn(InitSyn<'a>),
+    #[allow(dead_code)]
     InitAck(InitAck<'a>),
     OpenSyn(OpenSyn<'a>),
+    #[allow(dead_code)]
     OpenAck(OpenAck<'a>),
     KeepAlive(KeepAlive),
     Frame(Frame<'a, 'b>),
@@ -355,28 +324,6 @@ impl<'a, 'b> TransportMessage<'a, 'b> {
 
         Ok(())
     }
-
-    #[cfg(test)]
-    pub(crate) fn rand(
-        zbuf: &mut ZBufWriter<'a>,
-        vec: &'b mut Vec<NetworkMessage<'a>, 16>,
-    ) -> Self {
-        use rand::Rng;
-
-        let mut rng = rand::thread_rng();
-
-        let body = match rng.gen_range(0..10) {
-            0 => TransportBody::InitSyn(InitSyn::rand(zbuf)),
-            1 => TransportBody::InitAck(InitAck::rand(zbuf)),
-            2 => TransportBody::OpenSyn(OpenSyn::rand(zbuf)),
-            3 => TransportBody::OpenAck(OpenAck::rand(zbuf)),
-            5 => TransportBody::KeepAlive(KeepAlive::rand()),
-            6 => TransportBody::Frame(Frame::rand(zbuf, vec)),
-            _ => unreachable!(),
-        };
-
-        Self { body }
-    }
 }
 
 impl fmt::Display for TransportMessage<'_, '_> {
@@ -407,17 +354,12 @@ pub(crate) mod ext {
     }
 
     impl<const ID: u8> QoSType<{ ID }> {
-        const P_MASK: u8 = 0b00000111;
         pub(crate) const DEFAULT: Self = Self::new(Priority::DEFAULT);
 
         pub(crate) const fn new(priority: Priority) -> Self {
             Self {
                 inner: priority as u8,
             }
-        }
-
-        pub(crate) const fn priority(&self) -> Priority {
-            unsafe { core::mem::transmute(self.inner & Self::P_MASK) }
         }
 
         pub(crate) fn encode(
@@ -473,18 +415,6 @@ pub(crate) mod ext {
     impl<const ID: u8> PatchType<ID> {
         pub(crate) const NONE: Self = Self(0);
         pub(crate) const CURRENT: Self = Self(1);
-
-        pub(crate) fn new(int: u8) -> Self {
-            Self(int)
-        }
-
-        pub(crate) fn raw(self) -> u8 {
-            self.0
-        }
-
-        pub(crate) fn has_fragmentation_markers(&self) -> bool {
-            self.0 >= 1
-        }
 
         pub(crate) fn encode(
             &self,

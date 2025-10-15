@@ -1,7 +1,6 @@
 use core::{
     fmt::{self, Debug},
     ops::{Add, AddAssign, Sub, SubAssign},
-    sync::atomic::AtomicU32,
 };
 
 use crate::{
@@ -52,7 +51,7 @@ impl<'a> Interest<'a> {
             + ((self.ext_nodeid != declare::ext::NodeIdType::DEFAULT) as u8);
 
         if n_exts != 0 {
-            header |= declare::flag::Z;
+            header |= interest::flag::Z;
         }
 
         crate::protocol::zcodec::encode_u8(header, writer)?;
@@ -115,7 +114,7 @@ impl<'a> Interest<'a> {
         let mut ext_tstamp = None;
         let mut ext_nodeid = declare::ext::NodeIdType::DEFAULT;
 
-        let mut has_ext = imsg::has_flag(header, declare::flag::Z);
+        let mut has_ext = imsg::has_flag(header, interest::flag::Z);
         while has_ext {
             let ext = crate::protocol::zcodec::decode_u8(reader)?;
             match iext::eid(ext) {
@@ -180,9 +179,6 @@ impl<'a> Interest<'a> {
         }
     }
 }
-
-pub(crate) type DeclareRequestId = u32;
-pub(crate) type AtomicDeclareRequestId = AtomicU32;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum InterestMode {
@@ -251,12 +247,6 @@ impl InterestOptions {
     const NAMED: InterestOptions = InterestOptions::options(1 << 5);
     const MAPPING: InterestOptions = InterestOptions::options(1 << 6);
     pub(crate) const AGGREGATE: InterestOptions = InterestOptions::options(1 << 7);
-    pub(crate) const ALL: InterestOptions = InterestOptions::options(
-        InterestOptions::KEYEXPRS.options
-            | InterestOptions::SUBSCRIBERS.options
-            | InterestOptions::QUERYABLES.options
-            | InterestOptions::TOKENS.options,
-    );
 
     const fn options(options: u8) -> Self {
         Self { options }

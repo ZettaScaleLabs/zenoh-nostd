@@ -104,10 +104,6 @@ pub(crate) fn decode_u32(reader: &mut ZBufReader<'_>) -> ZResult<u32, ZCodecErro
     })
 }
 
-pub(crate) fn encoded_len_u16(x: u16) -> usize {
-    vle_len(x as u64)
-}
-
 pub(crate) fn encode_u16(x: u16, writer: &mut ZBufWriter<'_>) -> ZResult<(), ZCodecError> {
     encode_u64(x as u64, writer)
 }
@@ -120,10 +116,6 @@ pub(crate) fn decode_u16(reader: &mut ZBufReader<'_>) -> ZResult<u16, ZCodecErro
             Err(ZCodecError::Overflow)
         }
     })
-}
-
-pub(crate) fn encoded_len_u8(_: u8) -> usize {
-    1
 }
 
 pub(crate) fn encode_u8(x: u8, writer: &mut ZBufWriter<'_>) -> ZResult<(), ZCodecError> {
@@ -190,10 +182,6 @@ pub(crate) fn decode_zbuf<'a>(
     };
 
     Ok(reader.read_zbuf(len)?)
-}
-
-pub(crate) fn encoded_len_str(len: bool, s: &str) -> usize {
-    encoded_len_zbuf(len, s.as_bytes())
 }
 
 pub(crate) fn encode_str(

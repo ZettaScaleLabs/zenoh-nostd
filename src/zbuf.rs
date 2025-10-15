@@ -16,24 +16,17 @@ pub(crate) type ZBufReader<'a> = &'a [u8];
 pub(crate) type ZBufWriter<'a> = &'a mut [u8];
 
 pub(crate) trait ZBufExt<'a> {
-    fn as_bytes(&self) -> &[u8];
     fn as_str(&self) -> ZResult<&'a str, ZIOError>;
     fn reader(&self) -> ZBufReader<'a>;
 }
 
 pub(crate) trait ZBufMutExt<'a> {
-    fn as_bytes(&self) -> &[u8];
-    fn as_str(&'a self) -> ZResult<&'a str, ZIOError>;
+    #[cfg(test)]
     fn reader(&'a self) -> ZBufReader<'a>;
     fn writer(&mut self) -> ZBufWriter<'_>;
-    fn into_inner(self) -> ZBuf<'a>;
 }
 
 impl<'a> ZBufExt<'a> for ZBuf<'a> {
-    fn as_bytes(&self) -> &[u8] {
-        self
-    }
-
     fn as_str(&self) -> ZResult<&'a str, ZIOError> {
         core::str::from_utf8(self).map_err(|_| ZIOError::Invalid)
     }
@@ -44,32 +37,14 @@ impl<'a> ZBufExt<'a> for ZBuf<'a> {
 }
 
 impl<'a> ZBufMutExt<'a> for ZBufMut<'a> {
-    fn as_bytes(&self) -> &[u8] {
-        self
-    }
-
-    fn as_str(&'a self) -> ZResult<&'a str, ZIOError> {
-        core::str::from_utf8(self).map_err(|_| ZIOError::Invalid)
-    }
-
     fn writer(&mut self) -> ZBufWriter<'_> {
         self
     }
 
+    #[cfg(test)]
     fn reader(&'a self) -> ZBufReader<'a> {
         self
     }
-
-    fn into_inner(self) -> ZBuf<'a> {
-        self
-    }
-}
-
-pub(crate) struct SliceMark<'s> {
-    ptr: *const u8,
-    len: usize,
-
-    _phantom: core::marker::PhantomData<&'s [u8]>,
 }
 
 pub(crate) trait BufReaderExt<'a> {
@@ -79,13 +54,10 @@ pub(crate) trait BufReaderExt<'a> {
     fn can_read(&self) -> bool;
     fn read_u8(&mut self) -> ZResult<u8, ZIOError>;
     fn read(&mut self, dst: ZBufMut<'_>) -> ZResult<usize, ZIOError>;
-    fn read_exact(&mut self, dst: ZBufMut<'_>) -> ZResult<usize, ZIOError>;
     fn read_zbuf(&mut self, len: usize) -> ZResult<ZBuf<'a>, ZIOError>;
 }
 
 pub(crate) trait BufWriterExt<'a> {
-    fn mark(&mut self) -> SliceMark<'a>;
-    fn rewind(&mut self, mark: SliceMark<'a>);
     fn remaining(&self) -> usize;
     fn write_u8(&mut self, value: u8) -> ZResult<(), ZIOError>;
     fn write(&mut self, src: ZBuf<'_>) -> ZResult<usize, ZIOError>;
@@ -148,19 +120,6 @@ impl<'a> BufReaderExt<'a> for ZBufReader<'a> {
         Ok(len)
     }
 
-    fn read_exact(&mut self, dst: ZBufMut<'_>) -> ZResult<usize, ZIOError> {
-        let len = dst.len();
-        if self.len() < len {
-            zbail!(ZIOError::DidNotRead);
-        }
-
-        let (to_write, remain) = self.split_at(len);
-        dst.copy_from_slice(to_write);
-        *self = remain;
-
-        Ok(len)
-    }
-
     fn read_zbuf(&mut self, len: usize) -> ZResult<ZBuf<'a>, ZIOError> {
         if self.len() < len {
             zbail!(ZIOError::DidNotRead);
@@ -174,18 +133,6 @@ impl<'a> BufReaderExt<'a> for ZBufReader<'a> {
 }
 
 impl<'a> BufWriterExt<'a> for ZBufWriter<'a> {
-    fn mark(&mut self) -> SliceMark<'a> {
-        SliceMark {
-            ptr: self.as_ptr(),
-            len: self.len(),
-            _phantom: core::marker::PhantomData,
-        }
-    }
-
-    fn rewind(&mut self, mark: SliceMark<'a>) {
-        *self = unsafe { core::slice::from_raw_parts_mut(mark.ptr as *mut u8, mark.len) };
-    }
-
     fn remaining(&self) -> usize {
         self.len()
     }

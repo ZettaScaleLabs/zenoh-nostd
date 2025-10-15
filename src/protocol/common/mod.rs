@@ -13,32 +13,7 @@ pub(crate) mod imsg {
         header & HEADER_MASK
     }
 
-    pub(crate) const fn flags(header: u8) -> u8 {
-        header & !HEADER_MASK
-    }
-
     pub(crate) const fn has_flag(byte: u8, flag: u8) -> bool {
         byte & flag != 0
-    }
-
-    pub(crate) const fn unset_flag(mut byte: u8, flag: u8) -> u8 {
-        byte &= !flag;
-        byte
-    }
-
-    pub(crate) const fn set_flag(mut byte: u8, flag: u8) -> u8 {
-        byte = unset_flag(byte, flag);
-        byte |= flag;
-        byte
-    }
-
-    pub(crate) const fn set_bitfield(mut byte: u8, value: u8, mask: u8) -> u8 {
-        byte = unset_flag(byte, mask);
-        byte |= value;
-        byte
-    }
-
-    pub(crate) const fn has_option(options: u64, flag: u64) -> bool {
-        options & flag != 0
     }
 }

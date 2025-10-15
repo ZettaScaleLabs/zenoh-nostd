@@ -168,9 +168,6 @@ pub(crate) mod id {
     pub(crate) const D_QUERYABLE: u8 = 0x04;
     pub(crate) const U_QUERYABLE: u8 = 0x05;
 
-    pub(crate) const D_TOKEN: u8 = 0x06;
-    pub(crate) const U_TOKEN: u8 = 0x07;
-
     pub(crate) const D_FINAL: u8 = 0x1A;
 }
 
@@ -927,11 +924,7 @@ pub(crate) mod queryable {
 }
 
 pub(crate) mod token {
-    pub(crate) type TokenId = u32;
-
     pub(crate) mod flag {
-        pub(crate) const N: u8 = 1 << 5; // 0x20 Named         if N==1 then the key expr has name/suffix
-        pub(crate) const M: u8 = 1 << 6; // 0x40 Mapping       if M==1 then key expr mapping is the one declared by the sender, else it is the one declared by the receiver
         pub(crate) const Z: u8 = 1 << 7; // 0x80 Extensions    if Z==1 then an extension will follow
     }
 }

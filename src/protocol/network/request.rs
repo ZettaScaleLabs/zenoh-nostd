@@ -1,5 +1,3 @@
-use core::sync::atomic::AtomicU32;
-
 use crate::{
     protocol::{
         ZCodecError,
@@ -18,7 +16,6 @@ use crate::{
 };
 
 pub(crate) type RequestId = u32;
-pub(crate) type AtomicRequestId = AtomicU32;
 
 pub(crate) mod flag {
     pub(crate) const N: u8 = 1 << 5;

@@ -2,10 +2,8 @@ use core::{
     convert::{From, TryFrom, TryInto},
     fmt::{self, Display},
     hash::Hash,
-    ops::{Deref, RangeInclusive},
     str::FromStr,
 };
-
 
 use crate::{
     protocol::{
@@ -15,8 +13,6 @@ use crate::{
     result::ZResult,
     zbuf::{ZBufReader, ZBufWriter},
 };
-
-pub(crate) type TimestampId = uhlc::ID;
 
 pub(crate) mod encoding;
 pub(crate) mod endpoint;
@@ -29,15 +25,13 @@ pub(crate) mod wire_expr;
 pub(crate) struct ZenohIdProto(uhlc::ID);
 
 impl ZenohIdProto {
-    pub(crate) const MAX_SIZE: usize = 16;
-
     #[inline]
     pub(crate) fn size(&self) -> usize {
         self.0.size()
     }
 
     #[inline]
-    pub(crate) fn to_le_bytes(&self) -> [u8; uhlc::ID::MAX_SIZE] {
+    pub(crate) fn as_le_bytes(&self) -> [u8; uhlc::ID::MAX_SIZE] {
         self.0.to_le_bytes()
     }
 
@@ -46,7 +40,7 @@ impl ZenohIdProto {
     }
 
     pub(crate) fn encoded_len(&self, len: bool) -> usize {
-        encoded_len_zbuf(len, &self.to_le_bytes()[..self.size()])
+        encoded_len_zbuf(len, &self.as_le_bytes()[..self.size()])
     }
 
     pub(crate) fn encode(
@@ -54,7 +48,7 @@ impl ZenohIdProto {
         len: bool,
         writer: &mut ZBufWriter<'_>,
     ) -> ZResult<(), ZCodecError> {
-        encode_zbuf(len, &self.to_le_bytes()[..self.size()], writer)
+        encode_zbuf(len, &self.as_le_bytes()[..self.size()], writer)
     }
 
     pub(crate) fn decode(
@@ -73,53 +67,16 @@ impl Default for ZenohIdProto {
     }
 }
 
-macro_rules! derive_tryfrom {
-    ($T: ty) => {
-        impl TryFrom<$T> for ZenohIdProto {
-            type Error = crate::protocol::ZProtocolError;
-            fn try_from(val: $T) -> crate::result::ZResult<Self, crate::protocol::ZProtocolError> {
-                match val.try_into() {
-                    Ok(ok) => Ok(Self(ok)),
-                    Err(_) => crate::zbail!(crate::protocol::ZProtocolError::Invalid),
-                }
-            }
-        }
-    };
-}
+impl TryFrom<&[u8]> for ZenohIdProto {
+    type Error = crate::protocol::ZProtocolError;
 
-derive_tryfrom!([u8; 1]);
-derive_tryfrom!(&[u8; 1]);
-derive_tryfrom!([u8; 2]);
-derive_tryfrom!(&[u8; 2]);
-derive_tryfrom!([u8; 3]);
-derive_tryfrom!(&[u8; 3]);
-derive_tryfrom!([u8; 4]);
-derive_tryfrom!(&[u8; 4]);
-derive_tryfrom!([u8; 5]);
-derive_tryfrom!(&[u8; 5]);
-derive_tryfrom!([u8; 6]);
-derive_tryfrom!(&[u8; 6]);
-derive_tryfrom!([u8; 7]);
-derive_tryfrom!(&[u8; 7]);
-derive_tryfrom!([u8; 8]);
-derive_tryfrom!(&[u8; 8]);
-derive_tryfrom!([u8; 9]);
-derive_tryfrom!(&[u8; 9]);
-derive_tryfrom!([u8; 10]);
-derive_tryfrom!(&[u8; 10]);
-derive_tryfrom!([u8; 11]);
-derive_tryfrom!(&[u8; 11]);
-derive_tryfrom!([u8; 12]);
-derive_tryfrom!(&[u8; 12]);
-derive_tryfrom!([u8; 13]);
-derive_tryfrom!(&[u8; 13]);
-derive_tryfrom!([u8; 14]);
-derive_tryfrom!(&[u8; 14]);
-derive_tryfrom!([u8; 15]);
-derive_tryfrom!(&[u8; 15]);
-derive_tryfrom!([u8; 16]);
-derive_tryfrom!(&[u8; 16]);
-derive_tryfrom!(&[u8]);
+    fn try_from(val: &[u8]) -> crate::result::ZResult<Self, crate::protocol::ZProtocolError> {
+        match val.try_into() {
+            Ok(ok) => Ok(Self(ok)),
+            Err(_) => crate::zbail!(crate::protocol::ZProtocolError::Invalid),
+        }
+    }
+}
 
 impl FromStr for ZenohIdProto {
     type Err = crate::protocol::ZProtocolError;
@@ -192,94 +149,8 @@ pub(crate) enum Priority {
     Background = 7,
 }
 
-#[derive(Debug, Clone, Eq, Hash, PartialEq)]
-
-pub(crate) struct PriorityRange(RangeInclusive<Priority>);
-
-impl Deref for PriorityRange {
-    type Target = RangeInclusive<Priority>;
-
-    fn deref(&self) -> &Self::Target {
-        &self.0
-    }
-}
-
-impl PriorityRange {
-    pub(crate) fn new(range: RangeInclusive<Priority>) -> Self {
-        Self(range)
-    }
-
-    pub(crate) fn includes(&self, other: &PriorityRange) -> bool {
-        self.start() <= other.start() && other.end() <= self.end()
-    }
-
-    pub(crate) fn len(&self) -> usize {
-        *self.end() as usize - *self.start() as usize + 1
-    }
-
-    pub(crate) fn is_empty(&self) -> bool {
-        false
-    }
-
-    #[cfg(test)]
-    pub(crate) fn rand() -> Self {
-        use rand::Rng;
-        let mut rng = rand::thread_rng();
-        let start = rng.gen_range(Priority::MAX as u8..Priority::MIN as u8);
-        let end = rng.gen_range((start + 1)..=Priority::MIN as u8);
-
-        Self(Priority::try_from(start).unwrap()..=Priority::try_from(end).unwrap())
-    }
-}
-
-impl Display for PriorityRange {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}-{}", *self.start() as u8, *self.end() as u8)
-    }
-}
-
-impl FromStr for PriorityRange {
-    type Err = crate::protocol::ZProtocolError;
-
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        const SEPARATOR: &str = "-";
-        let mut metadata = s.split(SEPARATOR);
-
-        let start = metadata
-            .next()
-            .ok_or(ZProtocolError::Invalid)?
-            .parse::<u8>()
-            .map(Priority::try_from)
-            .map_err(|_| ZProtocolError::Invalid)?
-            .map_err(|_| ZProtocolError::Invalid)?;
-
-        match metadata.next() {
-            Some(slice) => {
-                let end = slice
-                    .parse::<u8>()
-                    .map(Priority::try_from)
-                    .map_err(|_| ZProtocolError::Invalid)?
-                    .map_err(|_| ZProtocolError::Invalid)?;
-
-                if metadata.next().is_some() {
-                    crate::zbail!(crate::protocol::ZProtocolError::Invalid);
-                };
-
-                Ok(PriorityRange::new(start..=end))
-            }
-            None => Ok(PriorityRange::new(start..=start)),
-        }
-    }
-}
-
 impl Priority {
     pub(crate) const DEFAULT: Self = Self::Data;
-
-    pub(crate) const MIN: Self = Self::Background;
-
-    pub(crate) const MAX: Self = Self::Control;
-
-    pub(crate) const NUM: usize = 1 + Self::MIN as usize - Self::MAX as usize;
 }
 
 impl TryFrom<u8> for Priority {
@@ -368,19 +239,6 @@ impl FromStr for Reliability {
     }
 }
 
-#[derive(Debug, Copy, Clone, PartialEq, Eq, Default)]
-pub(crate) struct Channel {
-    pub(crate) priority: Priority,
-    pub(crate) reliability: Reliability,
-}
-
-impl Channel {
-    pub(crate) const DEFAULT: Self = Self {
-        priority: Priority::DEFAULT,
-        reliability: Reliability::DEFAULT,
-    };
-}
-
 #[derive(Debug, Default, Copy, Clone, PartialEq, Eq, Hash)]
 #[repr(u8)]
 pub(crate) enum CongestionControl {
@@ -392,10 +250,5 @@ pub(crate) enum CongestionControl {
 
 impl CongestionControl {
     pub(crate) const DEFAULT: Self = Self::Drop;
-
-    pub(crate) const DEFAULT_PUSH: Self = Self::Drop;
-    pub(crate) const DEFAULT_REQUEST: Self = Self::Block;
-    pub(crate) const DEFAULT_RESPONSE: Self = Self::Block;
     pub(crate) const DEFAULT_DECLARE: Self = Self::Block;
-    pub(crate) const DEFAULT_OAM: Self = Self::Block;
 }

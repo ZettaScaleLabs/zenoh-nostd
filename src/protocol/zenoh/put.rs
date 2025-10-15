@@ -136,7 +136,7 @@ impl<'a> Put<'a> {
             use crate::protocol::core::ZenohIdProto;
 
             let time = uhlc::NTP64(rng.r#gen());
-            let id = uhlc::ID::try_from(ZenohIdProto::rand().to_le_bytes()).unwrap();
+            let id = uhlc::ID::try_from(ZenohIdProto::rand().as_le_bytes()).unwrap();
             Timestamp::new(time, id)
         });
         let encoding = Encoding::rand(zbuf);

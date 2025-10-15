@@ -61,12 +61,6 @@ impl<T: Platform> Link<T> {
         }
     }
 
-    pub(crate) fn is_reliable(&self) -> bool {
-        match self {
-            Self::LinkTcp(tcp) => tcp.is_reliable(),
-        }
-    }
-
     pub(crate) fn is_streamed(&self) -> bool {
         match self {
             Self::LinkTcp(tcp) => tcp.is_streamed(),
@@ -76,12 +70,6 @@ impl<T: Platform> Link<T> {
     pub(crate) fn mtu(&self) -> u16 {
         match self {
             Self::LinkTcp(tcp) => tcp.mtu(),
-        }
-    }
-
-    pub(crate) async fn write(&mut self, buffer: &[u8]) -> ZResult<usize, ZCommunicationError> {
-        match self {
-            Self::LinkTcp(tcp) => tcp.write(buffer).await,
         }
     }
 
@@ -114,18 +102,6 @@ impl<T: Platform> LinkTx<'_, T> {
         }
     }
 
-    pub(crate) fn mtu(&self) -> u16 {
-        match self {
-            Self::LinkTcpTx(tcp) => tcp.mtu(),
-        }
-    }
-
-    pub(crate) async fn write(&mut self, buffer: &[u8]) -> ZResult<usize, ZCommunicationError> {
-        match self {
-            Self::LinkTcpTx(tcp) => tcp.write(buffer).await,
-        }
-    }
-
     pub(crate) async fn write_all(&mut self, buffer: &[u8]) -> ZResult<(), ZCommunicationError> {
         match self {
             Self::LinkTcpTx(tcp) => tcp.write_all(buffer).await,
@@ -137,12 +113,6 @@ impl<T: Platform> LinkRx<'_, T> {
     pub(crate) fn is_streamed(&self) -> bool {
         match self {
             Self::LinkTcpRx(tcp) => tcp.is_streamed(),
-        }
-    }
-
-    pub(crate) fn mtu(&self) -> u16 {
-        match self {
-            Self::LinkTcpRx(tcp) => tcp.mtu(),
         }
     }
 

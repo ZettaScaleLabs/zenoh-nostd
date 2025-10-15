@@ -25,7 +25,6 @@ pub(crate) mod request;
 pub(crate) mod response;
 
 pub(crate) mod id {
-    pub(crate) const OAM: u8 = 0x1f;
     pub(crate) const DECLARE: u8 = 0x1e;
     pub(crate) const PUSH: u8 = 0x1d;
     pub(crate) const REQUEST: u8 = 0x1c;
@@ -63,19 +62,6 @@ pub(crate) struct NetworkMessage<'a> {
 }
 
 impl<'a> NetworkMessage<'a> {
-    pub(crate) fn body(&self) -> &'_ NetworkBody<'_> {
-        &self.body
-    }
-
-    pub(crate) fn reliability(&self) -> Reliability {
-        self.reliability
-    }
-
-    #[inline]
-    pub(crate) fn is_reliable(&self) -> bool {
-        self.reliability() == Reliability::Reliable
-    }
-
     pub(crate) fn encode(&self, writer: &mut ZBufWriter<'_>) -> ZResult<(), ZCodecError> {
         match &self.body {
             NetworkBody::Declare(m) => m.encode(writer),
@@ -188,22 +174,6 @@ pub(crate) mod ext {
 
         pub(crate) const DECLARE: Self =
             Self::new(Priority::Control, CongestionControl::DEFAULT_DECLARE, false);
-        pub(crate) const PUSH: Self =
-            Self::new(Priority::DEFAULT, CongestionControl::DEFAULT_PUSH, false);
-        pub(crate) const REQUEST: Self =
-            Self::new(Priority::DEFAULT, CongestionControl::DEFAULT_REQUEST, false);
-        pub(crate) const RESPONSE: Self = Self::new(
-            Priority::DEFAULT,
-            CongestionControl::DEFAULT_RESPONSE,
-            false,
-        );
-        pub(crate) const RESPONSE_FINAL: Self = Self::new(
-            Priority::DEFAULT,
-            CongestionControl::DEFAULT_RESPONSE,
-            false,
-        );
-        pub(crate) const OAM: Self =
-            Self::new(Priority::Control, CongestionControl::DEFAULT_OAM, false);
 
         pub(crate) const fn new(
             priority: Priority,
@@ -222,25 +192,8 @@ pub(crate) mod ext {
             Self { inner }
         }
 
-        pub(crate) fn set_priority(&mut self, priority: Priority) {
-            self.inner = imsg::set_bitfield(self.inner, priority as u8, Self::P_MASK);
-        }
-
         pub(crate) const fn get_priority(&self) -> Priority {
             unsafe { core::mem::transmute(self.inner & Self::P_MASK) }
-        }
-
-        pub(crate) fn set_congestion_control(&mut self, cctrl: CongestionControl) {
-            match cctrl {
-                CongestionControl::Block => {
-                    self.inner = imsg::set_flag(self.inner, Self::D_FLAG);
-                    self.inner = imsg::unset_flag(self.inner, Self::F_FLAG);
-                }
-                CongestionControl::Drop => {
-                    self.inner = imsg::unset_flag(self.inner, Self::D_FLAG);
-                    self.inner = imsg::unset_flag(self.inner, Self::F_FLAG);
-                }
-            }
         }
 
         pub(crate) const fn get_congestion_control(&self) -> CongestionControl {
@@ -251,13 +204,6 @@ pub(crate) mod ext {
                 (false, false) => CongestionControl::Drop,
                 (false, true) => CongestionControl::Drop,
                 (true, _) => CongestionControl::Block,
-            }
-        }
-
-        pub(crate) fn set_is_express(&mut self, is_express: bool) {
-            match is_express {
-                true => self.inner = imsg::set_flag(self.inner, Self::E_FLAG),
-                false => self.inner = imsg::unset_flag(self.inner, Self::E_FLAG),
             }
         }
 
@@ -354,7 +300,7 @@ pub(crate) mod ext {
             let mut rng = rand::thread_rng();
 
             let time = uhlc::NTP64(rng.r#gen());
-            let id = uhlc::ID::try_from(ZenohIdProto::rand().to_le_bytes()).unwrap();
+            let id = uhlc::ID::try_from(ZenohIdProto::rand().as_le_bytes()).unwrap();
             let timestamp = uhlc::Timestamp::new(time, id);
             Self { timestamp }
         }

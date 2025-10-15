@@ -6,11 +6,7 @@ use core::{
 
 use heapless::String;
 
-use crate::{
-    keyexpr::{ZKeyError, canon::Canonize},
-    result::ZResult,
-    zbail,
-};
+use crate::{keyexpr::ZKeyError, zbail};
 
 #[allow(non_camel_case_types)]
 #[repr(transparent)]
@@ -18,40 +14,13 @@ use crate::{
 pub struct keyexpr(str);
 
 impl keyexpr {
-    pub(crate) fn new<'a, T>(t: &'a T) -> ZResult<&'a Self, ZKeyError>
-    where
-        &'a Self: TryFrom<&'a T, Error = ZKeyError>,
-        T: ?Sized,
-    {
-        t.try_into()
-    }
-
-    pub(crate) fn autocanonize<'a, T>(t: &'a mut T) -> ZResult<&'a Self, ZKeyError>
-    where
-        &'a Self: TryFrom<&'a T, Error = ZKeyError>,
-        T: Canonize + ?Sized,
-    {
-        t.canonize();
-        Self::new(t)
-    }
-
     pub(crate) fn intersects(&self, other: &Self) -> bool {
         use super::intersect::Intersector;
         super::intersect::DEFAULT_INTERSECTOR.intersect(self, other)
     }
 
-    pub(crate) fn includes(&self, other: &Self) -> bool {
-        use super::include::Includer;
-        super::include::DEFAULT_INCLUDER.includes(self, other)
-    }
-
     pub(crate) fn is_wild_impl(&self) -> bool {
         self.0.contains(super::SINGLE_WILD as char)
-    }
-
-    pub(crate) const fn is_double_wild(&self) -> bool {
-        let bytes = self.0.as_bytes();
-        bytes.len() == 2 && bytes[0] == b'*'
     }
 
     pub const fn as_str(&self) -> &str {
@@ -60,14 +29,6 @@ impl keyexpr {
 
     pub(crate) const fn from_str_unchecked(s: &str) -> &Self {
         unsafe { core::mem::transmute(s) }
-    }
-
-    pub(crate) fn from_slice_unchecked(s: &[u8]) -> &Self {
-        unsafe { core::mem::transmute(s) }
-    }
-
-    pub(crate) fn first_byte(&self) -> u8 {
-        unsafe { *self.as_bytes().get_unchecked(0) }
     }
 }
 
@@ -210,22 +171,7 @@ impl PartialEq<keyexpr> for str {
 #[derive(PartialEq, Eq, Hash, PartialOrd, Ord, Debug)]
 pub(crate) struct nonwild_keyexpr(keyexpr);
 
-impl nonwild_keyexpr {
-    pub(crate) fn new<'a, T, E>(t: &'a T) -> Result<&'a Self, ZKeyError>
-    where
-        &'a keyexpr: TryFrom<&'a T, Error = E>,
-        E: Into<ZKeyError>,
-        T: ?Sized,
-    {
-        let ke: &'a keyexpr = t.try_into().map_err(|e: E| e.into())?;
-        ke.try_into()
-    }
-
-    /// # Safety
-    pub(crate) const fn from_str_unchecked(s: &str) -> &Self {
-        unsafe { core::mem::transmute(s) }
-    }
-}
+impl nonwild_keyexpr {}
 
 impl Deref for nonwild_keyexpr {
     type Target = keyexpr;

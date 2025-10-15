@@ -179,6 +179,7 @@ pub(crate) struct SendOpenSynOut {
 
 pub(crate) struct RecvOpenAckOut {
     pub(crate) other_lease: Duration,
+    #[allow(dead_code)]
     pub(crate) other_initial_sn: TransportSn,
 }
 
