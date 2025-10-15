@@ -100,7 +100,7 @@ impl<const ID: u8> ZExtUnit<{ ID }> {
 
     pub(crate) fn decode(header: u8) -> ZResult<(Self, bool), ZCodecError> {
         if iext::eid(header) != ID {
-            zbail!(ZCodecError::Invalid);
+            zbail!(ZCodecError::CouldNotRead);
         }
 
         Ok((ZExtUnit, has_flag(header, iext::FLAG_Z)))
@@ -157,7 +157,7 @@ impl<const ID: u8> ZExtZ64<{ ID }> {
         reader: &mut ZBufReader<'_>,
     ) -> ZResult<(Self, bool), ZCodecError> {
         if iext::eid(header) != ID {
-            zbail!(ZCodecError::Invalid);
+            zbail!(ZCodecError::CouldNotRead);
         }
 
         let value = decode_u64(reader)?;
@@ -217,7 +217,7 @@ impl<'a, const ID: u8> ZExtZBuf<'a, { ID }> {
         reader: &mut ZBufReader<'a>,
     ) -> ZResult<(Self, bool), ZCodecError> {
         if iext::eid(header) != ID {
-            zbail!(ZCodecError::Invalid);
+            zbail!(ZCodecError::CouldNotRead);
         }
 
         let value = decode_zbuf(None, reader)?;
@@ -281,7 +281,7 @@ impl<const ID: u8> ZExtZBufHeader<{ ID }> {
         reader: &mut ZBufReader<'_>,
     ) -> ZResult<(Self, bool), ZCodecError> {
         if iext::eid(header) != ID {
-            zbail!(ZCodecError::Invalid);
+            zbail!(ZCodecError::CouldNotRead);
         }
 
         let len = decode_usize(reader)?;
@@ -312,7 +312,7 @@ pub(crate) fn skip(
             iext::mid(id),
         );
 
-        zbail!(ZCodecError::Invalid);
+        zbail!(ZCodecError::CouldNotRead);
     }
 
     match header & iext::ENC_MASK {
@@ -324,7 +324,7 @@ pub(crate) fn skip(
             let _ = decode_zbuf(None, reader)?;
         }
         _ => {
-            zbail!(ZCodecError::Invalid);
+            zbail!(ZCodecError::CouldNotRead);
         }
     };
 

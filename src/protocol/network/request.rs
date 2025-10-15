@@ -99,7 +99,7 @@ impl<'a> Request<'a> {
 
     pub(crate) fn decode(header: u8, reader: &mut ZBufReader<'a>) -> ZResult<Self, ZCodecError> {
         if imsg::mid(header) != id::REQUEST {
-            zbail!(ZCodecError::Invalid);
+            zbail!(ZCodecError::CouldNotRead);
         }
 
         let id = decode_u32(reader)?;
@@ -112,7 +112,6 @@ impl<'a> Request<'a> {
             Mapping::Receiver
         };
 
-        // Extensions
         let mut ext_qos = ext::QoSType::DEFAULT;
         let mut ext_tstamp = None;
         let mut ext_nodeid = ext::NodeIdType::DEFAULT;
@@ -274,7 +273,7 @@ pub(crate) mod ext {
                 0 => ext::QueryTarget::BestMatching,
                 1 => ext::QueryTarget::All,
                 2 => ext::QueryTarget::AllComplete,
-                _ => zbail!(ZCodecError::Invalid),
+                _ => zbail!(ZCodecError::CouldNotRead),
             };
 
             Ok((v, more))

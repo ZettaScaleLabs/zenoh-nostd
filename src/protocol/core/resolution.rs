@@ -60,7 +60,7 @@ impl FromStr for Bits {
             Bits::S16 => Ok(Bits::U16),
             Bits::S32 => Ok(Bits::U32),
             Bits::S64 => Ok(Bits::U64),
-            _ => crate::zbail!(crate::protocol::ZProtocolError::Invalid),
+            _ => crate::zbail!(crate::protocol::ZProtocolError::CouldNotParse),
         }
     }
 }

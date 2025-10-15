@@ -89,7 +89,7 @@ impl<'a> NetworkMessage<'a> {
 
             id::INTEREST => NetworkBody::Interest(Interest::decode(header, reader)?),
             id::DECLARE => NetworkBody::Declare(Declare::decode(header, reader)?),
-            _ => zbail!(ZCodecError::Invalid),
+            _ => zbail!(ZCodecError::CouldNotRead),
         };
 
         Ok(Self { reliability, body })

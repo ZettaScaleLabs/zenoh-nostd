@@ -74,7 +74,7 @@ impl<'a> Response<'a> {
 
     pub(crate) fn decode(header: u8, reader: &mut ZBufReader<'a>) -> ZResult<Self, ZCodecError> {
         if imsg::mid(header) != id::RESPONSE {
-            zbail!(ZCodecError::Invalid);
+            zbail!(ZCodecError::CouldNotRead);
         }
 
         let rid = decode_u32(reader)?;
@@ -198,7 +198,7 @@ impl ResponseFinal {
 
     pub(crate) fn decode(header: u8, reader: &mut ZBufReader<'_>) -> ZResult<Self, ZCodecError> {
         if imsg::mid(header) != id::RESPONSE_FINAL {
-            zbail!(ZCodecError::Invalid)
+            zbail!(ZCodecError::CouldNotRead)
         }
 
         let rid: RequestId = decode_u32(reader)?;

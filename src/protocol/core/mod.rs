@@ -2,12 +2,11 @@ use core::{
     convert::{From, TryFrom, TryInto},
     fmt::{self, Display},
     hash::Hash,
-    str::FromStr,
 };
 
 use crate::{
     protocol::{
-        ZCodecError, ZProtocolError,
+        ZCodecError,
         zcodec::{decode_zbuf, encode_zbuf, encoded_len_zbuf},
     },
     result::ZResult,
@@ -57,7 +56,7 @@ impl ZenohIdProto {
     ) -> ZResult<Self, ZCodecError> {
         let zbuf = decode_zbuf(len, reader)?;
 
-        Ok(Self::try_from(zbuf)?)
+        Self::try_from(zbuf).map_err(|_| ZCodecError::CouldNotParse)
     }
 }
 
@@ -73,22 +72,8 @@ impl TryFrom<&[u8]> for ZenohIdProto {
     fn try_from(val: &[u8]) -> crate::result::ZResult<Self, crate::protocol::ZProtocolError> {
         match val.try_into() {
             Ok(ok) => Ok(Self(ok)),
-            Err(_) => crate::zbail!(crate::protocol::ZProtocolError::Invalid),
+            Err(_) => crate::zbail!(crate::protocol::ZProtocolError::CouldNotParse),
         }
-    }
-}
-
-impl FromStr for ZenohIdProto {
-    type Err = crate::protocol::ZProtocolError;
-
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        if s.contains(|c: char| c.is_ascii_uppercase()) {
-            crate::zbail!(crate::protocol::ZProtocolError::Invalid);
-        }
-
-        let u: uhlc::ID = s.parse().map_err(|_| ZProtocolError::Invalid)?;
-
-        Ok(ZenohIdProto(u))
     }
 }
 
@@ -166,7 +151,7 @@ impl TryFrom<u8> for Priority {
             5 => Ok(Priority::Data),
             6 => Ok(Priority::DataLow),
             7 => Ok(Priority::Background),
-            _ => crate::zbail!(crate::protocol::ZProtocolError::Invalid),
+            _ => crate::zbail!(crate::protocol::ZProtocolError::CouldNotParse),
         }
     }
 }
@@ -218,24 +203,6 @@ impl From<Reliability> for bool {
 impl Display for Reliability {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{}", *self as u8)
-    }
-}
-
-impl FromStr for Reliability {
-    type Err = crate::protocol::ZProtocolError;
-
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        let Ok(desc) = s.parse::<u8>() else {
-            crate::zbail!(crate::protocol::ZProtocolError::Invalid);
-        };
-
-        if desc == Reliability::BestEffort as u8 {
-            Ok(Reliability::BestEffort)
-        } else if desc == Reliability::Reliable as u8 {
-            Ok(Reliability::Reliable)
-        } else {
-            Err(ZProtocolError::Invalid)
-        }
     }
 }
 

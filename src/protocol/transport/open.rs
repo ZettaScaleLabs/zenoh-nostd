@@ -89,7 +89,7 @@ impl<'a> OpenSyn<'a> {
 
     pub(crate) fn decode(header: u8, reader: &mut ZBufReader<'a>) -> ZResult<Self, ZCodecError> {
         if imsg::mid(header) != id::OPEN || imsg::has_flag(header, flag::A) {
-            zbail!(ZCodecError::Invalid)
+            zbail!(ZCodecError::CouldNotRead)
         }
 
         let lease: u64 = decode_u64(reader)?;
@@ -284,10 +284,9 @@ impl<'a> OpenAck<'a> {
 
     pub(crate) fn decode(header: u8, reader: &mut ZBufReader<'a>) -> ZResult<Self, ZCodecError> {
         if imsg::mid(header) != id::OPEN || !imsg::has_flag(header, flag::A) {
-            zbail!(ZCodecError::Invalid)
+            zbail!(ZCodecError::CouldNotRead)
         }
 
-        // Body
         let lease: u64 = decode_u64(reader)?;
         let lease = if imsg::has_flag(header, flag::T) {
             Duration::from_secs(lease)
@@ -296,7 +295,6 @@ impl<'a> OpenAck<'a> {
         };
         let initial_sn: TransportSn = decode_u32(reader)?;
 
-        // Extensions
         let mut ext_qos = None;
         let mut ext_auth = None;
         let mut ext_mlink = None;

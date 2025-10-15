@@ -50,7 +50,7 @@ impl<const KE: usize, const PL: usize> ZSubscriber<KE, PL> {
 
     pub async fn recv(&self) -> ZResult<ZOwnedSample<KE, PL>> {
         match &self.inner {
-            ZSubscriberInner::Sync => Err(ZError::Invalid),
+            ZSubscriberInner::Sync => Err(ZError::CouldNotRecvFromSubscriber),
             ZSubscriberInner::Async(rx) => Ok(rx.receive().await),
         }
     }
@@ -85,14 +85,16 @@ impl<const N: usize> ZSubscriberCallbackStorage<N> {
 impl<const N: usize> ZSubscriberCallbacks for ZSubscriberCallbackStorage<N> {
     fn insert(&mut self, id: u32, ke: &'static keyexpr, callback: ZCallback) -> ZResult<()> {
         if self.lookup.contains_key(&id) {
-            zbail!(ZError::Invalid)
+            zbail!(ZError::SubscriberCallbackAlreadySet)
         }
 
-        self.lookup.insert(id, ke).map_err(|_| ZError::Invalid)?;
+        self.lookup
+            .insert(id, ke)
+            .map_err(|_| ZError::CapacityExceeded)?;
 
         self.callbacks
             .insert(id, callback)
-            .map_err(|_| ZError::Invalid)
+            .map_err(|_| ZError::CapacityExceeded)
             .map(|_| ())
     }
 

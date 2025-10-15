@@ -30,8 +30,8 @@ impl<'a> ZSample<'a> {
         self,
     ) -> ZResult<ZOwnedSample<KE, PL>> {
         Ok(ZOwnedSample::new(
-            String::from_str(self.keyexpr.as_str()).map_err(|_| ZError::Invalid)?,
-            Vec::from_slice(self.payload).map_err(|_| ZError::Invalid)?,
+            String::from_str(self.keyexpr.as_str()).map_err(|_| ZError::CapacityExceeded)?,
+            Vec::from_slice(self.payload).map_err(|_| ZError::CapacityExceeded)?,
         ))
     }
 }

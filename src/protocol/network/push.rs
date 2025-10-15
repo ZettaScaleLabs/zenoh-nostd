@@ -71,7 +71,7 @@ impl<'a> Push<'a> {
 
     pub(crate) fn decode(header: u8, reader: &mut ZBufReader<'a>) -> ZResult<Self, ZCodecError> {
         if imsg::mid(header) != id::PUSH {
-            zbail!(ZCodecError::Invalid);
+            zbail!(ZCodecError::CouldNotRead);
         }
 
         let mut wire_expr: WireExpr<'_> =

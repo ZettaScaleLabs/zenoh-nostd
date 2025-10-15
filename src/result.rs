@@ -1,198 +1,116 @@
 #[repr(u8)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ZError {
-    /// The channel is closed and no further communication is possible.
-    ChannelClosed = 1,
+    /// a read operation could not be completed
+    CouldNotRead = 1,
 
-    /// The channel is open but currently contains no data.
-    ChannelNoData = 2,
+    /// a write operation could not be completed
+    CouldNotWrite = 2,
 
-    /// No data was processed during the operation.
-    NoDataProcessed = 3,
+    /// parsing a value failed
+    CouldNotParse = 3,
 
-    /// Failed to deserialize the received message.
-    MessageDeserializationFailed = 119,
+    /// an argument provided to a function is invalid
+    InvalidArgument = 4,
 
-    /// Failed to serialize the message before sending.
-    MessageSerializationFailed = 118,
+    /// a lone `$*` was found in an expression
+    LoneDollarStar = 5,
 
-    /// The message received was unexpected in this context.
-    MessageUnexpected = 117,
+    /// a single `*` was found after a `**` in an expression
+    SingleStarAfterDoubleStar = 6,
 
-    /// The message contained an unexpected flag.
-    MessageFlagUnexpected = 116,
+    /// a double `**` was found after a `**` in an expression
+    DoubleStarAfterDoubleStar = 7,
 
-    /// The message referenced an unknown Zenoh declaration.
-    MessageZenohDeclarationUnknown = 115,
+    /// an empty chunk was found in an expression
+    EmptyChunk = 8,
 
-    /// The message type is not recognized as a valid Zenoh message.
-    MessageZenohUnknown = 114,
+    /// a `*` was found in the middle of a chunk in an expression
+    StarInChunk = 9,
 
-    /// The message uses an unknown transport format.
-    MessageTransportUnknown = 113,
+    /// a `$` was found after a `$` in an expression
+    DollarAfterDollar = 10,
 
-    /// The message contains a mandatory extension that is unknown.
-    MessageExtensionMandatoryAndUnknown = 112,
+    /// a `#` or `?` was found in an expression
+    SharpOrQMark = 11,
 
-    /// Failed to declare the specified entity.
-    EntityDeclarationFailed = 111,
+    /// an unbound `$n` was found in an expression
+    UnboundDollar = 12,
 
-    /// The referenced entity is not recognized.
-    EntityUnknown = 110,
+    /// a wildcard chunk was found where it is not allowed
+    WildChunk = 13,
 
-    /// The key expression used is not recognized.
-    KeyExprUnknown = 109,
+    /// could not find protocol separator in endpoint
+    NoProtocolSeparator = 14,
 
-    /// The key expression did not match any valid pattern.
-    KeyExprNotMatch = 108,
+    /// metadata is not supported in endpoint
+    MetadataNotSupported = 15,
 
-    /// The query did not match any available data or expression.
-    QueryNotMatch = 107,
+    /// configuration is not supported in endpoint
+    ConfigNotSupported = 16,
 
-    /// No suitable transport is available for the operation.
-    TransportNotAvailable = 103,
+    /// could not connect to the specified address
+    CouldNotConnect = 17,
 
-    /// Failed to open the transport channel.
-    TransportOpenFailed = 102,
+    /// could not get address info
+    CouldNotGetAddrInfo = 18,
 
-    /// Failed to resolve service name when opening transport.
-    TransportOpenSNResolution = 101,
+    /// Received an invalid RX packet
+    InvalidRx = 19,
 
-    /// Transport failed during transmission.
-    TransportTxFailed = 100,
+    /// An error occurred while processing a TX packet
+    TxError = 20,
 
-    /// Transport failed during reception.
-    TransportRxFailed = 99,
+    /// A timeout occurred
+    Timeout = 21,
 
-    /// The transport buffer has no available space.
-    TransportNoSpace = 98,
+    /// The operation could not be completed because it would exceed some capacity limit
+    CapacityExceeded = 22,
 
-    /// Transport did not receive enough bytes.
-    TransportNotEnoughBytes = 97,
+    /// Could not receive from subscriber
+    CouldNotRecvFromSubscriber = 23,
 
-    /// Failed to insert value into configuration.
-    ConfigFailedInsert = 95,
+    /// A subscriber callback is already set
+    SubscriberCallbackAlreadySet = 24,
 
-    /// The locator schema provided is unknown.
-    ConfigLocatorSchemaUnknown = 92,
-
-    /// The locator provided is invalid.
-    ConfigLocatorInvalid = 91,
-
-    /// The selected configuration mode is invalid.
-    ConfigInvalidMode = 90,
-
-    /// A generic system error occurred.
-    SystemGeneric = 80,
-
-    /// A system task failed unexpectedly.
-    SystemTaskFailed = 79,
-
-    /// The system ran out of memory.
-    SystemOutOfMemory = 78,
-
-    /// The connection was closed unexpectedly.
-    ConnectionClosed = 77,
-
-    /// No data was read during the operation.
-    DidNotRead = 76,
-
-    /// An invalid argument or value was provided.
-    Invalid = 75,
-
-    /// An overflow occurred during processing.
-    Overflow = 74,
-
-    /// No data was written during the operation.
-    DidNotWrite = 70,
-
-    /// The session has been closed.
-    SessionClosed = 73,
-
-    /// Failed to deserialize received data.
-    Deserialize = 72,
-
-    /// The operation timed out.
-    TimedOut = 71,
-
-    /// A generic, unspecified error occurred.
-    Generic = 128,
+    /// The connection was closed
+    ConnectionClosed = 25,
 }
 
 impl core::fmt::Display for ZError {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         match self {
-            ZError::ChannelClosed => f.write_fmt(core::format_args!("channel closed")),
-            ZError::ChannelNoData => f.write_fmt(core::format_args!("channel has no data")),
-            ZError::NoDataProcessed => f.write_fmt(core::format_args!("no data processed")),
-            ZError::MessageDeserializationFailed => {
-                f.write_fmt(core::format_args!("message deserialization failed"))
+            ZError::CouldNotRead => f.write_str("Could not read"),
+            ZError::CouldNotWrite => f.write_str("Could not write"),
+            ZError::CouldNotParse => f.write_str("Could not parse"),
+            ZError::InvalidArgument => f.write_str("Invalid argument"),
+            ZError::LoneDollarStar => f.write_str("Lone '$*' in expression"),
+            ZError::SingleStarAfterDoubleStar => f.write_str("Single '*' after '**' in expression"),
+            ZError::DoubleStarAfterDoubleStar => {
+                f.write_str("Double '**' after '**' in expression")
             }
-            ZError::MessageSerializationFailed => {
-                f.write_fmt(core::format_args!("message serialization failed"))
+            ZError::EmptyChunk => f.write_str("Empty chunk in expression"),
+            ZError::StarInChunk => f.write_str("'*' in middle of chunk in expression"),
+            ZError::DollarAfterDollar => f.write_str("'$' after '$' in expression"),
+            ZError::SharpOrQMark => f.write_str("'#' or '?' in expression"),
+            ZError::UnboundDollar => f.write_str("Unbound '$n' in expression"),
+            ZError::WildChunk => f.write_str("Wildcard chunk where not allowed"),
+            ZError::NoProtocolSeparator => {
+                f.write_str("Could not find protocol separator in endpoint")
             }
-            ZError::MessageUnexpected => f.write_fmt(core::format_args!("unexpected message")),
-            ZError::MessageFlagUnexpected => {
-                f.write_fmt(core::format_args!("unexpected message flag"))
+            ZError::MetadataNotSupported => f.write_str("Metadata not supported in endpoint"),
+            ZError::ConfigNotSupported => f.write_str("Configuration not supported in endpoint"),
+            ZError::CouldNotConnect => f.write_str("Could not connect to the specified address"),
+            ZError::CouldNotGetAddrInfo => f.write_str("Could not get address info"),
+            ZError::InvalidRx => f.write_str("Received an invalid RX packet"),
+            ZError::TxError => f.write_str("An error occurred while processing a TX packet"),
+            ZError::Timeout => f.write_str("A timeout occurred"),
+            ZError::CapacityExceeded => f.write_str("Capacity limit exceeded"),
+            ZError::CouldNotRecvFromSubscriber => f.write_str("Could not receive from subscriber"),
+            ZError::SubscriberCallbackAlreadySet => {
+                f.write_str("A subscriber callback is already set")
             }
-            ZError::MessageZenohDeclarationUnknown => {
-                f.write_fmt(core::format_args!("unknown zenoh declaration"))
-            }
-            ZError::MessageZenohUnknown => f.write_fmt(core::format_args!("unknown zenoh message")),
-            ZError::MessageTransportUnknown => {
-                f.write_fmt(core::format_args!("unknown transport message"))
-            }
-            ZError::MessageExtensionMandatoryAndUnknown => {
-                f.write_fmt(core::format_args!("mandatory unknown extension"))
-            }
-            ZError::EntityDeclarationFailed => {
-                f.write_fmt(core::format_args!("entity declaration failed"))
-            }
-            ZError::EntityUnknown => f.write_fmt(core::format_args!("unknown entity")),
-            ZError::KeyExprUnknown => f.write_fmt(core::format_args!("unknown key expression")),
-            ZError::KeyExprNotMatch => {
-                f.write_fmt(core::format_args!("key expression not matched"))
-            }
-            ZError::QueryNotMatch => f.write_fmt(core::format_args!("query not matched")),
-            ZError::TransportNotAvailable => {
-                f.write_fmt(core::format_args!("transport not available"))
-            }
-            ZError::TransportOpenFailed => f.write_fmt(core::format_args!("transport open failed")),
-            ZError::TransportOpenSNResolution => {
-                f.write_fmt(core::format_args!("service name resolution failed"))
-            }
-            ZError::TransportTxFailed => {
-                f.write_fmt(core::format_args!("transport transmit failed"))
-            }
-            ZError::TransportRxFailed => {
-                f.write_fmt(core::format_args!("transport receive failed"))
-            }
-            ZError::TransportNoSpace => f.write_fmt(core::format_args!("no space in transport")),
-            ZError::TransportNotEnoughBytes => {
-                f.write_fmt(core::format_args!("not enough bytes received"))
-            }
-            ZError::ConfigFailedInsert => {
-                f.write_fmt(core::format_args!("configuration insert failed"))
-            }
-            ZError::ConfigLocatorSchemaUnknown => {
-                f.write_fmt(core::format_args!("unknown locator schema"))
-            }
-            ZError::ConfigLocatorInvalid => f.write_fmt(core::format_args!("invalid locator")),
-            ZError::ConfigInvalidMode => {
-                f.write_fmt(core::format_args!("invalid configuration mode"))
-            }
-            ZError::SystemGeneric => f.write_fmt(core::format_args!("system error")),
-            ZError::SystemTaskFailed => f.write_fmt(core::format_args!("system task failed")),
-            ZError::SystemOutOfMemory => f.write_fmt(core::format_args!("out of memory")),
-            ZError::ConnectionClosed => f.write_fmt(core::format_args!("connection closed")),
-            ZError::DidNotRead => f.write_fmt(core::format_args!("no data read")),
-            ZError::Invalid => f.write_fmt(core::format_args!("invalid input")),
-            ZError::Overflow => f.write_fmt(core::format_args!("overflow")),
-            ZError::DidNotWrite => f.write_fmt(core::format_args!("no data written")),
-            ZError::SessionClosed => f.write_fmt(core::format_args!("session closed")),
-            ZError::Deserialize => f.write_fmt(core::format_args!("deserialization failed")),
-            ZError::TimedOut => f.write_fmt(core::format_args!("operation timed out")),
-            ZError::Generic => f.write_fmt(core::format_args!("generic error")),
+            ZError::ConnectionClosed => f.write_str("The connection was closed"),
         }
     }
 }
@@ -211,6 +129,7 @@ macro_rules! __internal_zerr {
         )*
     ) => {
         $(
+            #[allow(clippy::enum_variant_names)]
             #[repr(u8)]
             #[derive(Debug, Clone, Copy, PartialEq, Eq)]
             #[doc = $doc]

@@ -38,7 +38,7 @@ impl<'a> PushBody<'a> {
 
         match imsg::mid(header) {
             id::PUT => Ok(PushBody::Put(Put::decode(header, reader)?)),
-            _ => zbail!(ZCodecError::Invalid),
+            _ => zbail!(ZCodecError::CouldNotRead),
         }
     }
 
@@ -72,7 +72,7 @@ impl<'a> RequestBody<'a> {
 
         match imsg::mid(header) {
             id::QUERY => Ok(RequestBody::Query(Query::decode(header, reader)?)),
-            _ => zbail!(ZCodecError::Invalid),
+            _ => zbail!(ZCodecError::CouldNotRead),
         }
     }
 
@@ -110,7 +110,7 @@ impl<'a> ResponseBody<'a> {
             id::REPLY => Ok(ResponseBody::Reply(Reply::decode(header, reader)?)),
             id::ERR => Ok(ResponseBody::Err(Err::decode(header, reader)?)),
             _ => {
-                zbail!(ZCodecError::Invalid)
+                zbail!(ZCodecError::CouldNotRead)
             }
         }
     }

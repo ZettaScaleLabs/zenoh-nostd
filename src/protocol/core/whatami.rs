@@ -58,7 +58,7 @@ impl FromStr for WhatAmI {
             Self::STR_R => Ok(Self::Router),
             Self::STR_P => Ok(Self::Peer),
             Self::STR_C => Ok(Self::Client),
-            _ => crate::zbail!(crate::protocol::ZProtocolError::Invalid),
+            _ => crate::zbail!(crate::protocol::ZProtocolError::CouldNotParse),
         }
     }
 }

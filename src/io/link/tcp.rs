@@ -1,8 +1,6 @@
 use crate::{
-    platform::{
-        ZCommunicationError,
-        tcp::{AbstractedTcpRx, AbstractedTcpStream, AbstractedTcpTx},
-    },
+    io::ZLinkError,
+    platform::tcp::{AbstractedTcpRx, AbstractedTcpStream, AbstractedTcpTx},
     result::ZResult,
 };
 
@@ -42,19 +40,16 @@ impl<T: AbstractedTcpStream> LinkTcp<T> {
         true
     }
 
-    pub(crate) async fn write_all(&mut self, buffer: &[u8]) -> ZResult<(), ZCommunicationError> {
-        self.stream.write_all(buffer).await
+    pub(crate) async fn write_all(&mut self, buffer: &[u8]) -> ZResult<(), ZLinkError> {
+        self.stream.write_all(buffer).await.map_err(|e| e.into())
     }
 
-    pub(crate) async fn read(&mut self, buffer: &mut [u8]) -> ZResult<usize, ZCommunicationError> {
-        self.stream.read(buffer).await
+    pub(crate) async fn read(&mut self, buffer: &mut [u8]) -> ZResult<usize, ZLinkError> {
+        self.stream.read(buffer).await.map_err(|e| e.into())
     }
 
-    pub(crate) async fn read_exact(
-        &mut self,
-        buffer: &mut [u8],
-    ) -> ZResult<(), ZCommunicationError> {
-        self.stream.read_exact(buffer).await
+    pub(crate) async fn read_exact(&mut self, buffer: &mut [u8]) -> ZResult<(), ZLinkError> {
+        self.stream.read_exact(buffer).await.map_err(|e| e.into())
     }
 }
 
@@ -63,8 +58,8 @@ impl<T: AbstractedTcpTx> LinkTcpTx<T> {
         true
     }
 
-    pub(crate) async fn write_all(&mut self, buffer: &[u8]) -> ZResult<(), ZCommunicationError> {
-        self.tx.write_all(buffer).await
+    pub(crate) async fn write_all(&mut self, buffer: &[u8]) -> ZResult<(), ZLinkError> {
+        self.tx.write_all(buffer).await.map_err(|e| e.into())
     }
 }
 
@@ -73,14 +68,11 @@ impl<T: AbstractedTcpRx> LinkTcpRx<T> {
         true
     }
 
-    pub(crate) async fn read(&mut self, buffer: &mut [u8]) -> ZResult<usize, ZCommunicationError> {
-        self.rx.read(buffer).await
+    pub(crate) async fn read(&mut self, buffer: &mut [u8]) -> ZResult<usize, ZLinkError> {
+        self.rx.read(buffer).await.map_err(|e| e.into())
     }
 
-    pub(crate) async fn read_exact(
-        &mut self,
-        buffer: &mut [u8],
-    ) -> ZResult<(), ZCommunicationError> {
-        self.rx.read_exact(buffer).await
+    pub(crate) async fn read_exact(&mut self, buffer: &mut [u8]) -> ZResult<(), ZLinkError> {
+        self.rx.read_exact(buffer).await.map_err(|e| e.into())
     }
 }

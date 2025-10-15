@@ -4,8 +4,11 @@ use embassy_futures::select::select;
 use embassy_time::Timer;
 
 use crate::{
-    io::link::{Link, LinkRx, LinkTx},
-    platform::{Platform, ZCommunicationError},
+    io::{
+        ZTransportError,
+        link::{Link, LinkRx, LinkTx},
+    },
+    platform::Platform,
     protocol::{
         core::{ZenohIdProto, resolution::Resolution, whatami::WhatAmI},
         transport::{BatchSize, TransportMessage, TransportSn},
@@ -66,7 +69,7 @@ impl<T: Platform> Transport<T> {
         config: TransportMineConfig,
         tx_zbuf: ZBufMut<'_>,
         rx_zbuf: ZBufMut<'_>,
-    ) -> ZResult<(Self, TransportConfig), ZCommunicationError> {
+    ) -> ZResult<(Self, TransportConfig), ZTransportError> {
         match select(
             Timer::after(config.open_timeout.try_into().unwrap()),
             async { establishment::open::open_link(link, config, tx_zbuf, rx_zbuf).await },
@@ -74,7 +77,7 @@ impl<T: Platform> Transport<T> {
         .await
         {
             embassy_futures::select::Either::First(_) => {
-                zbail!(ZCommunicationError::TimedOut);
+                zbail!(ZTransportError::Timeout);
             }
             embassy_futures::select::Either::Second(res) => res,
         }
@@ -90,7 +93,7 @@ impl<T: Platform> Transport<T> {
         &mut self,
         mut tx_zbuf: ZBufMut<'_>,
         msg: &TransportMessage<'_, '_>,
-    ) -> ZResult<(), ZCommunicationError> {
+    ) -> ZResult<(), ZTransportError> {
         let mut writer = tx_zbuf.writer();
 
         if self.link.is_streamed() {
@@ -112,12 +115,13 @@ impl<T: Platform> Transport<T> {
         self.link
             .write_all(&tx_zbuf[..payload_len as usize + space])
             .await
+            .map_err(|e| e.into())
     }
 
     pub(crate) async fn recv<'a>(
         &mut self,
         rx_zbuf: ZBufMut<'a>,
-    ) -> ZResult<ZBufReader<'a>, ZCommunicationError> {
+    ) -> ZResult<ZBufReader<'a>, ZTransportError> {
         let n = if self.link.is_streamed() {
             let mut len = BatchSize::MIN.to_le_bytes();
             self.link.read_exact(&mut len).await?;
@@ -140,7 +144,7 @@ impl<'a, T: Platform> TransportTx<'a, T> {
         &mut self,
         mut tx_zbuf: ZBufMut<'_>,
         msg: &TransportMessage<'_, '_>,
-    ) -> ZResult<(), ZCommunicationError> {
+    ) -> ZResult<(), ZTransportError> {
         let mut writer = tx_zbuf.writer();
 
         if self.link.is_streamed() {
@@ -162,6 +166,7 @@ impl<'a, T: Platform> TransportTx<'a, T> {
         self.link
             .write_all(&tx_zbuf[..payload_len as usize + space])
             .await
+            .map_err(|e| e.into())
     }
 }
 
@@ -169,7 +174,7 @@ impl<'a, T: Platform> TransportRx<'a, T> {
     pub(crate) async fn recv<'b>(
         &mut self,
         rx_zbuf: ZBufMut<'b>,
-    ) -> ZResult<ZBufReader<'b>, ZCommunicationError> {
+    ) -> ZResult<ZBufReader<'b>, ZTransportError> {
         let n = if self.link.is_streamed() {
             let mut len = BatchSize::MIN.to_le_bytes();
             self.link.read_exact(&mut len).await?;

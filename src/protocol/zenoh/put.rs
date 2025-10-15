@@ -74,7 +74,7 @@ impl<'a> Put<'a> {
 
     pub(crate) fn decode(header: u8, reader: &mut ZBufReader<'a>) -> ZResult<Self, ZCodecError> {
         if imsg::mid(header) != id::PUT {
-            zbail!(ZCodecError::Invalid);
+            zbail!(ZCodecError::CouldNotRead);
         }
 
         let mut timestamp: Option<uhlc::Timestamp> = None;
@@ -87,7 +87,6 @@ impl<'a> Put<'a> {
             encoding = Encoding::decode(reader)?;
         }
 
-        // Extensions
         let mut ext_sinfo: Option<ext::SourceInfoType> = None;
         let mut ext_attachment: Option<ext::AttachmentType> = None;
 

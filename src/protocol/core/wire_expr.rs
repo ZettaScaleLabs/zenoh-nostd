@@ -32,7 +32,7 @@ impl<'a> WireExpr<'a> {
         &self,
     ) -> crate::result::ZResult<ExprId, crate::protocol::ZProtocolError> {
         if self.has_suffix() {
-            crate::zbail!(crate::protocol::ZProtocolError::Invalid);
+            crate::zbail!(crate::protocol::ZProtocolError::CouldNotParse);
         } else {
             Ok(self.scope)
         }

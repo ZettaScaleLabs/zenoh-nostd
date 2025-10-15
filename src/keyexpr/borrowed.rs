@@ -6,7 +6,7 @@ use core::{
 
 use heapless::String;
 
-use crate::{keyexpr::ZKeyError, zbail};
+use crate::{keyexpr::ZKeyExprError, zbail};
 
 #[allow(non_camel_case_types)]
 #[repr(transparent)]
@@ -45,12 +45,13 @@ impl fmt::Display for keyexpr {
 }
 
 impl<'a> TryFrom<&'a str> for &'a keyexpr {
-    type Error = ZKeyError;
+    type Error = ZKeyExprError;
 
     fn try_from(value: &'a str) -> Result<Self, Self::Error> {
         if value.is_empty() || value.ends_with('/') {
-            zbail!(ZKeyError::KeyExprNotMatch);
+            zbail!(ZKeyExprError::EmptyChunk);
         }
+
         let bytes = value.as_bytes();
 
         let mut chunk_start = 0;
@@ -60,14 +61,14 @@ impl<'a> TryFrom<&'a str> for &'a keyexpr {
             match bytes[i] {
                 c if c > b'/' && c != b'?' => i += 1,
 
-                b'/' if i == chunk_start => zbail!(ZKeyError::KeyExprNotMatch),
+                b'/' if i == chunk_start => zbail!(ZKeyExprError::EmptyChunk),
 
                 b'/' => {
                     i += 1;
                     chunk_start = i;
                 }
 
-                b'*' if i != chunk_start => zbail!(ZKeyError::KeyExprNotMatch),
+                b'*' if i != chunk_start => zbail!(ZKeyExprError::StarInChunk),
 
                 b'*' => match bytes.get(i + 1) {
                     None => break,
@@ -81,7 +82,20 @@ impl<'a> TryFrom<&'a str> for &'a keyexpr {
                         None => break,
 
                         Some(&b'/') if matches!(bytes.get(i + 3), Some(b'*')) => {
-                            zbail!(ZKeyError::KeyExprNotMatch)
+                            #[cold]
+                            fn double_star_err(value: &str, i: usize) -> ZKeyExprError {
+                                match (value.as_bytes().get(i + 4), value.as_bytes().get(i + 5)) {
+                                    (None | Some(&b'/'), _) => {
+                                        ZKeyExprError::SingleStarAfterDoubleStar
+                                    }
+                                    (Some(&b'*'), None | Some(&b'/')) => {
+                                        ZKeyExprError::DoubleStarAfterDoubleStar
+                                    }
+                                    _ => ZKeyExprError::StarInChunk,
+                                }
+                            }
+
+                            zbail!(double_star_err(value, i));
                         }
 
                         Some(&b'/') => {
@@ -89,21 +103,21 @@ impl<'a> TryFrom<&'a str> for &'a keyexpr {
                             chunk_start = i;
                         }
 
-                        _ => zbail!(ZKeyError::KeyExprNotMatch),
+                        _ => zbail!(ZKeyExprError::StarInChunk),
                     },
 
-                    _ => zbail!(ZKeyError::KeyExprNotMatch),
+                    _ => zbail!(ZKeyExprError::StarInChunk),
                 },
 
                 b'$' if bytes.get(i + 1) != Some(&b'*') => {
-                    zbail!(ZKeyError::KeyExprNotMatch);
+                    zbail!(ZKeyExprError::UnboundDollar)
                 }
 
                 b'$' => match bytes.get(i + 2) {
-                    Some(&b'$') => zbail!(ZKeyError::KeyExprNotMatch),
+                    Some(&b'$') => zbail!(ZKeyExprError::DollarAfterDollar),
 
                     Some(&b'/') | None if i == chunk_start => {
-                        zbail!(ZKeyError::KeyExprNotMatch)
+                        zbail!(ZKeyExprError::LoneDollarStar)
                     }
 
                     None => break,
@@ -111,31 +125,32 @@ impl<'a> TryFrom<&'a str> for &'a keyexpr {
                     _ => i += 2,
                 },
 
-                b'#' | b'?' => zbail!(ZKeyError::KeyExprNotMatch),
+                b'#' | b'?' => zbail!(ZKeyExprError::SharpOrQMark),
 
                 _ => i += 1,
             }
         }
+
         Ok(keyexpr::from_str_unchecked(value))
     }
 }
 
 impl<'a> TryFrom<&'a mut str> for &'a keyexpr {
-    type Error = ZKeyError;
+    type Error = ZKeyExprError;
     fn try_from(value: &'a mut str) -> Result<Self, Self::Error> {
         (value as &'a str).try_into()
     }
 }
 
 impl<'a, const N: usize> TryFrom<&'a mut String<N>> for &'a keyexpr {
-    type Error = ZKeyError;
+    type Error = ZKeyExprError;
     fn try_from(value: &'a mut String<N>) -> Result<Self, Self::Error> {
         (value.as_str()).try_into()
     }
 }
 
 impl<'a, const N: usize> TryFrom<&'a String<N>> for &'a keyexpr {
-    type Error = ZKeyError;
+    type Error = ZKeyExprError;
     fn try_from(value: &'a String<N>) -> Result<Self, Self::Error> {
         (value.as_str()).try_into()
     }
@@ -181,11 +196,12 @@ impl Deref for nonwild_keyexpr {
 }
 
 impl<'a> TryFrom<&'a keyexpr> for &'a nonwild_keyexpr {
-    type Error = ZKeyError;
+    type Error = ZKeyExprError;
     fn try_from(value: &'a keyexpr) -> Result<Self, Self::Error> {
         if value.is_wild_impl() {
-            zbail!(ZKeyError::KeyExprNotMatch);
+            zbail!(ZKeyExprError::WildChunk);
         }
+
         Ok(unsafe { core::mem::transmute::<&keyexpr, &nonwild_keyexpr>(value) })
     }
 }

@@ -116,7 +116,7 @@ impl FrameHeader {
 
     pub(crate) fn decode(header: u8, reader: &mut ZBufReader<'_>) -> ZResult<Self, ZCodecError> {
         if imsg::mid(header) != id::FRAME {
-            zbail!(ZCodecError::Invalid)
+            zbail!(ZCodecError::CouldNotRead)
         }
 
         let reliability = match imsg::has_flag(header, flag::R) {

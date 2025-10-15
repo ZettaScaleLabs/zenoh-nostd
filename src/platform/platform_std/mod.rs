@@ -1,5 +1,5 @@
 use crate::{
-    platform::{Platform, ZCommunicationError},
+    platform::{Platform, ZConnectionError},
     result::ZResult,
 };
 
@@ -13,14 +13,14 @@ impl Platform for PlatformStd {
     async fn new_tcp_stream(
         &self,
         addr: &core::net::SocketAddr,
-    ) -> ZResult<Self::AbstractedTcpStream, ZCommunicationError> {
+    ) -> ZResult<Self::AbstractedTcpStream, ZConnectionError> {
         let socket = async_net::TcpStream::connect(addr)
             .await
-            .map_err(|_| ZCommunicationError::ConnectionClosed)?;
+            .map_err(|_| ZConnectionError::CouldNotConnect)?;
 
         let header = match socket
             .local_addr()
-            .map_err(|_| ZCommunicationError::Invalid)?
+            .map_err(|_| ZConnectionError::CouldNotGetAddrInfo)?
             .ip()
         {
             core::net::IpAddr::V4(_) => 40,

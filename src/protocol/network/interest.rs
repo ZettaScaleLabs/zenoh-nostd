@@ -82,7 +82,7 @@ impl<'a> Interest<'a> {
 
     pub(crate) fn decode(header: u8, reader: &mut ZBufReader<'a>) -> ZResult<Self, ZCodecError> {
         if imsg::mid(header) != id::INTEREST {
-            zbail!(ZCodecError::Invalid);
+            zbail!(ZCodecError::CouldNotRead);
         }
 
         let id = decode_u32(reader)?;
@@ -91,7 +91,7 @@ impl<'a> Interest<'a> {
             0b01 => InterestMode::Current,
             0b10 => InterestMode::Future,
             0b11 => InterestMode::CurrentFuture,
-            _ => zbail!(ZCodecError::Invalid),
+            _ => zbail!(ZCodecError::CouldNotRead),
         };
 
         let mut options = InterestOptions::empty();

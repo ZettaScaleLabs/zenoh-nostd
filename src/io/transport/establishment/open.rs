@@ -2,13 +2,14 @@ use core::time::Duration;
 
 use crate::{
     io::{
+        ZTransportError,
         link::Link,
         transport::{
             Transport, TransportConfig, TransportMineConfig, TransportNegociatedConfig,
             TransportOtherConfig, establishment::compute_sn,
         },
     },
-    platform::{Platform, ZCommunicationError},
+    platform::Platform,
     protocol::{
         VERSION,
         core::{
@@ -47,7 +48,7 @@ impl SendInitSynIn {
         tx_zbuf: ZBufMut<'_>,
         transport: &mut Transport<T>,
         state: &StateTransport,
-    ) -> ZResult<(), ZCommunicationError> {
+    ) -> ZResult<(), ZTransportError> {
         let msg = TransportMessage {
             body: TransportBody::InitSyn(InitSyn {
                 version: self.mine_version,
@@ -80,25 +81,24 @@ impl<'a> RecvInitAckOut<'a> {
         rx_zbuf: ZBufMut<'a>,
         transport: &mut Transport<T>,
         state: &mut StateTransport,
-    ) -> ZResult<Self, ZCommunicationError> {
+    ) -> ZResult<Self, ZTransportError> {
         let mut reader = transport.recv(rx_zbuf).await?;
 
         let mut init_ack = Option::<InitAck<'a>>::None;
         TransportMessage::decode_batch(
             &mut reader,
-            Some(|_: InitSyn| zbail!(ZCommunicationError::Invalid.into())),
+            None::<fn(InitSyn)>,
             Some(|i: InitAck<'a>| {
                 init_ack = Some(i);
-                Ok(())
             }),
-            Some(|_: OpenSyn| zbail!(ZCommunicationError::Invalid.into())),
-            Some(|_: OpenAck| zbail!(ZCommunicationError::Invalid.into())),
-            Some(|| zbail!(ZCommunicationError::Invalid.into())),
-            Some(|_: &FrameHeader, _: NetworkMessage| zbail!(ZCommunicationError::Invalid.into())),
+            None::<fn(OpenSyn)>,
+            None::<fn(OpenAck)>,
+            None::<fn()>,
+            None::<fn(&FrameHeader, NetworkMessage)>,
         )?;
 
         let Some(init_ack) = init_ack else {
-            zbail!(ZCommunicationError::Invalid);
+            zbail!(ZTransportError::InvalidRx);
         };
 
         state.resolution = {
@@ -108,7 +108,7 @@ impl<'a> RecvInitAckOut<'a> {
             let m_fsn_res = state.resolution.get(Field::FrameSN);
 
             if i_fsn_res > m_fsn_res {
-                zbail!(ZCommunicationError::Invalid);
+                zbail!(ZTransportError::InvalidRx);
             }
 
             res.set(Field::FrameSN, i_fsn_res);
@@ -117,7 +117,7 @@ impl<'a> RecvInitAckOut<'a> {
             let m_rid_res = state.resolution.get(Field::RequestID);
 
             if i_rid_res > m_rid_res {
-                zbail!(ZCommunicationError::Invalid);
+                zbail!(ZTransportError::InvalidRx);
             }
             res.set(Field::RequestID, i_rid_res);
 
@@ -149,7 +149,7 @@ impl<'a> SendOpenSynIn<'a> {
         tx_zbuf: ZBufMut<'_>,
         transport: &mut Transport<T>,
         state: &StateTransport,
-    ) -> ZResult<SendOpenSynOut, ZCommunicationError> {
+    ) -> ZResult<SendOpenSynOut, ZTransportError> {
         let mine_initial_sn = compute_sn(self.mine_zid, self.other_zid, state.resolution);
 
         let msg = TransportMessage {
@@ -187,26 +187,24 @@ impl RecvOpenAckOut {
     pub(crate) async fn recv<'a, T: Platform>(
         rx_zbuf: ZBufMut<'a>,
         transport: &mut Transport<T>,
-    ) -> ZResult<Self, ZCommunicationError> {
+    ) -> ZResult<Self, ZTransportError> {
         let mut reader = transport.recv(rx_zbuf).await?;
 
         let mut msg = Option::<OpenAck<'a>>::None;
-
         TransportMessage::decode_batch(
             &mut reader,
-            Some(|_: InitSyn| zbail!(ZCommunicationError::Invalid.into())),
-            Some(|_: InitAck| zbail!(ZCommunicationError::Invalid.into())),
-            Some(|_: OpenSyn| zbail!(ZCommunicationError::Invalid.into())),
+            None::<fn(InitSyn)>,
+            None::<fn(InitAck)>,
+            None::<fn(OpenSyn)>,
             Some(|o: OpenAck<'a>| {
                 msg = Some(o);
-                Ok(())
             }),
-            Some(|| zbail!(ZCommunicationError::Invalid.into())),
-            Some(|_: &FrameHeader, _: NetworkMessage| zbail!(ZCommunicationError::Invalid.into())),
+            None::<fn()>,
+            None::<fn(&FrameHeader, NetworkMessage)>,
         )?;
 
         let Some(open_ack) = msg else {
-            zbail!(ZCommunicationError::Invalid);
+            zbail!(ZTransportError::InvalidRx);
         };
 
         let output = RecvOpenAckOut {
@@ -223,7 +221,7 @@ pub(crate) async fn open_link<T: Platform>(
     config: TransportMineConfig,
     tx_zbuf: ZBufMut<'_>,
     rx_zbuf: ZBufMut<'_>,
-) -> ZResult<(Transport<T>, TransportConfig), ZCommunicationError> {
+) -> ZResult<(Transport<T>, TransportConfig), ZTransportError> {
     let batch_size = link.mtu();
 
     let mut transport = Transport { link };

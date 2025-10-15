@@ -99,7 +99,7 @@ pub(crate) fn decode_u32(reader: &mut ZBufReader<'_>) -> ZResult<u32, ZCodecErro
         if v <= u32::MAX as u64 {
             Ok(v as u32)
         } else {
-            Err(ZCodecError::Overflow)
+            Err(ZCodecError::CouldNotRead)
         }
     })
 }
@@ -113,7 +113,7 @@ pub(crate) fn decode_u16(reader: &mut ZBufReader<'_>) -> ZResult<u16, ZCodecErro
         if v <= u16::MAX as u64 {
             Ok(v as u16)
         } else {
-            Err(ZCodecError::Overflow)
+            Err(ZCodecError::CouldNotRead)
         }
     })
 }
@@ -141,7 +141,7 @@ pub(crate) fn decode_usize(reader: &mut ZBufReader<'_>) -> ZResult<usize, ZCodec
         if v <= usize::MAX as u64 {
             Ok(v as usize)
         } else {
-            Err(ZCodecError::Overflow)
+            Err(ZCodecError::CouldNotRead)
         }
     })
 }
@@ -199,7 +199,7 @@ pub(crate) fn decode_str<'a>(
     let zbuf = decode_zbuf(len, reader)?;
     match core::str::from_utf8(zbuf) {
         Ok(s) => Ok(s),
-        Err(_) => Err(ZCodecError::DidNotRead),
+        Err(_) => Err(ZCodecError::CouldNotParse),
     }
 }
 
@@ -224,7 +224,7 @@ pub(crate) fn encode_timestamp(
 pub(crate) fn decode_timestamp(reader: &mut ZBufReader<'_>) -> ZResult<Timestamp, ZCodecError> {
     let time = decode_u64(reader)?;
     let bytes = decode_zbuf(Some(decode_usize(reader)?), reader)?;
-    let id = ID::try_from(bytes).map_err(|_| ZCodecError::Invalid)?;
+    let id = ID::try_from(bytes).map_err(|_| ZCodecError::CouldNotParse)?;
 
     let time = NTP64(time);
     Ok(Timestamp::new(time, id))

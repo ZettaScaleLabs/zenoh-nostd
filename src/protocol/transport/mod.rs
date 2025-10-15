@@ -71,7 +71,7 @@ impl<'a, 'b> TransportMessage<'a, 'b> {
     fn handle_frame_callback(
         header: u8,
         reader: &mut ZBufReader<'a>,
-        on_network_msg: &mut Option<impl FnMut(&FrameHeader, NetworkMessage<'a>) -> ZResult<()>>,
+        on_network_msg: &mut Option<impl FnMut(&FrameHeader, NetworkMessage<'a>)>,
     ) -> ZResult<(), ZCodecError> {
         let header: FrameHeader = FrameHeader::decode(header, reader)?;
 
@@ -81,10 +81,8 @@ impl<'a, 'b> TransportMessage<'a, 'b> {
 
             match msg {
                 Ok(msg) => {
-                    if let Some(on_network_msg) = on_network_msg
-                        && let Err(e) = on_network_msg(&header, msg)
-                    {
-                        crate::error!("Error when handling network_msg callback: {}", e);
+                    if let Some(on_network_msg) = on_network_msg {
+                        on_network_msg(&header, msg);
                     }
                 }
                 Err(_) => {
@@ -99,12 +97,12 @@ impl<'a, 'b> TransportMessage<'a, 'b> {
 
     pub(crate) fn decode_single(
         reader: &mut ZBufReader<'a>,
-        mut on_init_syn: Option<impl FnMut(InitSyn<'a>) -> ZResult<()>>,
-        mut on_init_ack: Option<impl FnMut(InitAck<'a>) -> ZResult<()>>,
-        mut on_open_syn: Option<impl FnMut(OpenSyn<'a>) -> ZResult<()>>,
-        mut on_open_ack: Option<impl FnMut(OpenAck<'a>) -> ZResult<()>>,
-        mut on_keepalive: Option<impl FnMut() -> ZResult<()>>,
-        mut on_network_msg: Option<impl FnMut(&FrameHeader, NetworkMessage<'a>) -> ZResult<()>>,
+        mut on_init_syn: Option<impl FnMut(InitSyn<'a>)>,
+        mut on_init_ack: Option<impl FnMut(InitAck<'a>)>,
+        mut on_open_syn: Option<impl FnMut(OpenSyn<'a>)>,
+        mut on_open_ack: Option<impl FnMut(OpenAck<'a>)>,
+        mut on_keepalive: Option<impl FnMut()>,
+        mut on_network_msg: Option<impl FnMut(&FrameHeader, NetworkMessage<'a>)>,
     ) -> ZResult<bool, ZCodecError> {
         let Ok(header): ZResult<u8, ZCodecError> = crate::protocol::zcodec::decode_u8(reader)
         else {
@@ -117,43 +115,33 @@ impl<'a, 'b> TransportMessage<'a, 'b> {
             }
             id::KEEP_ALIVE => {
                 let _ = KeepAlive::decode(header, reader)?;
-                if let Some(on_keepalive) = &mut on_keepalive
-                    && let Err(e) = on_keepalive()
-                {
-                    crate::error!("Error when handling keepalive callback: {}", e);
+                if let Some(on_keepalive) = &mut on_keepalive {
+                    on_keepalive();
                 }
             }
             id::INIT => {
                 if !imsg::has_flag(header, transport::init::flag::A) {
                     let init_syn = InitSyn::decode(header, reader)?;
-                    if let Some(on_init_syn) = &mut on_init_syn
-                        && let Err(e) = on_init_syn(init_syn)
-                    {
-                        crate::error!("Error when handling init_syn callback: {}", e);
+                    if let Some(on_init_syn) = &mut on_init_syn {
+                        on_init_syn(init_syn);
                     }
                 } else {
                     let init_ack = InitAck::decode(header, reader)?;
-                    if let Some(on_init_ack) = &mut on_init_ack
-                        && let Err(e) = on_init_ack(init_ack)
-                    {
-                        crate::error!("Error when handling init_ack callback: {}", e);
+                    if let Some(on_init_ack) = &mut on_init_ack {
+                        on_init_ack(init_ack);
                     }
                 }
             }
             id::OPEN => {
                 if !imsg::has_flag(header, transport::open::flag::A) {
                     let open_syn = OpenSyn::decode(header, reader)?;
-                    if let Some(on_open_syn) = &mut on_open_syn
-                        && let Err(e) = on_open_syn(open_syn)
-                    {
-                        crate::error!("Error when handling open_syn callback: {}", e);
+                    if let Some(on_open_syn) = &mut on_open_syn {
+                        on_open_syn(open_syn);
                     }
                 } else {
                     let open_ack = OpenAck::decode(header, reader)?;
-                    if let Some(on_open_ack) = &mut on_open_ack
-                        && let Err(e) = on_open_ack(open_ack)
-                    {
-                        crate::error!("Error when handling open_ack callback: {}", e);
+                    if let Some(on_open_ack) = &mut on_open_ack {
+                        on_open_ack(open_ack);
                     }
                 }
             }
@@ -167,12 +155,12 @@ impl<'a, 'b> TransportMessage<'a, 'b> {
 
     pub(crate) fn decode_batch(
         reader: &mut ZBufReader<'a>,
-        mut on_init_syn: Option<impl FnMut(InitSyn<'a>) -> ZResult<()>>,
-        mut on_init_ack: Option<impl FnMut(InitAck<'a>) -> ZResult<()>>,
-        mut on_open_syn: Option<impl FnMut(OpenSyn<'a>) -> ZResult<()>>,
-        mut on_open_ack: Option<impl FnMut(OpenAck<'a>) -> ZResult<()>>,
-        mut on_keepalive: Option<impl FnMut() -> ZResult<()>>,
-        mut on_network_msg: Option<impl FnMut(&FrameHeader, NetworkMessage<'a>) -> ZResult<()>>,
+        mut on_init_syn: Option<impl FnMut(InitSyn<'a>)>,
+        mut on_init_ack: Option<impl FnMut(InitAck<'a>)>,
+        mut on_open_syn: Option<impl FnMut(OpenSyn<'a>)>,
+        mut on_open_ack: Option<impl FnMut(OpenAck<'a>)>,
+        mut on_keepalive: Option<impl FnMut()>,
+        mut on_network_msg: Option<impl FnMut(&FrameHeader, NetworkMessage<'a>)>,
     ) -> ZResult<(), ZCodecError> {
         while reader.can_read() {
             let cont = Self::decode_single(

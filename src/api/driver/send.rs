@@ -4,7 +4,7 @@ use embassy_time::Instant;
 
 use crate::{
     api::driver::SessionDriver,
-    platform::{Platform, ZCommunicationError},
+    platform::Platform,
     protocol::{
         network::NetworkMessage,
         transport::{self, TransportMessage, frame::Frame},
@@ -13,7 +13,7 @@ use crate::{
 };
 
 impl<T: Platform> SessionDriver<T> {
-    pub(crate) async fn send(&self, msg: NetworkMessage<'_>) -> ZResult<(), ZCommunicationError> {
+    pub(crate) async fn send(&self, msg: NetworkMessage<'_>) -> ZResult<()> {
         let mut tx_guard = self.tx.lock().await;
         let tx = tx_guard.deref_mut();
 

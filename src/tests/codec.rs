@@ -19,7 +19,6 @@ use crate::{
         zcodec::*,
         zenoh::{PushBody, err::*, put::*, query::*, reply::*},
     },
-    result::ZResult,
     zbuf::*,
 };
 
@@ -526,16 +525,15 @@ fn codec_frame() {
         let mut reader = zbuf.reader();
         TransportMessage::decode_batch(
             &mut reader,
-            None::<fn(InitSyn) -> ZResult<()>>,
-            None::<fn(InitAck) -> ZResult<()>>,
-            None::<fn(OpenSyn) -> ZResult<()>>,
-            None::<fn(OpenAck) -> ZResult<()>>,
-            None::<fn() -> ZResult<()>>,
+            None::<fn(InitSyn)>,
+            None::<fn(InitAck)>,
+            None::<fn(OpenSyn)>,
+            None::<fn(OpenAck)>,
+            None::<fn()>,
             Some(|_: &FrameHeader, msg: NetworkMessage<'_>| {
                 assert_eq!(msg, value2.payload[i]);
 
                 i += 1;
-                Ok(())
             }),
         )
         .unwrap();
@@ -609,12 +607,12 @@ pub(super) fn criterion(c: &mut Criterion) {
             let mut reader = zbuf.reader();
             TransportMessage::decode_batch(
                 &mut reader,
-                None::<fn(InitSyn) -> ZResult<()>>,
-                None::<fn(InitAck) -> ZResult<()>>,
-                None::<fn(OpenSyn) -> ZResult<()>>,
-                None::<fn(OpenAck) -> ZResult<()>>,
-                None::<fn() -> ZResult<()>>,
-                None::<fn(&FrameHeader, NetworkMessage) -> ZResult<()>>,
+                None::<fn(InitSyn)>,
+                None::<fn(InitAck)>,
+                None::<fn(OpenSyn)>,
+                None::<fn(OpenAck)>,
+                None::<fn()>,
+                None::<fn(&FrameHeader, NetworkMessage)>,
             )
             .unwrap();
         })

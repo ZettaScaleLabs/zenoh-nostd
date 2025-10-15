@@ -112,7 +112,7 @@ impl<'a> InitSyn<'a> {
 
     pub(crate) fn decode(header: u8, reader: &mut ZBufReader<'a>) -> ZResult<Self, ZCodecError> {
         if imsg::mid(header) != id::INIT || imsg::has_flag(header, flag::A) {
-            zbail!(ZCodecError::Invalid)
+            zbail!(ZCodecError::CouldNotRead)
         }
 
         let version: u8 = crate::protocol::zcodec::decode_u8(reader)?;
@@ -121,7 +121,7 @@ impl<'a> InitSyn<'a> {
             0b00 => WhatAmI::Router,
             0b01 => WhatAmI::Peer,
             0b10 => WhatAmI::Client,
-            _ => zbail!(ZCodecError::Invalid),
+            _ => zbail!(ZCodecError::CouldNotParse),
         };
 
         let length = 1 + ((flags >> 4) as usize);
@@ -358,7 +358,7 @@ impl<'a> InitAck<'a> {
 
     pub(crate) fn decode(header: u8, reader: &mut ZBufReader<'a>) -> ZResult<Self, ZCodecError> {
         if imsg::mid(header) != id::INIT || !imsg::has_flag(header, flag::A) {
-            zbail!(ZCodecError::Invalid)
+            zbail!(ZCodecError::CouldNotRead)
         }
 
         let version: u8 = crate::protocol::zcodec::decode_u8(reader)?;
@@ -368,7 +368,7 @@ impl<'a> InitAck<'a> {
             0b00 => WhatAmI::Router,
             0b01 => WhatAmI::Peer,
             0b10 => WhatAmI::Client,
-            _ => zbail!(ZCodecError::Invalid),
+            _ => zbail!(ZCodecError::CouldNotParse),
         };
 
         let length = 1 + ((flags >> 4) as usize);

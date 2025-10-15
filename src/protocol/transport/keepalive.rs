@@ -26,7 +26,7 @@ impl KeepAlive {
 
     pub(crate) fn decode(header: u8, reader: &mut ZBufReader<'_>) -> ZResult<Self, ZCodecError> {
         if imsg::mid(header) != id::KEEP_ALIVE {
-            zbail!(ZCodecError::Invalid)
+            zbail!(ZCodecError::CouldNotRead)
         }
 
         let has_ext = imsg::has_flag(header, flag::Z);
