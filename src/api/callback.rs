@@ -32,7 +32,7 @@ impl ZCallback {
             }
             ZCallback::Async(f) => {
                 poll_fn(|cx| f.poll_ready_to_send(cx)).await;
-                f.call(sample)?; // It's okay because we polled for readiness and there is no switching context
+                f.call(sample)?;
             }
         }
 

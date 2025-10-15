@@ -150,8 +150,7 @@ src/
 └── lib.rs         # Library entry point
 
 platforms/
-├── zenoh-embassy  # Integration with Embassy-based devices
-├── zenoh-wasm32   # WASM32 platform integration
+└── zenoh-embassy  # Integration with Embassy-based devices
 ```
 
 ---

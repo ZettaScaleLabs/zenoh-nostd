@@ -131,35 +131,3 @@ impl<T: Platform + 'static> Session<T> {
         }
     }
 }
-
-#[macro_export]
-macro_rules! zsubscriber {
-    ($sync:expr) => {
-        (
-            $crate::api::callback::ZCallback::Sync($sync),
-            None::<
-                embassy_sync::channel::DynamicReceiver<
-                    'static,
-                    $crate::api::sample::ZOwnedSample<0, 0>,
-                >,
-            >,
-        )
-    };
-
-    (QUEUE: $queue:expr, KE: $ke:expr, PL: $pl:expr) => {{
-        static CHANNEL: static_cell::StaticCell<
-            embassy_sync::channel::Channel<
-                embassy_sync::blocking_mutex::raw::CriticalSectionRawMutex,
-                $crate::api::sample::ZOwnedSample<$ke, $pl>,
-                $queue,
-            >,
-        > = static_cell::StaticCell::new();
-
-        let channel = CHANNEL.init(embassy_sync::channel::Channel::new());
-
-        (
-            $crate::api::callback::ZCallback::Async(channel),
-            Some(channel.dyn_receiver()),
-        )
-    }};
-}
