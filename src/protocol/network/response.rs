@@ -7,7 +7,7 @@ use crate::{
         },
         core::wire_expr::WireExpr,
         network::{Mapping, id, request::RequestId},
-        zcodec::{decode_u32, encode_u32},
+        zcodec::{decode_u8, decode_u32, encode_u8, encode_u32},
         zenoh::ResponseBody,
     },
     result::ZResult,
@@ -50,7 +50,7 @@ impl<'a> Response<'a> {
             header |= flag::N;
         }
 
-        crate::protocol::zcodec::encode_u8(header, writer)?;
+        encode_u8(header, writer)?;
         encode_u32(self.rid, writer)?;
         self.wire_expr.encode(writer)?;
 
@@ -93,7 +93,7 @@ impl<'a> Response<'a> {
 
         let mut has_ext = imsg::has_flag(header, flag::Z);
         while has_ext {
-            let ext = crate::protocol::zcodec::decode_u8(reader)?;
+            let ext = decode_u8(reader)?;
             match iext::eid(ext) {
                 ext::QoS::ID => {
                     let (q, ext) = ext::QoSType::decode(ext, reader)?;
@@ -180,7 +180,7 @@ impl ResponseFinal {
             header |= flag::Z;
         }
 
-        crate::protocol::zcodec::encode_u8(header, writer)?;
+        encode_u8(header, writer)?;
         encode_u32(self.rid, writer)?;
 
         if self.ext_qos != ext::QoSType::DEFAULT {
@@ -208,7 +208,7 @@ impl ResponseFinal {
 
         let mut has_ext = imsg::has_flag(header, flag::Z);
         while has_ext {
-            let ext: u8 = crate::protocol::zcodec::decode_u8(reader)?;
+            let ext: u8 = decode_u8(reader)?;
             match iext::eid(ext) {
                 ext::QoS::ID => {
                     let (q, ext) = ext::QoSType::decode(ext, reader)?;

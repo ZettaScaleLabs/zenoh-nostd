@@ -70,14 +70,14 @@ pub(crate) fn encode_u64(mut x: u64, writer: &mut ZBufWriter<'_>) -> ZResult<(),
 }
 
 pub(crate) fn decode_u64(reader: &mut ZBufReader<'_>) -> ZResult<u64, ZCodecError> {
-    let mut b = crate::protocol::zcodec::decode_u8(reader)?;
+    let mut b = decode_u8(reader)?;
 
     let mut v = 0;
     let mut i = 0;
 
     while (b & 0x80_u8) != 0 && i != 7 * (VLE_LEN_MAX - 1) {
         v |= ((b & 0x7f_u8) as u64) << i;
-        b = crate::protocol::zcodec::decode_u8(reader)?;
+        b = decode_u8(reader)?;
         i += 7;
     }
 

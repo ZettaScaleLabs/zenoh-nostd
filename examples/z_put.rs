@@ -1,4 +1,4 @@
-use zenoh_nostd::{EndPoint, PlatformStd, ke};
+use zenoh_nostd::{EndPoint, PlatformStd, keyexpr};
 
 const CONNECT: Option<&str> = option_env!("CONNECT");
 
@@ -14,13 +14,13 @@ async fn main(spawner: embassy_executor::Spawner) {
                 PlatformStd: (spawner, PlatformStd {}),
                 TX: 512,
                 RX: 512,
-                SUBSCRIBERS: 2
+                MAX_SUBSCRIBERS: 2
         ),
         EndPoint::try_from(CONNECT.unwrap_or("tcp/127.0.0.1:7447")).unwrap()
     )
     .unwrap();
 
-    let ke: &'static ke = "demo/example".try_into().unwrap();
+    let ke: &'static keyexpr = "demo/example".try_into().unwrap();
     let payload = b"Hello, from std!";
 
     loop {

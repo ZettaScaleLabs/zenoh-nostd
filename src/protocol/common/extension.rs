@@ -4,7 +4,10 @@ use crate::{
     protocol::{
         ZCodecError,
         common::imsg::has_flag,
-        zcodec::{decode_u64, decode_usize, decode_zbuf, encode_u64, encode_usize, encode_zbuf},
+        zcodec::{
+            decode_u8, decode_u64, decode_usize, decode_zbuf, encode_u8, encode_u64, encode_usize,
+            encode_zbuf,
+        },
     },
     result::ZResult,
     zbail,
@@ -13,6 +16,8 @@ use crate::{
 
 pub(crate) mod iext {
     use core::fmt;
+
+    use crate::protocol::common::imsg;
 
     pub(crate) const ID_BITS: u8 = 4;
     pub(crate) const ID_MASK: u8 = !(u8::MAX << ID_BITS);
@@ -44,7 +49,7 @@ pub(crate) mod iext {
     }
 
     pub(super) const fn is_mandatory(id: u8) -> bool {
-        crate::protocol::common::imsg::has_flag(id, FLAG_M)
+        imsg::has_flag(id, FLAG_M)
     }
 
     pub(super) fn fmt(f: &mut fmt::DebugStruct, id: u8) {
@@ -66,18 +71,8 @@ pub(crate) mod iext {
 #[derive(Clone, Copy, PartialEq, Eq)]
 pub(crate) struct ZExtUnit<const ID: u8>;
 
-impl<const ID: u8> Default for ZExtUnit<{ ID }> {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
 impl<const ID: u8> ZExtUnit<{ ID }> {
     pub(crate) const ID: u8 = ID;
-
-    pub(crate) const fn new() -> Self {
-        Self
-    }
 
     pub(crate) const fn id(mandatory: bool) -> u8 {
         iext::id(ID, mandatory, iext::ENC_UNIT)
@@ -93,7 +88,7 @@ impl<const ID: u8> ZExtUnit<{ ID }> {
             header |= iext::FLAG_Z;
         }
 
-        crate::protocol::zcodec::encode_u8(header, writer)?;
+        encode_u8(header, writer)?;
 
         Ok(1)
     }
@@ -108,7 +103,7 @@ impl<const ID: u8> ZExtUnit<{ ID }> {
 
     #[cfg(test)]
     pub(crate) fn rand() -> Self {
-        Self::new()
+        Self
     }
 }
 
@@ -147,7 +142,7 @@ impl<const ID: u8> ZExtZ64<{ ID }> {
             header |= iext::FLAG_Z;
         }
 
-        crate::protocol::zcodec::encode_u8(header, writer)?;
+        encode_u8(header, writer)?;
 
         encode_u64(self.value, writer)
     }
@@ -206,7 +201,7 @@ impl<'a, const ID: u8> ZExtZBuf<'a, { ID }> {
             header |= iext::FLAG_Z;
         }
 
-        crate::protocol::zcodec::encode_u8(header, writer)?;
+        encode_u8(header, writer)?;
         encode_zbuf(true, self.value, writer)?;
 
         Ok(())
@@ -270,7 +265,7 @@ impl<const ID: u8> ZExtZBufHeader<{ ID }> {
             header |= iext::FLAG_Z;
         }
 
-        crate::protocol::zcodec::encode_u8(header, writer)?;
+        encode_u8(header, writer)?;
         encode_usize(self.len, writer)?;
 
         Ok(())
@@ -335,7 +330,7 @@ pub(crate) fn skip_all(s: &str, reader: &mut ZBufReader<'_>) -> ZResult<(), ZCod
     let mut has_ext = reader.can_read();
 
     while has_ext {
-        let header = crate::protocol::zcodec::decode_u8(reader)?;
+        let header = decode_u8(reader)?;
         has_ext = skip(s, header, reader)?;
     }
 

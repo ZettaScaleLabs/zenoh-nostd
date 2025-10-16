@@ -2,6 +2,7 @@ use crate::{
     protocol::{
         ZCodecError,
         common::imsg,
+        zcodec::decode_u8,
         zenoh::{err::Err, put::Put, query::Query, reply::Reply},
     },
     result::ZResult,
@@ -34,7 +35,7 @@ impl<'a> PushBody<'a> {
     }
 
     pub(crate) fn decode(reader: &mut ZBufReader<'a>) -> ZResult<Self, ZCodecError> {
-        let header = crate::protocol::zcodec::decode_u8(reader)?;
+        let header = decode_u8(reader)?;
 
         match imsg::mid(header) {
             id::PUT => Ok(PushBody::Put(Put::decode(header, reader)?)),
@@ -68,7 +69,7 @@ impl<'a> RequestBody<'a> {
     }
 
     pub(crate) fn decode(reader: &mut ZBufReader<'a>) -> ZResult<Self, ZCodecError> {
-        let header = crate::protocol::zcodec::decode_u8(reader)?;
+        let header = decode_u8(reader)?;
 
         match imsg::mid(header) {
             id::QUERY => Ok(RequestBody::Query(Query::decode(header, reader)?)),
@@ -104,7 +105,7 @@ impl<'a> ResponseBody<'a> {
     }
 
     pub(crate) fn decode(reader: &mut ZBufReader<'a>) -> ZResult<Self, ZCodecError> {
-        let header = crate::protocol::zcodec::decode_u8(reader)?;
+        let header = decode_u8(reader)?;
 
         match imsg::mid(header) {
             id::REPLY => Ok(ResponseBody::Reply(Reply::decode(header, reader)?)),
@@ -135,8 +136,8 @@ pub(crate) mod ext {
             common::extension::ZExtZBufHeader,
             core::{EntityGlobalIdProto, ZenohIdProto, encoding::Encoding},
             zcodec::{
-                decode_u32, decode_zbuf, encode_u8, encode_u32, encode_zbuf, encoded_len_u32,
-                encoded_len_zbuf,
+                decode_u8, decode_u32, decode_zbuf, encode_u8, encode_u32, encode_zbuf,
+                encoded_len_u32, encoded_len_zbuf,
             },
         },
         result::ZResult,
@@ -179,7 +180,7 @@ pub(crate) mod ext {
             reader: &mut ZBufReader<'_>,
         ) -> ZResult<(Self, bool), ZCodecError> {
             let (_, more) = ZExtZBufHeader::<{ ID }>::decode(header, reader)?;
-            let flags = crate::protocol::zcodec::decode_u8(reader)?;
+            let flags = decode_u8(reader)?;
             let length = 1 + ((flags >> 4) as usize);
 
             let zid = ZenohIdProto::decode(Some(length), reader)?;

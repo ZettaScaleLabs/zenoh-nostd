@@ -6,7 +6,7 @@ use crate::{
             imsg,
         },
         core::encoding::Encoding,
-        zcodec::{decode_zbuf, encode_zbuf},
+        zcodec::{decode_u8, decode_zbuf, encode_u8, encode_zbuf},
         zenoh::id,
     },
     result::ZResult,
@@ -40,7 +40,7 @@ impl<'a> Err<'a> {
             header |= flag::Z;
         }
 
-        crate::protocol::zcodec::encode_u8(header, writer)?;
+        encode_u8(header, writer)?;
 
         if self.encoding != Encoding::empty() {
             self.encoding.encode(writer)?;
@@ -68,7 +68,7 @@ impl<'a> Err<'a> {
 
         let mut has_ext = imsg::has_flag(header, flag::Z);
         while has_ext {
-            let ext = crate::protocol::zcodec::decode_u8(reader)?;
+            let ext = decode_u8(reader)?;
             match iext::eid(ext) {
                 ext::SourceInfo::ID => {
                     let (s, ext) = ext::SourceInfoType::decode(ext, reader)?;

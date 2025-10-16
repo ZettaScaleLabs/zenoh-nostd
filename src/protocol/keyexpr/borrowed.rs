@@ -6,7 +6,7 @@ use core::{
 
 use heapless::String;
 
-use crate::{keyexpr::ZKeyExprError, zbail};
+use crate::{protocol::keyexpr::ZKeyExprError, zbail};
 
 #[allow(non_camel_case_types)]
 #[repr(transparent)]

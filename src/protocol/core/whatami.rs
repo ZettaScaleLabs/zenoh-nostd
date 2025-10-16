@@ -1,5 +1,7 @@
 use core::{convert::TryFrom, fmt, str::FromStr};
 
+use crate::protocol::ZProtocolError;
+
 #[repr(u8)]
 #[derive(Debug, Default, Clone, Copy, PartialEq, Eq, Hash)]
 pub(crate) enum WhatAmI {
@@ -51,14 +53,14 @@ impl TryFrom<u8> for WhatAmI {
 }
 
 impl FromStr for WhatAmI {
-    type Err = crate::protocol::ZProtocolError;
+    type Err = ZProtocolError;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s {
             Self::STR_R => Ok(Self::Router),
             Self::STR_P => Ok(Self::Peer),
             Self::STR_C => Ok(Self::Client),
-            _ => crate::zbail!(crate::protocol::ZProtocolError::CouldNotParse),
+            _ => crate::zbail!(ZProtocolError::CouldNotParse),
         }
     }
 }

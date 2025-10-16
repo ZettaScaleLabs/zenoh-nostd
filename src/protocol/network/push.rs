@@ -7,6 +7,7 @@ use crate::{
         },
         core::wire_expr::WireExpr,
         network::{Mapping, id},
+        zcodec::{decode_u8, encode_u8},
         zenoh::PushBody,
     },
     result::ZResult,
@@ -48,7 +49,7 @@ impl<'a> Push<'a> {
             header |= flag::N;
         }
 
-        crate::protocol::zcodec::encode_u8(header, writer)?;
+        encode_u8(header, writer)?;
         self.wire_expr.encode(writer)?;
 
         if self.ext_qos != ext::QoSType::DEFAULT {
@@ -89,7 +90,7 @@ impl<'a> Push<'a> {
 
         let mut has_ext = imsg::has_flag(header, flag::Z);
         while has_ext {
-            let ext = crate::protocol::zcodec::decode_u8(reader)?;
+            let ext = decode_u8(reader)?;
 
             match iext::eid(ext) {
                 ext::QoS::ID => {

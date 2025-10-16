@@ -1,6 +1,6 @@
 use core::{fmt, str::FromStr};
 
-use crate::protocol::{network::request::RequestId, transport::TransportSn};
+use crate::protocol::{ZProtocolError, network::request::RequestId, transport::TransportSn};
 
 #[repr(u8)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
@@ -52,7 +52,7 @@ impl From<u64> for Bits {
 }
 
 impl FromStr for Bits {
-    type Err = crate::protocol::ZProtocolError;
+    type Err = ZProtocolError;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s {
@@ -60,7 +60,7 @@ impl FromStr for Bits {
             Bits::S16 => Ok(Bits::U16),
             Bits::S32 => Ok(Bits::U32),
             Bits::S64 => Ok(Bits::U64),
-            _ => crate::zbail!(crate::protocol::ZProtocolError::CouldNotParse),
+            _ => crate::zbail!(ZProtocolError::CouldNotParse),
         }
     }
 }

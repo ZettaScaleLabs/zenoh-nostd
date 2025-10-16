@@ -2,6 +2,7 @@ use crate::{
     protocol::{
         ZCodecError,
         common::{extension, imsg},
+        zcodec::encode_u8,
         zenoh::{PushBody, id, query::ConsolidationMode},
     },
     result::ZResult,
@@ -31,7 +32,7 @@ impl<'a> Reply<'a> {
             header |= flag::C;
         }
 
-        crate::protocol::zcodec::encode_u8(header, writer)?;
+        encode_u8(header, writer)?;
 
         if self.consolidation != ConsolidationMode::DEFAULT {
             self.consolidation.encode(writer)?;

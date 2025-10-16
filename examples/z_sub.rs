@@ -1,4 +1,4 @@
-use zenoh_nostd::{EndPoint, PlatformStd, ZSample, ZSubscriber, ke, zsubscriber};
+use zenoh_nostd::{EndPoint, PlatformStd, ZSample, ZSubscriber, keyexpr, zsubscriber};
 
 const CONNECT: Option<&str> = option_env!("CONNECT");
 
@@ -33,13 +33,13 @@ async fn main(spawner: embassy_executor::Spawner) {
                 PlatformStd: (spawner, PlatformStd {}),
                 TX: 512,
                 RX: 512,
-                SUBSCRIBERS: 2
+                MAX_SUBSCRIBERS: 2
         ),
         EndPoint::try_from(CONNECT.unwrap_or("tcp/127.0.0.1:7447")).unwrap()
     )
     .unwrap();
 
-    let ke: &'static ke = "demo/example/**".try_into().unwrap();
+    let ke: &'static keyexpr = "demo/example/**".try_into().unwrap();
 
     let _sync_sub = session
         .declare_subscriber(ke, zsubscriber!(callback_1))
@@ -47,7 +47,10 @@ async fn main(spawner: embassy_executor::Spawner) {
         .unwrap();
 
     let async_sub = session
-        .declare_subscriber(ke, zsubscriber!(QUEUE: 8, KE: 32, PL: 128))
+        .declare_subscriber(
+            ke,
+            zsubscriber!(QUEUE_SIZE: 8, MAX_KEYEXPR: 32, MAX_PAYLOAD: 128),
+        )
         .await
         .unwrap();
 

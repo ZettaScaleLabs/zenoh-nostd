@@ -1,116 +1,130 @@
 #[repr(u8)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ZError {
-    /// a read operation could not be completed
+    // ──────────────── I/O errors (1–19) ────────────────
+    /// Could not complete a read operation.
     CouldNotRead = 1,
 
-    /// a write operation could not be completed
+    /// Could not complete a write operation.
     CouldNotWrite = 2,
 
-    /// parsing a value failed
+    /// Could not parse the input.
     CouldNotParse = 3,
 
-    /// an argument provided to a function is invalid
-    InvalidArgument = 4,
+    /// Could not connect to the specified address.
+    CouldNotConnect = 10,
 
-    /// a lone `$*` was found in an expression
-    LoneDollarStar = 5,
+    /// Could not get address information.
+    CouldNotGetAddrInfo = 11,
 
-    /// a single `*` was found after a `**` in an expression
-    SingleStarAfterDoubleStar = 6,
+    /// Timeout occurred.
+    Timeout = 12,
 
-    /// a double `**` was found after a `**` in an expression
-    DoubleStarAfterDoubleStar = 7,
+    /// The operation would exceed a capacity limit.
+    CapacityExceeded = 13,
 
-    /// an empty chunk was found in an expression
-    EmptyChunk = 8,
+    /// Received an invalid RX packet.
+    InvalidRx = 14,
 
-    /// a `*` was found in the middle of a chunk in an expression
-    StarInChunk = 9,
+    /// An error occurred while processing a TX packet.
+    TxError = 15,
 
-    /// a `$` was found after a `$` in an expression
-    DollarAfterDollar = 10,
+    /// Could not receive from subscriber.
+    CouldNotRecvFromSubscriber = 16,
 
-    /// a `#` or `?` was found in an expression
-    SharpOrQMark = 11,
+    /// A subscriber callback is already set.
+    SubscriberCallbackAlreadySet = 17,
 
-    /// an unbound `$n` was found in an expression
-    UnboundDollar = 12,
+    /// The connection was closed.
+    ConnectionClosed = 18,
 
-    /// a wildcard chunk was found where it is not allowed
-    WildChunk = 13,
+    // Reserve: 19–29
 
-    /// could not find protocol separator in endpoint
-    NoProtocolSeparator = 14,
+    // ──────────────── Argument/validation errors (30–39) ────────────────
+    /// An invalid argument was provided.
+    InvalidArgument = 30,
 
-    /// metadata is not supported in endpoint
-    MetadataNotSupported = 15,
+    // Reserve: 31–39
 
-    /// configuration is not supported in endpoint
-    ConfigNotSupported = 16,
+    // ──────────────── Expression parsing errors (40–59) ────────────────
+    /// A lone `$*` was found in an expression.
+    LoneDollarStar = 40,
 
-    /// could not connect to the specified address
-    CouldNotConnect = 17,
+    /// A single `*` was found after a `**` in an expression.
+    SingleStarAfterDoubleStar = 41,
 
-    /// could not get address info
-    CouldNotGetAddrInfo = 18,
+    /// A double `**` was found after a `**` in an expression.
+    DoubleStarAfterDoubleStar = 42,
 
-    /// Received an invalid RX packet
-    InvalidRx = 19,
+    /// An empty chunk was found in an expression.
+    EmptyChunk = 43,
 
-    /// An error occurred while processing a TX packet
-    TxError = 20,
+    /// A `*` was found in the middle of a chunk in an expression.
+    StarInChunk = 44,
 
-    /// A timeout occurred
-    Timeout = 21,
+    /// A `$` was found after another `$` in an expression.
+    DollarAfterDollar = 45,
 
-    /// The operation could not be completed because it would exceed some capacity limit
-    CapacityExceeded = 22,
+    /// A `#` or `?` was found in an expression.
+    SharpOrQMark = 46,
 
-    /// Could not receive from subscriber
-    CouldNotRecvFromSubscriber = 23,
+    /// An unbound `$n` was found in an expression.
+    UnboundDollar = 47,
 
-    /// A subscriber callback is already set
-    SubscriberCallbackAlreadySet = 24,
+    /// A wildcard chunk was found where it is not allowed.
+    WildChunk = 48,
 
-    /// The connection was closed
-    ConnectionClosed = 25,
+    // Reserve: 49–59
+
+    // ──────────────── Endpoint errors (60–69) ────────────────
+    /// Missing protocol separator in endpoint.
+    NoProtocolSeparator = 60,
+
+    /// Metadata is not supported in endpoint.
+    MetadataNotSupported = 61,
+
+    /// Configuration is not supported in endpoint.
+    ConfigNotSupported = 62,
+    // Reserve: 63–69
 }
 
 impl core::fmt::Display for ZError {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         match self {
-            ZError::CouldNotRead => f.write_str("Could not read"),
-            ZError::CouldNotWrite => f.write_str("Could not write"),
-            ZError::CouldNotParse => f.write_str("Could not parse"),
-            ZError::InvalidArgument => f.write_str("Invalid argument"),
-            ZError::LoneDollarStar => f.write_str("Lone '$*' in expression"),
-            ZError::SingleStarAfterDoubleStar => f.write_str("Single '*' after '**' in expression"),
+            // I/O errors
+            ZError::CouldNotRead => f.write_str("could not read"),
+            ZError::CouldNotWrite => f.write_str("could not write"),
+            ZError::CouldNotParse => f.write_str("could not parse"),
+            ZError::CouldNotConnect => f.write_str("could not connect to the specified address"),
+            ZError::CouldNotGetAddrInfo => f.write_str("could not get address info"),
+            ZError::Timeout => f.write_str("timeout occurred"),
+            ZError::CapacityExceeded => f.write_str("capacity limit exceeded"),
+            ZError::InvalidRx => f.write_str("invalid rx packet"),
+            ZError::TxError => f.write_str("tx error occurred"),
+            ZError::CouldNotRecvFromSubscriber => f.write_str("could not receive from subscriber"),
+            ZError::SubscriberCallbackAlreadySet => f.write_str("subscriber callback already set"),
+            ZError::ConnectionClosed => f.write_str("connection closed"),
+
+            // Argument errors
+            ZError::InvalidArgument => f.write_str("invalid argument"),
+
+            // Expression parsing errors
+            ZError::LoneDollarStar => f.write_str("lone '$*' in expression"),
+            ZError::SingleStarAfterDoubleStar => f.write_str("single '*' after '**' in expression"),
             ZError::DoubleStarAfterDoubleStar => {
-                f.write_str("Double '**' after '**' in expression")
+                f.write_str("double '**' after '**' in expression")
             }
-            ZError::EmptyChunk => f.write_str("Empty chunk in expression"),
+            ZError::EmptyChunk => f.write_str("empty chunk in expression"),
             ZError::StarInChunk => f.write_str("'*' in middle of chunk in expression"),
             ZError::DollarAfterDollar => f.write_str("'$' after '$' in expression"),
             ZError::SharpOrQMark => f.write_str("'#' or '?' in expression"),
-            ZError::UnboundDollar => f.write_str("Unbound '$n' in expression"),
-            ZError::WildChunk => f.write_str("Wildcard chunk where not allowed"),
-            ZError::NoProtocolSeparator => {
-                f.write_str("Could not find protocol separator in endpoint")
-            }
-            ZError::MetadataNotSupported => f.write_str("Metadata not supported in endpoint"),
-            ZError::ConfigNotSupported => f.write_str("Configuration not supported in endpoint"),
-            ZError::CouldNotConnect => f.write_str("Could not connect to the specified address"),
-            ZError::CouldNotGetAddrInfo => f.write_str("Could not get address info"),
-            ZError::InvalidRx => f.write_str("Received an invalid RX packet"),
-            ZError::TxError => f.write_str("An error occurred while processing a TX packet"),
-            ZError::Timeout => f.write_str("A timeout occurred"),
-            ZError::CapacityExceeded => f.write_str("Capacity limit exceeded"),
-            ZError::CouldNotRecvFromSubscriber => f.write_str("Could not receive from subscriber"),
-            ZError::SubscriberCallbackAlreadySet => {
-                f.write_str("A subscriber callback is already set")
-            }
-            ZError::ConnectionClosed => f.write_str("The connection was closed"),
+            ZError::UnboundDollar => f.write_str("unbound '$n' in expression"),
+            ZError::WildChunk => f.write_str("wildcard chunk not allowed"),
+
+            // Endpoint errors
+            ZError::NoProtocolSeparator => f.write_str("missing protocol separator in endpoint"),
+            ZError::MetadataNotSupported => f.write_str("metadata not supported in endpoint"),
+            ZError::ConfigNotSupported => f.write_str("configuration not supported in endpoint"),
         }
     }
 }

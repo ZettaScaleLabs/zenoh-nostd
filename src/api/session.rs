@@ -9,8 +9,8 @@ use crate::{
         link::Link,
         transport::{Transport, TransportMineConfig},
     },
-    keyexpr::borrowed::keyexpr,
     platform::Platform,
+    protocol::keyexpr::borrowed::keyexpr,
     protocol::{
         core::{
             Reliability, ZenohIdProto, encoding::Encoding, endpoint::EndPoint, wire_expr::WireExpr,
