@@ -17,6 +17,7 @@ use crate::{
             keepalive::KeepAlive,
             open::{OpenAck, OpenSyn},
         },
+        zcodec::decode_u8,
     },
     result::ZResult,
     zbuf::{BufReaderExt, ZBufReader, ZBufWriter},
@@ -104,8 +105,7 @@ impl<'a, 'b> TransportMessage<'a, 'b> {
         mut on_keepalive: Option<impl FnMut()>,
         mut on_network_msg: Option<impl FnMut(&FrameHeader, NetworkMessage<'a>)>,
     ) -> ZResult<bool, ZCodecError> {
-        let Ok(header): ZResult<u8, ZCodecError> = crate::protocol::zcodec::decode_u8(reader)
-        else {
+        let Ok(header): ZResult<u8, ZCodecError> = decode_u8(reader) else {
             return Ok(false);
         };
 
@@ -223,8 +223,7 @@ impl<'a, 'b> TransportMessage<'a, 'b> {
             impl AsyncFnMut(&FrameHeader, NetworkMessage<'a>) -> ZResult<()>,
         >,
     ) -> ZResult<bool, ZCodecError> {
-        let Ok(header): ZResult<u8, ZCodecError> = crate::protocol::zcodec::decode_u8(reader)
-        else {
+        let Ok(header): ZResult<u8, ZCodecError> = decode_u8(reader) else {
             return Ok(false);
         };
 

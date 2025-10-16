@@ -8,7 +8,10 @@ use crate::{
             imsg,
         },
         transport::{TransportSn, id},
-        zcodec::{decode_u32, decode_u64, decode_zbuf, encode_u32, encode_u64, encode_zbuf},
+        zcodec::{
+            decode_u8, decode_u32, decode_u64, decode_zbuf, encode_u8, encode_u32, encode_u64,
+            encode_zbuf,
+        },
     },
     result::ZResult,
     zbail,
@@ -51,7 +54,7 @@ impl<'a> OpenSyn<'a> {
             header |= flag::Z;
         }
 
-        crate::protocol::zcodec::encode_u8(header, writer)?;
+        encode_u8(header, writer)?;
 
         if imsg::has_flag(header, flag::T) {
             encode_u64(self.lease.as_secs(), writer)?;
@@ -109,7 +112,7 @@ impl<'a> OpenSyn<'a> {
 
         let mut has_ext = imsg::has_flag(header, flag::Z);
         while has_ext {
-            let ext: u8 = crate::protocol::zcodec::decode_u8(reader)?;
+            let ext: u8 = decode_u8(reader)?;
             match iext::eid(ext) {
                 ext::QoS::ID => {
                     let (q, ext) = ext::QoS::decode(ext)?;
@@ -244,7 +247,7 @@ impl<'a> OpenAck<'a> {
             header |= flag::Z;
         }
 
-        crate::protocol::zcodec::encode_u8(header, writer)?;
+        encode_u8(header, writer)?;
 
         if imsg::has_flag(header, flag::T) {
             encode_u64(self.lease.as_secs(), writer)?;
@@ -303,7 +306,7 @@ impl<'a> OpenAck<'a> {
 
         let mut has_ext = imsg::has_flag(header, flag::Z);
         while has_ext {
-            let ext: u8 = crate::protocol::zcodec::decode_u8(reader)?;
+            let ext: u8 = decode_u8(reader)?;
             match iext::eid(ext) {
                 ext::QoS::ID => {
                     let (q, ext) = ext::QoS::decode(ext)?;

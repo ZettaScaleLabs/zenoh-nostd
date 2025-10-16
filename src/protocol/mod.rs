@@ -1,5 +1,7 @@
 use crate::zbuf::ZBufError;
 
+pub(crate) mod keyexpr;
+
 pub(crate) mod common;
 pub(crate) mod core;
 

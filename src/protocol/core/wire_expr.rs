@@ -3,9 +3,9 @@ use core::{convert::TryInto, fmt};
 use heapless::String;
 
 use crate::{
-    keyexpr::borrowed::keyexpr,
     protocol::{
-        ZCodecError,
+        ZCodecError, ZProtocolError,
+        keyexpr::borrowed::keyexpr,
         network::Mapping,
         zcodec::{decode_str, decode_u16, encode_str, encode_u16},
     },
@@ -28,11 +28,9 @@ impl<'a> WireExpr<'a> {
         self.scope == 0 && self.suffix.is_empty()
     }
 
-    pub(crate) fn try_as_id(
-        &self,
-    ) -> crate::result::ZResult<ExprId, crate::protocol::ZProtocolError> {
+    pub(crate) fn try_as_id(&self) -> crate::result::ZResult<ExprId, ZProtocolError> {
         if self.has_suffix() {
-            crate::zbail!(crate::protocol::ZProtocolError::CouldNotParse);
+            crate::zbail!(ZProtocolError::CouldNotParse);
         } else {
             Ok(self.scope)
         }
@@ -101,8 +99,8 @@ impl<'a> WireExpr<'a> {
 }
 
 impl TryInto<ExprId> for WireExpr<'_> {
-    type Error = crate::protocol::ZProtocolError;
-    fn try_into(self) -> crate::result::ZResult<ExprId, crate::protocol::ZProtocolError> {
+    type Error = ZProtocolError;
+    fn try_into(self) -> crate::result::ZResult<ExprId, ZProtocolError> {
         self.try_as_id()
     }
 }

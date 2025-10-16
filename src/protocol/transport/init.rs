@@ -7,7 +7,7 @@ use crate::{
         },
         core::{ZenohIdProto, resolution::Resolution, whatami::WhatAmI},
         transport::{BatchSize, batch_size, id},
-        zcodec::{decode_array, decode_zbuf, encode_array, encode_u8, encode_zbuf},
+        zcodec::{decode_array, decode_u8, decode_zbuf, encode_array, encode_u8, encode_zbuf},
     },
     result::ZResult,
     zbail,
@@ -54,7 +54,7 @@ impl<'a> InitSyn<'a> {
             header |= flag::Z;
         }
 
-        crate::protocol::zcodec::encode_u8(header, writer)?;
+        encode_u8(header, writer)?;
         encode_u8(self.version, writer)?;
 
         let whatami: u8 = match self.whatami {
@@ -115,8 +115,8 @@ impl<'a> InitSyn<'a> {
             zbail!(ZCodecError::CouldNotRead)
         }
 
-        let version: u8 = crate::protocol::zcodec::decode_u8(reader)?;
-        let flags: u8 = crate::protocol::zcodec::decode_u8(reader)?;
+        let version: u8 = decode_u8(reader)?;
+        let flags: u8 = decode_u8(reader)?;
         let whatami = match flags & 0b11 {
             0b00 => WhatAmI::Router,
             0b01 => WhatAmI::Peer,
@@ -131,7 +131,7 @@ impl<'a> InitSyn<'a> {
         let mut batch_size = batch_size::UNICAST.to_le_bytes();
 
         if imsg::has_flag(header, flag::S) {
-            let flags: u8 = crate::protocol::zcodec::decode_u8(reader)?;
+            let flags: u8 = decode_u8(reader)?;
             resolution = Resolution::from(flags & 0b00111111);
             batch_size = decode_array(reader)?;
         }
@@ -149,7 +149,7 @@ impl<'a> InitSyn<'a> {
         let mut has_ext = imsg::has_flag(header, flag::Z);
 
         while has_ext {
-            let ext: u8 = crate::protocol::zcodec::decode_u8(reader)?;
+            let ext: u8 = decode_u8(reader)?;
 
             match iext::eid(ext) {
                 ext::QoS::ID => {
@@ -298,7 +298,7 @@ impl<'a> InitAck<'a> {
             header |= flag::Z;
         }
 
-        crate::protocol::zcodec::encode_u8(header, writer)?;
+        encode_u8(header, writer)?;
         encode_u8(self.version, writer)?;
 
         let whatami: u8 = match self.whatami {
@@ -361,8 +361,8 @@ impl<'a> InitAck<'a> {
             zbail!(ZCodecError::CouldNotRead)
         }
 
-        let version: u8 = crate::protocol::zcodec::decode_u8(reader)?;
-        let flags: u8 = crate::protocol::zcodec::decode_u8(reader)?;
+        let version: u8 = decode_u8(reader)?;
+        let flags: u8 = decode_u8(reader)?;
 
         let whatami = match flags & 0b11 {
             0b00 => WhatAmI::Router,
@@ -377,7 +377,7 @@ impl<'a> InitAck<'a> {
         let mut batch_size = batch_size::UNICAST.to_le_bytes();
 
         if imsg::has_flag(header, flag::S) {
-            let flags: u8 = crate::protocol::zcodec::decode_u8(reader)?;
+            let flags: u8 = decode_u8(reader)?;
             resolution = Resolution::from(flags & 0b00111111);
             batch_size = decode_array(reader)?;
         }
@@ -396,7 +396,7 @@ impl<'a> InitAck<'a> {
         let mut has_ext = imsg::has_flag(header, flag::Z);
 
         while has_ext {
-            let ext: u8 = crate::protocol::zcodec::decode_u8(reader)?;
+            let ext: u8 = decode_u8(reader)?;
             match iext::eid(ext) {
                 ext::QoS::ID => {
                     let (q, ext) = ext::QoS::decode(ext)?;

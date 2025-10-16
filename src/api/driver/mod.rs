@@ -10,8 +10,8 @@ use embassy_time::Instant;
 use crate::{
     api::{callback::ZCallback, subscriber::ZSubscriberCallbacks},
     io::transport::{TransportConfig, TransportRx, TransportTx},
-    keyexpr::borrowed::keyexpr,
     platform::Platform,
+    protocol::keyexpr::borrowed::keyexpr,
     protocol::transport::TransportSn,
     result::ZResult,
 };

@@ -6,7 +6,9 @@ use crate::{
             imsg,
         },
         core::encoding::Encoding,
-        zcodec::{decode_timestamp, decode_zbuf, encode_timestamp, encode_zbuf},
+        zcodec::{
+            decode_timestamp, decode_u8, decode_zbuf, encode_timestamp, encode_u8, encode_zbuf,
+        },
         zenoh::id,
     },
     result::ZResult,
@@ -49,7 +51,7 @@ impl<'a> Put<'a> {
             header |= flag::Z;
         }
 
-        crate::protocol::zcodec::encode_u8(header, writer)?;
+        encode_u8(header, writer)?;
 
         if let Some(ts) = self.timestamp.as_ref() {
             encode_timestamp(ts, writer)?;
@@ -92,7 +94,7 @@ impl<'a> Put<'a> {
 
         let mut has_ext = imsg::has_flag(header, flag::Z);
         while has_ext {
-            let ext = crate::protocol::zcodec::decode_u8(reader)?;
+            let ext = decode_u8(reader)?;
 
             match iext::eid(ext) {
                 ext::SourceInfo::ID => {

@@ -2,8 +2,8 @@ use core::ops::DerefMut;
 
 use crate::{
     api::{driver::SessionDriver, sample::ZSample},
-    keyexpr::borrowed::keyexpr,
     platform::Platform,
+    protocol::keyexpr::borrowed::keyexpr,
     protocol::{
         network::{NetworkBody, NetworkMessage},
         transport::{

@@ -11,7 +11,7 @@ use crate::{
         core::Reliability,
         network::NetworkMessage,
         transport::{TransportSn, id},
-        zcodec::{decode_u32, encode_u32},
+        zcodec::{decode_u8, decode_u32, encode_u8, encode_u32},
     },
     result::ZResult,
     zbail,
@@ -104,7 +104,7 @@ impl FrameHeader {
             header |= flag::Z;
         }
 
-        crate::protocol::zcodec::encode_u8(header, writer)?;
+        encode_u8(header, writer)?;
         encode_u32(self.sn, writer)?;
 
         if self.ext_qos != ext::QoSType::DEFAULT {
@@ -129,7 +129,7 @@ impl FrameHeader {
 
         let mut has_ext = imsg::has_flag(header, flag::Z);
         while has_ext {
-            let ext: u8 = crate::protocol::zcodec::decode_u8(reader)?;
+            let ext: u8 = decode_u8(reader)?;
             match iext::eid(ext) {
                 ext::QoS::ID => {
                     let (q, ext) = ext::QoSType::decode(ext, reader)?;

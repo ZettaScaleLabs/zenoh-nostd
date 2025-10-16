@@ -7,7 +7,7 @@ use crate::{
         },
         core::wire_expr::WireExpr,
         network::{Mapping, id},
-        zcodec::{decode_u32, encode_u32},
+        zcodec::{decode_u8, decode_u32, encode_u8, encode_u32},
         zenoh::RequestBody,
     },
     result::ZResult,
@@ -58,7 +58,7 @@ impl<'a> Request<'a> {
             header |= flag::N;
         }
 
-        crate::protocol::zcodec::encode_u8(header, writer)?;
+        encode_u8(header, writer)?;
         encode_u32(self.id, writer)?;
         self.wire_expr.encode(writer)?;
 
@@ -121,7 +121,7 @@ impl<'a> Request<'a> {
 
         let mut has_ext = imsg::has_flag(header, flag::Z);
         while has_ext {
-            let ext = crate::protocol::zcodec::decode_u8(reader)?;
+            let ext = decode_u8(reader)?;
             match iext::eid(ext) {
                 ext::QoS::ID => {
                     let (q, ext) = ext::QoSType::decode(ext, reader)?;

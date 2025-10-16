@@ -12,6 +12,7 @@ use crate::{
             request::Request,
             response::{Response, ResponseFinal},
         },
+        zcodec::decode_u8,
     },
     result::ZResult,
     zbail,
@@ -77,7 +78,7 @@ impl<'a> NetworkMessage<'a> {
         reliability: Reliability,
         reader: &mut ZBufReader<'a>,
     ) -> ZResult<Self, ZCodecError> {
-        let header = crate::protocol::zcodec::decode_u8(reader)?;
+        let header = decode_u8(reader)?;
 
         let body = match imsg::mid(header) {
             id::PUSH => NetworkBody::Push(Push::decode(header, reader)?),
@@ -149,7 +150,7 @@ pub(crate) mod ext {
             },
             core::{CongestionControl, EntityId, Priority, ZenohIdProto},
             zcodec::{
-                decode_timestamp, decode_u32, encode_timestamp, encode_u8, encode_u32,
+                decode_timestamp, decode_u8, decode_u32, encode_timestamp, encode_u8, encode_u32,
                 encoded_len_timestamp, encoded_len_u32,
             },
         },
@@ -391,7 +392,7 @@ pub(crate) mod ext {
         ) -> ZResult<(Self, bool), ZCodecError> {
             let (_, more) = ZExtZBufHeader::<{ ID }>::decode(header, reader)?;
 
-            let flags = crate::protocol::zcodec::decode_u8(reader)?;
+            let flags = decode_u8(reader)?;
             let length = 1 + ((flags >> 4) as usize);
             let zid = ZenohIdProto::decode(Some(length), reader)?;
             let eid = decode_u32(reader)?;

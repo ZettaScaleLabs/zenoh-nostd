@@ -6,7 +6,7 @@ use core::{
 
 use crate::{
     protocol::{
-        ZCodecError,
+        ZCodecError, ZProtocolError,
         zcodec::{decode_zbuf, encode_zbuf, encoded_len_zbuf},
     },
     result::ZResult,
@@ -67,12 +67,12 @@ impl Default for ZenohIdProto {
 }
 
 impl TryFrom<&[u8]> for ZenohIdProto {
-    type Error = crate::protocol::ZProtocolError;
+    type Error = ZProtocolError;
 
-    fn try_from(val: &[u8]) -> crate::result::ZResult<Self, crate::protocol::ZProtocolError> {
+    fn try_from(val: &[u8]) -> crate::result::ZResult<Self, ZProtocolError> {
         match val.try_into() {
             Ok(ok) => Ok(Self(ok)),
-            Err(_) => crate::zbail!(crate::protocol::ZProtocolError::CouldNotParse),
+            Err(_) => crate::zbail!(ZProtocolError::CouldNotParse),
         }
     }
 }
@@ -139,9 +139,9 @@ impl Priority {
 }
 
 impl TryFrom<u8> for Priority {
-    type Error = crate::protocol::ZProtocolError;
+    type Error = ZProtocolError;
 
-    fn try_from(v: u8) -> crate::result::ZResult<Self, crate::protocol::ZProtocolError> {
+    fn try_from(v: u8) -> crate::result::ZResult<Self, ZProtocolError> {
         match v {
             0 => Ok(Priority::Control),
             1 => Ok(Priority::RealTime),
@@ -151,7 +151,7 @@ impl TryFrom<u8> for Priority {
             5 => Ok(Priority::Data),
             6 => Ok(Priority::DataLow),
             7 => Ok(Priority::Background),
-            _ => crate::zbail!(crate::protocol::ZProtocolError::CouldNotParse),
+            _ => crate::zbail!(ZProtocolError::CouldNotParse),
         }
     }
 }

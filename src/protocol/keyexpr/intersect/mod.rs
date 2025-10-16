@@ -1,4 +1,4 @@
-use crate::keyexpr::{DELIMITER, borrowed::keyexpr};
+use crate::protocol::keyexpr::{DELIMITER, borrowed::keyexpr};
 
 mod classical;
 pub(crate) use classical::ClassicIntersector;

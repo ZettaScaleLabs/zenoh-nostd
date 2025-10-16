@@ -8,11 +8,8 @@ pub mod result;
 
 pub(crate) mod zbuf;
 
-pub(crate) mod keyexpr;
-pub use keyexpr::borrowed::keyexpr as ke;
-
 pub(crate) mod protocol;
-pub use protocol::core::endpoint::EndPoint;
+pub use protocol::{core::endpoint::EndPoint, keyexpr::borrowed::keyexpr};
 
 pub(crate) mod platform;
 #[cfg(feature = "platform-std")]

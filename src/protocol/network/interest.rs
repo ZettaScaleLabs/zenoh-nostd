@@ -12,7 +12,7 @@ use crate::{
         },
         core::wire_expr::WireExpr,
         network::{Mapping, declare, id, interest},
-        zcodec::{decode_u32, encode_u8, encode_u32},
+        zcodec::{decode_u8, decode_u32, encode_u8, encode_u32},
     },
     result::ZResult,
     zbail,
@@ -54,7 +54,7 @@ impl<'a> Interest<'a> {
             header |= interest::flag::Z;
         }
 
-        crate::protocol::zcodec::encode_u8(header, writer)?;
+        encode_u8(header, writer)?;
         encode_u32(self.id, writer)?;
 
         if self.mode != InterestMode::Final {
@@ -97,7 +97,7 @@ impl<'a> Interest<'a> {
         let mut options = InterestOptions::empty();
         let mut wire_expr = None;
         if mode != InterestMode::Final {
-            let options_byte = crate::protocol::zcodec::decode_u8(reader)?;
+            let options_byte = decode_u8(reader)?;
             options = InterestOptions::from(options_byte);
             if options.restricted() {
                 let mut we: WireExpr<'_> = WireExpr::decode(options.named(), reader)?;
@@ -116,7 +116,7 @@ impl<'a> Interest<'a> {
 
         let mut has_ext = imsg::has_flag(header, interest::flag::Z);
         while has_ext {
-            let ext = crate::protocol::zcodec::decode_u8(reader)?;
+            let ext = decode_u8(reader)?;
             match iext::eid(ext) {
                 declare::ext::QoS::ID => {
                     let (q, ext) = interest::ext::QoSType::decode(ext, reader)?;

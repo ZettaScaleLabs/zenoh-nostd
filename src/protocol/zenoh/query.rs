@@ -5,7 +5,7 @@ use crate::{
             extension::{self, iext},
             imsg,
         },
-        zcodec::{decode_str, encode_str, encode_u64},
+        zcodec::{decode_str, decode_u8, encode_str, encode_u8, encode_u64},
         zenoh::id,
     },
     result::ZResult,
@@ -38,7 +38,7 @@ impl ConsolidationMode {
     }
 
     pub(crate) fn decode(reader: &mut ZBufReader<'_>) -> ZResult<Self, ZCodecError> {
-        let x = crate::protocol::zcodec::decode_u8(reader)?;
+        let x = decode_u8(reader)?;
 
         match x {
             0 => Ok(ConsolidationMode::Auto),
@@ -95,7 +95,7 @@ impl<'a> Query<'a> {
             header |= flag::Z;
         }
 
-        crate::protocol::zcodec::encode_u8(header, writer)?;
+        encode_u8(header, writer)?;
 
         if self.consolidation != ConsolidationMode::DEFAULT {
             self.consolidation.encode(writer)?;
@@ -144,7 +144,7 @@ impl<'a> Query<'a> {
 
         let mut has_ext = imsg::has_flag(header, flag::Z);
         while has_ext {
-            let ext = crate::protocol::zcodec::decode_u8(reader)?;
+            let ext = decode_u8(reader)?;
 
             match iext::eid(ext) {
                 ext::SourceInfo::ID => {

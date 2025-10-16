@@ -36,7 +36,7 @@ pub struct ZConfig<T: Platform + 'static, S> {
 
 #[macro_export]
 macro_rules! zconfig {
-    ($type:ident : ($spawner:expr, $platform:expr), TX: $TX:expr, RX: $RX:expr, SUBSCRIBERS: $SUBSCRIBERS:expr) => {{
+    ($type:ident : ($spawner:expr, $platform:expr), TX: $TX:expr, RX: $RX:expr, MAX_SUBSCRIBERS: $MAX_SUBSCRIBERS:expr) => {{
         static DRIVER: static_cell::StaticCell<$crate::SessionDriver<$type>> =
             static_cell::StaticCell::new();
 
@@ -47,7 +47,7 @@ macro_rules! zconfig {
         static RX_ZBUF: static_cell::StaticCell<[u8; $RX]> = static_cell::StaticCell::new();
 
         static SUBSCRIBERS: static_cell::StaticCell<
-            $crate::ZSubscriberCallbackStorage<$SUBSCRIBERS>,
+            $crate::ZSubscriberCallbackStorage<$MAX_SUBSCRIBERS>,
         > = static_cell::StaticCell::new();
 
         #[embassy_executor::task]
@@ -68,7 +68,7 @@ macro_rules! zconfig {
             tx_zbuf: TX_ZBUF.init([0u8; $TX]).as_mut_slice(),
             rx_zbuf: RX_ZBUF.init([0u8; $RX]).as_mut_slice(),
             subscribers: SUBSCRIBERS
-                .init($crate::ZSubscriberCallbackStorage::<$SUBSCRIBERS>::new()),
+                .init($crate::ZSubscriberCallbackStorage::<$MAX_SUBSCRIBERS>::new()),
         };
 
         zconfig
