@@ -58,8 +58,8 @@ impl<'a> Request<'a> {
             header |= flag::N;
         }
 
-        encode_u8(header, writer)?;
-        encode_u32(self.id, writer)?;
+        encode_u8(writer, header)?;
+        encode_u32(writer, self.id)?;
         self.wire_expr.encode(writer)?;
 
         if self.ext_qos != ext::QoSType::DEFAULT {
@@ -122,7 +122,7 @@ impl<'a> Request<'a> {
         let mut has_ext = imsg::has_flag(header, flag::Z);
         while has_ext {
             let ext = decode_u8(reader)?;
-            match iext::eid(ext) {
+            match iext::eheader(ext) {
                 ext::QoS::ID => {
                     let (q, ext) = ext::QoSType::decode(ext, reader)?;
                     ext_qos = q;

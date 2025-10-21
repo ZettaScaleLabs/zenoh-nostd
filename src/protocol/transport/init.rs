@@ -54,8 +54,8 @@ impl<'a> InitSyn<'a> {
             header |= flag::Z;
         }
 
-        encode_u8(header, writer)?;
-        encode_u8(self.version, writer)?;
+        encode_u8(writer, header)?;
+        encode_u8(writer, self.version)?;
 
         let whatami: u8 = match self.whatami {
             WhatAmI::Router => 0b00,
@@ -64,12 +64,12 @@ impl<'a> InitSyn<'a> {
         };
 
         let flags: u8 = ((self.zid.size() as u8 - 1) << 4) | whatami;
-        encode_u8(flags, writer)?;
+        encode_u8(writer, flags)?;
         self.zid.encode(false, writer)?;
 
         if imsg::has_flag(header, flag::S) {
-            encode_u8(self.resolution.as_u8(), writer)?;
-            encode_array(&self.batch_size.to_le_bytes(), writer)?;
+            encode_u8(writer, self.resolution.as_u8())?;
+            encode_array(writer, &self.batch_size.to_le_bytes())?;
         }
 
         if let Some(qos) = self.ext_qos.as_ref() {
@@ -151,7 +151,7 @@ impl<'a> InitSyn<'a> {
         while has_ext {
             let ext: u8 = decode_u8(reader)?;
 
-            match iext::eid(ext) {
+            match iext::eheader(ext) {
                 ext::QoS::ID => {
                     let (q, ext) = ext::QoS::decode(ext)?;
                     ext_qos = Some(q);
@@ -298,8 +298,8 @@ impl<'a> InitAck<'a> {
             header |= flag::Z;
         }
 
-        encode_u8(header, writer)?;
-        encode_u8(self.version, writer)?;
+        encode_u8(writer, header)?;
+        encode_u8(writer, self.version)?;
 
         let whatami: u8 = match self.whatami {
             WhatAmI::Router => 0b00,
@@ -308,15 +308,15 @@ impl<'a> InitAck<'a> {
         };
 
         let flags: u8 = ((self.zid.size() as u8 - 1) << 4) | whatami;
-        encode_u8(flags, writer)?;
+        encode_u8(writer, flags)?;
         self.zid.encode(false, writer)?;
 
         if imsg::has_flag(header, flag::S) {
-            encode_u8(self.resolution.as_u8(), writer)?;
-            encode_array(&self.batch_size.to_le_bytes(), writer)?;
+            encode_u8(writer, self.resolution.as_u8())?;
+            encode_array(writer, &self.batch_size.to_le_bytes())?;
         }
 
-        encode_zbuf(true, self.cookie, writer)?;
+        encode_zbuf(writer, true, self.cookie)?;
 
         if let Some(qos) = self.ext_qos.as_ref() {
             n_exts -= 1;
@@ -383,7 +383,7 @@ impl<'a> InitAck<'a> {
         }
 
         let batch_size = BatchSize::from_le_bytes(batch_size);
-        let cookie: ZBuf<'a> = decode_zbuf(None, reader)?;
+        let cookie: ZBuf<'a> = decode_zbuf(reader, None)?;
 
         let mut ext_qos = None;
         let mut ext_qos_link = None;
@@ -397,7 +397,7 @@ impl<'a> InitAck<'a> {
 
         while has_ext {
             let ext: u8 = decode_u8(reader)?;
-            match iext::eid(ext) {
+            match iext::eheader(ext) {
                 ext::QoS::ID => {
                     let (q, ext) = ext::QoS::decode(ext)?;
                     ext_qos = Some(q);

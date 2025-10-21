@@ -41,10 +41,10 @@ impl<'a> WireExpr<'a> {
     }
 
     pub(crate) fn encode(&self, writer: &mut ZBufWriter<'_>) -> ZResult<(), ZCodecError> {
-        encode_u16(self.scope, writer)?;
+        encode_u16(writer, self.scope)?;
 
         if !self.suffix.is_empty() {
-            encode_str(true, self.suffix, writer)?;
+            encode_str(writer, true, self.suffix)?;
         }
 
         Ok(())
@@ -57,7 +57,7 @@ impl<'a> WireExpr<'a> {
         let scope = decode_u16(reader)?;
 
         let suffix = if condition {
-            decode_str(None, reader)?
+            decode_str(reader, None)?
         } else {
             ""
         };

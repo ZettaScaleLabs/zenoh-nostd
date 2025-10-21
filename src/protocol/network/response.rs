@@ -50,8 +50,8 @@ impl<'a> Response<'a> {
             header |= flag::N;
         }
 
-        encode_u8(header, writer)?;
-        encode_u32(self.rid, writer)?;
+        encode_u8(writer, header)?;
+        encode_u32(writer, self.rid)?;
         self.wire_expr.encode(writer)?;
 
         if self.ext_qos != ext::QoSType::DEFAULT {
@@ -94,7 +94,7 @@ impl<'a> Response<'a> {
         let mut has_ext = imsg::has_flag(header, flag::Z);
         while has_ext {
             let ext = decode_u8(reader)?;
-            match iext::eid(ext) {
+            match iext::eheader(ext) {
                 ext::QoS::ID => {
                     let (q, ext) = ext::QoSType::decode(ext, reader)?;
                     ext_qos = q;
@@ -180,8 +180,8 @@ impl ResponseFinal {
             header |= flag::Z;
         }
 
-        encode_u8(header, writer)?;
-        encode_u32(self.rid, writer)?;
+        encode_u8(writer, header)?;
+        encode_u32(writer, self.rid)?;
 
         if self.ext_qos != ext::QoSType::DEFAULT {
             n_exts -= 1;
@@ -209,7 +209,7 @@ impl ResponseFinal {
         let mut has_ext = imsg::has_flag(header, flag::Z);
         while has_ext {
             let ext: u8 = decode_u8(reader)?;
-            match iext::eid(ext) {
+            match iext::eheader(ext) {
                 ext::QoS::ID => {
                     let (q, ext) = ext::QoSType::decode(ext, reader)?;
                     ext_qos = q;

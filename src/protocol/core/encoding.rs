@@ -49,10 +49,10 @@ impl<'a> Encoding<'a> {
             id |= flag::S;
         }
 
-        encode_u32(id, writer)?;
+        encode_u32(writer, id)?;
 
         if let Some(schema) = &self.schema {
-            encode_zbuf(true, schema, writer)?;
+            encode_zbuf(writer, true, schema)?;
         }
 
         Ok(())
@@ -65,7 +65,7 @@ impl<'a> Encoding<'a> {
         let id = (id >> 1) as EncodingId;
 
         let schema = if has_schema {
-            let schema: ZBuf<'a> = decode_zbuf(None, reader)?;
+            let schema: ZBuf<'a> = decode_zbuf(reader, None)?;
             Some(schema)
         } else {
             None

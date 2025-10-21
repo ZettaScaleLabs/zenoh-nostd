@@ -17,39 +17,41 @@ use crate::{
 pub(crate) mod iext {
     use core::fmt;
 
-    use crate::protocol::common::imsg;
+    use crate::protocol::common::imsg::has_flag;
 
     pub(crate) const ID_BITS: u8 = 4;
     pub(crate) const ID_MASK: u8 = !(u8::MAX << ID_BITS);
 
     pub(crate) const FLAG_M: u8 = 1 << 4;
+
     pub(crate) const ENC_UNIT: u8 = 0b00 << 5;
     pub(crate) const ENC_Z64: u8 = 0b01 << 5;
     pub(crate) const ENC_ZBUF: u8 = 0b10 << 5;
     pub(crate) const ENC_MASK: u8 = 0b11 << 5;
+
     pub(crate) const FLAG_Z: u8 = 1 << 7;
 
-    pub(crate) const fn eid(header: u8) -> u8 {
+    pub(crate) const fn eheader(header: u8) -> u8 {
         header & !FLAG_Z
     }
 
-    pub(crate) const fn mid(header: u8) -> u8 {
+    pub(crate) const fn mheader(header: u8) -> u8 {
         header & ID_MASK
     }
 
-    pub(super) const fn id(id: u8, mandatory: bool, encoding: u8) -> u8 {
-        let mut id = id & ID_MASK;
+    pub(super) const fn header(id: u8, mandatory: bool, encoding: u8) -> u8 {
+        let mut header = id & ID_MASK;
         if mandatory {
-            id |= FLAG_M;
+            header |= FLAG_M;
         } else {
-            id &= !FLAG_M;
+            header &= !FLAG_M;
         }
-        id |= encoding;
-        id
+        header |= encoding;
+        header
     }
 
     pub(super) const fn is_mandatory(id: u8) -> bool {
-        imsg::has_flag(id, FLAG_M)
+        has_flag(id, FLAG_M)
     }
 
     pub(super) fn fmt(f: &mut fmt::DebugStruct, id: u8) {
@@ -75,7 +77,7 @@ impl<const ID: u8> ZExtUnit<{ ID }> {
     pub(crate) const ID: u8 = ID;
 
     pub(crate) const fn id(mandatory: bool) -> u8 {
-        iext::id(ID, mandatory, iext::ENC_UNIT)
+        iext::header(ID, mandatory, iext::ENC_UNIT)
     }
 
     pub(crate) fn encode(
@@ -88,13 +90,13 @@ impl<const ID: u8> ZExtUnit<{ ID }> {
             header |= iext::FLAG_Z;
         }
 
-        encode_u8(header, writer)?;
+        encode_u8(writer, header)?;
 
         Ok(1)
     }
 
     pub(crate) fn decode(header: u8) -> ZResult<(Self, bool), ZCodecError> {
-        if iext::eid(header) != ID {
+        if iext::eheader(header) != ID {
             zbail!(ZCodecError::CouldNotRead);
         }
 
@@ -129,7 +131,7 @@ impl<const ID: u8> ZExtZ64<{ ID }> {
     }
 
     pub(crate) const fn id(mandatory: bool) -> u8 {
-        iext::id(ID, mandatory, iext::ENC_Z64)
+        iext::header(ID, mandatory, iext::ENC_Z64)
     }
 
     pub(crate) fn encode(
@@ -142,16 +144,16 @@ impl<const ID: u8> ZExtZ64<{ ID }> {
             header |= iext::FLAG_Z;
         }
 
-        encode_u8(header, writer)?;
+        encode_u8(writer, header)?;
 
-        encode_u64(self.value, writer)
+        encode_u64(writer, self.value)
     }
 
     pub(crate) fn decode(
         header: u8,
         reader: &mut ZBufReader<'_>,
     ) -> ZResult<(Self, bool), ZCodecError> {
-        if iext::eid(header) != ID {
+        if iext::eheader(header) != ID {
             zbail!(ZCodecError::CouldNotRead);
         }
 
@@ -188,7 +190,7 @@ impl<'a, const ID: u8> ZExtZBuf<'a, { ID }> {
     pub(crate) const ID: u8 = ID;
 
     pub(crate) const fn id(mandatory: bool) -> u8 {
-        iext::id(ID, mandatory, iext::ENC_ZBUF)
+        iext::header(ID, mandatory, iext::ENC_ZBUF)
     }
 
     pub(crate) fn encode(
@@ -201,8 +203,8 @@ impl<'a, const ID: u8> ZExtZBuf<'a, { ID }> {
             header |= iext::FLAG_Z;
         }
 
-        encode_u8(header, writer)?;
-        encode_zbuf(true, self.value, writer)?;
+        encode_u8(writer, header)?;
+        encode_zbuf(writer, true, self.value)?;
 
         Ok(())
     }
@@ -211,11 +213,11 @@ impl<'a, const ID: u8> ZExtZBuf<'a, { ID }> {
         header: u8,
         reader: &mut ZBufReader<'a>,
     ) -> ZResult<(Self, bool), ZCodecError> {
-        if iext::eid(header) != ID {
+        if iext::eheader(header) != ID {
             zbail!(ZCodecError::CouldNotRead);
         }
 
-        let value = decode_zbuf(None, reader)?;
+        let value = decode_zbuf(reader, None)?;
 
         Ok((ZExtZBuf { value }, has_flag(header, iext::FLAG_Z)))
     }
@@ -265,8 +267,8 @@ impl<const ID: u8> ZExtZBufHeader<{ ID }> {
             header |= iext::FLAG_Z;
         }
 
-        encode_u8(header, writer)?;
-        encode_usize(self.len, writer)?;
+        encode_u8(writer, header)?;
+        encode_usize(writer, self.len)?;
 
         Ok(())
     }
@@ -275,7 +277,7 @@ impl<const ID: u8> ZExtZBufHeader<{ ID }> {
         header: u8,
         reader: &mut ZBufReader<'_>,
     ) -> ZResult<(Self, bool), ZCodecError> {
-        if iext::eid(header) != ID {
+        if iext::eheader(header) != ID {
             zbail!(ZCodecError::CouldNotRead);
         }
 
@@ -304,7 +306,7 @@ pub(crate) fn skip(
         crate::error!(
             "Mandatory extension {} with id {} not supported.",
             _s,
-            iext::mid(id),
+            iext::mheader(id),
         );
 
         zbail!(ZCodecError::CouldNotRead);
@@ -316,7 +318,7 @@ pub(crate) fn skip(
             let _ = decode_u64(reader)?;
         }
         iext::ENC_ZBUF => {
-            let _ = decode_zbuf(None, reader)?;
+            let _ = decode_zbuf(reader, None)?;
         }
         _ => {
             zbail!(ZCodecError::CouldNotRead);

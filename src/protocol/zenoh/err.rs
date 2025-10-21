@@ -40,7 +40,7 @@ impl<'a> Err<'a> {
             header |= flag::Z;
         }
 
-        encode_u8(header, writer)?;
+        encode_u8(writer, header)?;
 
         if self.encoding != Encoding::empty() {
             self.encoding.encode(writer)?;
@@ -51,7 +51,7 @@ impl<'a> Err<'a> {
             sinfo.encode(n_exts != 0, writer)?;
         }
 
-        encode_zbuf(true, self.payload, writer)
+        encode_zbuf(writer, true, self.payload)
     }
 
     pub(crate) fn decode(header: u8, reader: &mut ZBufReader<'a>) -> ZResult<Self, ZCodecError> {
@@ -69,7 +69,7 @@ impl<'a> Err<'a> {
         let mut has_ext = imsg::has_flag(header, flag::Z);
         while has_ext {
             let ext = decode_u8(reader)?;
-            match iext::eid(ext) {
+            match iext::eheader(ext) {
                 ext::SourceInfo::ID => {
                     let (s, ext) = ext::SourceInfoType::decode(ext, reader)?;
 
@@ -82,7 +82,7 @@ impl<'a> Err<'a> {
             }
         }
 
-        let payload = decode_zbuf(None, reader)?;
+        let payload = decode_zbuf(reader, None)?;
 
         Ok(Err {
             encoding,

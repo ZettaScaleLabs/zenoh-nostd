@@ -104,8 +104,8 @@ impl FrameHeader {
             header |= flag::Z;
         }
 
-        encode_u8(header, writer)?;
-        encode_u32(self.sn, writer)?;
+        encode_u8(writer, header)?;
+        encode_u32(writer, self.sn)?;
 
         if self.ext_qos != ext::QoSType::DEFAULT {
             self.ext_qos.encode(false, writer)?;
@@ -130,7 +130,7 @@ impl FrameHeader {
         let mut has_ext = imsg::has_flag(header, flag::Z);
         while has_ext {
             let ext: u8 = decode_u8(reader)?;
-            match iext::eid(ext) {
+            match iext::eheader(ext) {
                 ext::QoS::ID => {
                     let (q, ext) = ext::QoSType::decode(ext, reader)?;
                     ext_qos = q;

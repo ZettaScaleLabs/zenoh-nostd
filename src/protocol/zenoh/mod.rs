@@ -166,11 +166,11 @@ pub(crate) mod ext {
             header.encode(more, writer)?;
 
             let flags: u8 = (self.id.zid.size() as u8 - 1) << 4;
-            encode_u8(flags, writer)?;
+            encode_u8(writer, flags)?;
 
             self.id.zid.encode(false, writer)?;
-            encode_u32(self.id.eid, writer)?;
-            encode_u32(self.sn, writer)?;
+            encode_u32(writer, self.id.eid)?;
+            encode_u32(writer, self.sn)?;
 
             Ok(())
         }
@@ -229,7 +229,7 @@ pub(crate) mod ext {
             header.encode(more, writer)?;
             self.encoding.encode(writer)?;
 
-            encode_zbuf(false, self.payload, writer)
+            encode_zbuf(writer, false, self.payload)
         }
 
         pub(crate) fn decode(
@@ -243,7 +243,7 @@ pub(crate) mod ext {
             let end = reader.remaining();
 
             let len = h.len - (start - end);
-            let payload = decode_zbuf(Some(len), reader)?;
+            let payload = decode_zbuf(reader, Some(len))?;
 
             Ok((Self { encoding, payload }, more))
         }
@@ -281,7 +281,7 @@ pub(crate) mod ext {
             let header: ZExtZBufHeader<{ ID }> =
                 ZExtZBufHeader::new(encoded_len_zbuf(false, self.buffer));
             header.encode(more, writer)?;
-            encode_zbuf(false, self.buffer, writer)
+            encode_zbuf(writer, false, self.buffer)
         }
 
         pub(crate) fn decode(
@@ -289,7 +289,7 @@ pub(crate) mod ext {
             reader: &mut ZBufReader<'a>,
         ) -> ZResult<(Self, bool), ZCodecError> {
             let (h, more) = ZExtZBufHeader::<{ ID }>::decode(header, reader)?;
-            let buffer = decode_zbuf(Some(h.len), reader)?;
+            let buffer = decode_zbuf(reader, Some(h.len))?;
             Ok((Self { buffer }, more))
         }
 

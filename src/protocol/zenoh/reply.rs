@@ -32,7 +32,7 @@ impl<'a> Reply<'a> {
             header |= flag::C;
         }
 
-        encode_u8(header, writer)?;
+        encode_u8(writer, header)?;
 
         if self.consolidation != ConsolidationMode::DEFAULT {
             self.consolidation.encode(writer)?;

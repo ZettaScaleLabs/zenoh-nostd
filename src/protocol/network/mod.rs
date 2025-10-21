@@ -283,7 +283,7 @@ pub(crate) mod ext {
             let header: ZExtZBufHeader<{ ID }> =
                 ZExtZBufHeader::new(encoded_len_timestamp(&self.timestamp));
             header.encode(more, writer)?;
-            encode_timestamp(&self.timestamp, writer)
+            encode_timestamp(writer, &self.timestamp)
         }
 
         pub(crate) fn decode(
@@ -381,9 +381,9 @@ pub(crate) mod ext {
             header.encode(more, writer)?;
 
             let flags: u8 = (self.zid.size() as u8 - 1) << 4;
-            encode_u8(flags, writer)?;
+            encode_u8(writer, flags)?;
             self.zid.encode(false, writer)?;
-            encode_u32(self.eid, writer)
+            encode_u32(writer, self.eid)
         }
 
         pub(crate) fn decode(

@@ -34,7 +34,7 @@ impl ConsolidationMode {
             ConsolidationMode::Latest => 3,
         };
 
-        encode_u64(x, writer)
+        encode_u64(writer, x)
     }
 
     pub(crate) fn decode(reader: &mut ZBufReader<'_>) -> ZResult<Self, ZCodecError> {
@@ -95,14 +95,14 @@ impl<'a> Query<'a> {
             header |= flag::Z;
         }
 
-        encode_u8(header, writer)?;
+        encode_u8(writer, header)?;
 
         if self.consolidation != ConsolidationMode::DEFAULT {
             self.consolidation.encode(writer)?;
         }
 
         if !self.parameters.is_empty() {
-            encode_str(true, self.parameters, writer)?;
+            encode_str(writer, true, self.parameters)?;
         }
 
         if let Some(sinfo) = self.ext_sinfo.as_ref() {
@@ -135,7 +135,7 @@ impl<'a> Query<'a> {
 
         let mut parameters = "";
         if imsg::has_flag(header, flag::P) {
-            parameters = decode_str(None, reader)?;
+            parameters = decode_str(reader, None)?;
         }
 
         let mut ext_sinfo: Option<ext::SourceInfoType> = None;
@@ -146,7 +146,7 @@ impl<'a> Query<'a> {
         while has_ext {
             let ext = decode_u8(reader)?;
 
-            match iext::eid(ext) {
+            match iext::eheader(ext) {
                 ext::SourceInfo::ID => {
                     let (s, ext) = ext::SourceInfoType::decode(ext, reader)?;
 

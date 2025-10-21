@@ -39,10 +39,10 @@ fn codec_zbuf() {
     let mut rng = rand::thread_rng();
     let data: [u8; 16] = rng.r#gen();
 
-    encode_zbuf(true, &data, &mut writer).unwrap();
+    encode_zbuf(&mut writer, true, &data).unwrap();
 
     let mut reader = zbuf.reader();
-    let ret = decode_zbuf(None, &mut reader).unwrap();
+    let ret = decode_zbuf(&mut reader, None).unwrap();
     assert_eq!(ret, data);
 }
 
@@ -62,7 +62,7 @@ fn codec_zint() {
 
                 let value: $ty = $rand;
                 paste! {
-                    [<encode_ $ty>](value, &mut writer).unwrap();
+                    [<encode_ $ty>](&mut writer, value).unwrap();
                 }
 
                 let mut reader = zbuf.reader();
@@ -104,21 +104,21 @@ fn codec_zint_len() {
     let mut buffer = [0u8; 16];
     let mut zbuf = buffer.as_mut_slice();
     let mut writer = zbuf.writer();
-    encode_u64(0, &mut writer).unwrap();
+    encode_u64(&mut writer, 0).unwrap();
     assert_eq!(encoded_len_u64(0), 16 - writer.len());
 
     for i in 1..=encoded_len_u64(u64::MAX) {
         let mut buffer = [0u8; 16];
         let mut zbuf = buffer.as_mut_slice();
         let mut writer = zbuf.writer();
-        encode_u64(1 << (7 * i), &mut writer).unwrap();
+        encode_u64(&mut writer, 1 << (7 * i)).unwrap();
         assert_eq!(encoded_len_u64(1 << (7 * i)), 16 - writer.len());
     }
 
     let mut buffer = [0u8; 16];
     let mut zbuf = buffer.as_mut_slice();
     let mut writer = zbuf.writer();
-    encode_u64(u64::MAX, &mut writer).unwrap();
+    encode_u64(&mut writer, u64::MAX).unwrap();
     assert_eq!(encoded_len_u64(u64::MAX), 16 - writer.len());
 }
 
@@ -136,10 +136,10 @@ fn codec_string() {
                 let value: std::string::String = Alphanumeric
                     .sample_string(&mut thread_rng(), rng.gen_range(0..MAX_PAYLOAD_SIZE / 2));
 
-                encode_str(true, &value, &mut writer).unwrap();
+                encode_str(&mut writer, true, &value).unwrap();
 
                 let mut reader = zbuf.reader();
-                let ret = decode_str(None, &mut reader).unwrap();
+                let ret = decode_str(&mut reader, None).unwrap();
                 assert_eq!(value, ret);
             }
         };
@@ -244,7 +244,7 @@ fn codec_timestamp() {
             let id = uhlc::ID::try_from(ZenohIdProto::rand().as_le_bytes()).unwrap();
             Timestamp::new(time, id)
         };
-        encode_timestamp(&value, &mut writer).unwrap();
+        encode_timestamp(&mut writer, &value).unwrap();
 
         let mut reader = zbuf.reader();
         let ret = decode_timestamp(&mut reader).unwrap();
@@ -546,7 +546,7 @@ pub(super) fn criterion(c: &mut Criterion) {
     c.bench_function("Encode u64", |b| {
         b.iter(|| {
             let mut writer = zbuf.writer();
-            encode_u64(u64::MAX, &mut writer).unwrap();
+            encode_u64(&mut writer, u64::MAX).unwrap();
             let mut reader = zbuf.reader();
             let _: u64 = decode_u64(&mut reader).unwrap();
         })
@@ -557,9 +557,9 @@ pub(super) fn criterion(c: &mut Criterion) {
     c.bench_function("Encode b'Hello, world!'", |b| {
         b.iter(|| {
             let mut writer = zbuf.writer();
-            encode_str(true, "Hello, world!", &mut writer).unwrap();
+            encode_str(&mut writer, true, "Hello, world!").unwrap();
             let mut reader = zbuf.reader();
-            let _: &str = decode_str(None, &mut reader).unwrap();
+            let _: &str = decode_str(&mut reader, None).unwrap();
         })
     });
 

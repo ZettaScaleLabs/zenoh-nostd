@@ -54,16 +54,16 @@ impl<'a> OpenSyn<'a> {
             header |= flag::Z;
         }
 
-        encode_u8(header, writer)?;
+        encode_u8(writer, header)?;
 
         if imsg::has_flag(header, flag::T) {
-            encode_u64(self.lease.as_secs(), writer)?;
+            encode_u64(writer, self.lease.as_secs())?;
         } else {
-            encode_u64(self.lease.as_millis() as u64, writer)?;
+            encode_u64(writer, self.lease.as_millis() as u64)?;
         }
 
-        encode_u32(self.initial_sn, writer)?;
-        encode_zbuf(true, self.cookie, writer)?;
+        encode_u32(writer, self.initial_sn)?;
+        encode_zbuf(writer, true, self.cookie)?;
 
         if let Some(qos) = self.ext_qos.as_ref() {
             n_exts -= 1;
@@ -102,7 +102,7 @@ impl<'a> OpenSyn<'a> {
             Duration::from_millis(lease)
         };
         let initial_sn: TransportSn = decode_u32(reader)?;
-        let cookie: ZBuf<'_> = decode_zbuf(None, reader)?;
+        let cookie: ZBuf<'_> = decode_zbuf(reader, None)?;
 
         let mut ext_qos = None;
         let mut ext_auth = None;
@@ -113,7 +113,7 @@ impl<'a> OpenSyn<'a> {
         let mut has_ext = imsg::has_flag(header, flag::Z);
         while has_ext {
             let ext: u8 = decode_u8(reader)?;
-            match iext::eid(ext) {
+            match iext::eheader(ext) {
                 ext::QoS::ID => {
                     let (q, ext) = ext::QoS::decode(ext)?;
                     ext_qos = Some(q);
@@ -247,15 +247,15 @@ impl<'a> OpenAck<'a> {
             header |= flag::Z;
         }
 
-        encode_u8(header, writer)?;
+        encode_u8(writer, header)?;
 
         if imsg::has_flag(header, flag::T) {
-            encode_u64(self.lease.as_secs(), writer)?;
+            encode_u64(writer, self.lease.as_secs())?;
         } else {
-            encode_u64(self.lease.as_millis() as u64, writer)?;
+            encode_u64(writer, self.lease.as_millis() as u64)?;
         }
 
-        encode_u32(self.initial_sn, writer)?;
+        encode_u32(writer, self.initial_sn)?;
 
         if let Some(qos) = self.ext_qos.as_ref() {
             n_exts -= 1;
@@ -307,7 +307,7 @@ impl<'a> OpenAck<'a> {
         let mut has_ext = imsg::has_flag(header, flag::Z);
         while has_ext {
             let ext: u8 = decode_u8(reader)?;
-            match iext::eid(ext) {
+            match iext::eheader(ext) {
                 ext::QoS::ID => {
                     let (q, ext) = ext::QoS::decode(ext)?;
                     ext_qos = Some(q);

@@ -6,7 +6,7 @@ use crate::{
             imsg,
         },
         core::wire_expr::WireExpr,
-        network::{Mapping, id},
+        network::Mapping,
         zcodec::{decode_u8, encode_u8},
         zenoh::PushBody,
     },
@@ -15,41 +15,62 @@ use crate::{
     zbuf::{ZBufReader, ZBufWriter},
 };
 
-pub(crate) mod flag {
-    pub(crate) const N: u8 = 1 << 5;
-    pub(crate) const M: u8 = 1 << 6;
-    pub(crate) const Z: u8 = 1 << 7;
-}
+// pub(crate) mod flag {
+//     /// Indicates the presence of a suffix in the Wire Expression
+//     pub(crate) const N: u8 = 1 << 5;
+//     /// Indicates that the mapping is from the sender's perspective
+//     pub(crate) const M: u8 = 1 << 6;
+//     /// Indicates the presence of extensions
+//     pub(crate) const Z: u8 = 1 << 7;
+// }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct Push<'a> {
     pub(crate) wire_expr: WireExpr<'a>,
+
     pub(crate) ext_qos: ext::QoSType,
     pub(crate) ext_tstamp: Option<ext::TimestampType>,
     pub(crate) ext_nodeid: ext::NodeIdType,
+
     pub(crate) payload: PushBody<'a>,
 }
 
 impl<'a> Push<'a> {
+    // ---------- Header for Push Message ----------------
+
+    /// Message ID for Push messages
+    pub(crate) const ID: u8 = 0x1d;
+
+    /// Indicates the presence of a suffix in the Wire Expression
+    pub(crate) const FLAG_N: u8 = 1 << 5;
+    /// Indicates that the mapping is from the sender's perspective
+    pub(crate) const FLAG_M: u8 = 1 << 6;
+    /// Indicates the presence of extensions
+    pub(crate) const FLAG_Z: u8 = 1 << 7;
+
+    // ----------------------------------------------------
+}
+
+impl<'a> Push<'a> {
     pub(crate) fn encode(&self, writer: &mut ZBufWriter<'_>) -> ZResult<(), ZCodecError> {
-        let mut header = id::PUSH;
+        let mut header = Self::ID;
         let mut n_exts = ((self.ext_qos != ext::QoSType::DEFAULT) as u8)
             + (self.ext_tstamp.is_some() as u8)
             + ((self.ext_nodeid != ext::NodeIdType::DEFAULT) as u8);
 
         if n_exts != 0 {
-            header |= flag::Z;
+            header |= Self::FLAG_Z;
         }
 
         if self.wire_expr.mapping != Mapping::DEFAULT {
-            header |= flag::M;
+            header |= Self::FLAG_M;
         }
 
         if self.wire_expr.has_suffix() {
-            header |= flag::N;
+            header |= Self::FLAG_N;
         }
 
-        encode_u8(header, writer)?;
+        encode_u8(writer, header)?;
         self.wire_expr.encode(writer)?;
 
         if self.ext_qos != ext::QoSType::DEFAULT {
@@ -71,14 +92,14 @@ impl<'a> Push<'a> {
     }
 
     pub(crate) fn decode(header: u8, reader: &mut ZBufReader<'a>) -> ZResult<Self, ZCodecError> {
-        if imsg::mid(header) != id::PUSH {
+        if imsg::mid(header) != Self::ID {
             zbail!(ZCodecError::CouldNotRead);
         }
 
         let mut wire_expr: WireExpr<'_> =
-            WireExpr::decode(imsg::has_flag(header, flag::N), reader)?;
+            WireExpr::decode(imsg::has_flag(header, Self::FLAG_N), reader)?;
 
-        wire_expr.mapping = if imsg::has_flag(header, flag::M) {
+        wire_expr.mapping = if imsg::has_flag(header, Self::FLAG_M) {
             Mapping::Sender
         } else {
             Mapping::Receiver
@@ -88,11 +109,11 @@ impl<'a> Push<'a> {
         let mut ext_tstamp = None;
         let mut ext_nodeid = ext::NodeIdType::DEFAULT;
 
-        let mut has_ext = imsg::has_flag(header, flag::Z);
+        let mut has_ext = imsg::has_flag(header, Self::FLAG_Z);
         while has_ext {
             let ext = decode_u8(reader)?;
 
-            match iext::eid(ext) {
+            match iext::eheader(ext) {
                 ext::QoS::ID => {
                     let (q, ext) = ext::QoSType::decode(ext, reader)?;
                     ext_qos = q;

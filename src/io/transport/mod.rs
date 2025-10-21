@@ -98,7 +98,7 @@ impl<T: Platform> Transport<T> {
 
         if self.link.is_streamed() {
             let space = BatchSize::MIN.to_le_bytes();
-            encode_array(&space, &mut writer)?;
+            encode_array(&mut writer, &space)?;
         }
 
         msg.encode(&mut writer)?;
@@ -149,7 +149,7 @@ impl<'a, T: Platform> TransportTx<'a, T> {
 
         if self.link.is_streamed() {
             let space = BatchSize::MIN.to_le_bytes();
-            encode_array(&space, &mut writer)?;
+            encode_array(&mut writer, &space)?;
         }
 
         msg.encode(&mut writer)?;

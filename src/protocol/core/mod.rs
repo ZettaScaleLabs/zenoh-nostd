@@ -47,14 +47,14 @@ impl ZenohIdProto {
         len: bool,
         writer: &mut ZBufWriter<'_>,
     ) -> ZResult<(), ZCodecError> {
-        encode_zbuf(len, &self.as_le_bytes()[..self.size()], writer)
+        encode_zbuf(writer, len, &self.as_le_bytes()[..self.size()])
     }
 
     pub(crate) fn decode(
         len: Option<usize>,
         reader: &mut ZBufReader<'_>,
     ) -> ZResult<Self, ZCodecError> {
-        let zbuf = decode_zbuf(len, reader)?;
+        let zbuf = decode_zbuf(reader, len)?;
 
         Self::try_from(zbuf).map_err(|_| ZCodecError::CouldNotParse)
     }

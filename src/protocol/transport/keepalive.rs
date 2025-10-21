@@ -20,7 +20,7 @@ pub(crate) struct KeepAlive;
 
 impl KeepAlive {
     pub(crate) fn encode(&self, writer: &mut ZBufWriter<'_>) -> ZResult<(), ZCodecError> {
-        encode_u8(id::KEEP_ALIVE, writer)?;
+        encode_u8(writer, id::KEEP_ALIVE)?;
         Ok(())
     }
 

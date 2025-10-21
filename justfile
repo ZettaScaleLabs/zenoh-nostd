@@ -16,6 +16,14 @@ test:
 bench:
     cargo test --profile=release -- --nocapture bench --
 
+# Ping
+
+ping:
+    RUST_LOG=info cargo run --example z_ping --features=platform-std,log --release
+
+pong:
+    RUST_LOG=info cargo run --example z_pong --features=platform-std,log --release
+
 # Examples
 
 std example *args:

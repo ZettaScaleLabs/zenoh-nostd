@@ -54,11 +54,11 @@ impl<'a> Interest<'a> {
             header |= interest::flag::Z;
         }
 
-        encode_u8(header, writer)?;
-        encode_u32(self.id, writer)?;
+        encode_u8(writer, header)?;
+        encode_u32(writer, self.id)?;
 
         if self.mode != InterestMode::Final {
-            encode_u8(self.options(), writer)?;
+            encode_u8(writer, self.options())?;
             if let Some(we) = self.wire_expr.as_ref() {
                 we.encode(writer)?;
             }
@@ -117,7 +117,7 @@ impl<'a> Interest<'a> {
         let mut has_ext = imsg::has_flag(header, interest::flag::Z);
         while has_ext {
             let ext = decode_u8(reader)?;
-            match iext::eid(ext) {
+            match iext::eheader(ext) {
                 declare::ext::QoS::ID => {
                     let (q, ext) = interest::ext::QoSType::decode(ext, reader)?;
 
