@@ -66,6 +66,16 @@ path = "examples/z_sub.rs"
 name = "z_sub"
 required-features = ["platform-std"]
 
+[[example]]
+path = "examples/z_ping.rs"
+name = "z_ping"
+required-features = ["platform-std"]
+
+[[example]]
+path = "examples/z_pong.rs"
+name = "z_pong"
+required-features = ["platform-std"]
+
 [profile.dev]
 debug = true
 opt-level = 0

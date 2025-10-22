@@ -64,40 +64,40 @@ impl<'a> Request<'a> {
 
         if self.ext_qos != ext::QoSType::DEFAULT {
             n_exts -= 1;
-            self.ext_qos.encode(n_exts != 0, writer)?;
+            self.ext_qos.encode(writer, n_exts != 0)?;
         }
 
         if let Some(ts) = self.ext_tstamp.as_ref() {
             n_exts -= 1;
-            ts.encode(n_exts != 0, writer)?;
+            ts.encode(writer, n_exts != 0)?;
         }
 
         if self.ext_target != ext::QueryTarget::DEFAULT {
             n_exts -= 1;
-            self.ext_target.encode(n_exts != 0, writer)?;
+            self.ext_target.encode(writer, n_exts != 0)?;
         }
 
         if let Some(l) = self.ext_budget.as_ref() {
             n_exts -= 1;
             let e = ext::Budget::new(l.get() as u64);
-            e.encode(n_exts != 0, writer)?;
+            e.encode(writer, n_exts != 0)?;
         }
 
         if let Some(to) = self.ext_timeout.as_ref() {
             n_exts -= 1;
             let e = ext::Timeout::new(to.as_millis() as u64);
-            e.encode(n_exts != 0, writer)?;
+            e.encode(writer, n_exts != 0)?;
         }
 
         if self.ext_nodeid != ext::NodeIdType::DEFAULT {
             n_exts -= 1;
-            self.ext_nodeid.encode(n_exts != 0, writer)?;
+            self.ext_nodeid.encode(writer, n_exts != 0)?;
         }
 
         self.payload.encode(writer)
     }
 
-    pub(crate) fn decode(header: u8, reader: &mut ZBufReader<'a>) -> ZResult<Self, ZCodecError> {
+    pub(crate) fn decode(reader: &mut ZBufReader<'a>, header: u8) -> ZResult<Self, ZCodecError> {
         if imsg::mid(header) != id::REQUEST {
             zbail!(ZCodecError::CouldNotRead);
         }
@@ -124,37 +124,37 @@ impl<'a> Request<'a> {
             let ext = decode_u8(reader)?;
             match iext::eheader(ext) {
                 ext::QoS::ID => {
-                    let (q, ext) = ext::QoSType::decode(ext, reader)?;
+                    let (q, ext) = ext::QoSType::decode(reader, ext)?;
                     ext_qos = q;
                     has_ext = ext;
                 }
                 ext::Timestamp::ID => {
-                    let (t, ext) = ext::TimestampType::decode(ext, reader)?;
+                    let (t, ext) = ext::TimestampType::decode(reader, ext)?;
                     ext_tstamp = Some(t);
                     has_ext = ext;
                 }
                 ext::NodeId::ID => {
-                    let (nid, ext) = ext::NodeIdType::decode(ext, reader)?;
+                    let (nid, ext) = ext::NodeIdType::decode(reader, ext)?;
                     ext_nodeid = nid;
                     has_ext = ext;
                 }
                 ext::Target::ID => {
-                    let (rt, ext) = ext::QueryTarget::decode(ext, reader)?;
+                    let (rt, ext) = ext::QueryTarget::decode(reader, ext)?;
                     ext_target = rt;
                     has_ext = ext;
                 }
                 ext::Budget::ID => {
-                    let (l, ext) = ext::Budget::decode(ext, reader)?;
+                    let (l, ext) = ext::Budget::decode(reader, ext)?;
                     ext_limit = ext::BudgetType::new(l.value as u32);
                     has_ext = ext;
                 }
                 ext::Timeout::ID => {
-                    let (to, ext) = ext::Timeout::decode(ext, reader)?;
+                    let (to, ext) = ext::Timeout::decode(reader, ext)?;
                     ext_timeout = Some(ext::TimeoutType::from_millis(to.value));
                     has_ext = ext;
                 }
                 _ => {
-                    has_ext = extension::skip("Request", ext, reader)?;
+                    has_ext = extension::skip("Request", reader, ext)?;
                 }
             }
         }
@@ -250,8 +250,8 @@ pub(crate) mod ext {
 
         pub(crate) fn encode(
             &self,
-            more: bool,
             writer: &mut ZBufWriter<'_>,
+            more: bool,
         ) -> ZResult<(), ZCodecError> {
             let v = match self {
                 ext::QueryTarget::BestMatching => 0,
@@ -260,14 +260,14 @@ pub(crate) mod ext {
             };
 
             let ext = ext::Target::new(v);
-            ext.encode(more, writer)
+            ext.encode(writer, more)
         }
 
         pub(crate) fn decode(
-            header: u8,
             reader: &mut ZBufReader<'_>,
+            header: u8,
         ) -> ZResult<(Self, bool), ZCodecError> {
-            let (ext, more) = ext::Target::decode(header, reader)?;
+            let (ext, more) = ext::Target::decode(reader, header)?;
 
             let v = match ext.value {
                 0 => ext::QueryTarget::BestMatching,

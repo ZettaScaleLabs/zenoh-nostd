@@ -52,7 +52,7 @@ impl<'a> Encoding<'a> {
         encode_u32(writer, id)?;
 
         if let Some(schema) = &self.schema {
-            encode_zbuf(writer, true, schema)?;
+            encode_zbuf(writer, schema, true)?;
         }
 
         Ok(())

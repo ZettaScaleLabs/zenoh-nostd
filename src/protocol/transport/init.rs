@@ -65,7 +65,7 @@ impl<'a> InitSyn<'a> {
 
         let flags: u8 = ((self.zid.size() as u8 - 1) << 4) | whatami;
         encode_u8(writer, flags)?;
-        self.zid.encode(false, writer)?;
+        self.zid.encode(writer, false)?;
 
         if imsg::has_flag(header, flag::S) {
             encode_u8(writer, self.resolution.as_u8())?;
@@ -74,43 +74,43 @@ impl<'a> InitSyn<'a> {
 
         if let Some(qos) = self.ext_qos.as_ref() {
             n_exts -= 1;
-            qos.encode(n_exts != 0, writer)?;
+            qos.encode(writer, n_exts != 0)?;
         }
 
         if let Some(qos_link) = self.ext_qos_link.as_ref() {
             n_exts -= 1;
-            qos_link.encode(n_exts != 0, writer)?;
+            qos_link.encode(writer, n_exts != 0)?;
         }
 
         if let Some(auth) = self.ext_auth.as_ref() {
             n_exts -= 1;
-            auth.encode(n_exts != 0, writer)?;
+            auth.encode(writer, n_exts != 0)?;
         }
 
         if let Some(mlink) = self.ext_mlink.as_ref() {
             n_exts -= 1;
-            mlink.encode(n_exts != 0, writer)?;
+            mlink.encode(writer, n_exts != 0)?;
         }
 
         if let Some(lowlatency) = self.ext_lowlatency.as_ref() {
             n_exts -= 1;
-            lowlatency.encode(n_exts != 0, writer)?;
+            lowlatency.encode(writer, n_exts != 0)?;
         }
 
         if let Some(compression) = self.ext_compression.as_ref() {
             n_exts -= 1;
-            compression.encode(n_exts != 0, writer)?;
+            compression.encode(writer, n_exts != 0)?;
         }
 
         if self.ext_patch != ext::PatchType::NONE {
             n_exts -= 1;
-            self.ext_patch.encode(n_exts != 0, writer)?;
+            self.ext_patch.encode(writer, n_exts != 0)?;
         }
 
         Ok(())
     }
 
-    pub(crate) fn decode(header: u8, reader: &mut ZBufReader<'a>) -> ZResult<Self, ZCodecError> {
+    pub(crate) fn decode(reader: &mut ZBufReader<'a>, header: u8) -> ZResult<Self, ZCodecError> {
         if imsg::mid(header) != id::INIT || imsg::has_flag(header, flag::A) {
             zbail!(ZCodecError::CouldNotRead)
         }
@@ -125,7 +125,7 @@ impl<'a> InitSyn<'a> {
         };
 
         let length = 1 + ((flags >> 4) as usize);
-        let zid: ZenohIdProto = ZenohIdProto::decode(Some(length), reader)?;
+        let zid: ZenohIdProto = ZenohIdProto::decode(reader, Some(length))?;
 
         let mut resolution = Resolution::default();
         let mut batch_size = batch_size::UNICAST.to_le_bytes();
@@ -158,17 +158,17 @@ impl<'a> InitSyn<'a> {
                     has_ext = ext;
                 }
                 ext::QoSLink::ID => {
-                    let (q, ext) = ext::QoSLink::decode(ext, reader)?;
+                    let (q, ext) = ext::QoSLink::decode(reader, ext)?;
                     ext_qos_link = Some(q);
                     has_ext = ext;
                 }
                 ext::Auth::ID => {
-                    let (a, ext) = ext::Auth::decode(ext, reader)?;
+                    let (a, ext) = ext::Auth::decode(reader, ext)?;
                     ext_auth = Some(a);
                     has_ext = ext;
                 }
                 ext::MultiLink::ID => {
-                    let (a, ext) = ext::MultiLink::decode(ext, reader)?;
+                    let (a, ext) = ext::MultiLink::decode(reader, ext)?;
                     ext_mlink = Some(a);
                     has_ext = ext;
                 }
@@ -183,12 +183,12 @@ impl<'a> InitSyn<'a> {
                     has_ext = ext;
                 }
                 ext::Patch::ID => {
-                    let (p, ext) = ext::PatchType::decode(ext, reader)?;
+                    let (p, ext) = ext::PatchType::decode(reader, ext)?;
                     ext_patch = p;
                     has_ext = ext;
                 }
                 _ => {
-                    has_ext = extension::skip("Init Syn", ext, reader)?;
+                    has_ext = extension::skip("Init Syn", reader, ext)?;
                 }
             }
         }
@@ -222,12 +222,12 @@ impl<'a> InitSyn<'a> {
         let zid = ZenohIdProto::default();
         let resolution = Resolution::rand();
         let batch_size: BatchSize = rng.r#gen();
-        let ext_qos = rng.gen_bool(0.5).then_some(ZExtUnit::rand());
-        let ext_qos_link = rng.gen_bool(0.5).then_some(ZExtZ64::rand());
+        let ext_qos = rng.gen_bool(0.5).then_some(ZExtUnit::rand(zbuf));
+        let ext_qos_link = rng.gen_bool(0.5).then_some(ZExtZ64::rand(zbuf));
         let ext_auth = rng.gen_bool(0.5).then_some(ZExtZBuf::rand(zbuf));
         let ext_mlink = rng.gen_bool(0.5).then_some(ZExtZBuf::rand(zbuf));
-        let ext_lowlatency = rng.gen_bool(0.5).then_some(ZExtUnit::rand());
-        let ext_compression = rng.gen_bool(0.5).then_some(ZExtUnit::rand());
+        let ext_lowlatency = rng.gen_bool(0.5).then_some(ZExtUnit::rand(zbuf));
+        let ext_compression = rng.gen_bool(0.5).then_some(ZExtUnit::rand(zbuf));
         let ext_patch = ext::PatchType::rand();
 
         Self {
@@ -309,54 +309,54 @@ impl<'a> InitAck<'a> {
 
         let flags: u8 = ((self.zid.size() as u8 - 1) << 4) | whatami;
         encode_u8(writer, flags)?;
-        self.zid.encode(false, writer)?;
+        self.zid.encode(writer, false)?;
 
         if imsg::has_flag(header, flag::S) {
             encode_u8(writer, self.resolution.as_u8())?;
             encode_array(writer, &self.batch_size.to_le_bytes())?;
         }
 
-        encode_zbuf(writer, true, self.cookie)?;
+        encode_zbuf(writer, self.cookie, true)?;
 
         if let Some(qos) = self.ext_qos.as_ref() {
             n_exts -= 1;
-            qos.encode(n_exts != 0, writer)?;
+            qos.encode(writer, n_exts != 0)?;
         }
 
         if let Some(qos_link) = self.ext_qos_link.as_ref() {
             n_exts -= 1;
-            qos_link.encode(n_exts != 0, writer)?;
+            qos_link.encode(writer, n_exts != 0)?;
         }
 
         if let Some(auth) = self.ext_auth.as_ref() {
             n_exts -= 1;
-            auth.encode(n_exts != 0, writer)?;
+            auth.encode(writer, n_exts != 0)?;
         }
 
         if let Some(mlink) = self.ext_mlink.as_ref() {
             n_exts -= 1;
-            mlink.encode(n_exts != 0, writer)?;
+            mlink.encode(writer, n_exts != 0)?;
         }
 
         if let Some(lowlatency) = self.ext_lowlatency.as_ref() {
             n_exts -= 1;
-            lowlatency.encode(n_exts != 0, writer)?;
+            lowlatency.encode(writer, n_exts != 0)?;
         }
 
         if let Some(compression) = self.ext_compression.as_ref() {
             n_exts -= 1;
-            compression.encode(n_exts != 0, writer)?;
+            compression.encode(writer, n_exts != 0)?;
         }
 
         if self.ext_patch != ext::PatchType::NONE {
             n_exts -= 1;
-            self.ext_patch.encode(n_exts != 0, writer)?;
+            self.ext_patch.encode(writer, n_exts != 0)?;
         }
 
         Ok(())
     }
 
-    pub(crate) fn decode(header: u8, reader: &mut ZBufReader<'a>) -> ZResult<Self, ZCodecError> {
+    pub(crate) fn decode(reader: &mut ZBufReader<'a>, header: u8) -> ZResult<Self, ZCodecError> {
         if imsg::mid(header) != id::INIT || !imsg::has_flag(header, flag::A) {
             zbail!(ZCodecError::CouldNotRead)
         }
@@ -372,7 +372,7 @@ impl<'a> InitAck<'a> {
         };
 
         let length = 1 + ((flags >> 4) as usize);
-        let zid: ZenohIdProto = ZenohIdProto::decode(Some(length), reader)?;
+        let zid: ZenohIdProto = ZenohIdProto::decode(reader, Some(length))?;
         let mut resolution = Resolution::default();
         let mut batch_size = batch_size::UNICAST.to_le_bytes();
 
@@ -404,17 +404,17 @@ impl<'a> InitAck<'a> {
                     has_ext = ext;
                 }
                 ext::QoSLink::ID => {
-                    let (q, ext) = ext::QoSLink::decode(ext, reader)?;
+                    let (q, ext) = ext::QoSLink::decode(reader, ext)?;
                     ext_qos_link = Some(q);
                     has_ext = ext;
                 }
                 ext::Auth::ID => {
-                    let (a, ext) = ext::Auth::decode(ext, reader)?;
+                    let (a, ext) = ext::Auth::decode(reader, ext)?;
                     ext_auth = Some(a);
                     has_ext = ext;
                 }
                 ext::MultiLink::ID => {
-                    let (a, ext) = ext::MultiLink::decode(ext, reader)?;
+                    let (a, ext) = ext::MultiLink::decode(reader, ext)?;
                     ext_mlink = Some(a);
                     has_ext = ext;
                 }
@@ -429,12 +429,12 @@ impl<'a> InitAck<'a> {
                     has_ext = ext;
                 }
                 ext::Patch::ID => {
-                    let (p, ext) = ext::PatchType::decode(ext, reader)?;
+                    let (p, ext) = ext::PatchType::decode(reader, ext)?;
                     ext_patch = p;
                     has_ext = ext;
                 }
                 _ => {
-                    has_ext = extension::skip("InitAck", ext, reader)?;
+                    has_ext = extension::skip("InitAck", reader, ext)?;
                 }
             }
         }
@@ -482,12 +482,12 @@ impl<'a> InitAck<'a> {
                 b.len()
             })
             .unwrap();
-        let ext_qos = rng.gen_bool(0.5).then_some(ZExtUnit::rand());
-        let ext_qos_link = rng.gen_bool(0.5).then_some(ZExtZ64::rand());
+        let ext_qos = rng.gen_bool(0.5).then_some(ZExtUnit::rand(zbuf));
+        let ext_qos_link = rng.gen_bool(0.5).then_some(ZExtZ64::rand(zbuf));
         let ext_auth = rng.gen_bool(0.5).then_some(ZExtZBuf::rand(zbuf));
         let ext_mlink = rng.gen_bool(0.5).then_some(ZExtZBuf::rand(zbuf));
-        let ext_lowlatency = rng.gen_bool(0.5).then_some(ZExtUnit::rand());
-        let ext_compression = rng.gen_bool(0.5).then_some(ZExtUnit::rand());
+        let ext_lowlatency = rng.gen_bool(0.5).then_some(ZExtUnit::rand(zbuf));
+        let ext_compression = rng.gen_bool(0.5).then_some(ZExtUnit::rand(zbuf));
         let ext_patch = ext::PatchType::rand();
 
         Self {

@@ -38,7 +38,7 @@ impl<'a> PushBody<'a> {
         let header = decode_u8(reader)?;
 
         match imsg::mid(header) {
-            id::PUT => Ok(PushBody::Put(Put::decode(header, reader)?)),
+            id::PUT => Ok(PushBody::Put(Put::decode(reader, header)?)),
             _ => zbail!(ZCodecError::CouldNotRead),
         }
     }
@@ -72,7 +72,7 @@ impl<'a> RequestBody<'a> {
         let header = decode_u8(reader)?;
 
         match imsg::mid(header) {
-            id::QUERY => Ok(RequestBody::Query(Query::decode(header, reader)?)),
+            id::QUERY => Ok(RequestBody::Query(Query::decode(reader, header)?)),
             _ => zbail!(ZCodecError::CouldNotRead),
         }
     }
@@ -108,8 +108,8 @@ impl<'a> ResponseBody<'a> {
         let header = decode_u8(reader)?;
 
         match imsg::mid(header) {
-            id::REPLY => Ok(ResponseBody::Reply(Reply::decode(header, reader)?)),
-            id::ERR => Ok(ResponseBody::Err(Err::decode(header, reader)?)),
+            id::REPLY => Ok(ResponseBody::Reply(Reply::decode(reader, header)?)),
+            id::ERR => Ok(ResponseBody::Err(Err::decode(reader, header)?)),
             _ => {
                 zbail!(ZCodecError::CouldNotRead)
             }
@@ -150,7 +150,7 @@ pub(crate) mod ext {
         pub(crate) sn: u32,
     }
 
-    impl<const ID: u8> SourceInfoType<{ ID }> {
+    impl<const ID: u8> SourceInfoType<ID> {
         pub(crate) fn encoded_len(&self) -> usize {
             1 + self.id.zid.encoded_len(false)
                 + encoded_len_u32(self.id.eid)
@@ -159,16 +159,16 @@ pub(crate) mod ext {
 
         pub(crate) fn encode(
             &self,
-            more: bool,
             writer: &mut ZBufWriter<'_>,
+            more: bool,
         ) -> ZResult<(), ZCodecError> {
-            let header: ZExtZBufHeader<{ ID }> = ZExtZBufHeader::new(self.encoded_len());
-            header.encode(more, writer)?;
+            let header: ZExtZBufHeader<ID> = ZExtZBufHeader::new(self.encoded_len());
+            header.encode(writer, more)?;
 
             let flags: u8 = (self.id.zid.size() as u8 - 1) << 4;
             encode_u8(writer, flags)?;
 
-            self.id.zid.encode(false, writer)?;
+            self.id.zid.encode(writer, false)?;
             encode_u32(writer, self.id.eid)?;
             encode_u32(writer, self.sn)?;
 
@@ -176,14 +176,14 @@ pub(crate) mod ext {
         }
 
         pub(crate) fn decode(
-            header: u8,
             reader: &mut ZBufReader<'_>,
+            header: u8,
         ) -> ZResult<(Self, bool), ZCodecError> {
-            let (_, more) = ZExtZBufHeader::<{ ID }>::decode(header, reader)?;
+            let (_, more) = ZExtZBufHeader::<ID>::decode(reader, header)?;
             let flags = decode_u8(reader)?;
             let length = 1 + ((flags >> 4) as usize);
 
-            let zid = ZenohIdProto::decode(Some(length), reader)?;
+            let zid = ZenohIdProto::decode(reader, Some(length))?;
             let eid = decode_u32(reader)?;
             let sn = decode_u32(reader)?;
 
@@ -213,30 +213,30 @@ pub(crate) mod ext {
         pub(crate) payload: crate::zbuf::ZBuf<'a>,
     }
 
-    impl<'a, const VID: u8, const SID: u8> ValueType<'a, { VID }, { SID }> {
+    impl<'a, const VID: u8, const SID: u8> ValueType<'a, VID, SID> {
         pub(crate) const VID: u8 = VID;
         pub(crate) const SID: u8 = SID;
 
         pub(crate) fn encode(
             &self,
-            more: bool,
             writer: &mut ZBufWriter<'_>,
+            more: bool,
         ) -> ZResult<(), ZCodecError> {
-            let header: ZExtZBufHeader<{ VID }> = ZExtZBufHeader::new(
+            let header: ZExtZBufHeader<VID> = ZExtZBufHeader::new(
                 self.encoding.encoded_len() + encoded_len_zbuf(false, self.payload),
             );
 
-            header.encode(more, writer)?;
+            header.encode(writer, more)?;
             self.encoding.encode(writer)?;
 
-            encode_zbuf(writer, false, self.payload)
+            encode_zbuf(writer, self.payload, false)
         }
 
         pub(crate) fn decode(
-            header: u8,
             reader: &mut ZBufReader<'a>,
+            header: u8,
         ) -> ZResult<(Self, bool), ZCodecError> {
-            let (h, more) = ZExtZBufHeader::<{ VID }>::decode(header, reader)?;
+            let (h, more) = ZExtZBufHeader::<VID>::decode(reader, header)?;
 
             let start = reader.remaining();
             let encoding = Encoding::decode(reader)?;
@@ -272,23 +272,23 @@ pub(crate) mod ext {
         pub(crate) buffer: crate::zbuf::ZBuf<'a>,
     }
 
-    impl<'a, const ID: u8> AttachmentType<'a, { ID }> {
+    impl<'a, const ID: u8> AttachmentType<'a, ID> {
         pub(crate) fn encode(
             &self,
-            more: bool,
             writer: &mut ZBufWriter<'_>,
+            more: bool,
         ) -> ZResult<(), ZCodecError> {
-            let header: ZExtZBufHeader<{ ID }> =
+            let header: ZExtZBufHeader<ID> =
                 ZExtZBufHeader::new(encoded_len_zbuf(false, self.buffer));
-            header.encode(more, writer)?;
-            encode_zbuf(writer, false, self.buffer)
+            header.encode(writer, more)?;
+            encode_zbuf(writer, self.buffer, false)
         }
 
         pub(crate) fn decode(
-            header: u8,
             reader: &mut ZBufReader<'a>,
+            header: u8,
         ) -> ZResult<(Self, bool), ZCodecError> {
-            let (h, more) = ZExtZBufHeader::<{ ID }>::decode(header, reader)?;
+            let (h, more) = ZExtZBufHeader::<ID>::decode(reader, header)?;
             let buffer = decode_zbuf(reader, Some(h.len))?;
             Ok((Self { buffer }, more))
         }

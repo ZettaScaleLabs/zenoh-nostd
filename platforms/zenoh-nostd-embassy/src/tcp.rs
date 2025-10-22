@@ -1,11 +1,7 @@
 use embassy_net::tcp::{TcpReader, TcpSocket, TcpWriter};
 use embedded_io_async::{Read, Write};
 use zenoh_nostd::{
-    platform::{
-        ZCommunicationError,
-        tcp::{AbstractedTcpRx, AbstractedTcpStream, AbstractedTcpTx},
-    },
-    result::ZResult,
+    AbstractedTcpRx, AbstractedTcpStream, AbstractedTcpTx, ZConnectionError, result::ZResult,
 };
 
 pub struct EmbassyTcpStream {
@@ -43,63 +39,63 @@ impl AbstractedTcpStream for EmbassyTcpStream {
         (tx, rx)
     }
 
-    async fn write(&mut self, buffer: &[u8]) -> ZResult<usize, ZCommunicationError> {
+    async fn write(&mut self, buffer: &[u8]) -> ZResult<usize, ZConnectionError> {
         self.socket
             .write(buffer)
             .await
-            .map_err(|_| ZCommunicationError::DidNotWrite)
+            .map_err(|_| ZConnectionError::CouldNotWrite)
     }
 
-    async fn write_all(&mut self, buffer: &[u8]) -> ZResult<(), ZCommunicationError> {
+    async fn write_all(&mut self, buffer: &[u8]) -> ZResult<(), ZConnectionError> {
         self.socket
             .write_all(buffer)
             .await
-            .map_err(|_| ZCommunicationError::DidNotWrite)
+            .map_err(|_| ZConnectionError::CouldNotWrite)
     }
 
-    async fn read(&mut self, buffer: &mut [u8]) -> ZResult<usize, ZCommunicationError> {
+    async fn read(&mut self, buffer: &mut [u8]) -> ZResult<usize, ZConnectionError> {
         self.socket
             .read(buffer)
             .await
-            .map_err(|_| ZCommunicationError::DidNotRead)
+            .map_err(|_| ZConnectionError::CouldNotRead)
     }
 
-    async fn read_exact(&mut self, buffer: &mut [u8]) -> ZResult<(), ZCommunicationError> {
+    async fn read_exact(&mut self, buffer: &mut [u8]) -> ZResult<(), ZConnectionError> {
         self.socket
             .read_exact(buffer)
             .await
-            .map_err(|_| ZCommunicationError::DidNotRead)
+            .map_err(|_| ZConnectionError::CouldNotRead)
     }
 }
 
 impl AbstractedTcpTx for EmbassyTcpTx<'_> {
-    async fn write(&mut self, buffer: &[u8]) -> ZResult<usize, ZCommunicationError> {
+    async fn write(&mut self, buffer: &[u8]) -> ZResult<usize, ZConnectionError> {
         self.socket
             .write(buffer)
             .await
-            .map_err(|_| ZCommunicationError::DidNotWrite)
+            .map_err(|_| ZConnectionError::CouldNotWrite)
     }
 
-    async fn write_all(&mut self, buffer: &[u8]) -> ZResult<(), ZCommunicationError> {
+    async fn write_all(&mut self, buffer: &[u8]) -> ZResult<(), ZConnectionError> {
         self.socket
             .write_all(buffer)
             .await
-            .map_err(|_| ZCommunicationError::DidNotWrite)
+            .map_err(|_| ZConnectionError::CouldNotWrite)
     }
 }
 
 impl AbstractedTcpRx for EmbassyTcpRx<'_> {
-    async fn read(&mut self, buffer: &mut [u8]) -> ZResult<usize, ZCommunicationError> {
+    async fn read(&mut self, buffer: &mut [u8]) -> ZResult<usize, ZConnectionError> {
         self.socket
             .read(buffer)
             .await
-            .map_err(|_| ZCommunicationError::DidNotRead)
+            .map_err(|_| ZConnectionError::CouldNotRead)
     }
 
-    async fn read_exact(&mut self, buffer: &mut [u8]) -> ZResult<(), ZCommunicationError> {
+    async fn read_exact(&mut self, buffer: &mut [u8]) -> ZResult<(), ZConnectionError> {
         self.socket
             .read_exact(buffer)
             .await
-            .map_err(|_| ZCommunicationError::DidNotRead)
+            .map_err(|_| ZConnectionError::CouldNotRead)
     }
 }

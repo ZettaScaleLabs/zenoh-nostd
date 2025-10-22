@@ -41,7 +41,7 @@ impl<'a> Reply<'a> {
         self.payload.encode(writer)
     }
 
-    pub(crate) fn decode(header: u8, reader: &mut ZBufReader<'a>) -> ZResult<Self, ZCodecError> {
+    pub(crate) fn decode(reader: &mut ZBufReader<'a>, header: u8) -> ZResult<Self, ZCodecError> {
         if imsg::mid(header) != id::REPLY {
             zbail!(ZCodecError::CouldNotRead);
         }

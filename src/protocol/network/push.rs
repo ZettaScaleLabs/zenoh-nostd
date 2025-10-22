@@ -75,23 +75,23 @@ impl<'a> Push<'a> {
 
         if self.ext_qos != ext::QoSType::DEFAULT {
             n_exts -= 1;
-            self.ext_qos.encode(n_exts != 0, writer)?;
+            self.ext_qos.encode(writer, n_exts != 0)?;
         }
 
         if let Some(ts) = self.ext_tstamp.as_ref() {
             n_exts -= 1;
-            ts.encode(n_exts != 0, writer)?;
+            ts.encode(writer, n_exts != 0)?;
         }
 
         if self.ext_nodeid != ext::NodeIdType::DEFAULT {
             n_exts -= 1;
-            self.ext_nodeid.encode(n_exts != 0, writer)?;
+            self.ext_nodeid.encode(writer, n_exts != 0)?;
         }
 
         self.payload.encode(writer)
     }
 
-    pub(crate) fn decode(header: u8, reader: &mut ZBufReader<'a>) -> ZResult<Self, ZCodecError> {
+    pub(crate) fn decode(reader: &mut ZBufReader<'a>, header: u8) -> ZResult<Self, ZCodecError> {
         if imsg::mid(header) != Self::ID {
             zbail!(ZCodecError::CouldNotRead);
         }
@@ -115,22 +115,22 @@ impl<'a> Push<'a> {
 
             match iext::eheader(ext) {
                 ext::QoS::ID => {
-                    let (q, ext) = ext::QoSType::decode(ext, reader)?;
+                    let (q, ext) = ext::QoSType::decode(reader, ext)?;
                     ext_qos = q;
                     has_ext = ext;
                 }
                 ext::Timestamp::ID => {
-                    let (t, ext) = ext::TimestampType::decode(ext, reader)?;
+                    let (t, ext) = ext::TimestampType::decode(reader, ext)?;
                     ext_tstamp = Some(t);
                     has_ext = ext;
                 }
                 ext::NodeId::ID => {
-                    let (nid, ext) = ext::NodeIdType::decode(ext, reader)?;
+                    let (nid, ext) = ext::NodeIdType::decode(reader, ext)?;
                     ext_nodeid = nid;
                     has_ext = ext;
                 }
                 _ => {
-                    has_ext = extension::skip("Push", ext, reader)?;
+                    has_ext = extension::skip("Push", reader, ext)?;
                 }
             }
         }

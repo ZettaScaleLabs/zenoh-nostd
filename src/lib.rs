@@ -14,7 +14,7 @@ pub use protocol::{core::endpoint::EndPoint, keyexpr::borrowed::keyexpr};
 pub(crate) mod platform;
 #[cfg(feature = "platform-std")]
 pub use platform::platform_std::PlatformStd;
-pub use platform::{Platform, tcp::*};
+pub use platform::{Platform, ZConnectionError, tcp::*};
 
 pub(crate) mod io;
 pub use io::transport::Transport;

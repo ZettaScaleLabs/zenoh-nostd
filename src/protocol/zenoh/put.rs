@@ -75,18 +75,18 @@ impl<'a> Put<'a> {
 
         if let Some(sinfo) = self.ext_sinfo.as_ref() {
             n_exts -= 1;
-            sinfo.encode(n_exts != 0, writer)?;
+            sinfo.encode(writer, n_exts != 0)?;
         }
 
         if let Some(att) = self.ext_attachment.as_ref() {
             n_exts -= 1;
-            att.encode(n_exts != 0, writer)?;
+            att.encode(writer, n_exts != 0)?;
         }
 
-        encode_zbuf(writer, true, self.payload)
+        encode_zbuf(writer, self.payload, true)
     }
 
-    pub(crate) fn decode(header: u8, reader: &mut ZBufReader<'a>) -> ZResult<Self, ZCodecError> {
+    pub(crate) fn decode(reader: &mut ZBufReader<'a>, header: u8) -> ZResult<Self, ZCodecError> {
         if imsg::mid(header) != Self::ID {
             zbail!(ZCodecError::CouldNotRead);
         }
@@ -110,18 +110,18 @@ impl<'a> Put<'a> {
 
             match iext::eheader(ext) {
                 ext::SourceInfo::ID => {
-                    let (s, ext) = ext::SourceInfoType::decode(ext, reader)?;
+                    let (s, ext) = ext::SourceInfoType::decode(reader, ext)?;
 
                     ext_sinfo = Some(s);
                     has_ext = ext;
                 }
                 ext::Attachment::ID => {
-                    let (a, ext) = ext::AttachmentType::decode(ext, reader)?;
+                    let (a, ext) = ext::AttachmentType::decode(reader, ext)?;
                     ext_attachment = Some(a);
                     has_ext = ext;
                 }
                 _ => {
-                    has_ext = extension::skip("Put", ext, reader)?;
+                    has_ext = extension::skip("Put", reader, ext)?;
                 }
             }
         }
@@ -149,7 +149,7 @@ impl<'a> Put<'a> {
             use crate::protocol::core::ZenohIdProto;
 
             let time = uhlc::NTP64(rng.r#gen());
-            let id = uhlc::ID::try_from(ZenohIdProto::rand().as_le_bytes()).unwrap();
+            let id = uhlc::ID::try_from(ZenohIdProto::default().as_le_bytes()).unwrap();
             Timestamp::new(time, id)
         });
         let encoding = Encoding::rand(zbuf);

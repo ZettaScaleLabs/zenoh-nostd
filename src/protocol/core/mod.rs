@@ -34,7 +34,8 @@ impl ZenohIdProto {
         self.0.to_le_bytes()
     }
 
-    pub(crate) fn rand() -> ZenohIdProto {
+    #[cfg(test)]
+    pub(crate) fn rand(_: &mut ZBufWriter<'_>) -> ZenohIdProto {
         ZenohIdProto(uhlc::ID::rand())
     }
 
@@ -44,15 +45,15 @@ impl ZenohIdProto {
 
     pub(crate) fn encode(
         &self,
-        len: bool,
         writer: &mut ZBufWriter<'_>,
+        len: bool,
     ) -> ZResult<(), ZCodecError> {
-        encode_zbuf(writer, len, &self.as_le_bytes()[..self.size()])
+        encode_zbuf(writer, &self.as_le_bytes()[..self.size()], len)
     }
 
     pub(crate) fn decode(
-        len: Option<usize>,
         reader: &mut ZBufReader<'_>,
+        len: Option<usize>,
     ) -> ZResult<Self, ZCodecError> {
         let zbuf = decode_zbuf(reader, len)?;
 
@@ -62,7 +63,7 @@ impl ZenohIdProto {
 
 impl Default for ZenohIdProto {
     fn default() -> Self {
-        Self::rand()
+        Self(uhlc::ID::rand())
     }
 }
 
@@ -114,7 +115,7 @@ impl EntityGlobalIdProto {
     pub(crate) fn rand() -> Self {
         use rand::Rng;
         Self {
-            zid: ZenohIdProto::rand(),
+            zid: ZenohIdProto::default(),
             eid: rand::thread_rng().r#gen(),
         }
     }

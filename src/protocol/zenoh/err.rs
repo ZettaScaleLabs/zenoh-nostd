@@ -48,13 +48,13 @@ impl<'a> Err<'a> {
 
         if let Some(sinfo) = self.ext_sinfo.as_ref() {
             n_exts -= 1;
-            sinfo.encode(n_exts != 0, writer)?;
+            sinfo.encode(writer, n_exts != 0)?;
         }
 
-        encode_zbuf(writer, true, self.payload)
+        encode_zbuf(writer, self.payload, true)
     }
 
-    pub(crate) fn decode(header: u8, reader: &mut ZBufReader<'a>) -> ZResult<Self, ZCodecError> {
+    pub(crate) fn decode(reader: &mut ZBufReader<'a>, header: u8) -> ZResult<Self, ZCodecError> {
         if imsg::mid(header) != id::ERR {
             zbail!(ZCodecError::CouldNotRead);
         }
@@ -71,13 +71,13 @@ impl<'a> Err<'a> {
             let ext = decode_u8(reader)?;
             match iext::eheader(ext) {
                 ext::SourceInfo::ID => {
-                    let (s, ext) = ext::SourceInfoType::decode(ext, reader)?;
+                    let (s, ext) = ext::SourceInfoType::decode(reader, ext)?;
 
                     ext_sinfo = Some(s);
                     has_ext = ext;
                 }
                 _ => {
-                    has_ext = extension::skip("Err", ext, reader)?;
+                    has_ext = extension::skip("Err", reader, ext)?;
                 }
             }
         }

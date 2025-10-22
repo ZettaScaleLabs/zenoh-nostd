@@ -44,7 +44,7 @@ impl<'a> WireExpr<'a> {
         encode_u16(writer, self.scope)?;
 
         if !self.suffix.is_empty() {
-            encode_str(writer, true, self.suffix)?;
+            encode_str(writer, self.suffix, true)?;
         }
 
         Ok(())

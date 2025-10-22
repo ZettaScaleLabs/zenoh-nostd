@@ -108,13 +108,13 @@ impl FrameHeader {
         encode_u32(writer, self.sn)?;
 
         if self.ext_qos != ext::QoSType::DEFAULT {
-            self.ext_qos.encode(false, writer)?;
+            self.ext_qos.encode(writer, false)?;
         }
 
         Ok(())
     }
 
-    pub(crate) fn decode(header: u8, reader: &mut ZBufReader<'_>) -> ZResult<Self, ZCodecError> {
+    pub(crate) fn decode(reader: &mut ZBufReader<'_>, header: u8) -> ZResult<Self, ZCodecError> {
         if imsg::mid(header) != id::FRAME {
             zbail!(ZCodecError::CouldNotRead)
         }
@@ -132,12 +132,12 @@ impl FrameHeader {
             let ext: u8 = decode_u8(reader)?;
             match iext::eheader(ext) {
                 ext::QoS::ID => {
-                    let (q, ext) = ext::QoSType::decode(ext, reader)?;
+                    let (q, ext) = ext::QoSType::decode(reader, ext)?;
                     ext_qos = q;
                     has_ext = ext;
                 }
                 _ => {
-                    has_ext = extension::skip("Frame", ext, reader)?;
+                    has_ext = extension::skip("Frame", reader, ext)?;
                 }
             }
         }
@@ -150,7 +150,7 @@ impl FrameHeader {
     }
 
     #[cfg(test)]
-    pub(crate) fn rand() -> Self {
+    pub(crate) fn rand(_: &mut ZBufWriter<'_>) -> Self {
         use rand::Rng;
 
         let mut rng = rand::thread_rng();

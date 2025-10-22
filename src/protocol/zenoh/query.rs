@@ -102,28 +102,28 @@ impl<'a> Query<'a> {
         }
 
         if !self.parameters.is_empty() {
-            encode_str(writer, true, self.parameters)?;
+            encode_str(writer, self.parameters, true)?;
         }
 
         if let Some(sinfo) = self.ext_sinfo.as_ref() {
             n_exts -= 1;
-            sinfo.encode(n_exts != 0, writer)?;
+            sinfo.encode(writer, n_exts != 0)?;
         }
 
         if let Some(body) = self.ext_body.as_ref() {
             n_exts -= 1;
-            body.encode(n_exts != 0, writer)?;
+            body.encode(writer, n_exts != 0)?;
         }
 
         if let Some(att) = self.ext_attachment.as_ref() {
             n_exts -= 1;
-            att.encode(n_exts != 0, writer)?;
+            att.encode(writer, n_exts != 0)?;
         }
 
         Ok(())
     }
 
-    pub(crate) fn decode(header: u8, reader: &mut ZBufReader<'a>) -> ZResult<Self, ZCodecError> {
+    pub(crate) fn decode(reader: &mut ZBufReader<'a>, header: u8) -> ZResult<Self, ZCodecError> {
         if imsg::mid(header) != id::QUERY {
             zbail!(ZCodecError::CouldNotRead);
         }
@@ -148,25 +148,25 @@ impl<'a> Query<'a> {
 
             match iext::eheader(ext) {
                 ext::SourceInfo::ID => {
-                    let (s, ext) = ext::SourceInfoType::decode(ext, reader)?;
+                    let (s, ext) = ext::SourceInfoType::decode(reader, ext)?;
 
                     ext_sinfo = Some(s);
                     has_ext = ext;
                 }
                 ext::QueryBodyType::SID | ext::QueryBodyType::VID => {
-                    let (s, ext) = ext::QueryBodyType::decode(ext, reader)?;
+                    let (s, ext) = ext::QueryBodyType::decode(reader, ext)?;
 
                     ext_body = Some(s);
                     has_ext = ext;
                 }
                 ext::Attachment::ID => {
-                    let (a, ext) = ext::AttachmentType::decode(ext, reader)?;
+                    let (a, ext) = ext::AttachmentType::decode(reader, ext)?;
 
                     ext_attachment = Some(a);
                     has_ext = ext;
                 }
                 _ => {
-                    has_ext = extension::skip("Query", ext, reader)?;
+                    has_ext = extension::skip("Query", reader, ext)?;
                 }
             }
         }

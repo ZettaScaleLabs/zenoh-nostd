@@ -75,21 +75,21 @@ impl<'a> NetworkMessage<'a> {
     }
 
     pub(crate) fn decode(
-        reliability: Reliability,
         reader: &mut ZBufReader<'a>,
+        reliability: Reliability,
     ) -> ZResult<Self, ZCodecError> {
         let header = decode_u8(reader)?;
 
         let body = match imsg::mid(header) {
-            id::PUSH => NetworkBody::Push(Push::decode(header, reader)?),
-            id::REQUEST => NetworkBody::Request(Request::decode(header, reader)?),
-            id::RESPONSE => NetworkBody::Response(Response::decode(header, reader)?),
+            id::PUSH => NetworkBody::Push(Push::decode(reader, header)?),
+            id::REQUEST => NetworkBody::Request(Request::decode(reader, header)?),
+            id::RESPONSE => NetworkBody::Response(Response::decode(reader, header)?),
             id::RESPONSE_FINAL => {
-                NetworkBody::ResponseFinal(ResponseFinal::decode(header, reader)?)
+                NetworkBody::ResponseFinal(ResponseFinal::decode(reader, header)?)
             }
 
-            id::INTEREST => NetworkBody::Interest(Interest::decode(header, reader)?),
-            id::DECLARE => NetworkBody::Declare(Declare::decode(header, reader)?),
+            id::INTEREST => NetworkBody::Interest(Interest::decode(reader, header)?),
+            id::DECLARE => NetworkBody::Declare(Declare::decode(reader, header)?),
             _ => zbail!(ZCodecError::CouldNotRead),
         };
 
@@ -106,7 +106,7 @@ impl<'a> NetworkMessage<'a> {
             0 => NetworkBody::Push(Push::rand(zbuf)),
             1 => NetworkBody::Request(Request::rand(zbuf)),
             2 => NetworkBody::Response(Response::rand(zbuf)),
-            3 => NetworkBody::ResponseFinal(ResponseFinal::rand()),
+            3 => NetworkBody::ResponseFinal(ResponseFinal::rand(zbuf)),
             4 => NetworkBody::Declare(Declare::rand(zbuf)),
             _ => unreachable!(),
         };
@@ -164,7 +164,7 @@ pub(crate) mod ext {
         inner: u8,
     }
 
-    impl<const ID: u8> QoSType<{ ID }> {
+    impl<const ID: u8> QoSType<ID> {
         const P_MASK: u8 = 0b00000111;
         const D_FLAG: u8 = 0b00001000;
         const E_FLAG: u8 = 0b00010000;
@@ -214,18 +214,18 @@ pub(crate) mod ext {
 
         pub(crate) fn encode(
             &self,
-            more: bool,
             writer: &mut ZBufWriter<'_>,
+            more: bool,
         ) -> ZResult<(), ZCodecError> {
-            let ext: ZExtZ64<{ ID }> = (*self).into();
-            ext.encode(more, writer)
+            let ext: ZExtZ64<ID> = (*self).into();
+            ext.encode(writer, more)
         }
 
         pub(crate) fn decode(
-            header: u8,
             reader: &mut ZBufReader<'_>,
+            header: u8,
         ) -> ZResult<(Self, bool), ZCodecError> {
-            let (ext, more) = ZExtZ64::<{ ID }>::decode(header, reader)?;
+            let (ext, more) = ZExtZ64::<ID>::decode(reader, header)?;
             Ok((ext.into(), more))
         }
 
@@ -239,27 +239,27 @@ pub(crate) mod ext {
         }
     }
 
-    impl<const ID: u8> Default for QoSType<{ ID }> {
+    impl<const ID: u8> Default for QoSType<ID> {
         fn default() -> Self {
             Self::new(Priority::DEFAULT, CongestionControl::DEFAULT, false)
         }
     }
 
-    impl<const ID: u8> From<ZExtZ64<{ ID }>> for QoSType<{ ID }> {
-        fn from(ext: ZExtZ64<{ ID }>) -> Self {
+    impl<const ID: u8> From<ZExtZ64<ID>> for QoSType<ID> {
+        fn from(ext: ZExtZ64<ID>) -> Self {
             Self {
                 inner: ext.value as u8,
             }
         }
     }
 
-    impl<const ID: u8> From<QoSType<{ ID }>> for ZExtZ64<{ ID }> {
-        fn from(ext: QoSType<{ ID }>) -> Self {
+    impl<const ID: u8> From<QoSType<ID>> for ZExtZ64<ID> {
+        fn from(ext: QoSType<ID>) -> Self {
             ZExtZ64::new(ext.inner as u64)
         }
     }
 
-    impl<const ID: u8> fmt::Debug for QoSType<{ ID }> {
+    impl<const ID: u8> fmt::Debug for QoSType<ID> {
         fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
             f.debug_struct("QoS")
                 .field("priority", &self.get_priority())
@@ -274,23 +274,23 @@ pub(crate) mod ext {
         pub(crate) timestamp: uhlc::Timestamp,
     }
 
-    impl<const ID: u8> TimestampType<{ ID }> {
+    impl<const ID: u8> TimestampType<ID> {
         pub(crate) fn encode(
             &self,
-            more: bool,
             writer: &mut ZBufWriter<'_>,
+            more: bool,
         ) -> ZResult<(), ZCodecError> {
-            let header: ZExtZBufHeader<{ ID }> =
+            let header: ZExtZBufHeader<ID> =
                 ZExtZBufHeader::new(encoded_len_timestamp(&self.timestamp));
-            header.encode(more, writer)?;
+            header.encode(writer, more)?;
             encode_timestamp(writer, &self.timestamp)
         }
 
         pub(crate) fn decode(
-            header: u8,
             reader: &mut ZBufReader<'_>,
+            header: u8,
         ) -> ZResult<(Self, bool), ZCodecError> {
-            let (_, more) = ZExtZBufHeader::<{ ID }>::decode(header, reader)?;
+            let (_, more) = ZExtZBufHeader::<ID>::decode(reader, header)?;
             let timestamp = decode_timestamp(reader)?;
             Ok((Self { timestamp }, more))
         }
@@ -301,7 +301,7 @@ pub(crate) mod ext {
             let mut rng = rand::thread_rng();
 
             let time = uhlc::NTP64(rng.r#gen());
-            let id = uhlc::ID::try_from(ZenohIdProto::rand().as_le_bytes()).unwrap();
+            let id = uhlc::ID::try_from(ZenohIdProto::default().as_le_bytes()).unwrap();
             let timestamp = uhlc::Timestamp::new(time, id);
             Self { timestamp }
         }
@@ -312,23 +312,23 @@ pub(crate) mod ext {
         pub(crate) node_id: u16,
     }
 
-    impl<const ID: u8> NodeIdType<{ ID }> {
+    impl<const ID: u8> NodeIdType<ID> {
         pub(crate) const DEFAULT: Self = Self { node_id: 0 };
 
         pub(crate) fn encode(
             &self,
-            more: bool,
             writer: &mut ZBufWriter<'_>,
+            more: bool,
         ) -> ZResult<(), ZCodecError> {
-            let ext: ZExtZ64<{ ID }> = (*self).into();
-            ext.encode(more, writer)
+            let ext: ZExtZ64<ID> = (*self).into();
+            ext.encode(writer, more)
         }
 
         pub(crate) fn decode(
-            header: u8,
             reader: &mut ZBufReader<'_>,
+            header: u8,
         ) -> ZResult<(Self, bool), ZCodecError> {
-            let (ext, more) = ZExtZ64::<{ ID }>::decode(header, reader)?;
+            let (ext, more) = ZExtZ64::<ID>::decode(reader, header)?;
             Ok((ext.into(), more))
         }
 
@@ -341,22 +341,22 @@ pub(crate) mod ext {
         }
     }
 
-    impl<const ID: u8> Default for NodeIdType<{ ID }> {
+    impl<const ID: u8> Default for NodeIdType<ID> {
         fn default() -> Self {
             Self::DEFAULT
         }
     }
 
-    impl<const ID: u8> From<ZExtZ64<{ ID }>> for NodeIdType<{ ID }> {
-        fn from(ext: ZExtZ64<{ ID }>) -> Self {
+    impl<const ID: u8> From<ZExtZ64<ID>> for NodeIdType<ID> {
+        fn from(ext: ZExtZ64<ID>) -> Self {
             Self {
                 node_id: ext.value as u16,
             }
         }
     }
 
-    impl<const ID: u8> From<NodeIdType<{ ID }>> for ZExtZ64<{ ID }> {
-        fn from(ext: NodeIdType<{ ID }>) -> Self {
+    impl<const ID: u8> From<NodeIdType<ID>> for ZExtZ64<ID> {
+        fn from(ext: NodeIdType<ID>) -> Self {
             ZExtZ64::new(ext.node_id as u64)
         }
     }
@@ -367,34 +367,34 @@ pub(crate) mod ext {
         pub(crate) eid: EntityId,
     }
 
-    impl<const ID: u8> EntityGlobalIdType<{ ID }> {
+    impl<const ID: u8> EntityGlobalIdType<ID> {
         pub(crate) fn encoded_len(&self) -> usize {
             1 + self.zid.encoded_len(false) + encoded_len_u32(self.eid)
         }
 
         pub(crate) fn encode(
             &self,
-            more: bool,
             writer: &mut ZBufWriter<'_>,
+            more: bool,
         ) -> ZResult<(), ZCodecError> {
-            let header = ZExtZBufHeader::<{ ID }>::new(self.encoded_len());
-            header.encode(more, writer)?;
+            let header = ZExtZBufHeader::<ID>::new(self.encoded_len());
+            header.encode(writer, more)?;
 
             let flags: u8 = (self.zid.size() as u8 - 1) << 4;
             encode_u8(writer, flags)?;
-            self.zid.encode(false, writer)?;
+            self.zid.encode(writer, false)?;
             encode_u32(writer, self.eid)
         }
 
         pub(crate) fn decode(
-            header: u8,
             reader: &mut ZBufReader<'_>,
+            header: u8,
         ) -> ZResult<(Self, bool), ZCodecError> {
-            let (_, more) = ZExtZBufHeader::<{ ID }>::decode(header, reader)?;
+            let (_, more) = ZExtZBufHeader::<ID>::decode(reader, header)?;
 
             let flags = decode_u8(reader)?;
             let length = 1 + ((flags >> 4) as usize);
-            let zid = ZenohIdProto::decode(Some(length), reader)?;
+            let zid = ZenohIdProto::decode(reader, Some(length))?;
             let eid = decode_u32(reader)?;
 
             Ok((Self { zid, eid }, more))
@@ -405,7 +405,7 @@ pub(crate) mod ext {
             use rand::Rng;
             let mut rng = rand::thread_rng();
 
-            let zid = ZenohIdProto::rand();
+            let zid = ZenohIdProto::default();
             let eid: EntityId = rng.r#gen();
             Self { zid, eid }
         }
