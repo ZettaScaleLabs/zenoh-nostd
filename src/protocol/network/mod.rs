@@ -3,6 +3,7 @@ use core::fmt;
 use crate::{
     protocol::{
         ZCodecError,
+        codec::decode_u8,
         common::imsg,
         core::Reliability,
         network::{
@@ -12,7 +13,6 @@ use crate::{
             request::Request,
             response::{Response, ResponseFinal},
         },
-        zcodec::decode_u8,
     },
     result::ZResult,
     zbail,
@@ -144,15 +144,15 @@ pub(crate) mod ext {
     use crate::{
         protocol::{
             ZCodecError,
+            codec::{
+                decode_timestamp, decode_u8, decode_u32, encode_timestamp, encode_u8, encode_u32,
+                encoded_len_timestamp, encoded_len_u32,
+            },
             common::{
                 extension::{ZExtZ64, ZExtZBufHeader},
                 imsg,
             },
             core::{CongestionControl, EntityId, Priority, ZenohIdProto},
-            zcodec::{
-                decode_timestamp, decode_u8, decode_u32, encode_timestamp, encode_u8, encode_u32,
-                encoded_len_timestamp, encoded_len_u32,
-            },
         },
         result::ZResult,
         zbuf::{ZBufReader, ZBufWriter},

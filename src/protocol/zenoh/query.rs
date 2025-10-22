@@ -1,11 +1,11 @@
 use crate::{
     protocol::{
         ZCodecError,
+        codec::{decode_str, decode_u8, encode_str, encode_u8, encode_u64},
         common::{
             extension::{self, iext},
             imsg,
         },
-        zcodec::{decode_str, decode_u8, encode_str, encode_u8, encode_u64},
         zenoh::id,
     },
     result::ZResult,

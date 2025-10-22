@@ -3,15 +3,15 @@ use core::time::Duration;
 use crate::{
     protocol::{
         ZCodecError,
+        codec::{
+            decode_u8, decode_u32, decode_u64, decode_zbuf, encode_u8, encode_u32, encode_u64,
+            encode_zbuf,
+        },
         common::{
             extension::{self, iext},
             imsg,
         },
         transport::{TransportSn, id},
-        zcodec::{
-            decode_u8, decode_u32, decode_u64, decode_zbuf, encode_u8, encode_u32, encode_u64,
-            encode_zbuf,
-        },
     },
     result::ZResult,
     zbail,

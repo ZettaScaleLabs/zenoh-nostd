@@ -1,6 +1,7 @@
 use crate::{
     protocol::{
         ZCodecError,
+        codec::{decode_u8, decode_u32, encode_u8, encode_u32},
         common::{
             extension::{self, iext},
             imsg,
@@ -12,7 +13,6 @@ use crate::{
             queryable::{DeclareQueryable, UndeclareQueryable},
             subscriber::{DeclareSubscriber, UndeclareSubscriber},
         },
-        zcodec::{decode_u8, decode_u32, encode_u8, encode_u32},
     },
     result::ZResult,
     zbail,
@@ -88,7 +88,7 @@ impl<'a> Declare<'a> {
 
         let mut has_ext = imsg::has_flag(header, declare::flag::Z);
         while has_ext {
-            let ext: u8 = crate::protocol::zcodec::decode_u8(reader)?;
+            let ext: u8 = crate::protocol::codec::decode_u8(reader)?;
             match iext::eheader(ext) {
                 declare::ext::QoS::ID => {
                     let (q, ext) = declare::ext::QoSType::decode(reader, ext)?;
@@ -246,9 +246,9 @@ pub(crate) mod common {
     use crate::{
         protocol::{
             ZCodecError,
+            codec::encode_u8,
             common::{extension, imsg},
             network::declare::{self, common, token},
-            zcodec::encode_u8,
         },
         result::ZResult,
         zbail,
@@ -291,10 +291,10 @@ pub(crate) mod common {
         use crate::{
             protocol::{
                 ZCodecError,
+                codec::{decode_u16, encode_str, encode_u8, encode_u16},
                 common::imsg,
                 core::wire_expr::{ExprId, ExprLen, WireExpr},
                 network::{Mapping, declare::common},
-                zcodec::{decode_u16, encode_str, encode_u8, encode_u16},
             },
             result::ZResult,
             zbuf::{BufReaderExt, BufWriterExt, ZBuf, ZBufExt, ZBufMutExt, ZBufReader, ZBufWriter},
@@ -405,10 +405,10 @@ pub(crate) mod keyexpr {
     use crate::{
         protocol::{
             ZCodecError,
+            codec::{decode_u16, encode_u8, encode_u16},
             common::{extension, imsg},
             core::wire_expr::{ExprId, WireExpr},
             network::declare::{self, keyexpr},
-            zcodec::{decode_u16, encode_u8, encode_u16},
         },
         result::ZResult,
         zbail,
@@ -519,13 +519,13 @@ pub(crate) mod subscriber {
     use crate::{
         protocol::{
             ZCodecError,
+            codec::{decode_u32, encode_u32},
             common::{
                 extension::{self, iext},
                 imsg,
             },
             core::{EntityId, wire_expr::WireExpr},
             network::{Mapping, declare},
-            zcodec::{decode_u32, encode_u32},
         },
         result::ZResult,
         zbail,
@@ -674,13 +674,13 @@ pub(crate) mod queryable {
     use crate::{
         protocol::{
             ZCodecError,
+            codec::{decode_u32, encode_u32},
             common::{
                 extension::{self, iext},
                 imsg,
             },
             core::{EntityId, wire_expr::WireExpr},
             network::{Mapping, declare},
-            zcodec::{decode_u32, encode_u32},
         },
         result::ZResult,
         zbail,

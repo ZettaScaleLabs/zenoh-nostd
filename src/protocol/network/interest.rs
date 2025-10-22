@@ -6,13 +6,13 @@ use core::{
 use crate::{
     protocol::{
         ZCodecError,
+        codec::{decode_u8, decode_u32, encode_u8, encode_u32},
         common::{
             extension::{self, iext},
             imsg::{self, HEADER_BITS},
         },
         core::wire_expr::WireExpr,
         network::{Mapping, declare, id, interest},
-        zcodec::{decode_u8, decode_u32, encode_u8, encode_u32},
     },
     result::ZResult,
     zbail,

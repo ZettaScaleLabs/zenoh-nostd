@@ -1,13 +1,13 @@
 use crate::{
     protocol::{
         ZCodecError,
+        codec::{decode_u8, decode_u32, encode_u8, encode_u32},
         common::{
             extension::{self, iext},
             imsg,
         },
         core::wire_expr::WireExpr,
         network::{Mapping, id, request::RequestId},
-        zcodec::{decode_u8, decode_u32, encode_u8, encode_u32},
         zenoh::ResponseBody,
     },
     result::ZResult,

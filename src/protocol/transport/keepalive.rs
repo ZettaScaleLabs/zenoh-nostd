@@ -1,9 +1,9 @@
 use crate::{
     protocol::{
         ZCodecError,
+        codec::encode_u8,
         common::{extension, imsg},
         transport::id,
-        zcodec::encode_u8,
     },
     result::ZResult,
     zbail,

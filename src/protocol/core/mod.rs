@@ -7,7 +7,7 @@ use core::{
 use crate::{
     protocol::{
         ZCodecError, ZProtocolError,
-        zcodec::{decode_zbuf, encode_zbuf, encoded_len_zbuf},
+        codec::{decode_zbuf, encode_zbuf, encoded_len_zbuf},
     },
     result::ZResult,
     zbuf::{ZBufReader, ZBufWriter},

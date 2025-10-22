@@ -5,9 +5,9 @@ use heapless::String;
 use crate::{
     protocol::{
         ZCodecError, ZProtocolError,
+        codec::{decode_str, decode_u16, encode_str, encode_u16},
         keyexpr::borrowed::keyexpr,
         network::Mapping,
-        zcodec::{decode_str, decode_u16, encode_str, encode_u16},
     },
     result::ZResult,
     zbuf::{ZBufReader, ZBufWriter},

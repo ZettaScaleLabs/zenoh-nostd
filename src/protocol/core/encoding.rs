@@ -3,10 +3,10 @@ use core::fmt::Debug;
 use crate::{
     protocol::{
         ZCodecError,
-        common::imsg,
-        zcodec::{
+        codec::{
             decode_u32, decode_zbuf, encode_u32, encode_zbuf, encoded_len_u32, encoded_len_zbuf,
         },
+        common::imsg,
     },
     result::ZResult,
     zbuf::{ZBuf, ZBufReader, ZBufWriter},

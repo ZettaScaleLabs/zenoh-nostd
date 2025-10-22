@@ -10,9 +10,9 @@ use crate::{
     },
     platform::Platform,
     protocol::{
+        codec::encode_array,
         core::{ZenohIdProto, resolution::Resolution, whatami::WhatAmI},
         transport::{BatchSize, TransportMessage, TransportSn},
-        zcodec::encode_array,
     },
     result::ZResult,
     zbail,

@@ -1,8 +1,8 @@
 use crate::{
     protocol::{
         ZCodecError,
+        codec::decode_u8,
         common::imsg,
-        zcodec::decode_u8,
         zenoh::{err::Err, put::Put, query::Query, reply::Reply},
     },
     result::ZResult,
@@ -133,12 +133,12 @@ pub(crate) mod ext {
     use crate::{
         protocol::{
             ZCodecError,
-            common::extension::ZExtZBufHeader,
-            core::{EntityGlobalIdProto, ZenohIdProto, encoding::Encoding},
-            zcodec::{
+            codec::{
                 decode_u8, decode_u32, decode_zbuf, encode_u8, encode_u32, encode_zbuf,
                 encoded_len_u32, encoded_len_zbuf,
             },
+            common::extension::ZExtZBufHeader,
+            core::{EntityGlobalIdProto, ZenohIdProto, encoding::Encoding},
         },
         result::ZResult,
         zbuf::{BufReaderExt, ZBufReader, ZBufWriter},

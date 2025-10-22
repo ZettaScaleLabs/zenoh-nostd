@@ -1,14 +1,14 @@
 use crate::{
     protocol::{
         ZCodecError,
+        codec::{
+            decode_timestamp, decode_u8, decode_zbuf, encode_timestamp, encode_u8, encode_zbuf,
+        },
         common::{
             extension::{self, iext},
             imsg,
         },
         core::encoding::Encoding,
-        zcodec::{
-            decode_timestamp, decode_u8, decode_zbuf, encode_timestamp, encode_u8, encode_zbuf,
-        },
     },
     result::ZResult,
     zbail,

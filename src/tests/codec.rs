@@ -4,6 +4,7 @@ use std::string::{String, ToString};
 use crate::{
     protocol::{
         ZCodecError,
+        codec::*,
         core::{encoding::*, wire_expr::WireExpr, *},
         network::{
             self,
@@ -18,7 +19,6 @@ use crate::{
             self, TransportBody, TransportMessage, TransportSn, frame::*, init::*, keepalive::*,
             open::*,
         },
-        zcodec::*,
         zenoh::{PushBody, err::*, put::*, query::*, reply::*},
     },
     result::ZResult,

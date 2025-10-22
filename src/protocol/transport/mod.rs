@@ -8,6 +8,7 @@ use core::fmt;
 use crate::{
     protocol::{
         ZCodecError,
+        codec::decode_u8,
         common::imsg,
         network::NetworkMessage,
         transport::{
@@ -17,7 +18,6 @@ use crate::{
             keepalive::KeepAlive,
             open::{OpenAck, OpenSyn},
         },
-        zcodec::decode_u8,
     },
     result::ZResult,
     zbuf::{BufReaderExt, ZBufReader, ZBufWriter},

@@ -1,13 +1,13 @@
 use crate::{
     protocol::{
         ZCodecError,
+        codec::{decode_array, decode_u8, decode_zbuf, encode_array, encode_u8, encode_zbuf},
         common::{
             extension::{self, iext},
             imsg,
         },
         core::{ZenohIdProto, resolution::Resolution, whatami::WhatAmI},
         transport::{BatchSize, batch_size, id},
-        zcodec::{decode_array, decode_u8, decode_zbuf, encode_array, encode_u8, encode_zbuf},
     },
     result::ZResult,
     zbail,

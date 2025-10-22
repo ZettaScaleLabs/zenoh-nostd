@@ -1,8 +1,8 @@
 use crate::{
     protocol::{
         ZCodecError,
+        codec::encode_u8,
         common::{extension, imsg},
-        zcodec::encode_u8,
         zenoh::{PushBody, id, query::ConsolidationMode},
     },
     result::ZResult,

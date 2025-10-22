@@ -10,7 +10,7 @@ pub(crate) mod zenoh;
 pub(crate) mod network;
 pub(crate) mod transport;
 
-pub(crate) mod zcodec;
+pub(crate) mod codec;
 
 pub(crate) const VERSION: u8 = 0x09;
 

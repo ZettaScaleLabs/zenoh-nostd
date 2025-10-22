@@ -4,6 +4,7 @@ use heapless::Vec;
 use crate::{
     protocol::{
         ZCodecError,
+        codec::{decode_u8, decode_u32, encode_u8, encode_u32},
         common::{
             extension::{self, iext},
             imsg,
@@ -11,7 +12,6 @@ use crate::{
         core::Reliability,
         network::NetworkMessage,
         transport::{TransportSn, id},
-        zcodec::{decode_u8, decode_u32, encode_u8, encode_u32},
     },
     result::ZResult,
     zbail,

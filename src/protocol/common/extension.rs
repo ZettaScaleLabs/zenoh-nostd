@@ -3,11 +3,11 @@ use core::fmt::{self, Debug};
 use crate::{
     protocol::{
         ZCodecError,
-        common::imsg::has_flag,
-        zcodec::{
+        codec::{
             decode_u8, decode_u64, decode_usize, decode_zbuf, encode_u8, encode_u64, encode_usize,
             encode_zbuf,
         },
+        common::imsg::has_flag,
     },
     result::ZResult,
     zbail,
