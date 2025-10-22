@@ -1,5 +1,8 @@
 use crate::zbuf::ZBufError;
 
+pub(crate) mod codec;
+pub(crate) mod ext;
+
 pub(crate) mod keyexpr;
 
 pub(crate) mod common;
@@ -9,8 +12,6 @@ pub(crate) mod zenoh;
 
 pub(crate) mod network;
 pub(crate) mod transport;
-
-pub(crate) mod codec;
 
 pub(crate) const VERSION: u8 = 0x09;
 
@@ -41,4 +42,15 @@ impl From<ZBufError> for ZCodecError {
             ZBufError::CouldNotParse => ZCodecError::CouldNotParse,
         }
     }
+}
+
+const MSG_ID_BITS: u8 = 5;
+const MSG_ID_MASK: u8 = !(u8::MAX << MSG_ID_BITS);
+
+pub(crate) const fn msg_id(header: u8) -> u8 {
+    header & MSG_ID_MASK
+}
+
+pub(crate) const fn has_flag(byte: u8, flag: u8) -> bool {
+    byte & flag != 0
 }

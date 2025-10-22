@@ -1,10 +1,5 @@
 use crate::{
-    protocol::{
-        ZCodecError,
-        codec::encode_u8,
-        common::{extension, imsg},
-        transport::id,
-    },
+    protocol::{ZCodecError, codec::encode_u8, common::extension, has_flag, msg_id, transport::id},
     result::ZResult,
     zbail,
     zbuf::{ZBufReader, ZBufWriter},
@@ -25,11 +20,11 @@ impl KeepAlive {
     }
 
     pub(crate) fn decode(reader: &mut ZBufReader<'_>, header: u8) -> ZResult<Self, ZCodecError> {
-        if imsg::mid(header) != id::KEEP_ALIVE {
+        if msg_id(header) != id::KEEP_ALIVE {
             zbail!(ZCodecError::CouldNotRead)
         }
 
-        let has_ext = imsg::has_flag(header, flag::Z);
+        let has_ext = has_flag(header, flag::Z);
         if has_ext {
             extension::skip_all("Unknown KeepAlive ext", reader)?;
         }

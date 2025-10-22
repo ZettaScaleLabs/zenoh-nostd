@@ -5,11 +5,9 @@ use crate::{
     protocol::{
         ZCodecError,
         codec::{decode_u8, decode_u32, encode_u8, encode_u32},
-        common::{
-            extension::{self, iext},
-            imsg,
-        },
+        common::extension::{self, iext},
         core::Reliability,
+        has_flag, msg_id,
         network::NetworkMessage,
         transport::{TransportSn, id},
     },
@@ -115,11 +113,11 @@ impl FrameHeader {
     }
 
     pub(crate) fn decode(reader: &mut ZBufReader<'_>, header: u8) -> ZResult<Self, ZCodecError> {
-        if imsg::mid(header) != id::FRAME {
+        if msg_id(header) != id::FRAME {
             zbail!(ZCodecError::CouldNotRead)
         }
 
-        let reliability = match imsg::has_flag(header, flag::R) {
+        let reliability = match has_flag(header, flag::R) {
             true => Reliability::Reliable,
             false => Reliability::BestEffort,
         };
@@ -127,7 +125,7 @@ impl FrameHeader {
 
         let mut ext_qos = ext::QoSType::DEFAULT;
 
-        let mut has_ext = imsg::has_flag(header, flag::Z);
+        let mut has_ext = has_flag(header, flag::Z);
         while has_ext {
             let ext: u8 = decode_u8(reader)?;
             match iext::eheader(ext) {

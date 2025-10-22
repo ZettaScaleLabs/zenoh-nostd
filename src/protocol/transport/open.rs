@@ -7,10 +7,8 @@ use crate::{
             decode_u8, decode_u32, decode_u64, decode_zbuf, encode_u8, encode_u32, encode_u64,
             encode_zbuf,
         },
-        common::{
-            extension::{self, iext},
-            imsg,
-        },
+        common::extension::{self, iext},
+        has_flag, msg_id,
         transport::{TransportSn, id},
     },
     result::ZResult,
@@ -56,7 +54,7 @@ impl<'a> OpenSyn<'a> {
 
         encode_u8(writer, header)?;
 
-        if imsg::has_flag(header, flag::T) {
+        if has_flag(header, flag::T) {
             encode_u64(writer, self.lease.as_secs())?;
         } else {
             encode_u64(writer, self.lease.as_millis() as u64)?;
@@ -91,12 +89,12 @@ impl<'a> OpenSyn<'a> {
     }
 
     pub(crate) fn decode(reader: &mut ZBufReader<'a>, header: u8) -> ZResult<Self, ZCodecError> {
-        if imsg::mid(header) != id::OPEN || imsg::has_flag(header, flag::A) {
+        if msg_id(header) != id::OPEN || has_flag(header, flag::A) {
             zbail!(ZCodecError::CouldNotRead)
         }
 
         let lease: u64 = decode_u64(reader)?;
-        let lease = if imsg::has_flag(header, flag::T) {
+        let lease = if has_flag(header, flag::T) {
             Duration::from_secs(lease)
         } else {
             Duration::from_millis(lease)
@@ -110,7 +108,7 @@ impl<'a> OpenSyn<'a> {
         let mut ext_lowlatency = None;
         let mut ext_compression = None;
 
-        let mut has_ext = imsg::has_flag(header, flag::Z);
+        let mut has_ext = has_flag(header, flag::Z);
         while has_ext {
             let ext: u8 = decode_u8(reader)?;
             match iext::eheader(ext) {
@@ -249,7 +247,7 @@ impl<'a> OpenAck<'a> {
 
         encode_u8(writer, header)?;
 
-        if imsg::has_flag(header, flag::T) {
+        if has_flag(header, flag::T) {
             encode_u64(writer, self.lease.as_secs())?;
         } else {
             encode_u64(writer, self.lease.as_millis() as u64)?;
@@ -286,12 +284,12 @@ impl<'a> OpenAck<'a> {
     }
 
     pub(crate) fn decode(reader: &mut ZBufReader<'a>, header: u8) -> ZResult<Self, ZCodecError> {
-        if imsg::mid(header) != id::OPEN || !imsg::has_flag(header, flag::A) {
+        if msg_id(header) != id::OPEN || !has_flag(header, flag::A) {
             zbail!(ZCodecError::CouldNotRead)
         }
 
         let lease: u64 = decode_u64(reader)?;
-        let lease = if imsg::has_flag(header, flag::T) {
+        let lease = if has_flag(header, flag::T) {
             Duration::from_secs(lease)
         } else {
             Duration::from_millis(lease)
@@ -304,7 +302,7 @@ impl<'a> OpenAck<'a> {
         let mut ext_lowlatency = None;
         let mut ext_compression = None;
 
-        let mut has_ext = imsg::has_flag(header, flag::Z);
+        let mut has_ext = has_flag(header, flag::Z);
         while has_ext {
             let ext: u8 = decode_u8(reader)?;
             match iext::eheader(ext) {

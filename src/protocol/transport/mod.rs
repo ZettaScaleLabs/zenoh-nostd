@@ -9,7 +9,7 @@ use crate::{
     protocol::{
         ZCodecError,
         codec::decode_u8,
-        common::imsg,
+        has_flag, msg_id,
         network::NetworkMessage,
         transport::{
             self,
@@ -109,7 +109,7 @@ impl<'a, 'b> TransportMessage<'a, 'b> {
             return Ok(false);
         };
 
-        match imsg::mid(header) {
+        match msg_id(header) {
             id::FRAME => {
                 Self::handle_frame_callback(reader, header, &mut on_network_msg)?;
             }
@@ -120,7 +120,7 @@ impl<'a, 'b> TransportMessage<'a, 'b> {
                 }
             }
             id::INIT => {
-                if !imsg::has_flag(header, transport::init::flag::A) {
+                if !has_flag(header, transport::init::flag::A) {
                     let init_syn = InitSyn::decode(reader, header)?;
                     if let Some(on_init_syn) = &mut on_init_syn {
                         on_init_syn(init_syn);
@@ -133,7 +133,7 @@ impl<'a, 'b> TransportMessage<'a, 'b> {
                 }
             }
             id::OPEN => {
-                if !imsg::has_flag(header, transport::open::flag::A) {
+                if !has_flag(header, transport::open::flag::A) {
                     let open_syn = OpenSyn::decode(reader, header)?;
                     if let Some(on_open_syn) = &mut on_open_syn {
                         on_open_syn(open_syn);
@@ -227,7 +227,7 @@ impl<'a, 'b> TransportMessage<'a, 'b> {
             return Ok(false);
         };
 
-        match imsg::mid(header) {
+        match msg_id(header) {
             id::FRAME => {
                 Self::handle_frame_callback_async(reader, header, &mut on_network_msg).await?;
             }
@@ -240,7 +240,7 @@ impl<'a, 'b> TransportMessage<'a, 'b> {
                 }
             }
             id::INIT => {
-                if !imsg::has_flag(header, transport::init::flag::A) {
+                if !has_flag(header, transport::init::flag::A) {
                     let init_syn = InitSyn::decode(reader, header)?;
                     if let Some(on_init_syn) = &mut on_init_syn
                         && let Err(e) = on_init_syn(init_syn)
@@ -257,7 +257,7 @@ impl<'a, 'b> TransportMessage<'a, 'b> {
                 }
             }
             id::OPEN => {
-                if !imsg::has_flag(header, transport::open::flag::A) {
+                if !has_flag(header, transport::open::flag::A) {
                     let open_syn = OpenSyn::decode(reader, header)?;
                     if let Some(on_open_syn) = &mut on_open_syn
                         && let Err(e) = on_open_syn(open_syn)

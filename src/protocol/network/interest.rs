@@ -5,13 +5,11 @@ use core::{
 
 use crate::{
     protocol::{
-        ZCodecError,
+        MSG_ID_BITS, ZCodecError,
         codec::{decode_u8, decode_u32, encode_u8, encode_u32},
-        common::{
-            extension::{self, iext},
-            imsg::{self, HEADER_BITS},
-        },
+        common::extension::{self, iext},
         core::wire_expr::WireExpr,
+        has_flag, msg_id,
         network::{Mapping, declare, id, interest},
     },
     result::ZResult,
@@ -44,7 +42,7 @@ impl<'a> Interest<'a> {
             InterestMode::Current => 0b01,
             InterestMode::Future => 0b10,
             InterestMode::CurrentFuture => 0b11,
-        } << HEADER_BITS;
+        } << MSG_ID_BITS;
 
         let mut n_exts = ((self.ext_qos != declare::ext::QoSType::DEFAULT) as u8)
             + (self.ext_tstamp.is_some() as u8)
@@ -81,12 +79,12 @@ impl<'a> Interest<'a> {
     }
 
     pub(crate) fn decode(reader: &mut ZBufReader<'a>, header: u8) -> ZResult<Self, ZCodecError> {
-        if imsg::mid(header) != id::INTEREST {
+        if msg_id(header) != id::INTEREST {
             zbail!(ZCodecError::CouldNotRead);
         }
 
         let id = decode_u32(reader)?;
-        let mode = match (header >> HEADER_BITS) & 0b11 {
+        let mode = match (header >> MSG_ID_BITS) & 0b11 {
             0b00 => InterestMode::Final,
             0b01 => InterestMode::Current,
             0b10 => InterestMode::Future,
@@ -114,7 +112,7 @@ impl<'a> Interest<'a> {
         let mut ext_tstamp = None;
         let mut ext_nodeid = declare::ext::NodeIdType::DEFAULT;
 
-        let mut has_ext = imsg::has_flag(header, interest::flag::Z);
+        let mut has_ext = has_flag(header, interest::flag::Z);
         while has_ext {
             let ext = decode_u8(reader)?;
             match iext::eheader(ext) {
@@ -257,35 +255,35 @@ impl InterestOptions {
     }
 
     pub(crate) const fn keyexprs(&self) -> bool {
-        imsg::has_flag(self.options, Self::KEYEXPRS.options)
+        has_flag(self.options, Self::KEYEXPRS.options)
     }
 
     pub(crate) const fn subscribers(&self) -> bool {
-        imsg::has_flag(self.options, Self::SUBSCRIBERS.options)
+        has_flag(self.options, Self::SUBSCRIBERS.options)
     }
 
     pub(crate) const fn queryables(&self) -> bool {
-        imsg::has_flag(self.options, Self::QUERYABLES.options)
+        has_flag(self.options, Self::QUERYABLES.options)
     }
 
     pub(crate) const fn tokens(&self) -> bool {
-        imsg::has_flag(self.options, Self::TOKENS.options)
+        has_flag(self.options, Self::TOKENS.options)
     }
 
     pub(crate) const fn restricted(&self) -> bool {
-        imsg::has_flag(self.options, Self::RESTRICTED.options)
+        has_flag(self.options, Self::RESTRICTED.options)
     }
 
     pub(crate) const fn named(&self) -> bool {
-        imsg::has_flag(self.options, Self::NAMED.options)
+        has_flag(self.options, Self::NAMED.options)
     }
 
     pub(crate) const fn mapping(&self) -> bool {
-        imsg::has_flag(self.options, Self::MAPPING.options)
+        has_flag(self.options, Self::MAPPING.options)
     }
 
     pub(crate) const fn aggregate(&self) -> bool {
-        imsg::has_flag(self.options, Self::AGGREGATE.options)
+        has_flag(self.options, Self::AGGREGATE.options)
     }
 
     #[cfg(test)]

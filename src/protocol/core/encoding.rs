@@ -6,7 +6,7 @@ use crate::{
         codec::{
             decode_u32, decode_zbuf, encode_u32, encode_zbuf, encoded_len_u32, encoded_len_zbuf,
         },
-        common::imsg,
+        has_flag,
     },
     result::ZResult,
     zbuf::{ZBuf, ZBufReader, ZBufWriter},
@@ -61,7 +61,7 @@ impl<'a> Encoding<'a> {
     pub(crate) fn decode(reader: &mut ZBufReader<'a>) -> ZResult<Self, ZCodecError> {
         let id = decode_u32(reader)?;
 
-        let has_schema = imsg::has_flag(id as u8, flag::S as u8);
+        let has_schema = has_flag(id as u8, flag::S as u8);
         let id = (id >> 1) as EncodingId;
 
         let schema = if has_schema {

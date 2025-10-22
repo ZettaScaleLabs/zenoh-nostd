@@ -2,11 +2,9 @@ use crate::{
     protocol::{
         ZCodecError,
         codec::{decode_u8, decode_u32, encode_u8, encode_u32},
-        common::{
-            extension::{self, iext},
-            imsg,
-        },
+        common::extension::{self, iext},
         core::wire_expr::WireExpr,
+        has_flag, msg_id,
         network::{Mapping, id, request::RequestId},
         zenoh::ResponseBody,
     },
@@ -73,15 +71,14 @@ impl<'a> Response<'a> {
     }
 
     pub(crate) fn decode(reader: &mut ZBufReader<'a>, header: u8) -> ZResult<Self, ZCodecError> {
-        if imsg::mid(header) != id::RESPONSE {
+        if msg_id(header) != id::RESPONSE {
             zbail!(ZCodecError::CouldNotRead);
         }
 
         let rid = decode_u32(reader)?;
-        let mut wire_expr: WireExpr<'_> =
-            WireExpr::decode(imsg::has_flag(header, flag::N), reader)?;
+        let mut wire_expr: WireExpr<'_> = WireExpr::decode(has_flag(header, flag::N), reader)?;
 
-        wire_expr.mapping = if imsg::has_flag(header, flag::M) {
+        wire_expr.mapping = if has_flag(header, flag::M) {
             Mapping::Sender
         } else {
             Mapping::Receiver
@@ -91,7 +88,7 @@ impl<'a> Response<'a> {
         let mut ext_tstamp = None;
         let mut ext_respid = None;
 
-        let mut has_ext = imsg::has_flag(header, flag::Z);
+        let mut has_ext = has_flag(header, flag::Z);
         while has_ext {
             let ext = decode_u8(reader)?;
             match iext::eheader(ext) {
@@ -197,7 +194,7 @@ impl ResponseFinal {
     }
 
     pub(crate) fn decode(reader: &mut ZBufReader<'_>, header: u8) -> ZResult<Self, ZCodecError> {
-        if imsg::mid(header) != id::RESPONSE_FINAL {
+        if msg_id(header) != id::RESPONSE_FINAL {
             zbail!(ZCodecError::CouldNotRead)
         }
 
@@ -206,7 +203,7 @@ impl ResponseFinal {
         let mut ext_qos = ext::QoSType::DEFAULT;
         let mut ext_tstamp = None;
 
-        let mut has_ext = imsg::has_flag(header, flag::Z);
+        let mut has_ext = has_flag(header, flag::Z);
         while has_ext {
             let ext: u8 = decode_u8(reader)?;
             match iext::eheader(ext) {

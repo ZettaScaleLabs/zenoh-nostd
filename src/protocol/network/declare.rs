@@ -2,10 +2,8 @@ use crate::{
     protocol::{
         ZCodecError,
         codec::{decode_u8, decode_u32, encode_u8, encode_u32},
-        common::{
-            extension::{self, iext},
-            imsg,
-        },
+        common::extension::{self, iext},
+        has_flag, msg_id,
         network::declare::{
             self,
             common::DeclareFinal,
@@ -73,12 +71,12 @@ impl<'a> Declare<'a> {
     }
 
     pub(crate) fn decode(reader: &mut ZBufReader<'a>, header: u8) -> ZResult<Self, ZCodecError> {
-        if imsg::mid(header) != crate::protocol::network::id::DECLARE {
+        if msg_id(header) != crate::protocol::network::id::DECLARE {
             zbail!(ZCodecError::CouldNotRead)
         }
 
         let mut interest_id = None;
-        if imsg::has_flag(header, declare::flag::I) {
+        if has_flag(header, declare::flag::I) {
             interest_id = Some(decode_u32(reader)?);
         }
 
@@ -86,7 +84,7 @@ impl<'a> Declare<'a> {
         let mut ext_tstamp = None;
         let mut ext_nodeid = declare::ext::NodeIdType::DEFAULT;
 
-        let mut has_ext = imsg::has_flag(header, declare::flag::Z);
+        let mut has_ext = has_flag(header, declare::flag::Z);
         while has_ext {
             let ext: u8 = crate::protocol::codec::decode_u8(reader)?;
             match iext::eheader(ext) {
@@ -197,7 +195,7 @@ impl<'a> DeclareBody<'a> {
     pub(crate) fn decode(reader: &mut ZBufReader<'a>) -> ZResult<Self, ZCodecError> {
         let header: u8 = decode_u8(reader)?;
 
-        Ok(match imsg::mid(header) {
+        Ok(match msg_id(header) {
             declare::id::D_KEYEXPR => {
                 DeclareBody::DeclareKeyExpr(DeclareKeyExpr::decode(reader, header)?)
             }
@@ -247,7 +245,8 @@ pub(crate) mod common {
         protocol::{
             ZCodecError,
             codec::encode_u8,
-            common::{extension, imsg},
+            common::extension,
+            has_flag, msg_id,
             network::declare::{self, common, token},
         },
         result::ZResult,
@@ -269,11 +268,11 @@ pub(crate) mod common {
             reader: &mut ZBufReader<'_>,
             header: u8,
         ) -> ZResult<Self, ZCodecError> {
-            if imsg::mid(header) != declare::id::D_FINAL {
+            if msg_id(header) != declare::id::D_FINAL {
                 zbail!(ZCodecError::CouldNotRead);
             }
 
-            let has_ext = imsg::has_flag(header, token::flag::Z);
+            let has_ext = has_flag(header, token::flag::Z);
             if has_ext {
                 extension::skip_all("Final", reader)?;
             }
@@ -292,8 +291,8 @@ pub(crate) mod common {
             protocol::{
                 ZCodecError,
                 codec::{decode_u16, encode_str, encode_u8, encode_u16},
-                common::imsg,
                 core::wire_expr::{ExprId, ExprLen, WireExpr},
+                has_flag,
                 network::{Mapping, declare::common},
             },
             result::ZResult,
@@ -364,7 +363,7 @@ pub(crate) mod common {
                 let flags = zeader.read_u8()?;
 
                 let scope: ExprLen = decode_u16(&mut zeader)?;
-                let suffix: &'a str = if imsg::has_flag(flags, 1) {
+                let suffix: &'a str = if has_flag(flags, 1) {
                     let len = zeader.remaining();
                     let zbuf: ZBuf<'a> = zeader.read_zbuf(len)?;
 
@@ -373,7 +372,7 @@ pub(crate) mod common {
                     ""
                 };
 
-                let mapping = if imsg::has_flag(flags, 1 << 1) {
+                let mapping = if has_flag(flags, 1 << 1) {
                     Mapping::Sender
                 } else {
                     Mapping::Receiver
@@ -406,8 +405,9 @@ pub(crate) mod keyexpr {
         protocol::{
             ZCodecError,
             codec::{decode_u16, encode_u8, encode_u16},
-            common::{extension, imsg},
+            common::extension,
             core::wire_expr::{ExprId, WireExpr},
+            has_flag, msg_id,
             network::declare::{self, keyexpr},
         },
         result::ZResult,
@@ -443,15 +443,15 @@ pub(crate) mod keyexpr {
             reader: &mut ZBufReader<'a>,
             header: u8,
         ) -> ZResult<Self, ZCodecError> {
-            if imsg::mid(header) != declare::id::D_KEYEXPR {
+            if msg_id(header) != declare::id::D_KEYEXPR {
                 zbail!(ZCodecError::CouldNotRead);
             }
 
             let id: ExprId = decode_u16(reader)?;
             let wire_expr: WireExpr<'_> =
-                WireExpr::decode(imsg::has_flag(header, keyexpr::flag::N), reader)?;
+                WireExpr::decode(has_flag(header, keyexpr::flag::N), reader)?;
 
-            let has_ext = imsg::has_flag(header, keyexpr::flag::Z);
+            let has_ext = has_flag(header, keyexpr::flag::Z);
             if has_ext {
                 extension::skip_all("DeclareKeyExpr", reader)?;
             }
@@ -488,13 +488,13 @@ pub(crate) mod keyexpr {
             reader: &mut ZBufReader<'_>,
             header: u8,
         ) -> ZResult<Self, ZCodecError> {
-            if imsg::mid(header) != declare::id::U_KEYEXPR {
+            if msg_id(header) != declare::id::U_KEYEXPR {
                 zbail!(ZCodecError::CouldNotRead);
             }
 
             let id: ExprId = decode_u16(reader)?;
 
-            let has_ext = imsg::has_flag(header, keyexpr::flag::Z);
+            let has_ext = has_flag(header, keyexpr::flag::Z);
             if has_ext {
                 extension::skip_all("UndeclareKeyExpr", reader)?;
             }
@@ -520,11 +520,9 @@ pub(crate) mod subscriber {
         protocol::{
             ZCodecError,
             codec::{decode_u32, encode_u32},
-            common::{
-                extension::{self, iext},
-                imsg,
-            },
+            common::extension::{self, iext},
             core::{EntityId, wire_expr::WireExpr},
+            msg_id,
             network::{Mapping, declare},
         },
         result::ZResult,
@@ -567,21 +565,21 @@ pub(crate) mod subscriber {
             reader: &mut ZBufReader<'a>,
             header: u8,
         ) -> ZResult<Self, ZCodecError> {
-            if imsg::mid(header) != declare::id::D_SUBSCRIBER {
+            if msg_id(header) != declare::id::D_SUBSCRIBER {
                 zbail!(ZCodecError::CouldNotRead);
             }
 
             let id: subscriber::SubscriberId = decode_u32(reader)?;
             let mut wire_expr: WireExpr<'_> =
-                WireExpr::decode(imsg::has_flag(header, subscriber::flag::N), reader)?;
+                WireExpr::decode(has_flag(header, subscriber::flag::N), reader)?;
 
-            wire_expr.mapping = if imsg::has_flag(header, subscriber::flag::M) {
+            wire_expr.mapping = if has_flag(header, subscriber::flag::M) {
                 Mapping::Sender
             } else {
                 Mapping::Receiver
             };
 
-            let mut has_ext = imsg::has_flag(header, subscriber::flag::Z);
+            let mut has_ext = has_flag(header, subscriber::flag::Z);
             while has_ext {
                 let ext: u8 = decode_u8(reader)?;
                 has_ext = extension::skip("DeclareSubscriber", reader, ext)?;
@@ -630,7 +628,7 @@ pub(crate) mod subscriber {
             reader: &mut ZBufReader<'a>,
             header: u8,
         ) -> ZResult<Self, ZCodecError> {
-            if imsg::mid(header) != declare::id::U_SUBSCRIBER {
+            if msg_id(header) != declare::id::U_SUBSCRIBER {
                 zbail!(ZCodecError::CouldNotRead);
             }
 
@@ -638,7 +636,7 @@ pub(crate) mod subscriber {
 
             let mut ext_wire_expr = common::ext::WireExprType::null();
 
-            let mut has_ext = imsg::has_flag(header, subscriber::flag::Z);
+            let mut has_ext = has_flag(header, subscriber::flag::Z);
             while has_ext {
                 let ext = decode_u8(reader)?;
                 match iext::eheader(ext) {
@@ -675,11 +673,9 @@ pub(crate) mod queryable {
         protocol::{
             ZCodecError,
             codec::{decode_u32, encode_u32},
-            common::{
-                extension::{self, iext},
-                imsg,
-            },
+            common::extension::{self, iext},
             core::{EntityId, wire_expr::WireExpr},
+            msg_id,
             network::{Mapping, declare},
         },
         result::ZResult,
@@ -736,15 +732,15 @@ pub(crate) mod queryable {
             reader: &mut ZBufReader<'a>,
             header: u8,
         ) -> ZResult<Self, ZCodecError> {
-            if imsg::mid(header) != declare::id::D_QUERYABLE {
+            if msg_id(header) != declare::id::D_QUERYABLE {
                 zbail!(ZCodecError::CouldNotRead);
             }
 
             let id: queryable::QueryableId = decode_u32(reader)?;
             let mut wire_expr: WireExpr<'_> =
-                WireExpr::decode(imsg::has_flag(header, queryable::flag::N), reader)?;
+                WireExpr::decode(has_flag(header, queryable::flag::N), reader)?;
 
-            wire_expr.mapping = if imsg::has_flag(header, queryable::flag::M) {
+            wire_expr.mapping = if has_flag(header, queryable::flag::M) {
                 Mapping::Sender
             } else {
                 Mapping::Receiver
@@ -752,7 +748,7 @@ pub(crate) mod queryable {
 
             let mut ext_info = queryable::ext::QueryableInfoType::DEFAULT;
 
-            let mut has_ext = imsg::has_flag(header, queryable::flag::Z);
+            let mut has_ext = has_flag(header, queryable::flag::Z);
             while has_ext {
                 let ext: u8 = decode_u8(reader)?;
                 match iext::eheader(ext) {
@@ -793,7 +789,7 @@ pub(crate) mod queryable {
 
     pub(crate) mod ext {
         use crate::{
-            protocol::{ZCodecError, common::imsg, network::declare::queryable},
+            protocol::{ZCodecError, has_flag, network::declare::queryable},
             result::ZResult,
             zbuf::{ZBufReader, ZBufWriter},
         };
@@ -837,7 +833,7 @@ pub(crate) mod queryable {
             ) -> ZResult<(Self, bool), ZCodecError> {
                 let (ext, more) = queryable::ext::QueryableInfo::decode(reader, header)?;
 
-                let complete = imsg::has_flag(ext.value as u8, queryable::ext::flag::C);
+                let complete = has_flag(ext.value as u8, queryable::ext::flag::C);
                 let distance = (ext.value >> 8) as u16;
 
                 Ok((
@@ -882,7 +878,7 @@ pub(crate) mod queryable {
             reader: &mut ZBufReader<'a>,
             header: u8,
         ) -> ZResult<Self, ZCodecError> {
-            if imsg::mid(header) != declare::id::U_QUERYABLE {
+            if msg_id(header) != declare::id::U_QUERYABLE {
                 zbail!(ZCodecError::CouldNotRead);
             }
 
@@ -890,7 +886,7 @@ pub(crate) mod queryable {
 
             let mut ext_wire_expr = common::ext::WireExprType::null();
 
-            let mut has_ext = imsg::has_flag(header, queryable::flag::Z);
+            let mut has_ext = has_flag(header, queryable::flag::Z);
             while has_ext {
                 let ext = decode_u8(reader)?;
                 match iext::eheader(ext) {

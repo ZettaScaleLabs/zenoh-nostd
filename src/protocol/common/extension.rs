@@ -7,7 +7,7 @@ use crate::{
             decode_u8, decode_u64, decode_usize, decode_zbuf, encode_u8, encode_u64, encode_usize,
             encode_zbuf,
         },
-        common::imsg::has_flag,
+        has_flag,
     },
     result::ZResult,
     zbail,
@@ -17,7 +17,7 @@ use crate::{
 pub(crate) mod iext {
     use core::fmt;
 
-    use crate::protocol::common::imsg::has_flag;
+    use crate::protocol::has_flag;
 
     pub(crate) const ID_BITS: u8 = 4;
     pub(crate) const ID_MASK: u8 = !(u8::MAX << ID_BITS);

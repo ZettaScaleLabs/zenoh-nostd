@@ -4,11 +4,9 @@ use crate::{
         codec::{
             decode_timestamp, decode_u8, decode_zbuf, encode_timestamp, encode_u8, encode_zbuf,
         },
-        common::{
-            extension::{self, iext},
-            imsg,
-        },
+        common::extension::{self, iext},
         core::encoding::Encoding,
+        has_flag, msg_id,
     },
     result::ZResult,
     zbail,
@@ -87,24 +85,24 @@ impl<'a> Put<'a> {
     }
 
     pub(crate) fn decode(reader: &mut ZBufReader<'a>, header: u8) -> ZResult<Self, ZCodecError> {
-        if imsg::mid(header) != Self::ID {
+        if msg_id(header) != Self::ID {
             zbail!(ZCodecError::CouldNotRead);
         }
 
         let mut timestamp: Option<uhlc::Timestamp> = None;
-        if imsg::has_flag(header, Self::FLAG_T) {
+        if has_flag(header, Self::FLAG_T) {
             timestamp = Some(decode_timestamp(reader)?);
         }
 
         let mut encoding = Encoding::empty();
-        if imsg::has_flag(header, Self::FLAG_E) {
+        if has_flag(header, Self::FLAG_E) {
             encoding = Encoding::decode(reader)?;
         }
 
         let mut ext_sinfo: Option<ext::SourceInfoType> = None;
         let mut ext_attachment: Option<ext::AttachmentType> = None;
 
-        let mut has_ext = imsg::has_flag(header, Self::FLAG_Z);
+        let mut has_ext = has_flag(header, Self::FLAG_Z);
         while has_ext {
             let ext = decode_u8(reader)?;
 

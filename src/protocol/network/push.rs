@@ -2,11 +2,9 @@ use crate::{
     protocol::{
         ZCodecError,
         codec::{decode_u8, encode_u8},
-        common::{
-            extension::{self, iext},
-            imsg,
-        },
+        common::extension::{self, iext},
         core::wire_expr::WireExpr,
+        has_flag, msg_id,
         network::Mapping,
         zenoh::PushBody,
     },
@@ -92,14 +90,13 @@ impl<'a> Push<'a> {
     }
 
     pub(crate) fn decode(reader: &mut ZBufReader<'a>, header: u8) -> ZResult<Self, ZCodecError> {
-        if imsg::mid(header) != Self::ID {
+        if msg_id(header) != Self::ID {
             zbail!(ZCodecError::CouldNotRead);
         }
 
-        let mut wire_expr: WireExpr<'_> =
-            WireExpr::decode(imsg::has_flag(header, Self::FLAG_N), reader)?;
+        let mut wire_expr: WireExpr<'_> = WireExpr::decode(has_flag(header, Self::FLAG_N), reader)?;
 
-        wire_expr.mapping = if imsg::has_flag(header, Self::FLAG_M) {
+        wire_expr.mapping = if has_flag(header, Self::FLAG_M) {
             Mapping::Sender
         } else {
             Mapping::Receiver
@@ -109,7 +106,7 @@ impl<'a> Push<'a> {
         let mut ext_tstamp = None;
         let mut ext_nodeid = ext::NodeIdType::DEFAULT;
 
-        let mut has_ext = imsg::has_flag(header, Self::FLAG_Z);
+        let mut has_ext = has_flag(header, Self::FLAG_Z);
         while has_ext {
             let ext = decode_u8(reader)?;
 

@@ -2,11 +2,9 @@ use crate::{
     protocol::{
         ZCodecError,
         codec::{decode_u8, decode_zbuf, encode_u8, encode_zbuf},
-        common::{
-            extension::{self, iext},
-            imsg,
-        },
+        common::extension::{self, iext},
         core::encoding::Encoding,
+        has_flag, msg_id,
         zenoh::id,
     },
     result::ZResult,
@@ -55,18 +53,18 @@ impl<'a> Err<'a> {
     }
 
     pub(crate) fn decode(reader: &mut ZBufReader<'a>, header: u8) -> ZResult<Self, ZCodecError> {
-        if imsg::mid(header) != id::ERR {
+        if msg_id(header) != id::ERR {
             zbail!(ZCodecError::CouldNotRead);
         }
 
         let mut encoding = Encoding::empty();
-        if imsg::has_flag(header, flag::E) {
+        if has_flag(header, flag::E) {
             encoding = Encoding::decode(reader)?;
         }
 
         let mut ext_sinfo: Option<ext::SourceInfoType> = None;
 
-        let mut has_ext = imsg::has_flag(header, flag::Z);
+        let mut has_ext = has_flag(header, flag::Z);
         while has_ext {
             let ext = decode_u8(reader)?;
             match iext::eheader(ext) {

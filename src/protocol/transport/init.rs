@@ -2,11 +2,9 @@ use crate::{
     protocol::{
         ZCodecError,
         codec::{decode_array, decode_u8, decode_zbuf, encode_array, encode_u8, encode_zbuf},
-        common::{
-            extension::{self, iext},
-            imsg,
-        },
+        common::extension::{self, iext},
         core::{ZenohIdProto, resolution::Resolution, whatami::WhatAmI},
+        has_flag, msg_id,
         transport::{BatchSize, batch_size, id},
     },
     result::ZResult,
@@ -67,7 +65,7 @@ impl<'a> InitSyn<'a> {
         encode_u8(writer, flags)?;
         self.zid.encode(writer, false)?;
 
-        if imsg::has_flag(header, flag::S) {
+        if has_flag(header, flag::S) {
             encode_u8(writer, self.resolution.as_u8())?;
             encode_array(writer, &self.batch_size.to_le_bytes())?;
         }
@@ -111,7 +109,7 @@ impl<'a> InitSyn<'a> {
     }
 
     pub(crate) fn decode(reader: &mut ZBufReader<'a>, header: u8) -> ZResult<Self, ZCodecError> {
-        if imsg::mid(header) != id::INIT || imsg::has_flag(header, flag::A) {
+        if msg_id(header) != id::INIT || has_flag(header, flag::A) {
             zbail!(ZCodecError::CouldNotRead)
         }
 
@@ -130,7 +128,7 @@ impl<'a> InitSyn<'a> {
         let mut resolution = Resolution::default();
         let mut batch_size = batch_size::UNICAST.to_le_bytes();
 
-        if imsg::has_flag(header, flag::S) {
+        if has_flag(header, flag::S) {
             let flags: u8 = decode_u8(reader)?;
             resolution = Resolution::from(flags & 0b00111111);
             batch_size = decode_array(reader)?;
@@ -146,7 +144,7 @@ impl<'a> InitSyn<'a> {
         let mut ext_compression = None;
         let mut ext_patch = ext::PatchType::NONE;
 
-        let mut has_ext = imsg::has_flag(header, flag::Z);
+        let mut has_ext = has_flag(header, flag::Z);
 
         while has_ext {
             let ext: u8 = decode_u8(reader)?;
@@ -311,7 +309,7 @@ impl<'a> InitAck<'a> {
         encode_u8(writer, flags)?;
         self.zid.encode(writer, false)?;
 
-        if imsg::has_flag(header, flag::S) {
+        if has_flag(header, flag::S) {
             encode_u8(writer, self.resolution.as_u8())?;
             encode_array(writer, &self.batch_size.to_le_bytes())?;
         }
@@ -357,7 +355,7 @@ impl<'a> InitAck<'a> {
     }
 
     pub(crate) fn decode(reader: &mut ZBufReader<'a>, header: u8) -> ZResult<Self, ZCodecError> {
-        if imsg::mid(header) != id::INIT || !imsg::has_flag(header, flag::A) {
+        if msg_id(header) != id::INIT || !has_flag(header, flag::A) {
             zbail!(ZCodecError::CouldNotRead)
         }
 
@@ -376,7 +374,7 @@ impl<'a> InitAck<'a> {
         let mut resolution = Resolution::default();
         let mut batch_size = batch_size::UNICAST.to_le_bytes();
 
-        if imsg::has_flag(header, flag::S) {
+        if has_flag(header, flag::S) {
             let flags: u8 = decode_u8(reader)?;
             resolution = Resolution::from(flags & 0b00111111);
             batch_size = decode_array(reader)?;
@@ -393,7 +391,7 @@ impl<'a> InitAck<'a> {
         let mut ext_compression = None;
         let mut ext_patch = ext::PatchType::NONE;
 
-        let mut has_ext = imsg::has_flag(header, flag::Z);
+        let mut has_ext = has_flag(header, flag::Z);
 
         while has_ext {
             let ext: u8 = decode_u8(reader)?;

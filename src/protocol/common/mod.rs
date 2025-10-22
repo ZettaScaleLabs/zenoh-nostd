@@ -1,19 +1,23 @@
 pub(crate) mod extension;
 
-/*************************************/
-/*               IDS                 */
-/*************************************/
-
-pub(crate) mod imsg {
-
-    pub(crate) const HEADER_BITS: u8 = 5;
-    pub(crate) const HEADER_MASK: u8 = !(0xff << HEADER_BITS);
-
-    pub(crate) const fn mid(header: u8) -> u8 {
-        header & HEADER_MASK
-    }
-
-    pub(crate) const fn has_flag(byte: u8, flag: u8) -> bool {
-        byte & flag != 0
-    }
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct SourceInfo {
+    pub(crate) id: crate::protocol::core::EntityGlobalIdProto,
+    pub(crate) sn: u32,
 }
+
+crate::zext!(SourceInfo, crate::protocol::ext::ZExtKind::ZBuf);
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Put<'a> {
+    // ---------- Body for Put message ----------
+    pub(crate) timestamp: Option<uhlc::Timestamp>,
+    pub(crate) encoding: crate::protocol::core::encoding::Encoding<'a>,
+
+    pub(crate) ext_sinfo: Option<SourceInfo>,
+
+    pub(crate) payload: crate::zbuf::ZBuf<'a>,
+    // ----------------------------------------
+}
+
+crate::zext!(impl<'a> SourceInfo, Put<'a>, 0x1, false);

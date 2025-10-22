@@ -2,10 +2,8 @@ use crate::{
     protocol::{
         ZCodecError,
         codec::{decode_str, decode_u8, encode_str, encode_u8, encode_u64},
-        common::{
-            extension::{self, iext},
-            imsg,
-        },
+        common::extension::{self, iext},
+        has_flag, msg_id,
         zenoh::id,
     },
     result::ZResult,
@@ -124,17 +122,17 @@ impl<'a> Query<'a> {
     }
 
     pub(crate) fn decode(reader: &mut ZBufReader<'a>, header: u8) -> ZResult<Self, ZCodecError> {
-        if imsg::mid(header) != id::QUERY {
+        if msg_id(header) != id::QUERY {
             zbail!(ZCodecError::CouldNotRead);
         }
 
         let mut consolidation = ConsolidationMode::DEFAULT;
-        if imsg::has_flag(header, flag::C) {
+        if has_flag(header, flag::C) {
             consolidation = ConsolidationMode::decode(reader)?;
         }
 
         let mut parameters = "";
-        if imsg::has_flag(header, flag::P) {
+        if has_flag(header, flag::P) {
             parameters = decode_str(reader, None)?;
         }
 
@@ -142,7 +140,7 @@ impl<'a> Query<'a> {
         let mut ext_body: Option<ext::QueryBodyType> = None;
         let mut ext_attachment: Option<ext::AttachmentType> = None;
 
-        let mut has_ext = imsg::has_flag(header, flag::Z);
+        let mut has_ext = has_flag(header, flag::Z);
         while has_ext {
             let ext = decode_u8(reader)?;
 

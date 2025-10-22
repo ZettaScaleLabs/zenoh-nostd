@@ -2,7 +2,7 @@ use crate::{
     protocol::{
         ZCodecError,
         codec::decode_u8,
-        common::imsg,
+        msg_id,
         zenoh::{err::Err, put::Put, query::Query, reply::Reply},
     },
     result::ZResult,
@@ -37,7 +37,7 @@ impl<'a> PushBody<'a> {
     pub(crate) fn decode(reader: &mut ZBufReader<'a>) -> ZResult<Self, ZCodecError> {
         let header = decode_u8(reader)?;
 
-        match imsg::mid(header) {
+        match msg_id(header) {
             id::PUT => Ok(PushBody::Put(Put::decode(reader, header)?)),
             _ => zbail!(ZCodecError::CouldNotRead),
         }
@@ -71,7 +71,7 @@ impl<'a> RequestBody<'a> {
     pub(crate) fn decode(reader: &mut ZBufReader<'a>) -> ZResult<Self, ZCodecError> {
         let header = decode_u8(reader)?;
 
-        match imsg::mid(header) {
+        match msg_id(header) {
             id::QUERY => Ok(RequestBody::Query(Query::decode(reader, header)?)),
             _ => zbail!(ZCodecError::CouldNotRead),
         }
@@ -107,7 +107,7 @@ impl<'a> ResponseBody<'a> {
     pub(crate) fn decode(reader: &mut ZBufReader<'a>) -> ZResult<Self, ZCodecError> {
         let header = decode_u8(reader)?;
 
-        match imsg::mid(header) {
+        match msg_id(header) {
             id::REPLY => Ok(ResponseBody::Reply(Reply::decode(reader, header)?)),
             id::ERR => Ok(ResponseBody::Err(Err::decode(reader, header)?)),
             _ => {

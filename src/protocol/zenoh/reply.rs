@@ -2,7 +2,8 @@ use crate::{
     protocol::{
         ZCodecError,
         codec::encode_u8,
-        common::{extension, imsg},
+        common::extension,
+        has_flag, msg_id,
         zenoh::{PushBody, id, query::ConsolidationMode},
     },
     result::ZResult,
@@ -42,16 +43,16 @@ impl<'a> Reply<'a> {
     }
 
     pub(crate) fn decode(reader: &mut ZBufReader<'a>, header: u8) -> ZResult<Self, ZCodecError> {
-        if imsg::mid(header) != id::REPLY {
+        if msg_id(header) != id::REPLY {
             zbail!(ZCodecError::CouldNotRead);
         }
 
         let mut consolidation = ConsolidationMode::DEFAULT;
-        if imsg::has_flag(header, flag::C) {
+        if has_flag(header, flag::C) {
             consolidation = ConsolidationMode::decode(reader)?;
         }
 
-        if imsg::has_flag(header, flag::Z) {
+        if has_flag(header, flag::Z) {
             extension::skip_all("Reply", reader)?;
         }
 

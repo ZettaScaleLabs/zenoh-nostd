@@ -4,8 +4,8 @@ use crate::{
     protocol::{
         ZCodecError,
         codec::decode_u8,
-        common::imsg,
         core::Reliability,
+        msg_id,
         network::{
             declare::Declare,
             interest::Interest,
@@ -80,7 +80,7 @@ impl<'a> NetworkMessage<'a> {
     ) -> ZResult<Self, ZCodecError> {
         let header = decode_u8(reader)?;
 
-        let body = match imsg::mid(header) {
+        let body = match msg_id(header) {
             id::PUSH => NetworkBody::Push(Push::decode(reader, header)?),
             id::REQUEST => NetworkBody::Request(Request::decode(reader, header)?),
             id::RESPONSE => NetworkBody::Response(Response::decode(reader, header)?),
@@ -148,11 +148,9 @@ pub(crate) mod ext {
                 decode_timestamp, decode_u8, decode_u32, encode_timestamp, encode_u8, encode_u32,
                 encoded_len_timestamp, encoded_len_u32,
             },
-            common::{
-                extension::{ZExtZ64, ZExtZBufHeader},
-                imsg,
-            },
+            common::extension::{ZExtZ64, ZExtZBufHeader},
             core::{CongestionControl, EntityId, Priority, ZenohIdProto},
+            has_flag,
         },
         result::ZResult,
         zbuf::{ZBufReader, ZBufWriter},
@@ -199,8 +197,8 @@ pub(crate) mod ext {
 
         pub(crate) const fn get_congestion_control(&self) -> CongestionControl {
             match (
-                imsg::has_flag(self.inner, Self::D_FLAG),
-                imsg::has_flag(self.inner, Self::F_FLAG),
+                has_flag(self.inner, Self::D_FLAG),
+                has_flag(self.inner, Self::F_FLAG),
             ) {
                 (false, false) => CongestionControl::Drop,
                 (false, true) => CongestionControl::Drop,
@@ -209,7 +207,7 @@ pub(crate) mod ext {
         }
 
         pub(crate) const fn is_express(&self) -> bool {
-            imsg::has_flag(self.inner, Self::E_FLAG)
+            has_flag(self.inner, Self::E_FLAG)
         }
 
         pub(crate) fn encode(
