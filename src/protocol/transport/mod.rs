@@ -70,15 +70,15 @@ impl<'a, 'b> TransportMessage<'a, 'b> {
     }
 
     fn handle_frame_callback(
-        header: u8,
         reader: &mut ZBufReader<'a>,
+        header: u8,
         on_network_msg: &mut Option<impl FnMut(&FrameHeader, NetworkMessage<'a>)>,
     ) -> ZResult<(), ZCodecError> {
-        let header: FrameHeader = FrameHeader::decode(header, reader)?;
+        let header: FrameHeader = FrameHeader::decode(reader, header)?;
 
         while reader.can_read() {
             let mark = reader.mark();
-            let msg = NetworkMessage::decode(header.reliability, reader);
+            let msg = NetworkMessage::decode(reader, header.reliability);
 
             match msg {
                 Ok(msg) => {
@@ -111,22 +111,22 @@ impl<'a, 'b> TransportMessage<'a, 'b> {
 
         match imsg::mid(header) {
             id::FRAME => {
-                Self::handle_frame_callback(header, reader, &mut on_network_msg)?;
+                Self::handle_frame_callback(reader, header, &mut on_network_msg)?;
             }
             id::KEEP_ALIVE => {
-                let _ = KeepAlive::decode(header, reader)?;
+                let _ = KeepAlive::decode(reader, header)?;
                 if let Some(on_keepalive) = &mut on_keepalive {
                     on_keepalive();
                 }
             }
             id::INIT => {
                 if !imsg::has_flag(header, transport::init::flag::A) {
-                    let init_syn = InitSyn::decode(header, reader)?;
+                    let init_syn = InitSyn::decode(reader, header)?;
                     if let Some(on_init_syn) = &mut on_init_syn {
                         on_init_syn(init_syn);
                     }
                 } else {
-                    let init_ack = InitAck::decode(header, reader)?;
+                    let init_ack = InitAck::decode(reader, header)?;
                     if let Some(on_init_ack) = &mut on_init_ack {
                         on_init_ack(init_ack);
                     }
@@ -134,12 +134,12 @@ impl<'a, 'b> TransportMessage<'a, 'b> {
             }
             id::OPEN => {
                 if !imsg::has_flag(header, transport::open::flag::A) {
-                    let open_syn = OpenSyn::decode(header, reader)?;
+                    let open_syn = OpenSyn::decode(reader, header)?;
                     if let Some(on_open_syn) = &mut on_open_syn {
                         on_open_syn(open_syn);
                     }
                 } else {
-                    let open_ack = OpenAck::decode(header, reader)?;
+                    let open_ack = OpenAck::decode(reader, header)?;
                     if let Some(on_open_ack) = &mut on_open_ack {
                         on_open_ack(open_ack);
                     }
@@ -182,17 +182,17 @@ impl<'a, 'b> TransportMessage<'a, 'b> {
     }
 
     async fn handle_frame_callback_async(
-        header: u8,
         reader: &mut ZBufReader<'a>,
+        header: u8,
         on_network_msg: &mut Option<
             impl AsyncFnMut(&FrameHeader, NetworkMessage<'a>) -> ZResult<()>,
         >,
     ) -> ZResult<(), ZCodecError> {
-        let header: FrameHeader = FrameHeader::decode(header, reader)?;
+        let header: FrameHeader = FrameHeader::decode(reader, header)?;
 
         while reader.can_read() {
             let mark = reader.mark();
-            let msg = NetworkMessage::decode(header.reliability, reader);
+            let msg = NetworkMessage::decode(reader, header.reliability);
 
             match msg {
                 Ok(msg) => {
@@ -229,10 +229,10 @@ impl<'a, 'b> TransportMessage<'a, 'b> {
 
         match imsg::mid(header) {
             id::FRAME => {
-                Self::handle_frame_callback_async(header, reader, &mut on_network_msg).await?;
+                Self::handle_frame_callback_async(reader, header, &mut on_network_msg).await?;
             }
             id::KEEP_ALIVE => {
-                let _ = KeepAlive::decode(header, reader)?;
+                let _ = KeepAlive::decode(reader, header)?;
                 if let Some(on_keepalive) = &mut on_keepalive
                     && let Err(e) = on_keepalive()
                 {
@@ -241,14 +241,14 @@ impl<'a, 'b> TransportMessage<'a, 'b> {
             }
             id::INIT => {
                 if !imsg::has_flag(header, transport::init::flag::A) {
-                    let init_syn = InitSyn::decode(header, reader)?;
+                    let init_syn = InitSyn::decode(reader, header)?;
                     if let Some(on_init_syn) = &mut on_init_syn
                         && let Err(e) = on_init_syn(init_syn)
                     {
                         crate::error!("Error when handling init_syn callback: {}", e);
                     }
                 } else {
-                    let init_ack = InitAck::decode(header, reader)?;
+                    let init_ack = InitAck::decode(reader, header)?;
                     if let Some(on_init_ack) = &mut on_init_ack
                         && let Err(e) = on_init_ack(init_ack)
                     {
@@ -258,14 +258,14 @@ impl<'a, 'b> TransportMessage<'a, 'b> {
             }
             id::OPEN => {
                 if !imsg::has_flag(header, transport::open::flag::A) {
-                    let open_syn = OpenSyn::decode(header, reader)?;
+                    let open_syn = OpenSyn::decode(reader, header)?;
                     if let Some(on_open_syn) = &mut on_open_syn
                         && let Err(e) = on_open_syn(open_syn)
                     {
                         crate::error!("Error when handling open_syn callback: {}", e);
                     }
                 } else {
-                    let open_ack = OpenAck::decode(header, reader)?;
+                    let open_ack = OpenAck::decode(reader, header)?;
                     if let Some(on_open_ack) = &mut on_open_ack
                         && let Err(e) = on_open_ack(open_ack)
                     {
@@ -340,7 +340,7 @@ pub(crate) mod ext {
         inner: u8,
     }
 
-    impl<const ID: u8> QoSType<{ ID }> {
+    impl<const ID: u8> QoSType<ID> {
         pub(crate) const DEFAULT: Self = Self::new(Priority::DEFAULT);
 
         pub(crate) const fn new(priority: Priority) -> Self {
@@ -351,18 +351,18 @@ pub(crate) mod ext {
 
         pub(crate) fn encode(
             &self,
-            more: bool,
             writer: &mut ZBufWriter<'_>,
+            more: bool,
         ) -> ZResult<(), ZCodecError> {
-            let ext: ZExtZ64<{ ID }> = (*self).into();
-            ext.encode(more, writer)
+            let ext: ZExtZ64<ID> = (*self).into();
+            ext.encode(writer, more)
         }
 
         pub(crate) fn decode(
-            header: u8,
             reader: &mut ZBufReader<'_>,
+            header: u8,
         ) -> ZResult<(Self, bool), ZCodecError> {
-            let (ext, more) = ZExtZ64::<{ ID }>::decode(header, reader)?;
+            let (ext, more) = ZExtZ64::<ID>::decode(reader, header)?;
             Ok((ext.into(), more))
         }
 
@@ -376,22 +376,22 @@ pub(crate) mod ext {
         }
     }
 
-    impl<const ID: u8> Default for QoSType<{ ID }> {
+    impl<const ID: u8> Default for QoSType<ID> {
         fn default() -> Self {
             Self::DEFAULT
         }
     }
 
-    impl<const ID: u8> From<ZExtZ64<{ ID }>> for QoSType<{ ID }> {
-        fn from(ext: ZExtZ64<{ ID }>) -> Self {
+    impl<const ID: u8> From<ZExtZ64<ID>> for QoSType<ID> {
+        fn from(ext: ZExtZ64<ID>) -> Self {
             Self {
                 inner: ext.value as u8,
             }
         }
     }
 
-    impl<const ID: u8> From<QoSType<{ ID }>> for ZExtZ64<{ ID }> {
-        fn from(ext: QoSType<{ ID }>) -> Self {
+    impl<const ID: u8> From<QoSType<ID>> for ZExtZ64<ID> {
+        fn from(ext: QoSType<ID>) -> Self {
             ZExtZ64::new(ext.inner as u64)
         }
     }
@@ -405,18 +405,18 @@ pub(crate) mod ext {
 
         pub(crate) fn encode(
             &self,
-            more: bool,
             writer: &mut ZBufWriter<'_>,
+            more: bool,
         ) -> ZResult<(), ZCodecError> {
-            let ext: ZExtZ64<{ ID }> = (*self).into();
-            ext.encode(more, writer)
+            let ext: ZExtZ64<ID> = (*self).into();
+            ext.encode(writer, more)
         }
 
         pub(crate) fn decode(
-            header: u8,
             reader: &mut ZBufReader<'_>,
+            header: u8,
         ) -> ZResult<(Self, bool), ZCodecError> {
-            let (ext, more) = ZExtZ64::<{ ID }>::decode(header, reader)?;
+            let (ext, more) = ZExtZ64::<ID>::decode(reader, header)?;
             Ok((ext.into(), more))
         }
 

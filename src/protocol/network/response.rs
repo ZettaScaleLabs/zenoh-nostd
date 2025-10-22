@@ -56,23 +56,23 @@ impl<'a> Response<'a> {
 
         if self.ext_qos != ext::QoSType::DEFAULT {
             n_exts -= 1;
-            self.ext_qos.encode(n_exts != 0, writer)?;
+            self.ext_qos.encode(writer, n_exts != 0)?;
         }
 
         if let Some(ts) = self.ext_tstamp.as_ref() {
             n_exts -= 1;
-            ts.encode(n_exts != 0, writer)?;
+            ts.encode(writer, n_exts != 0)?;
         }
 
         if let Some(ri) = self.ext_respid.as_ref() {
             n_exts -= 1;
-            ri.encode(n_exts != 0, writer)?;
+            ri.encode(writer, n_exts != 0)?;
         }
 
         self.payload.encode(writer)
     }
 
-    pub(crate) fn decode(header: u8, reader: &mut ZBufReader<'a>) -> ZResult<Self, ZCodecError> {
+    pub(crate) fn decode(reader: &mut ZBufReader<'a>, header: u8) -> ZResult<Self, ZCodecError> {
         if imsg::mid(header) != id::RESPONSE {
             zbail!(ZCodecError::CouldNotRead);
         }
@@ -96,22 +96,22 @@ impl<'a> Response<'a> {
             let ext = decode_u8(reader)?;
             match iext::eheader(ext) {
                 ext::QoS::ID => {
-                    let (q, ext) = ext::QoSType::decode(ext, reader)?;
+                    let (q, ext) = ext::QoSType::decode(reader, ext)?;
                     ext_qos = q;
                     has_ext = ext;
                 }
                 ext::Timestamp::ID => {
-                    let (t, ext) = ext::TimestampType::decode(ext, reader)?;
+                    let (t, ext) = ext::TimestampType::decode(reader, ext)?;
                     ext_tstamp = Some(t);
                     has_ext = ext;
                 }
                 ext::ResponderId::ID => {
-                    let (t, ext) = ext::ResponderIdType::decode(ext, reader)?;
+                    let (t, ext) = ext::ResponderIdType::decode(reader, ext)?;
                     ext_respid = Some(t);
                     has_ext = ext;
                 }
                 _ => {
-                    has_ext = extension::skip("Response", ext, reader)?;
+                    has_ext = extension::skip("Response", reader, ext)?;
                 }
             }
         }
@@ -185,18 +185,18 @@ impl ResponseFinal {
 
         if self.ext_qos != ext::QoSType::DEFAULT {
             n_exts -= 1;
-            self.ext_qos.encode(n_exts != 0, writer)?;
+            self.ext_qos.encode(writer, n_exts != 0)?;
         }
 
         if let Some(ts) = self.ext_tstamp.as_ref() {
             n_exts -= 1;
-            ts.encode(n_exts != 0, writer)?;
+            ts.encode(writer, n_exts != 0)?;
         }
 
         Ok(())
     }
 
-    pub(crate) fn decode(header: u8, reader: &mut ZBufReader<'_>) -> ZResult<Self, ZCodecError> {
+    pub(crate) fn decode(reader: &mut ZBufReader<'_>, header: u8) -> ZResult<Self, ZCodecError> {
         if imsg::mid(header) != id::RESPONSE_FINAL {
             zbail!(ZCodecError::CouldNotRead)
         }
@@ -211,17 +211,17 @@ impl ResponseFinal {
             let ext: u8 = decode_u8(reader)?;
             match iext::eheader(ext) {
                 ext::QoS::ID => {
-                    let (q, ext) = ext::QoSType::decode(ext, reader)?;
+                    let (q, ext) = ext::QoSType::decode(reader, ext)?;
                     ext_qos = q;
                     has_ext = ext;
                 }
                 ext::Timestamp::ID => {
-                    let (t, ext) = ext::TimestampType::decode(ext, reader)?;
+                    let (t, ext) = ext::TimestampType::decode(reader, ext)?;
                     ext_tstamp = Some(t);
                     has_ext = ext;
                 }
                 _ => {
-                    has_ext = extension::skip("ResponseFinal", ext, reader)?;
+                    has_ext = extension::skip("ResponseFinal", reader, ext)?;
                 }
             }
         }
@@ -234,7 +234,7 @@ impl ResponseFinal {
     }
 
     #[cfg(test)]
-    pub(crate) fn rand() -> Self {
+    pub(crate) fn rand(_: &mut ZBufWriter<'_>) -> Self {
         use rand::Rng;
 
         let mut rng = rand::thread_rng();

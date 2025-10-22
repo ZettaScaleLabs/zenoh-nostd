@@ -62,7 +62,7 @@ async fn main(spawner: embassy_executor::Spawner) {
         println!("{} bytes: seq={} rtt={:?}µs lat={:?}µs", 8, i, rtt, rtt / 2);
     }
 
-    let avg_rtt: u64 = samples.iter().sum::<u64>() as u64 / samples.len() as u64;
+    let avg_rtt: u64 = samples.iter().sum::<u64>() / samples.len() as u64;
     let avg_lat: u64 = avg_rtt / 2;
 
     println!(

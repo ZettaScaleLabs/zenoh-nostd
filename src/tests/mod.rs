@@ -26,6 +26,8 @@ fn bench() {
 
     if let Some(f) = filter {
         c = c.with_filter(f);
+    } else {
+        return;
     }
 
     criterion_benchmark(&mut c);

@@ -14,7 +14,7 @@ test:
     cargo test codec
 
 bench:
-    cargo test --profile=release -- --nocapture bench --
+    cargo test bench --profile=release -- --nocapture bench --
 
 # Ping
 

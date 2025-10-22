@@ -63,34 +63,34 @@ impl<'a> OpenSyn<'a> {
         }
 
         encode_u32(writer, self.initial_sn)?;
-        encode_zbuf(writer, true, self.cookie)?;
+        encode_zbuf(writer, self.cookie, true)?;
 
         if let Some(qos) = self.ext_qos.as_ref() {
             n_exts -= 1;
-            qos.encode(n_exts != 0, writer)?;
+            qos.encode(writer, n_exts != 0)?;
         }
 
         if let Some(auth) = self.ext_auth.as_ref() {
             n_exts -= 1;
-            auth.encode(n_exts != 0, writer)?;
+            auth.encode(writer, n_exts != 0)?;
         }
         if let Some(mlink) = self.ext_mlink.as_ref() {
             n_exts -= 1;
-            mlink.encode(n_exts != 0, writer)?;
+            mlink.encode(writer, n_exts != 0)?;
         }
         if let Some(lowlatency) = self.ext_lowlatency.as_ref() {
             n_exts -= 1;
-            lowlatency.encode(n_exts != 0, writer)?;
+            lowlatency.encode(writer, n_exts != 0)?;
         }
         if let Some(compression) = self.ext_compression.as_ref() {
             n_exts -= 1;
-            compression.encode(n_exts != 0, writer)?;
+            compression.encode(writer, n_exts != 0)?;
         }
 
         Ok(())
     }
 
-    pub(crate) fn decode(header: u8, reader: &mut ZBufReader<'a>) -> ZResult<Self, ZCodecError> {
+    pub(crate) fn decode(reader: &mut ZBufReader<'a>, header: u8) -> ZResult<Self, ZCodecError> {
         if imsg::mid(header) != id::OPEN || imsg::has_flag(header, flag::A) {
             zbail!(ZCodecError::CouldNotRead)
         }
@@ -120,12 +120,12 @@ impl<'a> OpenSyn<'a> {
                     has_ext = ext;
                 }
                 ext::Auth::ID => {
-                    let (a, ext) = ext::Auth::decode(ext, reader)?;
+                    let (a, ext) = ext::Auth::decode(reader, ext)?;
                     ext_auth = Some(a);
                     has_ext = ext;
                 }
                 ext::MultiLinkSyn::ID => {
-                    let (a, ext) = ext::MultiLinkSyn::decode(ext, reader)?;
+                    let (a, ext) = ext::MultiLinkSyn::decode(reader, ext)?;
                     ext_mlink = Some(a);
                     has_ext = ext;
                 }
@@ -140,7 +140,7 @@ impl<'a> OpenSyn<'a> {
                     has_ext = ext;
                 }
                 _ => {
-                    has_ext = extension::skip("OpenSyn", ext, reader)?;
+                    has_ext = extension::skip("OpenSyn", reader, ext)?;
                 }
             }
         }
@@ -184,11 +184,11 @@ impl<'a> OpenSyn<'a> {
                 b.len()
             })
             .unwrap();
-        let ext_qos = rng.gen_bool(0.5).then_some(ZExtUnit::rand());
+        let ext_qos = rng.gen_bool(0.5).then_some(ZExtUnit::rand(zbuf));
         let ext_auth = rng.gen_bool(0.5).then_some(ZExtZBuf::rand(zbuf));
         let ext_mlink = rng.gen_bool(0.5).then_some(ZExtZBuf::rand(zbuf));
-        let ext_lowlatency = rng.gen_bool(0.5).then_some(ZExtUnit::rand());
-        let ext_compression = rng.gen_bool(0.5).then_some(ZExtUnit::rand());
+        let ext_lowlatency = rng.gen_bool(0.5).then_some(ZExtUnit::rand(zbuf));
+        let ext_compression = rng.gen_bool(0.5).then_some(ZExtUnit::rand(zbuf));
 
         Self {
             lease,
@@ -259,33 +259,33 @@ impl<'a> OpenAck<'a> {
 
         if let Some(qos) = self.ext_qos.as_ref() {
             n_exts -= 1;
-            qos.encode(n_exts != 0, writer)?;
+            qos.encode(writer, n_exts != 0)?;
         }
 
         if let Some(auth) = self.ext_auth.as_ref() {
             n_exts -= 1;
-            auth.encode(n_exts != 0, writer)?;
+            auth.encode(writer, n_exts != 0)?;
         }
 
         if let Some(mlink) = self.ext_mlink.as_ref() {
             n_exts -= 1;
-            mlink.encode(n_exts != 0, writer)?;
+            mlink.encode(writer, n_exts != 0)?;
         }
 
         if let Some(lowlatency) = self.ext_lowlatency.as_ref() {
             n_exts -= 1;
-            lowlatency.encode(n_exts != 0, writer)?;
+            lowlatency.encode(writer, n_exts != 0)?;
         }
 
         if let Some(compression) = self.ext_compression.as_ref() {
             n_exts -= 1;
-            compression.encode(n_exts != 0, writer)?;
+            compression.encode(writer, n_exts != 0)?;
         }
 
         Ok(())
     }
 
-    pub(crate) fn decode(header: u8, reader: &mut ZBufReader<'a>) -> ZResult<Self, ZCodecError> {
+    pub(crate) fn decode(reader: &mut ZBufReader<'a>, header: u8) -> ZResult<Self, ZCodecError> {
         if imsg::mid(header) != id::OPEN || !imsg::has_flag(header, flag::A) {
             zbail!(ZCodecError::CouldNotRead)
         }
@@ -314,7 +314,7 @@ impl<'a> OpenAck<'a> {
                     has_ext = ext;
                 }
                 ext::Auth::ID => {
-                    let (a, ext) = ext::Auth::decode(ext, reader)?;
+                    let (a, ext) = ext::Auth::decode(reader, ext)?;
                     ext_auth = Some(a);
                     has_ext = ext;
                 }
@@ -334,7 +334,7 @@ impl<'a> OpenAck<'a> {
                     has_ext = ext;
                 }
                 _ => {
-                    has_ext = extension::skip("OpenAck", ext, reader)?;
+                    has_ext = extension::skip("OpenAck", reader, ext)?;
                 }
             }
         }
@@ -365,11 +365,11 @@ impl<'a> OpenAck<'a> {
         };
 
         let initial_sn: TransportSn = rng.r#gen();
-        let ext_qos = rng.gen_bool(0.5).then_some(ZExtUnit::rand());
+        let ext_qos = rng.gen_bool(0.5).then_some(ZExtUnit::rand(zbuf));
         let ext_auth = rng.gen_bool(0.5).then_some(ZExtZBuf::rand(zbuf));
-        let ext_mlink = rng.gen_bool(0.5).then_some(ZExtUnit::rand());
-        let ext_lowlatency = rng.gen_bool(0.5).then_some(ZExtUnit::rand());
-        let ext_compression = rng.gen_bool(0.5).then_some(ZExtUnit::rand());
+        let ext_mlink = rng.gen_bool(0.5).then_some(ZExtUnit::rand(zbuf));
+        let ext_lowlatency = rng.gen_bool(0.5).then_some(ZExtUnit::rand(zbuf));
+        let ext_compression = rng.gen_bool(0.5).then_some(ZExtUnit::rand(zbuf));
 
         Self {
             lease,

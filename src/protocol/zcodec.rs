@@ -156,8 +156,8 @@ pub(crate) fn encoded_len_zbuf(len: bool, zbuf: ZBuf<'_>) -> usize {
 
 pub(crate) fn encode_zbuf(
     writer: &mut ZBufWriter<'_>,
-    len: bool,
     zbuf: ZBuf<'_>,
+    len: bool,
 ) -> ZResult<(), ZCodecError> {
     if len {
         encode_usize(writer, zbuf.len())?;
@@ -186,10 +186,10 @@ pub(crate) fn decode_zbuf<'a>(
 
 pub(crate) fn encode_str(
     writer: &mut ZBufWriter<'_>,
-    len: bool,
     s: &str,
+    len: bool,
 ) -> ZResult<(), ZCodecError> {
-    encode_zbuf(writer, len, s.as_bytes())
+    encode_zbuf(writer, s.as_bytes(), len)
 }
 
 pub(crate) fn decode_str<'a>(
@@ -217,7 +217,7 @@ pub(crate) fn encode_timestamp(
     encode_u64(writer, x.get_time().as_u64())?;
     let id = x.get_id();
     let bytes = &id.to_le_bytes()[..id.size()];
-    encode_zbuf(writer, true, bytes)?;
+    encode_zbuf(writer, bytes, true)?;
     Ok(())
 }
 

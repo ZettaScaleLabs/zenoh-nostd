@@ -24,7 +24,7 @@ impl KeepAlive {
         Ok(())
     }
 
-    pub(crate) fn decode(header: u8, reader: &mut ZBufReader<'_>) -> ZResult<Self, ZCodecError> {
+    pub(crate) fn decode(reader: &mut ZBufReader<'_>, header: u8) -> ZResult<Self, ZCodecError> {
         if imsg::mid(header) != id::KEEP_ALIVE {
             zbail!(ZCodecError::CouldNotRead)
         }
@@ -38,7 +38,7 @@ impl KeepAlive {
     }
 
     #[cfg(test)]
-    pub(crate) fn rand() -> Self {
+    pub(crate) fn rand(_: &mut ZBufWriter<'_>) -> Self {
         Self
     }
 }

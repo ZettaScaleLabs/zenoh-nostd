@@ -58,21 +58,21 @@ impl<'a> Declare<'a> {
 
         if self.ext_qos != declare::ext::QoSType::DEFAULT {
             n_exts -= 1;
-            self.ext_qos.encode(n_exts != 0, writer)?;
+            self.ext_qos.encode(writer, n_exts != 0)?;
         }
         if let Some(ts) = self.ext_tstamp.as_ref() {
             n_exts -= 1;
-            ts.encode(n_exts != 0, writer)?;
+            ts.encode(writer, n_exts != 0)?;
         }
         if self.ext_nodeid != declare::ext::NodeIdType::DEFAULT {
             n_exts -= 1;
-            self.ext_nodeid.encode(n_exts != 0, writer)?;
+            self.ext_nodeid.encode(writer, n_exts != 0)?;
         }
 
         self.body.encode(writer)
     }
 
-    pub(crate) fn decode(header: u8, reader: &mut ZBufReader<'a>) -> ZResult<Self, ZCodecError> {
+    pub(crate) fn decode(reader: &mut ZBufReader<'a>, header: u8) -> ZResult<Self, ZCodecError> {
         if imsg::mid(header) != crate::protocol::network::id::DECLARE {
             zbail!(ZCodecError::CouldNotRead)
         }
@@ -91,22 +91,22 @@ impl<'a> Declare<'a> {
             let ext: u8 = crate::protocol::zcodec::decode_u8(reader)?;
             match iext::eheader(ext) {
                 declare::ext::QoS::ID => {
-                    let (q, ext) = declare::ext::QoSType::decode(ext, reader)?;
+                    let (q, ext) = declare::ext::QoSType::decode(reader, ext)?;
                     ext_qos = q;
                     has_ext = ext;
                 }
                 declare::ext::Timestamp::ID => {
-                    let (t, ext) = declare::ext::TimestampType::decode(ext, reader)?;
+                    let (t, ext) = declare::ext::TimestampType::decode(reader, ext)?;
                     ext_tstamp = Some(t);
                     has_ext = ext;
                 }
                 declare::ext::NodeId::ID => {
-                    let (nid, ext) = declare::ext::NodeIdType::decode(ext, reader)?;
+                    let (nid, ext) = declare::ext::NodeIdType::decode(reader, ext)?;
                     ext_nodeid = nid;
                     has_ext = ext;
                 }
                 _ => {
-                    has_ext = extension::skip("Declare", ext, reader)?;
+                    has_ext = extension::skip("Declare", reader, ext)?;
                 }
             }
         }
@@ -199,25 +199,25 @@ impl<'a> DeclareBody<'a> {
 
         Ok(match imsg::mid(header) {
             declare::id::D_KEYEXPR => {
-                DeclareBody::DeclareKeyExpr(DeclareKeyExpr::decode(header, reader)?)
+                DeclareBody::DeclareKeyExpr(DeclareKeyExpr::decode(reader, header)?)
             }
             declare::id::U_KEYEXPR => {
-                DeclareBody::UndeclareKeyExpr(UndeclareKeyExpr::decode(header, reader)?)
+                DeclareBody::UndeclareKeyExpr(UndeclareKeyExpr::decode(reader, header)?)
             }
             declare::id::D_SUBSCRIBER => {
-                DeclareBody::DeclareSubscriber(DeclareSubscriber::decode(header, reader)?)
+                DeclareBody::DeclareSubscriber(DeclareSubscriber::decode(reader, header)?)
             }
             declare::id::U_SUBSCRIBER => {
-                DeclareBody::UndeclareSubscriber(UndeclareSubscriber::decode(header, reader)?)
+                DeclareBody::UndeclareSubscriber(UndeclareSubscriber::decode(reader, header)?)
             }
             declare::id::D_QUERYABLE => {
-                DeclareBody::DeclareQueryable(DeclareQueryable::decode(header, reader)?)
+                DeclareBody::DeclareQueryable(DeclareQueryable::decode(reader, header)?)
             }
             declare::id::U_QUERYABLE => {
-                DeclareBody::UndeclareQueryable(UndeclareQueryable::decode(header, reader)?)
+                DeclareBody::UndeclareQueryable(UndeclareQueryable::decode(reader, header)?)
             }
             declare::id::D_FINAL => {
-                DeclareBody::DeclareFinal(DeclareFinal::decode(header, reader)?)
+                DeclareBody::DeclareFinal(DeclareFinal::decode(reader, header)?)
             }
             _ => zbail!(ZCodecError::CouldNotRead),
         })
@@ -231,7 +231,7 @@ impl<'a> DeclareBody<'a> {
 
         match rng.gen_range(0..7) {
             0 => DeclareBody::DeclareKeyExpr(DeclareKeyExpr::rand(zbuf)),
-            1 => DeclareBody::UndeclareKeyExpr(UndeclareKeyExpr::rand()),
+            1 => DeclareBody::UndeclareKeyExpr(UndeclareKeyExpr::rand(zbuf)),
             2 => DeclareBody::DeclareSubscriber(DeclareSubscriber::rand(zbuf)),
             3 => DeclareBody::UndeclareSubscriber(UndeclareSubscriber::rand(zbuf)),
             4 => DeclareBody::DeclareQueryable(DeclareQueryable::rand(zbuf)),
@@ -266,8 +266,8 @@ pub(crate) mod common {
         }
 
         pub(crate) fn decode(
-            header: u8,
             reader: &mut ZBufReader<'_>,
+            header: u8,
         ) -> ZResult<Self, ZCodecError> {
             if imsg::mid(header) != declare::id::D_FINAL {
                 zbail!(ZCodecError::CouldNotRead);
@@ -323,8 +323,8 @@ pub(crate) mod common {
 
             pub(crate) fn encode(
                 &self,
-                more: bool,
                 writer: &mut ZBufWriter<'_>,
+                more: bool,
             ) -> ZResult<(), ZCodecError> {
                 let mut data = [0u8; 256]; // Temporary buffer for the inner encoding, assume max 256 bytes
                 let mut value = &mut data[..];
@@ -343,7 +343,7 @@ pub(crate) mod common {
                 encode_u8(&mut zriter, flags)?;
                 encode_u16(&mut zriter, self.wire_expr.scope)?;
                 if self.wire_expr.has_suffix() {
-                    encode_str(&mut zriter, false, self.wire_expr.suffix)?;
+                    encode_str(&mut zriter, self.wire_expr.suffix, false)?;
                 }
 
                 let zbuf_len = 256 - zriter.remaining();
@@ -351,14 +351,14 @@ pub(crate) mod common {
                     value: &data[..zbuf_len],
                 };
 
-                ext.encode(more, writer)
+                ext.encode(writer, more)
             }
 
             pub(crate) fn decode(
-                header: u8,
                 reader: &mut ZBufReader<'a>,
+                header: u8,
             ) -> ZResult<(Self, bool), ZCodecError> {
-                let (ext, more) = common::ext::WireExprExt::decode(header, reader)?;
+                let (ext, more) = common::ext::WireExprExt::decode(reader, header)?;
 
                 let mut zeader: ZBufReader<'a> = ext.value.reader();
                 let flags = zeader.read_u8()?;
@@ -440,8 +440,8 @@ pub(crate) mod keyexpr {
         }
 
         pub(crate) fn decode(
-            header: u8,
             reader: &mut ZBufReader<'a>,
+            header: u8,
         ) -> ZResult<Self, ZCodecError> {
             if imsg::mid(header) != declare::id::D_KEYEXPR {
                 zbail!(ZCodecError::CouldNotRead);
@@ -485,8 +485,8 @@ pub(crate) mod keyexpr {
         }
 
         pub(crate) fn decode(
-            header: u8,
             reader: &mut ZBufReader<'_>,
+            header: u8,
         ) -> ZResult<Self, ZCodecError> {
             if imsg::mid(header) != declare::id::U_KEYEXPR {
                 zbail!(ZCodecError::CouldNotRead);
@@ -503,7 +503,7 @@ pub(crate) mod keyexpr {
         }
 
         #[cfg(test)]
-        pub(crate) fn rand() -> Self {
+        pub(crate) fn rand(_: &mut ZBufWriter<'_>) -> Self {
             use rand::Rng;
             let mut rng = rand::thread_rng();
 
@@ -564,8 +564,8 @@ pub(crate) mod subscriber {
         }
 
         pub(crate) fn decode(
-            header: u8,
             reader: &mut ZBufReader<'a>,
+            header: u8,
         ) -> ZResult<Self, ZCodecError> {
             if imsg::mid(header) != declare::id::D_SUBSCRIBER {
                 zbail!(ZCodecError::CouldNotRead);
@@ -584,7 +584,7 @@ pub(crate) mod subscriber {
             let mut has_ext = imsg::has_flag(header, subscriber::flag::Z);
             while has_ext {
                 let ext: u8 = decode_u8(reader)?;
-                has_ext = extension::skip("DeclareSubscriber", ext, reader)?;
+                has_ext = extension::skip("DeclareSubscriber", reader, ext)?;
             }
 
             Ok(subscriber::DeclareSubscriber { id, wire_expr })
@@ -620,15 +620,15 @@ pub(crate) mod subscriber {
             encode_u32(writer, self.id)?;
 
             if !self.ext_wire_expr.is_null() {
-                self.ext_wire_expr.encode(false, writer)?;
+                self.ext_wire_expr.encode(writer, false)?;
             }
 
             Ok(())
         }
 
         pub(crate) fn decode(
-            header: u8,
             reader: &mut ZBufReader<'a>,
+            header: u8,
         ) -> ZResult<Self, ZCodecError> {
             if imsg::mid(header) != declare::id::U_SUBSCRIBER {
                 zbail!(ZCodecError::CouldNotRead);
@@ -643,12 +643,12 @@ pub(crate) mod subscriber {
                 let ext = decode_u8(reader)?;
                 match iext::eheader(ext) {
                     common::ext::WireExprExt::ID => {
-                        let (we, ext) = common::ext::WireExprType::decode(ext, reader)?;
+                        let (we, ext) = common::ext::WireExprType::decode(reader, ext)?;
                         ext_wire_expr = we;
                         has_ext = ext;
                     }
                     _ => {
-                        has_ext = extension::skip("UndeclareSubscriber", ext, reader)?;
+                        has_ext = extension::skip("UndeclareSubscriber", reader, ext)?;
                     }
                 }
             }
@@ -726,15 +726,15 @@ pub(crate) mod queryable {
 
             if self.ext_info != queryable::ext::QueryableInfoType::DEFAULT {
                 n_exts -= 1;
-                self.ext_info.encode(n_exts != 0, writer)?;
+                self.ext_info.encode(writer, n_exts != 0)?;
             }
 
             Ok(())
         }
 
         pub(crate) fn decode(
-            header: u8,
             reader: &mut ZBufReader<'a>,
+            header: u8,
         ) -> ZResult<Self, ZCodecError> {
             if imsg::mid(header) != declare::id::D_QUERYABLE {
                 zbail!(ZCodecError::CouldNotRead);
@@ -757,12 +757,12 @@ pub(crate) mod queryable {
                 let ext: u8 = decode_u8(reader)?;
                 match iext::eheader(ext) {
                     queryable::ext::QueryableInfo::ID => {
-                        let (i, ext) = queryable::ext::QueryableInfoType::decode(ext, reader)?;
+                        let (i, ext) = queryable::ext::QueryableInfoType::decode(reader, ext)?;
                         ext_info = i;
                         has_ext = ext;
                     }
                     _ => {
-                        has_ext = extension::skip("DeclareQueryable", ext, reader)?;
+                        has_ext = extension::skip("DeclareQueryable", reader, ext)?;
                     }
                 }
             }
@@ -818,8 +818,8 @@ pub(crate) mod queryable {
 
             pub(crate) fn encode(
                 &self,
-                more: bool,
                 writer: &mut ZBufWriter<'_>,
+                more: bool,
             ) -> ZResult<(), ZCodecError> {
                 let mut flags: u8 = 0;
                 if self.complete {
@@ -828,14 +828,14 @@ pub(crate) mod queryable {
                 let v: u64 = (flags as u64) | ((self.distance as u64) << 8);
                 let ext = queryable::ext::QueryableInfo::new(v);
 
-                ext.encode(more, writer)
+                ext.encode(writer, more)
             }
 
             pub(crate) fn decode(
-                header: u8,
                 reader: &mut ZBufReader<'_>,
+                header: u8,
             ) -> ZResult<(Self, bool), ZCodecError> {
-                let (ext, more) = queryable::ext::QueryableInfo::decode(header, reader)?;
+                let (ext, more) = queryable::ext::QueryableInfo::decode(reader, header)?;
 
                 let complete = imsg::has_flag(ext.value as u8, queryable::ext::flag::C);
                 let distance = (ext.value >> 8) as u16;
@@ -875,12 +875,12 @@ pub(crate) mod queryable {
             let header = declare::id::U_QUERYABLE | queryable::flag::Z;
             encode_u8(writer, header)?;
             encode_u32(writer, self.id)?;
-            self.ext_wire_expr.encode(false, writer)
+            self.ext_wire_expr.encode(writer, false)
         }
 
         pub(crate) fn decode(
-            header: u8,
             reader: &mut ZBufReader<'a>,
+            header: u8,
         ) -> ZResult<Self, ZCodecError> {
             if imsg::mid(header) != declare::id::U_QUERYABLE {
                 zbail!(ZCodecError::CouldNotRead);
@@ -895,12 +895,12 @@ pub(crate) mod queryable {
                 let ext = decode_u8(reader)?;
                 match iext::eheader(ext) {
                     common::ext::WireExprExt::ID => {
-                        let (we, ext) = common::ext::WireExprType::decode(ext, reader)?;
+                        let (we, ext) = common::ext::WireExprType::decode(reader, ext)?;
                         ext_wire_expr = we;
                         has_ext = ext;
                     }
                     _ => {
-                        has_ext = extension::skip("UndeclareQueryable", ext, reader)?;
+                        has_ext = extension::skip("UndeclareQueryable", reader, ext)?;
                     }
                 }
             }

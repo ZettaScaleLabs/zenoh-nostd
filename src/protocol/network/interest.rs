@@ -66,21 +66,21 @@ impl<'a> Interest<'a> {
 
         if self.ext_qos != declare::ext::QoSType::DEFAULT {
             n_exts -= 1;
-            self.ext_qos.encode(n_exts != 0, writer)?;
+            self.ext_qos.encode(writer, n_exts != 0)?;
         }
         if let Some(ts) = self.ext_tstamp.as_ref() {
             n_exts -= 1;
-            ts.encode(n_exts != 0, writer)?;
+            ts.encode(writer, n_exts != 0)?;
         }
         if self.ext_nodeid != declare::ext::NodeIdType::DEFAULT {
             n_exts -= 1;
-            self.ext_nodeid.encode(n_exts != 0, writer)?;
+            self.ext_nodeid.encode(writer, n_exts != 0)?;
         }
 
         Ok(())
     }
 
-    pub(crate) fn decode(header: u8, reader: &mut ZBufReader<'a>) -> ZResult<Self, ZCodecError> {
+    pub(crate) fn decode(reader: &mut ZBufReader<'a>, header: u8) -> ZResult<Self, ZCodecError> {
         if imsg::mid(header) != id::INTEREST {
             zbail!(ZCodecError::CouldNotRead);
         }
@@ -119,23 +119,23 @@ impl<'a> Interest<'a> {
             let ext = decode_u8(reader)?;
             match iext::eheader(ext) {
                 declare::ext::QoS::ID => {
-                    let (q, ext) = interest::ext::QoSType::decode(ext, reader)?;
+                    let (q, ext) = interest::ext::QoSType::decode(reader, ext)?;
 
                     ext_qos = q;
                     has_ext = ext;
                 }
                 declare::ext::Timestamp::ID => {
-                    let (t, ext) = interest::ext::TimestampType::decode(ext, reader)?;
+                    let (t, ext) = interest::ext::TimestampType::decode(reader, ext)?;
                     ext_tstamp = Some(t);
                     has_ext = ext;
                 }
                 declare::ext::NodeId::ID => {
-                    let (nid, ext) = interest::ext::NodeIdType::decode(ext, reader)?;
+                    let (nid, ext) = interest::ext::NodeIdType::decode(reader, ext)?;
                     ext_nodeid = nid;
                     has_ext = ext;
                 }
                 _ => {
-                    has_ext = extension::skip("Declare", ext, reader)?;
+                    has_ext = extension::skip("Declare", reader, ext)?;
                 }
             }
         }

@@ -9,7 +9,7 @@ use esp_radio::wifi::{
     ClientConfig, ModeConfig, WifiController, WifiDevice, WifiEvent, WifiStaState,
 };
 use getrandom::{Error, register_custom_getrandom};
-use zenoh_nostd::{keyexpr::borrowed::keyexpr, protocol::core::endpoint::EndPoint};
+use zenoh_nostd::{EndPoint, keyexpr};
 use zenoh_nostd_embassy::PlatformEmbassy;
 
 use core::num::NonZeroU32;
@@ -44,19 +44,12 @@ async fn main(spawner: Spawner) {
 
     let net_stack = init_esp32(spawner).await;
 
-    #[embassy_executor::task]
-    async fn test_task(runner: &'static zenoh_nostd::api::driver::SessionDriver<PlatformEmbassy>) {
-        if let Err(e) = runner.run().await {
-            zenoh_nostd::error!("Session driver task ended with error: {}", e);
-        }
-    }
-
     let mut session = zenoh_nostd::open!(
         zenoh_nostd::zconfig!(
                 PlatformEmbassy: (spawner, PlatformEmbassy { stack: net_stack }),
                 TX: 512,
                 RX: 512,
-                SUBSCRIBERS: 2
+                MAX_SUBSCRIBERS: 2
         ),
         EndPoint::try_from(CONNECT.unwrap_or("tcp/192.168.21.90:7447")).unwrap()
     )
@@ -163,12 +156,9 @@ async fn connection(mut controller: WifiController<'static>) {
     defmt::info!("start connection task");
     defmt::info!("Device capabilities: {:?}", controller.capabilities());
     loop {
-        match esp_radio::wifi::sta_state() {
-            WifiStaState::Connected => {
-                controller.wait_for_event(WifiEvent::StaDisconnected).await;
-                Timer::after(Duration::from_millis(5000)).await
-            }
-            _ => {}
+        if esp_radio::wifi::sta_state() == WifiStaState::Connected {
+            controller.wait_for_event(WifiEvent::StaDisconnected).await;
+            Timer::after(Duration::from_millis(5000)).await
         }
         if !matches!(controller.is_started(), Ok(true)) {
             let client_config = ModeConfig::Client(
