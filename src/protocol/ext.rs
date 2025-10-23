@@ -1,12 +1,12 @@
 use crate::{
     protocol::{
         ZCodecError,
-        codec::{decode_u8, decode_u64, decode_zbuf},
+        codec::{decode_u8, decode_u64, decode_zbuf, encode_u8},
         has_flag,
     },
     result::ZResult,
     zbail,
-    zbuf::{BufReaderExt, ZBufReader},
+    zbuf::{BufReaderExt, ZBufReader, ZBufWriter},
 };
 
 const EXT_ID_BITS: u8 = 4;
@@ -125,4 +125,15 @@ pub(crate) fn skip_all(s: &str, reader: &mut ZBufReader<'_>) -> ZResult<(), ZCod
     }
 
     Ok(())
+}
+
+pub(crate) fn encode_ext_header<E, P>(
+    writer: &mut ZBufWriter<'_>,
+    more: bool,
+) -> ZResult<(), ZCodecError>
+where
+    E: ZExtPrimitive<P>,
+{
+    let header = E::HEADER;
+    encode_u8(writer, ext_with_more(header, more))
 }
