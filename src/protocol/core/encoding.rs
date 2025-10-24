@@ -32,48 +32,6 @@ impl<'a> Encoding<'a> {
         }
     }
 
-    pub(crate) fn encoded_len(&self) -> usize {
-        let mut len = encoded_len_u32((self.id as u32) << 1);
-
-        if let Some(schema) = &self.schema {
-            len += encoded_len_zbuf(true, schema);
-        }
-
-        len
-    }
-
-    pub(crate) fn encode(&self, writer: &mut ZBufWriter<'_>) -> ZResult<(), ZCodecError> {
-        let mut id = (self.id as u32) << 1;
-
-        if self.schema.is_some() {
-            id |= flag::S;
-        }
-
-        encode_u32(writer, id)?;
-
-        if let Some(schema) = &self.schema {
-            encode_zbuf(writer, schema, true)?;
-        }
-
-        Ok(())
-    }
-
-    pub(crate) fn decode(reader: &mut ZBufReader<'a>) -> ZResult<Self, ZCodecError> {
-        let id = decode_u32(reader)?;
-
-        let has_schema = has_flag(id as u8, flag::S as u8);
-        let id = (id >> 1) as EncodingId;
-
-        let schema = if has_schema {
-            let schema: ZBuf<'a> = decode_zbuf(reader, None)?;
-            Some(schema)
-        } else {
-            None
-        };
-
-        Ok(Encoding { id, schema })
-    }
-
     #[cfg(test)]
     pub(crate) fn rand(zbuf: &mut ZBufWriter<'a>) -> Self {
         use rand::Rng;
@@ -101,6 +59,16 @@ impl<'a> Encoding<'a> {
 
         Encoding { id, schema }
     }
+}
+
+pub(crate) fn encoded_len_encoding(x: &Encoding<'_>) -> usize {
+    let mut len = encoded_len_u32((x.id as u32) << 1);
+
+    if let Some(schema) = &x.schema {
+        len += encoded_len_zbuf(true, schema);
+    }
+
+    len
 }
 
 pub(crate) fn encode_encoding(

@@ -8,8 +8,9 @@ use crate::{
         },
         core::{
             EntityId, ZenohIdProto, decode_zid, encode_zid,
-            encoding::{Encoding, decode_encoding, encode_encoding},
+            encoding::{Encoding, decode_encoding, encode_encoding, encoded_len_encoding},
         },
+        ext::ZExtKind,
     },
     zbuf::{BufReaderExt, ZBuf},
 };
@@ -36,7 +37,7 @@ impl SourceInfo {
 
 crate::zext!(
     SourceInfo,
-    crate::protocol::ext::ZExtKind::ZBuf,
+    ZExtKind::ZBuf,
     |w, x| {
         let len = 1 + x.zid.encoded_len(false) + encoded_len_u32(x.eid) + encoded_len_u32(x.sn);
         encode_usize(w, len)?;
@@ -90,9 +91,9 @@ impl<'a> Value<'a> {
 
 crate::zext!(
     Value<'a>,
-    crate::protocol::ext::ZExtKind::ZBuf,
+    ZExtKind::ZBuf,
     |w, x| {
-        let len = x.encoding.encoded_len() + encoded_len_zbuf(false, x.payload);
+        let len = encoded_len_encoding(&x.encoding) + encoded_len_zbuf(false, x.payload);
         encode_usize(w, len)?;
 
         encode_encoding(w, &x.encoding)?;
@@ -114,7 +115,7 @@ crate::zext!(
 
 #[derive(Debug, PartialEq, Eq)]
 pub(crate) struct Attachment<'a> {
-    pub(crate) buffer: crate::zbuf::ZBuf<'a>,
+    pub(crate) buffer: ZBuf<'a>,
 }
 
 #[cfg(test)]
@@ -137,7 +138,7 @@ impl<'a> Attachment<'a> {
 
 crate::zext!(
     Attachment<'a>,
-    crate::protocol::ext::ZExtKind::ZBuf,
+    ZExtKind::ZBuf,
     |w, x| {
         let len = encoded_len_zbuf(false, x.buffer);
         encode_usize(w, len)?;
@@ -149,58 +150,3 @@ crate::zext!(
         Ok(Attachment { buffer })
     }
 );
-
-// use crate::{
-//     protocol::codec::{decode_u32, decode_u64, encode_u8, encode_u32, encode_u64},
-//     zbuf::ZBufMutExt,
-// };
-
-// #[derive(Debug, Clone, PartialEq, Eq)]
-// pub struct SourceInfo {
-//     pub(crate) sn: u32,
-// }
-
-// crate::zext!(
-//     SourceInfo,
-//     crate::protocol::ext::ZExtKind::U64,
-//     |w, x| { encode_u64(w, x.sn as u64) },
-//     |r| {
-//         Ok(SourceInfo {
-//             sn: decode_u64(r)? as u32,
-//         })
-//     }
-// );
-
-// #[derive(Debug, Clone, PartialEq, Eq)]
-// pub struct Put<'a> {
-//     // ---------- Body for Put message ----------
-//     pub(crate) timestamp: Option<uhlc::Timestamp>,
-//     pub(crate) encoding: crate::protocol::core::encoding::Encoding<'a>,
-
-//     pub(crate) ext_sinfo: Option<SourceInfo>,
-
-//     pub(crate) payload: crate::zbuf::ZBuf<'a>,
-//     // ----------------------------------------
-// }
-
-// impl<'a> Put<'a> {
-//     fn encode(&self, writer: &mut crate::zbuf::ZBufWriter<'_>) {
-//         encode_sourceinfo::<Self>(writer, &self.ext_sinfo, true);
-//     }
-// }
-
-// crate::zext!(impl<'a> SourceInfo, Put<'a>, 0x1, false);
-
-// #[derive(Debug, Clone, PartialEq, Eq)]
-// pub struct Abd<'a> {
-//     // ---------- Body for Put message ----------
-//     pub(crate) timestamp: Option<uhlc::Timestamp>,
-//     pub(crate) encoding: crate::protocol::core::encoding::Encoding<'a>,
-
-//     pub(crate) ext_sinfo: Option<SourceInfo>,
-
-//     pub(crate) payload: crate::zbuf::ZBuf<'a>,
-//     // ----------------------------------------
-// }
-
-// crate::zext!(impl<'a> SourceInfo, Abd<'a>, 0x1, false);

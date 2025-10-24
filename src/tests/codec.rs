@@ -34,8 +34,7 @@ use uhlc::Timestamp;
 
 use rand::distributions::{Alphanumeric, DistString};
 
-#[allow(non_snake_case)]
-pub(crate) fn encode_String(
+pub(crate) fn encode_string(
     writer: &mut ZBufWriter<'_>,
     s: String,
     len: bool,
@@ -43,25 +42,22 @@ pub(crate) fn encode_String(
     encode_str(writer, s.as_str(), len)
 }
 
-#[allow(non_snake_case)]
-pub(crate) fn decode_String<'a>(
+pub(crate) fn decode_string<'a>(
     reader: &mut ZBufReader<'a>,
     len: Option<usize>,
 ) -> ZResult<String, ZCodecError> {
     decode_str(reader, len).map(|s| s.to_string())
 }
 
-#[allow(non_snake_case)]
-pub(crate) fn encode_Timestamp(
+pub(crate) fn encode_timestamp(
     writer: &mut ZBufWriter<'_>,
     x: Timestamp,
 ) -> ZResult<(), ZCodecError> {
-    encode_timestamp(writer, &x)
+    crate::protocol::codec::encode_timestamp(writer, &x)
 }
 
-#[allow(non_snake_case)]
-pub(crate) fn decode_Timestamp<'a>(reader: &mut ZBufReader<'a>) -> ZResult<Timestamp, ZCodecError> {
-    decode_timestamp(reader)
+pub(crate) fn decode_timestamp<'a>(reader: &mut ZBufReader<'a>) -> ZResult<Timestamp, ZCodecError> {
+    crate::protocol::codec::decode_timestamp(reader)
 }
 
 const NUM_ITER: usize = 100;
@@ -147,8 +143,8 @@ macro_rules! run {
             full,
             $ty,
             RAND: |_| $rand,
-            ENCODE: |mut w, v: &$ty| paste! { [<encode_ $ty>](&mut w, v.clone(), $( $enc_args ),*) },
-            DECODE: |mut r| paste! { [<decode_ $ty>](&mut r, $( $dec_args ),*) },
+            ENCODE: |mut w, v: &$ty| paste! { [<encode_ $ty:snake>](&mut w, v.clone(), $( $enc_args ),*) },
+            DECODE: |mut r| paste! { [<decode_ $ty:snake>](&mut r, $( $dec_args ),*) },
             ASSERT: |a: $ty, b: $ty| assert_eq!(a, b)
         );
     };
@@ -230,7 +226,14 @@ test_header!(
 
 #[test]
 fn codec_encoding() {
-    run!(default, Encoding);
+    run!(
+        full,
+        Encoding,
+        RAND: |mut w| Encoding::rand(&mut w),
+        ENCODE: |mut w, v: &Encoding| encode_encoding(&mut w, v),
+        DECODE: |mut r| decode_encoding(&mut r),
+        ASSERT: |a, b| assert_eq!(a, b)
+    );
 }
 
 #[test]
@@ -413,7 +416,7 @@ pub(super) fn criterion(c: &mut Criterion) {
             ext_tstamp: None,
             payload: PushBody::Put(Put {
                 timestamp: None,
-                encoding: Encoding::empty(),
+                encoding: None,
                 ext_sinfo: None,
                 ext_attachment: None,
                 payload: &[0u8; 8],

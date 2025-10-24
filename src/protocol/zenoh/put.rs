@@ -2,7 +2,7 @@ use crate::{
     protocol::{
         ZCodecError,
         codec::{decode_timestamp, decode_zbuf, encode_timestamp, encode_u8, encode_zbuf},
-        core::encoding::Encoding,
+        core::encoding::{Encoding, decode_encoding, encode_encoding},
         ext::{decode_ext_header, skip_ext},
         exts::{
             Attachment, SourceInfo, decode_attachment, decode_source_info, encode_attachment,
@@ -11,20 +11,23 @@ use crate::{
         has_flag,
     },
     result::ZResult,
-    zbuf::{ZBufReader, ZBufWriter},
+    zbuf::{ZBuf, ZBufReader, ZBufWriter},
 };
 
 use uhlc::Timestamp;
 
 #[derive(Debug, PartialEq, Eq)]
 pub(crate) struct Put<'a> {
-    pub(crate) timestamp: Option<Timestamp>,
-    pub(crate) encoding: Encoding<'a>,
+    // --- Body ---
+    pub(crate) payload: ZBuf<'a>,
 
+    // --- Optional Body that appears in flags ---
+    pub(crate) timestamp: Option<Timestamp>,
+    pub(crate) encoding: Option<Encoding<'a>>,
+
+    // --- Extensions ---
     pub(crate) ext_sinfo: Option<SourceInfo>,
     pub(crate) ext_attachment: Option<Attachment<'a>>,
-
-    pub(crate) payload: crate::zbuf::ZBuf<'a>,
 }
 
 impl<'a> Put<'a> {
@@ -44,7 +47,7 @@ impl<'a> Put<'a> {
             header |= Self::FLAG_T;
         }
 
-        if self.encoding != Encoding::empty() {
+        if self.encoding.is_some() {
             header |= Self::FLAG_E;
         }
 
@@ -60,17 +63,19 @@ impl<'a> Put<'a> {
             encode_timestamp(writer, ts)?;
         }
 
-        if self.encoding != Encoding::empty() {
-            self.encoding.encode(writer)?;
+        if let Some(encoding) = self.encoding.as_ref() {
+            encode_encoding(writer, encoding)?;
         }
 
-        n_exts -=
-            encode_source_info::<Self>(writer, &self.ext_sinfo, n_exts > 1 && (n_exts - 1) > 0)?
-                as u8;
+        n_exts -= encode_source_info::<Self>(
+            writer,
+            self.ext_sinfo.as_ref(),
+            n_exts > 1 && (n_exts - 1) > 0,
+        )? as u8;
 
         n_exts -= encode_attachment::<Self>(
             writer,
-            &self.ext_attachment,
+            self.ext_attachment.as_ref(),
             n_exts > 1 && (n_exts - 1) > 0,
         )? as u8;
 
@@ -84,9 +89,9 @@ impl<'a> Put<'a> {
             timestamp = Some(decode_timestamp(reader)?);
         }
 
-        let mut encoding = Encoding::empty();
+        let mut encoding = Option::<Encoding>::None;
         if has_flag(header, Self::FLAG_E) {
-            encoding = Encoding::decode(reader)?;
+            encoding = Some(decode_encoding(reader)?);
         }
 
         let mut ext_sinfo: Option<SourceInfo> = None;
@@ -143,7 +148,7 @@ impl<'a> Put<'a> {
             let id = uhlc::ID::try_from(ZenohIdProto::default().as_le_bytes()).unwrap();
             Timestamp::new(time, id)
         });
-        let encoding = Encoding::rand(zbuf);
+        let encoding = rng.gen_bool(0.5).then_some(Encoding::rand(zbuf));
         let ext_sinfo = rng.gen_bool(0.5).then_some(SourceInfo::rand());
         let ext_attachment = rng.gen_bool(0.5).then_some(Attachment::rand(zbuf));
         let payload = zbuf

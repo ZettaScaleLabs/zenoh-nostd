@@ -87,7 +87,7 @@ macro_rules! zext {
         }
 
         paste::paste! {
-            pub(crate) fn [<encode_ $ext:snake>]<$($lt,)? Primitive>(writer: &mut crate::zbuf::ZBufWriter<'_>, x: &Option<$ext<$($lt)?>>, more: bool)
+            pub(crate) fn [<encode_ $ext:snake>]<$($lt,)? Primitive>(writer: &mut crate::zbuf::ZBufWriter<'_>, x: Option<&$ext<$($lt)?>>, more: bool)
             -> crate::result::ZResult<bool, crate::protocol::ZCodecError>
                 where $ext<$($lt)?>: crate::protocol::ext::ZExtPrimitive<Primitive>
             {
@@ -137,42 +137,6 @@ pub(crate) fn skip_ext(reader: &mut ZBufReader<'_>, kind: ZExtKind) -> ZResult<(
 
     Ok(())
 }
-
-// pub(crate) fn skip(s: &str, reader: &mut ZBufReader<'_>, header: u8) -> ZResult<bool, ZCodecError> {
-//     let id = ext_id(header);
-
-//     if ext_mandatory(header) {
-//         crate::error!("Mandatory extension {} with id {} not supported.", s, id,);
-
-//         zbail!(ZCodecError::CouldNotRead);
-//     }
-
-//     match ext_encoding(header) {
-//         ENC_UNIT => {}
-//         ENC_U64 => {
-//             let _ = decode_u64(reader)?;
-//         }
-//         ENC_ZBUF => {
-//             let _ = decode_zbuf(reader, None)?;
-//         }
-//         _ => {
-//             zbail!(ZCodecError::CouldNotRead);
-//         }
-//     };
-
-//     Ok(ext_has_more(header))
-// }
-
-// pub(crate) fn skip_all(s: &str, reader: &mut ZBufReader<'_>) -> ZResult<(), ZCodecError> {
-//     let mut has_ext = reader.can_read();
-
-//     while has_ext {
-//         let header = decode_u8(reader)?;
-//         has_ext = skip(s, reader, header)?;
-//     }
-
-//     Ok(())
-// }
 
 pub(crate) fn encode_ext_header<E, P>(
     writer: &mut ZBufWriter<'_>,

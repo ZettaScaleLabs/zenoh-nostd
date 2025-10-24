@@ -2,7 +2,7 @@ use crate::{
     protocol::{
         ZCodecError,
         codec::{decode_zbuf, encode_u8, encode_zbuf},
-        core::encoding::Encoding,
+        core::encoding::{Encoding, decode_encoding, encode_encoding},
         ext::{decode_ext_header, skip_ext},
         exts::{SourceInfo, decode_source_info, encode_source_info},
         has_flag,
@@ -14,22 +14,26 @@ use crate::{
 
 #[derive(Debug, PartialEq, Eq)]
 pub(crate) struct Err<'a> {
-    pub(crate) encoding: Encoding<'a>,
-
-    pub(crate) ext_sinfo: Option<SourceInfo>,
-
+    // --- Body ---
     pub(crate) payload: ZBuf<'a>,
+
+    // --- Optional Body that appears in flags ---
+    pub(crate) encoding: Option<Encoding<'a>>,
+
+    // --- Extensions ---
+    pub(crate) ext_sinfo: Option<SourceInfo>,
 }
 
 impl<'a> Err<'a> {
-    const ID: u8 = 5;
+    pub(crate) const ID: u8 = 5;
+
     const FLAG_E: u8 = 1 << 6;
     const FLAG_Z: u8 = 1 << 7;
 
     pub(crate) fn encode(&self, writer: &mut ZBufWriter<'_>) -> ZResult<(), ZCodecError> {
         let mut header = Self::ID;
 
-        if self.encoding != Encoding::empty() {
+        if self.encoding.is_some() {
             header |= Self::FLAG_E;
         }
 
@@ -39,20 +43,20 @@ impl<'a> Err<'a> {
 
         encode_u8(writer, header)?;
 
-        if self.encoding != Encoding::empty() {
-            self.encoding.encode(writer)?;
+        if let Some(encoding) = self.encoding.as_ref() {
+            encode_encoding(writer, encoding)?;
         }
 
-        encode_source_info::<Self>(writer, &self.ext_sinfo, false)?;
+        encode_source_info::<Self>(writer, self.ext_sinfo.as_ref(), false)?;
 
         encode_zbuf(writer, self.payload, true)
     }
 
     pub(crate) fn decode(reader: &mut ZBufReader<'a>, header: u8) -> ZResult<Self, ZCodecError> {
-        let mut encoding = Encoding::empty();
+        let mut encoding = Option::<Encoding>::None;
 
         if has_flag(header, Self::FLAG_E) {
-            encoding = Encoding::decode(reader)?;
+            encoding = Some(decode_encoding(reader)?);
         }
 
         let mut ext_sinfo: Option<SourceInfo> = None;
@@ -97,7 +101,7 @@ impl<'a> Err<'a> {
 
         let mut rng = rand::thread_rng();
 
-        let encoding = Encoding::rand(zbuf);
+        let encoding = rng.gen_bool(0.5).then_some(Encoding::rand(zbuf));
         let ext_sinfo = rng.gen_bool(0.5).then_some(SourceInfo::rand());
         let payload = zbuf
             .write_slot_return(rng.gen_range(0..=64), |b: &mut [u8]| {

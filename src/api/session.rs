@@ -12,9 +12,7 @@ use crate::{
     platform::Platform,
     protocol::keyexpr::borrowed::keyexpr,
     protocol::{
-        core::{
-            Reliability, ZenohIdProto, encoding::Encoding, endpoint::EndPoint, wire_expr::WireExpr,
-        },
+        core::{Reliability, ZenohIdProto, endpoint::EndPoint, wire_expr::WireExpr},
         network::{
             self, NetworkBody, NetworkMessage,
             declare::{Declare, DeclareBody, subscriber::DeclareSubscriber},
@@ -77,7 +75,7 @@ impl<T: Platform + 'static> Session<T> {
                 ext_nodeid: network::push::ext::NodeIdType::DEFAULT,
                 payload: PushBody::Put(Put {
                     timestamp: None,
-                    encoding: Encoding::empty(),
+                    encoding: None,
                     ext_sinfo: None,
                     ext_attachment: None,
                     payload: bytes,
