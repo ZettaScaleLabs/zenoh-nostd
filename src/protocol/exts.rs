@@ -4,10 +4,10 @@ use crate::{
     protocol::{
         codec::{
             decode_u8, decode_u32, decode_usize, decode_zbuf, encode_u8, encode_u32, encode_usize,
-            encode_zbuf, encoded_len_u32, encoded_len_zbuf,
+            encode_zbuf, encoded_len_u32,
         },
         core::{
-            EntityId, ZenohIdProto, decode_zid, encode_zid,
+            EntityId, ZenohIdProto, decode_zid, encode_zid, encoded_len_zid,
             encoding::{Encoding, decode_encoding, encode_encoding, encoded_len_encoding},
         },
         ext::ZExtKind,
@@ -39,7 +39,7 @@ crate::zext!(
     SourceInfo,
     ZExtKind::ZBuf,
     |w, x| {
-        let len = 1 + x.zid.encoded_len(false) + encoded_len_u32(x.eid) + encoded_len_u32(x.sn);
+        let len = 1 + encoded_len_zid(&x.zid) + encoded_len_u32(x.eid) + encoded_len_u32(x.sn);
         encode_usize(w, len)?;
 
         let flags: u8 = (x.zid.size() as u8 - 1) << 4;
@@ -93,11 +93,11 @@ crate::zext!(
     Value<'a>,
     ZExtKind::ZBuf,
     |w, x| {
-        let len = encoded_len_encoding(&x.encoding) + encoded_len_zbuf(false, x.payload);
+        let len = encoded_len_encoding(&x.encoding) + x.payload.len();
         encode_usize(w, len)?;
 
         encode_encoding(w, &x.encoding)?;
-        encode_zbuf(w, x.payload, false)
+        encode_zbuf(w, x.payload)
     },
     |r| {
         let len = decode_usize(r)?;
@@ -107,7 +107,7 @@ crate::zext!(
         let end = r.remaining();
 
         let payload_len = len - (start - end);
-        let payload = decode_zbuf(r, Some(payload_len))?;
+        let payload = decode_zbuf(r, payload_len)?;
 
         Ok(Value { encoding, payload })
     }
@@ -140,13 +140,13 @@ crate::zext!(
     Attachment<'a>,
     ZExtKind::ZBuf,
     |w, x| {
-        let len = encoded_len_zbuf(false, x.buffer);
+        let len = x.buffer.len();
         encode_usize(w, len)?;
-        encode_zbuf(w, x.buffer, false)
+        encode_zbuf(w, x.buffer)
     },
     |r| {
         let len = decode_usize(r)?;
-        let buffer = decode_zbuf(r, Some(len))?;
+        let buffer = decode_zbuf(r, len)?;
         Ok(Attachment { buffer })
     }
 );

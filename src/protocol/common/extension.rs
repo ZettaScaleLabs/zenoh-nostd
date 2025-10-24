@@ -204,7 +204,8 @@ impl<'a, const ID: u8> ZExtZBuf<'a, ID> {
         }
 
         encode_u8(writer, header)?;
-        encode_zbuf(writer, self.value, true)?;
+        encode_usize(writer, self.value.len())?;
+        encode_zbuf(writer, self.value)?;
 
         Ok(())
     }
@@ -217,7 +218,8 @@ impl<'a, const ID: u8> ZExtZBuf<'a, ID> {
             zbail!(ZCodecError::CouldNotRead);
         }
 
-        let value = decode_zbuf(reader, None)?;
+        let len = decode_usize(reader)?;
+        let value = decode_zbuf(reader, len)?;
 
         Ok((ZExtZBuf { value }, has_flag(header, iext::FLAG_Z)))
     }
@@ -318,7 +320,8 @@ pub(crate) fn skip(
             let _ = decode_u64(reader)?;
         }
         iext::ENC_ZBUF => {
-            let _ = decode_zbuf(reader, None)?;
+            let len = decode_usize(reader)?;
+            let _ = decode_zbuf(reader, len)?;
         }
         _ => {
             zbail!(ZCodecError::CouldNotRead);

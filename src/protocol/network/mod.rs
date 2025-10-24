@@ -149,7 +149,10 @@ pub(crate) mod ext {
                 encoded_len_timestamp, encoded_len_u32,
             },
             common::extension::{ZExtZ64, ZExtZBufHeader},
-            core::{CongestionControl, EntityId, Priority, ZenohIdProto},
+            core::{
+                CongestionControl, EntityId, Priority, ZenohIdProto, decode_zid, encode_zid,
+                encoded_len_zid,
+            },
             has_flag,
         },
         result::ZResult,
@@ -367,7 +370,7 @@ pub(crate) mod ext {
 
     impl<const ID: u8> EntityGlobalIdType<ID> {
         pub(crate) fn encoded_len(&self) -> usize {
-            1 + self.zid.encoded_len(false) + encoded_len_u32(self.eid)
+            1 + encoded_len_zid(&self.zid) + encoded_len_u32(self.eid)
         }
 
         pub(crate) fn encode(
@@ -380,7 +383,7 @@ pub(crate) mod ext {
 
             let flags: u8 = (self.zid.size() as u8 - 1) << 4;
             encode_u8(writer, flags)?;
-            self.zid.encode(writer, false)?;
+            encode_zid(writer, &self.zid)?;
             encode_u32(writer, self.eid)
         }
 
@@ -392,7 +395,7 @@ pub(crate) mod ext {
 
             let flags = decode_u8(reader)?;
             let length = 1 + ((flags >> 4) as usize);
-            let zid = ZenohIdProto::decode(reader, Some(length))?;
+            let zid = decode_zid(reader, length)?;
             let eid = decode_u32(reader)?;
 
             Ok((Self { zid, eid }, more))

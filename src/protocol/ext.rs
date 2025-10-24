@@ -1,7 +1,7 @@
 use crate::{
     protocol::{
         ZCodecError,
-        codec::{decode_u8, decode_u64, decode_zbuf, encode_u8},
+        codec::{decode_u8, decode_u64, decode_usize, decode_zbuf, encode_u8},
         has_flag,
     },
     result::ZResult,
@@ -131,7 +131,8 @@ pub(crate) fn skip_ext(reader: &mut ZBufReader<'_>, kind: ZExtKind) -> ZResult<(
             let _ = decode_u64(reader)?;
         }
         ZExtKind::ZBuf => {
-            let _ = decode_zbuf(reader, None)?;
+            let len = decode_usize(reader)?;
+            let _ = decode_zbuf(reader, len)?;
         }
     };
 

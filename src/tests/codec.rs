@@ -34,17 +34,13 @@ use uhlc::Timestamp;
 
 use rand::distributions::{Alphanumeric, DistString};
 
-pub(crate) fn encode_string(
-    writer: &mut ZBufWriter<'_>,
-    s: String,
-    len: bool,
-) -> ZResult<(), ZCodecError> {
-    encode_str(writer, s.as_str(), len)
+pub(crate) fn encode_string(writer: &mut ZBufWriter<'_>, s: String) -> ZResult<(), ZCodecError> {
+    encode_str(writer, s.as_str())
 }
 
 pub(crate) fn decode_string<'a>(
     reader: &mut ZBufReader<'a>,
-    len: Option<usize>,
+    len: usize,
 ) -> ZResult<String, ZCodecError> {
     decode_str(reader, len).map(|s| s.to_string())
 }
@@ -248,17 +244,42 @@ fn codec_network() {
 
 #[test]
 fn codec_string() {
-    run!(raw_args, String,
-        RAND: Alphanumeric
-            .sample_string(&mut thread_rng(), thread_rng().gen_range(0..MAX_PAYLOAD_SIZE / 2)),
-        ENCODE: (true),
-        DECODE: (None)
+    run!(full,
+        String,
+        RAND: |_| {
+            Alphanumeric.sample_string(
+                &mut thread_rng(),
+                thread_rng().gen_range(0..MAX_PAYLOAD_SIZE / 2),
+            )
+        },
+        ENCODE: |mut w, v: &String| {
+            encode_usize(&mut w, v.len())?;
+            encode_string(&mut w, v.clone())
+        },
+        DECODE: |mut r| {
+            let len = decode_usize(&mut r)?;
+            decode_string(&mut r, len)
+        },
+        ASSERT: |a, b| assert_eq!(a, b)
     );
 }
 
 #[test]
 fn codec_zid() {
-    run!(args, ZenohIdProto, ENCODE: (true), DECODE: (None));
+    run!(
+        full,
+        ZenohIdProto,
+        RAND: |mut w| ZenohIdProto::rand(&mut w),
+        ENCODE: |mut w, v: &ZenohIdProto| {
+            encode_usize(&mut w, v.size())?;
+            encode_zid(&mut w, v)
+        },
+        DECODE: |mut r| {
+            let length = decode_usize(&mut r)?;
+            decode_zid(&mut r, length)
+        },
+        ASSERT: |a, b| assert_eq!(a, b)
+    );
 }
 
 #[test]
@@ -287,10 +308,12 @@ fn codec_zbuf() {
     let mut rng = rand::thread_rng();
     let data: [u8; 16] = rng.r#gen();
 
-    encode_zbuf(&mut writer, &data, true).unwrap();
+    encode_usize(&mut writer, data.len()).unwrap();
+    encode_zbuf(&mut writer, &data).unwrap();
 
     let mut reader = zbuf.reader();
-    let ret = decode_zbuf(&mut reader, None).unwrap();
+    let len = decode_usize(&mut reader).unwrap();
+    let ret = decode_zbuf(&mut reader, len).unwrap();
     assert_eq!(ret, data);
 }
 
@@ -393,9 +416,11 @@ pub(super) fn criterion(c: &mut Criterion) {
     c.bench_function("Encode b'Hello, world!'", |b| {
         b.iter(|| {
             let mut writer = zbuf.writer();
-            encode_str(&mut writer, "Hello, world!", true).unwrap();
+            encode_usize(&mut writer, 13).unwrap();
+            encode_str(&mut writer, "Hello, world!").unwrap();
             let mut reader = zbuf.reader();
-            let _: &str = decode_str(&mut reader, None).unwrap();
+            let len = decode_usize(&mut reader).unwrap();
+            let _: &str = decode_str(&mut reader, len).unwrap();
         })
     });
 

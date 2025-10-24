@@ -146,23 +146,7 @@ pub(crate) fn decode_usize(reader: &mut ZBufReader<'_>) -> ZResult<usize, ZCodec
     })
 }
 
-pub(crate) fn encoded_len_zbuf(len: bool, zbuf: ZBuf<'_>) -> usize {
-    if len {
-        encoded_len_usize(zbuf.len()) + zbuf.len()
-    } else {
-        zbuf.len()
-    }
-}
-
-pub(crate) fn encode_zbuf(
-    writer: &mut ZBufWriter<'_>,
-    zbuf: ZBuf<'_>,
-    len: bool,
-) -> ZResult<(), ZCodecError> {
-    if len {
-        encode_usize(writer, zbuf.len())?;
-    }
-
+pub(crate) fn encode_zbuf(writer: &mut ZBufWriter<'_>, zbuf: ZBuf<'_>) -> ZResult<(), ZCodecError> {
     if zbuf.is_empty() {
         return Ok(());
     }
@@ -174,29 +158,21 @@ pub(crate) fn encode_zbuf(
 
 pub(crate) fn decode_zbuf<'a>(
     reader: &mut ZBufReader<'a>,
-    len: Option<usize>,
+    len: usize,
 ) -> ZResult<ZBuf<'a>, ZCodecError> {
-    let len = match len {
-        Some(l) => l,
-        None => decode_usize(reader)?,
-    };
-
     Ok(reader.read_zbuf(len)?)
 }
 
-pub(crate) fn encode_str(
-    writer: &mut ZBufWriter<'_>,
-    s: &str,
-    len: bool,
-) -> ZResult<(), ZCodecError> {
-    encode_zbuf(writer, s.as_bytes(), len)
+pub(crate) fn encode_str(writer: &mut ZBufWriter<'_>, s: &str) -> ZResult<(), ZCodecError> {
+    encode_zbuf(writer, s.as_bytes())
 }
 
 pub(crate) fn decode_str<'a>(
     reader: &mut ZBufReader<'a>,
-    len: Option<usize>,
+    len: usize,
 ) -> ZResult<&'a str, ZCodecError> {
     let zbuf = decode_zbuf(reader, len)?;
+
     match core::str::from_utf8(zbuf) {
         Ok(s) => Ok(s),
         Err(_) => Err(ZCodecError::CouldNotParse),
@@ -207,7 +183,7 @@ pub(crate) fn encoded_len_timestamp(x: &Timestamp) -> usize {
     let id = x.get_id();
     let bytes = &id.to_le_bytes()[..id.size()];
 
-    encoded_len_u64(x.get_time().as_u64()) + encoded_len_zbuf(true, bytes)
+    encoded_len_u64(x.get_time().as_u64()) + encoded_len_usize(bytes.len()) + bytes.len()
 }
 
 pub(crate) fn encode_timestamp(
@@ -215,18 +191,24 @@ pub(crate) fn encode_timestamp(
     x: &Timestamp,
 ) -> ZResult<(), ZCodecError> {
     encode_u64(writer, x.get_time().as_u64())?;
+
     let id = x.get_id();
     let bytes = &id.to_le_bytes()[..id.size()];
-    encode_zbuf(writer, bytes, true)?;
+
+    encode_usize(writer, bytes.len())?;
+    encode_zbuf(writer, bytes)?;
+
     Ok(())
 }
 
 pub(crate) fn decode_timestamp(reader: &mut ZBufReader<'_>) -> ZResult<Timestamp, ZCodecError> {
     let time = decode_u64(reader)?;
-    let bytes = decode_zbuf(reader, None)?;
-    let id = ID::try_from(bytes).map_err(|_| ZCodecError::CouldNotParse)?;
+    let len = decode_usize(reader)?;
+    let bytes = decode_zbuf(reader, len)?;
 
+    let id = ID::try_from(bytes).map_err(|_| ZCodecError::CouldNotParse)?;
     let time = NTP64(time);
+
     Ok(Timestamp::new(time, id))
 }
 

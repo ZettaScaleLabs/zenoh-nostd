@@ -1,9 +1,12 @@
 use crate::{
     protocol::{
         ZCodecError,
-        codec::{decode_array, decode_u8, decode_zbuf, encode_array, encode_u8, encode_zbuf},
+        codec::{
+            decode_array, decode_u8, decode_usize, decode_zbuf, encode_array, encode_u8,
+            encode_usize, encode_zbuf,
+        },
         common::extension::{self, iext},
-        core::{ZenohIdProto, resolution::Resolution, whatami::WhatAmI},
+        core::{ZenohIdProto, decode_zid, encode_zid, resolution::Resolution, whatami::WhatAmI},
         has_flag, msg_id,
         transport::{BatchSize, batch_size, id},
     },
@@ -63,7 +66,7 @@ impl<'a> InitSyn<'a> {
 
         let flags: u8 = ((self.zid.size() as u8 - 1) << 4) | whatami;
         encode_u8(writer, flags)?;
-        self.zid.encode(writer, false)?;
+        encode_zid(writer, &self.zid)?;
 
         if has_flag(header, flag::S) {
             encode_u8(writer, self.resolution.as_u8())?;
@@ -123,7 +126,7 @@ impl<'a> InitSyn<'a> {
         };
 
         let length = 1 + ((flags >> 4) as usize);
-        let zid: ZenohIdProto = ZenohIdProto::decode(reader, Some(length))?;
+        let zid = decode_zid(reader, length)?;
 
         let mut resolution = Resolution::default();
         let mut batch_size = batch_size::UNICAST.to_le_bytes();
@@ -307,14 +310,15 @@ impl<'a> InitAck<'a> {
 
         let flags: u8 = ((self.zid.size() as u8 - 1) << 4) | whatami;
         encode_u8(writer, flags)?;
-        self.zid.encode(writer, false)?;
+        encode_zid(writer, &self.zid)?;
 
         if has_flag(header, flag::S) {
             encode_u8(writer, self.resolution.as_u8())?;
             encode_array(writer, &self.batch_size.to_le_bytes())?;
         }
 
-        encode_zbuf(writer, self.cookie, true)?;
+        encode_usize(writer, self.cookie.len())?;
+        encode_zbuf(writer, self.cookie)?;
 
         if let Some(qos) = self.ext_qos.as_ref() {
             n_exts -= 1;
@@ -370,7 +374,7 @@ impl<'a> InitAck<'a> {
         };
 
         let length = 1 + ((flags >> 4) as usize);
-        let zid: ZenohIdProto = ZenohIdProto::decode(reader, Some(length))?;
+        let zid = decode_zid(reader, length)?;
         let mut resolution = Resolution::default();
         let mut batch_size = batch_size::UNICAST.to_le_bytes();
 
@@ -381,7 +385,9 @@ impl<'a> InitAck<'a> {
         }
 
         let batch_size = BatchSize::from_le_bytes(batch_size);
-        let cookie: ZBuf<'a> = decode_zbuf(reader, None)?;
+
+        let len = decode_usize(reader)?;
+        let cookie: ZBuf<'a> = decode_zbuf(reader, len)?;
 
         let mut ext_qos = None;
         let mut ext_qos_link = None;

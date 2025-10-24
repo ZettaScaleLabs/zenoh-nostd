@@ -4,8 +4,8 @@ use crate::{
     protocol::{
         ZCodecError,
         codec::{
-            decode_u8, decode_u32, decode_u64, decode_zbuf, encode_u8, encode_u32, encode_u64,
-            encode_zbuf,
+            decode_u8, decode_u32, decode_u64, decode_usize, decode_zbuf, encode_u8, encode_u32,
+            encode_u64, encode_usize, encode_zbuf,
         },
         common::extension::{self, iext},
         has_flag, msg_id,
@@ -61,7 +61,8 @@ impl<'a> OpenSyn<'a> {
         }
 
         encode_u32(writer, self.initial_sn)?;
-        encode_zbuf(writer, self.cookie, true)?;
+        encode_usize(writer, self.cookie.len())?;
+        encode_zbuf(writer, self.cookie)?;
 
         if let Some(qos) = self.ext_qos.as_ref() {
             n_exts -= 1;
@@ -99,8 +100,11 @@ impl<'a> OpenSyn<'a> {
         } else {
             Duration::from_millis(lease)
         };
+
         let initial_sn: TransportSn = decode_u32(reader)?;
-        let cookie: ZBuf<'_> = decode_zbuf(reader, None)?;
+
+        let len = decode_usize(reader)?;
+        let cookie = decode_zbuf(reader, len)?;
 
         let mut ext_qos = None;
         let mut ext_auth = None;

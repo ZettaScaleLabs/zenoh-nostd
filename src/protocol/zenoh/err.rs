@@ -1,7 +1,7 @@
 use crate::{
     protocol::{
         ZCodecError,
-        codec::{decode_zbuf, encode_u8, encode_zbuf},
+        codec::{decode_usize, decode_zbuf, encode_u8, encode_usize, encode_zbuf},
         core::encoding::{Encoding, decode_encoding, encode_encoding},
         ext::{decode_ext_header, skip_ext},
         exts::{SourceInfo, decode_source_info, encode_source_info},
@@ -49,7 +49,8 @@ impl<'a> Err<'a> {
 
         encode_source_info::<Self>(writer, self.ext_sinfo.as_ref(), false)?;
 
-        encode_zbuf(writer, self.payload, true)
+        encode_usize(writer, self.payload.len())?;
+        encode_zbuf(writer, self.payload)
     }
 
     pub(crate) fn decode(reader: &mut ZBufReader<'a>, header: u8) -> ZResult<Self, ZCodecError> {
@@ -83,7 +84,8 @@ impl<'a> Err<'a> {
             }
         }
 
-        let payload = decode_zbuf(reader, None)?;
+        let len = decode_usize(reader)?;
+        let payload = decode_zbuf(reader, len)?;
 
         Ok(Err {
             encoding,

@@ -1,7 +1,7 @@
 use crate::{
     protocol::{
         ZCodecError,
-        codec::{decode_str, encode_str, encode_u8},
+        codec::{decode_str, decode_usize, encode_str, encode_u8, encode_usize},
         ext::{decode_ext_header, skip_ext},
         exts::{
             Attachment, SourceInfo, Value, decode_attachment, decode_source_info, decode_value,
@@ -60,7 +60,8 @@ impl<'a> Query<'a> {
         }
 
         if let Some(params) = self.parameters.as_ref() {
-            encode_str(writer, params, true)?;
+            encode_usize(writer, params.len())?;
+            encode_str(writer, params)?;
         }
 
         n_exts -= encode_source_info::<Self>(
@@ -92,7 +93,8 @@ impl<'a> Query<'a> {
 
         let mut parameters = Option::<&'a str>::None;
         if has_flag(header, Self::FLAG_P) {
-            parameters = Some(decode_str(reader, None)?);
+            let len = decode_usize(reader)?;
+            parameters = Some(decode_str(reader, len)?);
         }
 
         let mut ext_sinfo: Option<SourceInfo> = None;

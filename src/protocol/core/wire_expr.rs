@@ -5,7 +5,7 @@ use heapless::String;
 use crate::{
     protocol::{
         ZCodecError, ZProtocolError,
-        codec::{decode_str, decode_u16, encode_str, encode_u16},
+        codec::{decode_str, decode_u16, decode_usize, encode_str, encode_u16, encode_usize},
         keyexpr::borrowed::keyexpr,
         network::Mapping,
     },
@@ -44,7 +44,8 @@ impl<'a> WireExpr<'a> {
         encode_u16(writer, self.scope)?;
 
         if !self.suffix.is_empty() {
-            encode_str(writer, self.suffix, true)?;
+            encode_usize(writer, self.suffix.len())?;
+            encode_str(writer, self.suffix)?;
         }
 
         Ok(())
@@ -57,7 +58,8 @@ impl<'a> WireExpr<'a> {
         let scope = decode_u16(reader)?;
 
         let suffix = if condition {
-            decode_str(reader, None)?
+            let len = decode_usize(reader)?;
+            decode_str(reader, len)?
         } else {
             ""
         };

@@ -4,7 +4,8 @@ use crate::{
     protocol::{
         ZCodecError,
         codec::{
-            decode_u32, decode_zbuf, encode_u32, encode_zbuf, encoded_len_u32, encoded_len_zbuf,
+            decode_u32, decode_usize, decode_zbuf, encode_u32, encode_usize, encode_zbuf,
+            encoded_len_u32, encoded_len_usize,
         },
         has_flag,
     },
@@ -65,7 +66,7 @@ pub(crate) fn encoded_len_encoding(x: &Encoding<'_>) -> usize {
     let mut len = encoded_len_u32((x.id as u32) << 1);
 
     if let Some(schema) = &x.schema {
-        len += encoded_len_zbuf(true, schema);
+        len += encoded_len_usize(schema.len()) + schema.len();
     }
 
     len
@@ -84,7 +85,8 @@ pub(crate) fn encode_encoding(
     encode_u32(writer, id)?;
 
     if let Some(schema) = &x.schema {
-        encode_zbuf(writer, schema, true)?;
+        encode_usize(writer, schema.len())?;
+        encode_zbuf(writer, schema)?;
     }
 
     Ok(())
@@ -99,7 +101,8 @@ pub(crate) fn decode_encoding<'a>(
     let id = (id >> 1) as EncodingId;
 
     let schema = if has_schema {
-        let schema: ZBuf<'a> = decode_zbuf(reader, None)?;
+        let len = decode_usize(reader)?;
+        let schema: ZBuf<'a> = decode_zbuf(reader, len)?;
         Some(schema)
     } else {
         None

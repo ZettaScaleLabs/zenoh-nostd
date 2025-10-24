@@ -342,7 +342,7 @@ pub(crate) mod common {
                 encode_u8(&mut zriter, flags)?;
                 encode_u16(&mut zriter, self.wire_expr.scope)?;
                 if self.wire_expr.has_suffix() {
-                    encode_str(&mut zriter, self.wire_expr.suffix, false)?;
+                    encode_str(&mut zriter, self.wire_expr.suffix)?;
                 }
 
                 let zbuf_len = 256 - zriter.remaining();
