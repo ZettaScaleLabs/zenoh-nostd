@@ -4,7 +4,7 @@ use crate::{
     protocol::{
         codec::{
             decode_u8, decode_u32, decode_usize, decode_zbuf, encode_u8, encode_u32, encode_usize,
-            encode_zbuf, encoded_len_u32,
+            encode_zbuf, encoded_len_u32, encoded_len_zbuf,
         },
         core::{
             EntityId, ZenohIdProto, decode_zid, encode_zid, encoded_len_zid,
@@ -29,7 +29,7 @@ impl SourceInfo {
         let mut rng = rand::thread_rng();
         Self {
             zid: ZenohIdProto::default(),
-            eid: rand::thread_rng().r#gen(),
+            eid: rng.r#gen(),
             sn: rng.r#gen(),
         }
     }
@@ -93,7 +93,7 @@ crate::zext!(
     Value<'a>,
     ZExtKind::ZBuf,
     |w, x| {
-        let len = encoded_len_encoding(&x.encoding) + x.payload.len();
+        let len = encoded_len_encoding(&x.encoding) + encoded_len_zbuf(&x.payload);
         encode_usize(w, len)?;
 
         encode_encoding(w, &x.encoding)?;
@@ -140,12 +140,14 @@ crate::zext!(
     Attachment<'a>,
     ZExtKind::ZBuf,
     |w, x| {
-        let len = x.buffer.len();
+        let len = encoded_len_zbuf(&x.buffer);
         encode_usize(w, len)?;
-        encode_zbuf(w, x.buffer)
+
+        encode_zbuf(w, &x.buffer)
     },
     |r| {
         let len = decode_usize(r)?;
+
         let buffer = decode_zbuf(r, len)?;
         Ok(Attachment { buffer })
     }

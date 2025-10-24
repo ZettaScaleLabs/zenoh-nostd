@@ -146,6 +146,10 @@ pub(crate) fn decode_usize(reader: &mut ZBufReader<'_>) -> ZResult<usize, ZCodec
     })
 }
 
+pub(crate) fn encoded_len_zbuf(zbuf: &ZBuf<'_>) -> usize {
+    zbuf.len()
+}
+
 pub(crate) fn encode_zbuf(writer: &mut ZBufWriter<'_>, zbuf: ZBuf<'_>) -> ZResult<(), ZCodecError> {
     if zbuf.is_empty() {
         return Ok(());
@@ -161,6 +165,10 @@ pub(crate) fn decode_zbuf<'a>(
     len: usize,
 ) -> ZResult<ZBuf<'a>, ZCodecError> {
     Ok(reader.read_zbuf(len)?)
+}
+
+pub(crate) fn encoded_len_str(s: &str) -> usize {
+    s.as_bytes().len()
 }
 
 pub(crate) fn encode_str(writer: &mut ZBufWriter<'_>, s: &str) -> ZResult<(), ZCodecError> {
@@ -183,7 +191,9 @@ pub(crate) fn encoded_len_timestamp(x: &Timestamp) -> usize {
     let id = x.get_id();
     let bytes = &id.to_le_bytes()[..id.size()];
 
-    encoded_len_u64(x.get_time().as_u64()) + encoded_len_usize(bytes.len()) + bytes.len()
+    encoded_len_u64(x.get_time().as_u64())
+        + encoded_len_usize(bytes.len())
+        + encoded_len_zbuf(&bytes)
 }
 
 pub(crate) fn encode_timestamp(
@@ -195,7 +205,7 @@ pub(crate) fn encode_timestamp(
     let id = x.get_id();
     let bytes = &id.to_le_bytes()[..id.size()];
 
-    encode_usize(writer, bytes.len())?;
+    encode_usize(writer, encoded_len_zbuf(&bytes))?;
     encode_zbuf(writer, bytes)?;
 
     Ok(())

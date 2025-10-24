@@ -168,9 +168,6 @@ impl<'a> OpenSyn<'a> {
             zbuf::BufWriterExt,
         };
 
-        const MIN: usize = 0;
-        const MAX: usize = 64;
-
         let mut rng = rand::thread_rng();
 
         let lease = if rng.gen_bool(0.5) {
@@ -181,7 +178,7 @@ impl<'a> OpenSyn<'a> {
 
         let initial_sn: TransportSn = rng.r#gen();
         let cookie = zbuf
-            .write_slot_return(rng.gen_range(MIN..=MAX), |b: &mut [u8]| {
+            .write_slot_return(rng.gen_range(0..=64), |b: &mut [u8]| {
                 rng.fill(b);
                 b.len()
             })

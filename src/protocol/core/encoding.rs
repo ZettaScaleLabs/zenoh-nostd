@@ -5,7 +5,7 @@ use crate::{
         ZCodecError,
         codec::{
             decode_u32, decode_usize, decode_zbuf, encode_u32, encode_usize, encode_zbuf,
-            encoded_len_u32, encoded_len_usize,
+            encoded_len_u32, encoded_len_usize, encoded_len_zbuf,
         },
         has_flag,
     },
@@ -39,16 +39,13 @@ impl<'a> Encoding<'a> {
 
         let mut rng = rand::thread_rng();
 
-        const MIN: usize = 0;
-        const MAX: usize = 16;
-
         let id: EncodingId = rng.r#gen();
         let schema = rng.gen_bool(0.5);
         let schema = if schema {
             use crate::zbuf::BufWriterExt;
 
             Some(
-                zbuf.write_slot_return(rng.gen_range(MIN..MAX), |b: &mut [u8]| {
+                zbuf.write_slot_return(rng.gen_range(0..16), |b: &mut [u8]| {
                     rng.fill(b);
                     b.len()
                 })
@@ -66,7 +63,7 @@ pub(crate) fn encoded_len_encoding(x: &Encoding<'_>) -> usize {
     let mut len = encoded_len_u32((x.id as u32) << 1);
 
     if let Some(schema) = &x.schema {
-        len += encoded_len_usize(schema.len()) + schema.len();
+        len += encoded_len_usize(schema.len()) + encoded_len_zbuf(schema);
     }
 
     len

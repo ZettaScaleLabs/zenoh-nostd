@@ -157,7 +157,7 @@ impl<'a> Put<'a> {
         let ext_sinfo = rng.gen_bool(0.5).then_some(SourceInfo::rand());
         let ext_attachment = rng.gen_bool(0.5).then_some(Attachment::rand(zbuf));
         let payload = zbuf
-            .write_slot_return(rng.gen_range(1..=64), |b| {
+            .write_slot_return(rng.gen_range(0..=64), |b| {
                 rng.fill(b);
                 b.len()
             })
