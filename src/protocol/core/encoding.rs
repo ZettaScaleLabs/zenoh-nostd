@@ -103,6 +103,43 @@ impl<'a> Encoding<'a> {
     }
 }
 
+pub(crate) fn encode_encoding(
+    writer: &mut ZBufWriter<'_>,
+    x: &Encoding<'_>,
+) -> ZResult<(), ZCodecError> {
+    let mut id = (x.id as u32) << 1;
+
+    if x.schema.is_some() {
+        id |= flag::S;
+    }
+
+    encode_u32(writer, id)?;
+
+    if let Some(schema) = &x.schema {
+        encode_zbuf(writer, schema, true)?;
+    }
+
+    Ok(())
+}
+
+pub(crate) fn decode_encoding<'a>(
+    reader: &mut ZBufReader<'a>,
+) -> ZResult<Encoding<'a>, ZCodecError> {
+    let id = decode_u32(reader)?;
+
+    let has_schema = has_flag(id as u8, flag::S as u8);
+    let id = (id >> 1) as EncodingId;
+
+    let schema = if has_schema {
+        let schema: ZBuf<'a> = decode_zbuf(reader, None)?;
+        Some(schema)
+    } else {
+        None
+    };
+
+    Ok(Encoding { id, schema })
+}
+
 impl Default for Encoding<'_> {
     fn default() -> Self {
         Self::empty()

@@ -46,7 +46,7 @@ impl Mapping {
     pub(crate) const DEFAULT: Self = Self::Receiver;
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq)]
 pub(crate) enum NetworkBody<'a> {
     Push(Push<'a>),
     Request(Request<'a>),
@@ -56,7 +56,7 @@ pub(crate) enum NetworkBody<'a> {
     Declare(Declare<'a>),
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq)]
 pub(crate) struct NetworkMessage<'a> {
     pub(crate) body: NetworkBody<'a>,
     pub(crate) reliability: Reliability,

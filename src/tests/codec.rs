@@ -195,7 +195,7 @@ macro_rules! test_header {
         $(
             paste! {
                 #[test]
-                fn [<codec_ $ty:lower>]() {
+                fn [<codec_ $ty:snake>]() {
                     run!(header, $ty);
                 }
             }

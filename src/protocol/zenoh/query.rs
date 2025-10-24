@@ -2,7 +2,11 @@ use crate::{
     protocol::{
         ZCodecError,
         codec::{decode_str, decode_u8, encode_str, encode_u8, encode_u64},
-        common::extension::{self, iext},
+        ext::{decode_ext_header, skip_ext},
+        exts::{
+            Attachment, SourceInfo, Value, decode_attachment, decode_source_info, decode_value,
+            encode_attachment, encode_source_info, encode_value,
+        },
         has_flag, msg_id,
         zenoh::id,
     },
@@ -63,17 +67,18 @@ pub(crate) mod flag {
     pub(crate) const P: u8 = 1 << 6;
     pub(crate) const Z: u8 = 1 << 7;
 }
-
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq)]
 pub(crate) struct Query<'a> {
     pub(crate) consolidation: ConsolidationMode,
     pub(crate) parameters: &'a str,
-    pub(crate) ext_sinfo: Option<ext::SourceInfoType>,
-    pub(crate) ext_body: Option<ext::QueryBodyType<'a>>,
-    pub(crate) ext_attachment: Option<ext::AttachmentType<'a>>,
+
+    pub(crate) ext_sinfo: Option<SourceInfo>,
+    pub(crate) ext_body: Option<Value<'a>>,
+    pub(crate) ext_attachment: Option<Attachment<'a>>,
 }
 
 impl<'a> Query<'a> {
+    #[allow(unused_assignments)]
     pub(crate) fn encode(&self, writer: &mut ZBufWriter<'_>) -> ZResult<(), ZCodecError> {
         let mut header = id::QUERY;
 
@@ -103,20 +108,18 @@ impl<'a> Query<'a> {
             encode_str(writer, self.parameters, true)?;
         }
 
-        if let Some(sinfo) = self.ext_sinfo.as_ref() {
-            n_exts -= 1;
-            sinfo.encode(writer, n_exts != 0)?;
-        }
+        n_exts -=
+            encode_source_info::<Self>(writer, &self.ext_sinfo, n_exts > 1 && (n_exts - 1) > 0)?
+                as u8;
 
-        if let Some(body) = self.ext_body.as_ref() {
-            n_exts -= 1;
-            body.encode(writer, n_exts != 0)?;
-        }
+        n_exts -=
+            encode_value::<Self>(writer, &self.ext_body, n_exts > 1 && (n_exts - 1) > 0)? as u8;
 
-        if let Some(att) = self.ext_attachment.as_ref() {
-            n_exts -= 1;
-            att.encode(writer, n_exts != 0)?;
-        }
+        n_exts -= encode_attachment::<Self>(
+            writer,
+            &self.ext_attachment,
+            n_exts > 1 && (n_exts - 1) > 0,
+        )? as u8;
 
         Ok(())
     }
@@ -136,35 +139,34 @@ impl<'a> Query<'a> {
             parameters = decode_str(reader, None)?;
         }
 
-        let mut ext_sinfo: Option<ext::SourceInfoType> = None;
-        let mut ext_body: Option<ext::QueryBodyType> = None;
-        let mut ext_attachment: Option<ext::AttachmentType> = None;
+        let mut ext_sinfo: Option<SourceInfo> = None;
+        let mut ext_body: Option<Value> = None;
+        let mut ext_attachment: Option<Attachment> = None;
 
         let mut has_ext = has_flag(header, flag::Z);
         while has_ext {
-            let ext = decode_u8(reader)?;
+            let (id, kind, mandatory, more) = decode_ext_header(reader)?;
+            has_ext = more;
 
-            match iext::eheader(ext) {
-                ext::SourceInfo::ID => {
-                    let (s, ext) = ext::SourceInfoType::decode(reader, ext)?;
-
-                    ext_sinfo = Some(s);
-                    has_ext = ext;
+            match id {
+                crate::zext_id!(SourceInfo) => {
+                    ext_sinfo = Some(decode_source_info::<Self>(reader)?);
                 }
-                ext::QueryBodyType::SID | ext::QueryBodyType::VID => {
-                    let (s, ext) = ext::QueryBodyType::decode(reader, ext)?;
-
-                    ext_body = Some(s);
-                    has_ext = ext;
+                crate::zext_id!(Value) => {
+                    ext_body = Some(decode_value::<Self>(reader)?);
                 }
-                ext::Attachment::ID => {
-                    let (a, ext) = ext::AttachmentType::decode(reader, ext)?;
-
-                    ext_attachment = Some(a);
-                    has_ext = ext;
+                crate::zext_id!(Attachment) => {
+                    ext_attachment = Some(decode_attachment::<Self>(reader)?);
                 }
                 _ => {
-                    has_ext = extension::skip("Query", reader, ext)?;
+                    skip_ext(reader, kind)?;
+
+                    if mandatory {
+                        crate::warn!(
+                            "Mandatory extension with id {} in Query message not supported.",
+                            id
+                        );
+                    }
                 }
             }
         }
@@ -200,9 +202,10 @@ impl<'a> Query<'a> {
         } else {
             ""
         };
-        let ext_sinfo = rng.gen_bool(0.5).then_some(ext::SourceInfoType::rand());
-        let ext_body = rng.gen_bool(0.5).then_some(ext::QueryBodyType::rand(zbuf));
-        let ext_attachment = rng.gen_bool(0.5).then_some(ext::AttachmentType::rand(zbuf));
+
+        let ext_sinfo = rng.gen_bool(0.5).then_some(SourceInfo::rand());
+        let ext_body = rng.gen_bool(0.5).then_some(Value::rand(zbuf));
+        let ext_attachment = rng.gen_bool(0.5).then_some(Attachment::rand(zbuf));
 
         Self {
             consolidation,
@@ -214,17 +217,6 @@ impl<'a> Query<'a> {
     }
 }
 
-pub(crate) mod ext {
-    use crate::protocol::common::extension::ZExtZBuf;
-
-    pub(crate) type SourceInfo<'a> = crate::zextzbuf!('a, 0x1, false);
-    pub(crate) type SourceInfoType =
-        crate::protocol::zenoh::ext::SourceInfoType<{ SourceInfo::ID }>;
-
-    pub(crate) type QueryBodyType<'a> =
-        crate::protocol::zenoh::ext::ValueType<'a, { ZExtZBuf::<0x03>::id(false) }, 0x04>;
-
-    pub(crate) type Attachment<'a> = crate::zextzbuf!('a, 0x5, false);
-    pub(crate) type AttachmentType<'a> =
-        crate::protocol::zenoh::ext::AttachmentType<'a, { Attachment::ID }>;
-}
+crate::zext!(impl<'a> SourceInfo, Query<'a>, 0x1, false);
+crate::zext!(impl<'a> Value<'a>, Query<'a>, 0x3, false);
+crate::zext!(impl<'a> Attachment<'a>, Query<'a>, 0x5, false);

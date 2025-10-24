@@ -61,6 +61,22 @@ impl ZenohIdProto {
     }
 }
 
+pub(crate) fn encode_zid(
+    writer: &mut ZBufWriter<'_>,
+    zid: &ZenohIdProto,
+) -> ZResult<(), ZCodecError> {
+    encode_zbuf(writer, &zid.as_le_bytes()[..zid.size()], false)
+}
+
+pub(crate) fn decode_zid(
+    reader: &mut ZBufReader<'_>,
+    len: usize,
+) -> ZResult<ZenohIdProto, ZCodecError> {
+    let zbuf = decode_zbuf(reader, Some(len))?;
+
+    ZenohIdProto::try_from(zbuf).map_err(|_| ZCodecError::CouldNotParse)
+}
+
 impl Default for ZenohIdProto {
     fn default() -> Self {
         Self(uhlc::ID::rand())
@@ -103,23 +119,6 @@ impl From<ZenohIdProto> for uhlc::ID {
 }
 
 pub(crate) type EntityId = u32;
-
-#[derive(Debug, Default, Copy, Clone, Eq, Hash, PartialEq)]
-pub(crate) struct EntityGlobalIdProto {
-    pub(crate) zid: ZenohIdProto,
-    pub(crate) eid: EntityId,
-}
-
-impl EntityGlobalIdProto {
-    #[cfg(test)]
-    pub(crate) fn rand() -> Self {
-        use rand::Rng;
-        Self {
-            zid: ZenohIdProto::default(),
-            eid: rand::thread_rng().r#gen(),
-        }
-    }
-}
 
 #[repr(u8)]
 #[derive(Debug, Default, Copy, Clone, Eq, Hash, PartialEq, PartialOrd, Ord)]

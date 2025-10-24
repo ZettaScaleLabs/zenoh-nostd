@@ -2,6 +2,7 @@ use crate::zbuf::ZBufError;
 
 pub(crate) mod codec;
 pub(crate) mod ext;
+pub(crate) mod exts;
 
 pub(crate) mod keyexpr;
 

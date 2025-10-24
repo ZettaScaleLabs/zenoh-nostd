@@ -1,49 +1,42 @@
 use crate::{
     protocol::{
         ZCodecError,
-        codec::{
-            decode_timestamp, decode_u8, decode_zbuf, encode_timestamp, encode_u8, encode_zbuf,
-        },
-        common::extension::{self, iext},
+        codec::{decode_timestamp, decode_zbuf, encode_timestamp, encode_u8, encode_zbuf},
         core::encoding::Encoding,
-        has_flag, msg_id,
+        ext::{decode_ext_header, skip_ext},
+        exts::{
+            Attachment, SourceInfo, decode_attachment, decode_source_info, encode_attachment,
+            encode_source_info,
+        },
+        has_flag,
     },
     result::ZResult,
-    zbail,
     zbuf::{ZBufReader, ZBufWriter},
 };
+
 use uhlc::Timestamp;
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq)]
 pub(crate) struct Put<'a> {
-    // ---------- Body for Put message ----------
     pub(crate) timestamp: Option<Timestamp>,
     pub(crate) encoding: Encoding<'a>,
 
-    pub(crate) ext_sinfo: Option<ext::SourceInfoType>,
-    pub(crate) ext_attachment: Option<ext::AttachmentType<'a>>,
+    pub(crate) ext_sinfo: Option<SourceInfo>,
+    pub(crate) ext_attachment: Option<Attachment<'a>>,
 
     pub(crate) payload: crate::zbuf::ZBuf<'a>,
-    // ----------------------------------------
 }
 
 impl<'a> Put<'a> {
-    // ---------- Header for Put message ----------
-
-    /// Message ID for Put messages
     pub(crate) const ID: u8 = 0x01;
 
-    /// Indicates that the Timestamp optional field is present
     pub(crate) const FLAG_T: u8 = 1 << 5;
-    /// Indicates that the Encoding is not empty and should be present
     pub(crate) const FLAG_E: u8 = 1 << 6;
-    /// Indicates that at least one extension is present
     pub(crate) const FLAG_Z: u8 = 1 << 7;
-
-    // ---------------------------------------------
 }
 
 impl<'a> Put<'a> {
+    #[allow(unused_assignments)]
     pub(crate) fn encode(&self, writer: &mut ZBufWriter<'_>) -> ZResult<(), ZCodecError> {
         let mut header = Self::ID;
 
@@ -71,25 +64,22 @@ impl<'a> Put<'a> {
             self.encoding.encode(writer)?;
         }
 
-        if let Some(sinfo) = self.ext_sinfo.as_ref() {
-            n_exts -= 1;
-            sinfo.encode(writer, n_exts != 0)?;
-        }
+        n_exts -=
+            encode_source_info::<Self>(writer, &self.ext_sinfo, n_exts > 1 && (n_exts - 1) > 0)?
+                as u8;
 
-        if let Some(att) = self.ext_attachment.as_ref() {
-            n_exts -= 1;
-            att.encode(writer, n_exts != 0)?;
-        }
+        n_exts -= encode_attachment::<Self>(
+            writer,
+            &self.ext_attachment,
+            n_exts > 1 && (n_exts - 1) > 0,
+        )? as u8;
 
         encode_zbuf(writer, self.payload, true)
     }
 
     pub(crate) fn decode(reader: &mut ZBufReader<'a>, header: u8) -> ZResult<Self, ZCodecError> {
-        if msg_id(header) != Self::ID {
-            zbail!(ZCodecError::CouldNotRead);
-        }
-
         let mut timestamp: Option<uhlc::Timestamp> = None;
+
         if has_flag(header, Self::FLAG_T) {
             timestamp = Some(decode_timestamp(reader)?);
         }
@@ -99,27 +89,30 @@ impl<'a> Put<'a> {
             encoding = Encoding::decode(reader)?;
         }
 
-        let mut ext_sinfo: Option<ext::SourceInfoType> = None;
-        let mut ext_attachment: Option<ext::AttachmentType> = None;
+        let mut ext_sinfo: Option<SourceInfo> = None;
+        let mut ext_attachment: Option<Attachment> = None;
 
         let mut has_ext = has_flag(header, Self::FLAG_Z);
         while has_ext {
-            let ext = decode_u8(reader)?;
+            let (id, kind, mandatory, more) = decode_ext_header(reader)?;
+            has_ext = more;
 
-            match iext::eheader(ext) {
-                ext::SourceInfo::ID => {
-                    let (s, ext) = ext::SourceInfoType::decode(reader, ext)?;
-
-                    ext_sinfo = Some(s);
-                    has_ext = ext;
+            match id {
+                crate::zext_id!(SourceInfo) => {
+                    ext_sinfo = Some(decode_source_info::<Self>(reader)?);
                 }
-                ext::Attachment::ID => {
-                    let (a, ext) = ext::AttachmentType::decode(reader, ext)?;
-                    ext_attachment = Some(a);
-                    has_ext = ext;
+                crate::zext_id!(Attachment) => {
+                    ext_attachment = Some(decode_attachment::<Self>(reader)?);
                 }
                 _ => {
-                    has_ext = extension::skip("Put", reader, ext)?;
+                    skip_ext(reader, kind)?;
+
+                    if mandatory {
+                        crate::warn!(
+                            "Mandatory extension with id {} in Put message not supported.",
+                            id
+                        );
+                    }
                 }
             }
         }
@@ -151,8 +144,8 @@ impl<'a> Put<'a> {
             Timestamp::new(time, id)
         });
         let encoding = Encoding::rand(zbuf);
-        let ext_sinfo = rng.gen_bool(0.5).then_some(ext::SourceInfoType::rand());
-        let ext_attachment = rng.gen_bool(0.5).then_some(ext::AttachmentType::rand(zbuf));
+        let ext_sinfo = rng.gen_bool(0.5).then_some(SourceInfo::rand());
+        let ext_attachment = rng.gen_bool(0.5).then_some(Attachment::rand(zbuf));
         let payload = zbuf
             .write_slot_return(rng.gen_range(1..=64), |b| {
                 rng.fill(b);
@@ -170,12 +163,5 @@ impl<'a> Put<'a> {
     }
 }
 
-pub(crate) mod ext {
-    pub(crate) type SourceInfo<'a> = crate::zextzbuf!('a, 0x1, false);
-    pub(crate) type SourceInfoType =
-        crate::protocol::zenoh::ext::SourceInfoType<{ SourceInfo::ID }>;
-
-    pub(crate) type Attachment<'a> = crate::zextzbuf!('a, 0x3, false);
-    pub(crate) type AttachmentType<'a> =
-        crate::protocol::zenoh::ext::AttachmentType<'a, { Attachment::ID }>;
-}
+crate::zext!(impl<'a> SourceInfo, Put<'a>, 0x1, false);
+crate::zext!(impl<'a> Attachment<'a>, Put<'a>, 0x3, false);

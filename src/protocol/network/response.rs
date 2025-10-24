@@ -19,7 +19,7 @@ pub(crate) mod flag {
     pub(crate) const Z: u8 = 1 << 7;
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq)]
 pub(crate) struct Response<'a> {
     pub(crate) rid: RequestId,
     pub(crate) wire_expr: WireExpr<'a>,

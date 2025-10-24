@@ -17,7 +17,7 @@ pub(crate) mod flag {
     pub(crate) const Z: u8 = 1 << 7;
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq)]
 pub(crate) struct Reply<'a> {
     pub(crate) consolidation: ConsolidationMode,
     pub(crate) payload: ReplyBody<'a>,

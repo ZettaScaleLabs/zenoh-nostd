@@ -5,8 +5,7 @@ use crate::{
         has_flag,
     },
     result::ZResult,
-    zbail,
-    zbuf::{BufReaderExt, ZBufReader, ZBufWriter},
+    zbuf::{ZBufReader, ZBufWriter},
 };
 
 const EXT_ID_BITS: u8 = 4;
@@ -16,7 +15,7 @@ const FLAG_M: u8 = 1 << 4;
 const FLAG_Z: u8 = 1 << 7;
 
 const ENC_UNIT: u8 = 0b00 << 5;
-const ENC_Z64: u8 = 0b01 << 5;
+const ENC_U64: u8 = 0b01 << 5;
 const ENC_ZBUF: u8 = 0b10 << 5;
 const ENC_MASK: u8 = 0b11 << 5;
 
@@ -44,8 +43,13 @@ const fn ext_mandatory(header: u8) -> bool {
     has_flag(header, FLAG_M)
 }
 
-const fn ext_encoding(header: u8) -> u8 {
-    header & ENC_MASK
+const fn ext_kind(header: u8) -> ZExtKind {
+    match header & ENC_MASK {
+        ENC_UNIT => ZExtKind::Unit,
+        ENC_U64 => ZExtKind::U64,
+        ENC_ZBUF => ZExtKind::ZBuf,
+        _ => panic!("Invalid extension encoding"),
+    }
 }
 
 const fn ext_has_more(header: u8) -> bool {
@@ -54,7 +58,7 @@ const fn ext_has_more(header: u8) -> bool {
 
 pub(crate) enum ZExtKind {
     Unit,
-    Z64,
+    U64,
     ZBuf,
 }
 
@@ -63,7 +67,7 @@ pub(crate) trait ZExt {
 
     const ENCODING: u8 = match Self::KIND {
         ZExtKind::Unit => ENC_UNIT,
-        ZExtKind::Z64 => ENC_Z64,
+        ZExtKind::U64 => ENC_U64,
         ZExtKind::ZBuf => ENC_ZBUF,
     };
 }
@@ -77,9 +81,38 @@ macro_rules! zext {
         }
     };
 
-    ($ext:ty, $kind:expr) => {
-        impl crate::protocol::ext::ZExt for $ext {
+    ($ext:ident $(<$lt:lifetime>)?, $kind:expr, |$w:ident, $x:ident| $encode:expr, |$r:ident| $decode:expr) => {
+        impl<$($lt)?> crate::protocol::ext::ZExt for $ext<$($lt)?> {
             const KIND: crate::protocol::ext::ZExtKind = $kind;
+        }
+
+        paste::paste! {
+            pub(crate) fn [<encode_ $ext:snake>]<$($lt,)? Primitive>(writer: &mut crate::zbuf::ZBufWriter<'_>, x: &Option<$ext<$($lt)?>>, more: bool)
+            -> crate::result::ZResult<bool, crate::protocol::ZCodecError>
+                where $ext<$($lt)?>: crate::protocol::ext::ZExtPrimitive<Primitive>
+            {
+                if let Some(x) = x {
+                    crate::protocol::ext::encode_ext_header::<$ext, Primitive>(writer, more)?;
+
+                    let closure = |$w: &mut crate::zbuf::ZBufWriter<'_>, $x: & $ext<$($lt)?>|
+                        -> crate::result::ZResult<(), crate::protocol::ZCodecError> { $encode };
+
+                    closure(writer, x)?;
+
+                    return Ok(true);
+                }
+
+                Ok(false)
+            }
+
+            pub(crate) fn [<decode_ $ext:snake>]<$($lt,)? Primitive>(reader: &mut crate::zbuf::ZBufReader<$($lt)?>)
+            -> crate::result::ZResult<$ext<$($lt)?>, crate::protocol::ZCodecError>
+                where $ext<$($lt)?>: crate::protocol::ext::ZExtPrimitive<Primitive>
+            {
+                let closure = |$r: &mut crate::zbuf::ZBufReader<$($lt)?>| -> crate::result::ZResult<$ext<$($lt)?>, crate::protocol::ZCodecError> { $decode };
+
+                closure(reader)
+            }
         }
     };
 }
@@ -91,41 +124,55 @@ pub(crate) trait ZExtPrimitive<Primitive>: ZExt {
     const HEADER: u8 = ext_header(Self::ID, Self::MANDATORY, Self::ENCODING);
 }
 
-pub(crate) fn skip(s: &str, reader: &mut ZBufReader<'_>, header: u8) -> ZResult<bool, ZCodecError> {
-    let id = ext_id(header);
-
-    if ext_mandatory(header) {
-        crate::error!("Mandatory extension {} with id {} not supported.", s, id,);
-
-        zbail!(ZCodecError::CouldNotRead);
-    }
-
-    match ext_encoding(header) {
-        ENC_UNIT => {}
-        ENC_Z64 => {
+pub(crate) fn skip_ext(reader: &mut ZBufReader<'_>, kind: ZExtKind) -> ZResult<(), ZCodecError> {
+    match kind {
+        ZExtKind::Unit => {}
+        ZExtKind::U64 => {
             let _ = decode_u64(reader)?;
         }
-        ENC_ZBUF => {
+        ZExtKind::ZBuf => {
             let _ = decode_zbuf(reader, None)?;
-        }
-        _ => {
-            zbail!(ZCodecError::CouldNotRead);
         }
     };
 
-    Ok(ext_has_more(header))
-}
-
-pub(crate) fn skip_all(s: &str, reader: &mut ZBufReader<'_>) -> ZResult<(), ZCodecError> {
-    let mut has_ext = reader.can_read();
-
-    while has_ext {
-        let header = decode_u8(reader)?;
-        has_ext = skip(s, reader, header)?;
-    }
-
     Ok(())
 }
+
+// pub(crate) fn skip(s: &str, reader: &mut ZBufReader<'_>, header: u8) -> ZResult<bool, ZCodecError> {
+//     let id = ext_id(header);
+
+//     if ext_mandatory(header) {
+//         crate::error!("Mandatory extension {} with id {} not supported.", s, id,);
+
+//         zbail!(ZCodecError::CouldNotRead);
+//     }
+
+//     match ext_encoding(header) {
+//         ENC_UNIT => {}
+//         ENC_U64 => {
+//             let _ = decode_u64(reader)?;
+//         }
+//         ENC_ZBUF => {
+//             let _ = decode_zbuf(reader, None)?;
+//         }
+//         _ => {
+//             zbail!(ZCodecError::CouldNotRead);
+//         }
+//     };
+
+//     Ok(ext_has_more(header))
+// }
+
+// pub(crate) fn skip_all(s: &str, reader: &mut ZBufReader<'_>) -> ZResult<(), ZCodecError> {
+//     let mut has_ext = reader.can_read();
+
+//     while has_ext {
+//         let header = decode_u8(reader)?;
+//         has_ext = skip(s, reader, header)?;
+//     }
+
+//     Ok(())
+// }
 
 pub(crate) fn encode_ext_header<E, P>(
     writer: &mut ZBufWriter<'_>,
@@ -136,4 +183,27 @@ where
 {
     let header = E::HEADER;
     encode_u8(writer, ext_with_more(header, more))
+}
+
+pub(crate) fn decode_ext_header(
+    reader: &mut ZBufReader<'_>,
+) -> ZResult<(u8, ZExtKind, bool, bool), ZCodecError> {
+    let header = decode_u8(reader)?;
+
+    let id = ext_id(header);
+    let kind = ext_kind(header);
+    let mandatory = ext_mandatory(header);
+    let more = ext_has_more(header);
+
+    Ok((id, kind, mandatory, more))
+}
+
+#[macro_export]
+macro_rules! zext_id {
+    ($ext:ty, $p:ty) => {
+        <$ext as $crate::protocol::ext::ZExtPrimitive<$p>>::ID
+    };
+    ($ext:ty) => {
+        crate::zext_id!($ext, Self)
+    };
 }

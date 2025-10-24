@@ -22,7 +22,7 @@ use crate::{
 //     pub(crate) const Z: u8 = 1 << 7;
 // }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq)]
 pub(crate) struct Push<'a> {
     pub(crate) wire_expr: WireExpr<'a>,
 
