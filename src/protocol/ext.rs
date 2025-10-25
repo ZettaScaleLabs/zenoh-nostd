@@ -56,6 +56,7 @@ const fn ext_has_more(header: u8) -> bool {
     has_flag(header, FLAG_Z)
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum ZExtKind {
     Unit,
     U64,
@@ -82,9 +83,9 @@ macro_rules! zext {
     };
 
     ($ext:ident $(<$lt:lifetime>)?, $kind:expr, |$w:ident, $x:ident| $encode:expr, |$r:ident| $decode:expr) => {
-        impl<$($lt)?> crate::protocol::ext::ZExt for $ext<$($lt)?> {
-            const KIND: crate::protocol::ext::ZExtKind = $kind;
-        }
+        // impl<$($lt)?> crate::protocol::ext::ZExt for $ext<$($lt)?> {
+        //     const KIND: crate::protocol::ext::ZExtKind = $kind;
+        // }
 
         paste::paste! {
             pub(crate) fn [<encode_ $ext:snake>]<$($lt,)? Primitive>(writer: &mut crate::zbuf::ZBufWriter<'_>, x: Option<&$ext<$($lt)?>>, more: bool)

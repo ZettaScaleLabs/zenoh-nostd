@@ -1,3 +1,5 @@
+mod ext;
+
 /// Derive macro that makes a struct Zenoh Extension compliant.
 ///
 /// # Attributes
@@ -23,6 +25,8 @@
         composite,
     )
 )]
-pub fn derive_zext(_: proc_macro::TokenStream) -> proc_macro::TokenStream {
-    proc_macro::TokenStream::new()
+pub fn derive_zext(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
+    let input = syn::parse_macro_input!(input as syn::DeriveInput);
+
+    ext::derive_zext(input).into()
 }

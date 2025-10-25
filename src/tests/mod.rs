@@ -1,6 +1,7 @@
 use criterion::Criterion;
 
 mod codec;
+mod proto;
 
 fn criterion_benchmark(c: &mut Criterion) {
     codec::criterion(c);

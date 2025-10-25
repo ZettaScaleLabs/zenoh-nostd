@@ -1,0 +1,154 @@
+use zenoh_proto::ZExt;
+
+use crate::{
+    protocol::ext::{ZExt, ZExtKind},
+    zbuf::ZBuf,
+};
+
+#[test]
+fn test_unit() {
+    #[derive(ZExt)]
+    struct Unit1;
+    #[derive(ZExt)]
+    struct Unit2 {}
+    #[derive(ZExt)]
+    struct Unit3();
+
+    assert!(<Unit1 as ZExt>::KIND == ZExtKind::Unit);
+    assert!(<Unit2 as ZExt>::KIND == ZExtKind::Unit);
+    assert!(<Unit3 as ZExt>::KIND == ZExtKind::Unit);
+}
+
+#[test]
+#[allow(dead_code)]
+fn test_u64() {
+    #[derive(ZExt)]
+    struct U641 {
+        #[u8]
+        field1: u8,
+    }
+
+    #[derive(ZExt)]
+    struct U642 {
+        #[u16]
+        field1: u16,
+    }
+
+    #[derive(ZExt)]
+    struct U643 {
+        #[u32]
+        field1: u32,
+    }
+
+    #[derive(ZExt)]
+    struct U644 {
+        #[u64]
+        field1: u64,
+    }
+
+    #[derive(ZExt)]
+    struct U645 {
+        #[usize]
+        field1: usize,
+    }
+
+    assert!(<U641 as ZExt>::KIND == ZExtKind::U64);
+    assert!(<U642 as ZExt>::KIND == ZExtKind::U64);
+    assert!(<U643 as ZExt>::KIND == ZExtKind::U64);
+    assert!(<U644 as ZExt>::KIND == ZExtKind::U64);
+    assert!(<U645 as ZExt>::KIND == ZExtKind::U64);
+
+    #[derive(ZExt)]
+    struct U646(#[u8] u8);
+    #[derive(ZExt)]
+    struct U647(#[u16] u16);
+    #[derive(ZExt)]
+    struct U648(#[u32] u32);
+    #[derive(ZExt)]
+    struct U649(#[u64] u64);
+    #[derive(ZExt)]
+    struct U6410(#[usize] usize);
+
+    assert!(<U646 as ZExt>::KIND == ZExtKind::U64);
+    assert!(<U647 as ZExt>::KIND == ZExtKind::U64);
+    assert!(<U648 as ZExt>::KIND == ZExtKind::U64);
+    assert!(<U649 as ZExt>::KIND == ZExtKind::U64);
+    assert!(<U6410 as ZExt>::KIND == ZExtKind::U64);
+
+    #[derive(ZExt)]
+    struct U6411(#[u32] u32, #[u32] u32);
+    #[derive(ZExt)]
+    struct U6412 {
+        #[u16]
+        field1: u16,
+        #[u32]
+        field2: u32,
+    }
+    #[derive(ZExt)]
+    struct U6413 {
+        #[u8]
+        field1: u8,
+        #[u8]
+        field2: u8,
+        #[u16]
+        field3: u16,
+    }
+
+    assert!(<U6411 as ZExt>::KIND == ZExtKind::U64);
+    assert!(<U6412 as ZExt>::KIND == ZExtKind::U64);
+    assert!(<U6413 as ZExt>::KIND == ZExtKind::U64);
+}
+
+#[test]
+#[allow(dead_code)]
+fn test_zbuf() {
+    #[derive(ZExt)]
+    struct ZBuf1<'a>(#[zbuf(deduce)] ZBuf<'a>);
+
+    #[derive(ZExt)]
+    struct ZBuf2<'a> {
+        #[zbuf(deduce)]
+        field1: ZBuf<'a>,
+    }
+
+    assert!(<ZBuf1 as ZExt>::KIND == ZExtKind::ZBuf);
+    assert!(<ZBuf2 as ZExt>::KIND == ZExtKind::ZBuf);
+
+    #[derive(ZExt)]
+    struct ZBuf3 {
+        #[u32]
+        field1: u32,
+        #[u64]
+        field2: u64,
+    }
+
+    assert!(<ZBuf3 as ZExt>::KIND == ZExtKind::ZBuf);
+
+    #[derive(ZExt)]
+    struct ZBuf4<'a> {
+        #[u16]
+        field1: u16,
+        #[zbuf(deduce)]
+        field2: ZBuf<'a>,
+    }
+
+    #[derive(ZExt)]
+    struct ZBuf5<'a>(#[zbuf(plain)] ZBuf<'a>, #[zbuf(deduce)] ZBuf<'a>);
+
+    assert!(<ZBuf4 as ZExt>::KIND == ZExtKind::ZBuf);
+    assert!(<ZBuf5 as ZExt>::KIND == ZExtKind::ZBuf);
+
+    struct Encoding;
+
+    #[derive(ZExt)]
+    struct ZBuf6<'a> {
+        #[zbuf(plain)]
+        field1: ZBuf<'a>,
+        #[composite]
+        field2: Encoding,
+        #[u8]
+        field3: u8,
+    }
+
+    assert!(<ZBuf6 as ZExt>::KIND == ZExtKind::ZBuf);
+}

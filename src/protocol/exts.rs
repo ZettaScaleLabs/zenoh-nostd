@@ -12,15 +12,14 @@ use crate::{
             EntityId, ZenohIdProto, decode_zid, encode_zid, encoded_len_zid,
             encoding::{Encoding, decode_encoding, encode_encoding, encoded_len_encoding},
         },
-        ext::ZExtKind,
     },
     zbuf::{BufReaderExt, ZBuf},
 };
 
 #[derive(ZExt, Debug, PartialEq, Eq)]
 pub(crate) struct SourceInfo {
+    // It should be possible to use the `deduce` flavor if we reorder the fields but for backward compatibility we keep the current order.
     #[zid(flag = 4)]
-    // This should be possible to use the `deduce` flavor if we reorder the fields but for backward compatibility we keep the current order.
     pub(crate) zid: ZenohIdProto,
 
     #[u32]
