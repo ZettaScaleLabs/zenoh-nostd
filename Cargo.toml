@@ -22,6 +22,9 @@ platform-std = [
 ] # Use built-in std support (disabled by default)
 
 [dependencies]
+# Zenoh Proto
+zenoh-proto = { path = "zenoh-proto" }
+
 # Logging
 defmt = { version = "1.0.1", optional = true }
 log = { version = "0.4.28", optional = true }

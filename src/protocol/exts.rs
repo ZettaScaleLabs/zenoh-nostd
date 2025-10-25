@@ -1,3 +1,5 @@
+use zenoh_proto::ZExt;
+
 #[cfg(test)]
 use crate::zbuf::ZBufWriter;
 use crate::{
@@ -15,10 +17,16 @@ use crate::{
     zbuf::{BufReaderExt, ZBuf},
 };
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(ZExt, Debug, PartialEq, Eq)]
 pub(crate) struct SourceInfo {
+    #[zid(flag = 4)]
+    // This should be possible to use the `deduce` flavor if we reorder the fields but for backward compatibility we keep the current order.
     pub(crate) zid: ZenohIdProto,
+
+    #[u32]
     pub(crate) eid: EntityId,
+
+    #[u32]
     pub(crate) sn: u32,
 }
 
@@ -63,9 +71,12 @@ crate::zext!(
     }
 );
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(ZExt, Debug, PartialEq, Eq)]
 pub(crate) struct Value<'a> {
+    #[composite(encoding)]
     pub(crate) encoding: Encoding<'a>,
+
+    #[zbuf(deduce)]
     pub(crate) payload: ZBuf<'a>,
 }
 
@@ -113,8 +124,9 @@ crate::zext!(
     }
 );
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(ZExt, Debug, PartialEq, Eq)]
 pub(crate) struct Attachment<'a> {
+    #[zbuf(deduce)]
     pub(crate) buffer: ZBuf<'a>,
 }
 
