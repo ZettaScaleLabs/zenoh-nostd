@@ -1,7 +1,7 @@
 use uhlc::{ID, NTP64, Timestamp};
 
 use crate::{
-    protocol::ZCodecError,
+    protocol::{ZCodecError, core::ZenohIdProto},
     result::ZResult,
     zbuf::{BufReaderExt, BufWriterExt, ZBuf, ZBufReader, ZBufWriter},
 };
@@ -220,6 +220,26 @@ pub(crate) fn decode_timestamp(reader: &mut ZBufReader<'_>) -> ZResult<Timestamp
     let time = NTP64(time);
 
     Ok(Timestamp::new(time, id))
+}
+
+pub(crate) fn encoded_len_zid(zid: &ZenohIdProto) -> usize {
+    zid.size()
+}
+
+pub(crate) fn encode_zid(
+    writer: &mut ZBufWriter<'_>,
+    zid: &ZenohIdProto,
+) -> ZResult<(), ZCodecError> {
+    encode_zbuf(writer, &zid.as_le_bytes()[..zid.size()])
+}
+
+pub(crate) fn decode_zid(
+    reader: &mut ZBufReader<'_>,
+    len: usize,
+) -> ZResult<ZenohIdProto, ZCodecError> {
+    let zbuf = decode_zbuf(reader, len)?;
+
+    ZenohIdProto::try_from(zbuf).map_err(|_| ZCodecError::CouldNotParse)
 }
 
 pub(crate) fn encode_array<const N: usize>(

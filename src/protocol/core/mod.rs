@@ -4,14 +4,9 @@ use core::{
     hash::Hash,
 };
 
-use crate::{
-    protocol::{
-        ZCodecError, ZProtocolError,
-        codec::{decode_zbuf, encode_zbuf},
-    },
-    result::ZResult,
-    zbuf::{ZBufReader, ZBufWriter},
-};
+use crate::protocol::ZProtocolError;
+#[cfg(test)]
+use crate::zbuf::ZBufWriter;
 
 pub(crate) mod encoding;
 pub(crate) mod endpoint;
@@ -38,26 +33,6 @@ impl ZenohIdProto {
     pub(crate) fn rand(_: &mut ZBufWriter<'_>) -> ZenohIdProto {
         ZenohIdProto(uhlc::ID::rand())
     }
-}
-
-pub(crate) fn encoded_len_zid(zid: &ZenohIdProto) -> usize {
-    zid.size()
-}
-
-pub(crate) fn encode_zid(
-    writer: &mut ZBufWriter<'_>,
-    zid: &ZenohIdProto,
-) -> ZResult<(), ZCodecError> {
-    encode_zbuf(writer, &zid.as_le_bytes()[..zid.size()])
-}
-
-pub(crate) fn decode_zid(
-    reader: &mut ZBufReader<'_>,
-    len: usize,
-) -> ZResult<ZenohIdProto, ZCodecError> {
-    let zbuf = decode_zbuf(reader, len)?;
-
-    ZenohIdProto::try_from(zbuf).map_err(|_| ZCodecError::CouldNotParse)
 }
 
 impl Default for ZenohIdProto {

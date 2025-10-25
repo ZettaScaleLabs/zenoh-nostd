@@ -1,7 +1,9 @@
 use crate::{
     protocol::{
         ZCodecError,
-        codec::{decode_u8, decode_u64, decode_usize, decode_zbuf, encode_u8},
+        codec::{
+            decode_str, decode_u8, decode_u64, decode_usize, decode_zbuf, encode_str, encode_u8,
+        },
         has_flag,
     },
     result::ZResult,
@@ -63,14 +65,19 @@ pub(crate) enum ZExtKind {
     ZBuf,
 }
 
-pub(crate) trait ZExt {
+pub(crate) trait ZExt: Sized {
     const KIND: ZExtKind;
 
-    const ENCODING: u8 = match Self::KIND {
+    const ENC_VALUE: u8 = match Self::KIND {
         ZExtKind::Unit => ENC_UNIT,
         ZExtKind::U64 => ENC_U64,
         ZExtKind::ZBuf => ENC_ZBUF,
     };
+
+    type Decoded<'a>: Sized;
+
+    const ENCODE: fn(&mut ZBufWriter<'_>, &Self) -> ZResult<(), ZCodecError>;
+    const DECODE: for<'a> fn(&mut ZBufReader<'a>) -> ZResult<Self::Decoded<'a>, ZCodecError>;
 }
 
 #[macro_export]
@@ -82,23 +89,26 @@ macro_rules! zext {
         }
     };
 
-    ($ext:ident $(<$lt:lifetime>)?, $kind:expr, |$w:ident, $x:ident| $encode:expr, |$r:ident| $decode:expr) => {
-        // impl<$($lt)?> crate::protocol::ext::ZExt for $ext<$($lt)?> {
-        //     const KIND: crate::protocol::ext::ZExtKind = $kind;
-        // }
+    ('static, $ext:ident, $kind:expr, |$w:ident, $x:ident| $encode:expr, |$r:ident| $decode:expr) => {
+        impl crate::protocol::ext::ZExt for $ext {
+            const KIND: crate::protocol::ext::ZExtKind = $kind;
+
+            type Decoded<'a> = $ext;
+
+            const ENCODE: fn(&mut crate::zbuf::ZBufWriter<'_>, &Self) -> crate::result::ZResult<(), crate::protocol::ZCodecError> = |$w, $x| { $encode };
+            const DECODE: for<'a> fn(&mut crate::zbuf::ZBufReader<'a>) -> crate::result::ZResult<Self::Decoded<'a>, crate::protocol::ZCodecError> = |$r| { $decode };
+
+        }
 
         paste::paste! {
-            pub(crate) fn [<encode_ $ext:snake>]<$($lt,)? Primitive>(writer: &mut crate::zbuf::ZBufWriter<'_>, x: Option<&$ext<$($lt)?>>, more: bool)
+            pub(crate) fn [<encode_ $ext:snake>]<Primitive>(writer: &mut crate::zbuf::ZBufWriter<'_>, x: Option<&$ext>, more: bool)
             -> crate::result::ZResult<bool, crate::protocol::ZCodecError>
-                where $ext<$($lt)?>: crate::protocol::ext::ZExtPrimitive<Primitive>
+                where $ext: crate::protocol::ext::ZExtPrimitive<Primitive>
             {
                 if let Some(x) = x {
                     crate::protocol::ext::encode_ext_header::<$ext, Primitive>(writer, more)?;
 
-                    let closure = |$w: &mut crate::zbuf::ZBufWriter<'_>, $x: & $ext<$($lt)?>|
-                        -> crate::result::ZResult<(), crate::protocol::ZCodecError> { $encode };
-
-                    closure(writer, x)?;
+                    <$ext as crate::protocol::ext::ZExt>::ENCODE(writer, x)?;
 
                     return Ok(true);
                 }
@@ -106,13 +116,47 @@ macro_rules! zext {
                 Ok(false)
             }
 
-            pub(crate) fn [<decode_ $ext:snake>]<$($lt,)? Primitive>(reader: &mut crate::zbuf::ZBufReader<$($lt)?>)
-            -> crate::result::ZResult<$ext<$($lt)?>, crate::protocol::ZCodecError>
-                where $ext<$($lt)?>: crate::protocol::ext::ZExtPrimitive<Primitive>
+            pub(crate) fn [<decode_ $ext:snake>]<Primitive>(reader: &mut crate::zbuf::ZBufReader)
+            -> crate::result::ZResult<$ext, crate::protocol::ZCodecError>
+                where $ext: crate::protocol::ext::ZExtPrimitive<Primitive>
             {
-                let closure = |$r: &mut crate::zbuf::ZBufReader<$($lt)?>| -> crate::result::ZResult<$ext<$($lt)?>, crate::protocol::ZCodecError> { $decode };
+                <$ext as crate::protocol::ext::ZExt>::DECODE(reader)
+            }
+        }
+    };
 
-                closure(reader)
+    ('a, $ext:ident, $kind:expr, |$w:ident, $x:ident| $encode:expr, |$r:ident| $decode:expr) => {
+        impl crate::protocol::ext::ZExt for $ext<'_> {
+            const KIND: crate::protocol::ext::ZExtKind = $kind;
+
+            type Decoded<'a> = $ext<'a>;
+
+            const ENCODE: fn(&mut crate::zbuf::ZBufWriter<'_>, &Self) -> crate::result::ZResult<(), crate::protocol::ZCodecError> = |$w, $x| { $encode };
+            const DECODE: for<'a> fn(&mut crate::zbuf::ZBufReader<'a>) -> crate::result::ZResult<Self::Decoded<'a>, crate::protocol::ZCodecError> = |$r| { $decode };
+
+        }
+
+        paste::paste! {
+            pub(crate) fn [<encode_ $ext:snake>]<'a, Primitive>(writer: &mut crate::zbuf::ZBufWriter<'_>, x: Option<&$ext<'a>>, more: bool)
+            -> crate::result::ZResult<bool, crate::protocol::ZCodecError>
+                where $ext<'a>: crate::protocol::ext::ZExtPrimitive<Primitive>
+            {
+                if let Some(x) = x {
+                    crate::protocol::ext::encode_ext_header::<$ext, Primitive>(writer, more)?;
+
+                    <$ext as crate::protocol::ext::ZExt>::ENCODE(writer, x)?;
+
+                    return Ok(true);
+                }
+
+                Ok(false)
+            }
+
+            pub(crate) fn [<decode_ $ext:snake>]<'a, Primitive>(reader: &mut crate::zbuf::ZBufReader<'a>)
+            -> crate::result::ZResult<<$ext<'a> as crate::protocol::ext::ZExt>::Decoded<'a>, crate::protocol::ZCodecError>
+                where $ext<'a>: crate::protocol::ext::ZExtPrimitive<Primitive>
+            {
+                <$ext<'a> as crate::protocol::ext::ZExt>::DECODE(reader)
             }
         }
     };
@@ -122,7 +166,7 @@ pub(crate) trait ZExtPrimitive<Primitive>: ZExt {
     const ID: u8;
     const MANDATORY: bool;
 
-    const HEADER: u8 = ext_header(Self::ID, Self::MANDATORY, Self::ENCODING);
+    const HEADER: u8 = ext_header(Self::ID, Self::MANDATORY, Self::ENC_VALUE);
 }
 
 pub(crate) fn skip_ext(reader: &mut ZBufReader<'_>, kind: ZExtKind) -> ZResult<(), ZCodecError> {

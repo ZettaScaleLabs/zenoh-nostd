@@ -5,27 +5,29 @@ use crate::zbuf::ZBufWriter;
 use crate::{
     protocol::{
         codec::{
-            decode_u8, decode_u32, decode_usize, decode_zbuf, encode_u8, encode_u32, encode_usize,
-            encode_zbuf, encoded_len_u32, encoded_len_zbuf,
+            decode_u8, decode_u32, decode_usize, decode_zbuf, decode_zid, encode_u8, encode_u32,
+            encode_usize, encode_zbuf, encode_zid, encoded_len_u32, encoded_len_zbuf,
+            encoded_len_zid,
         },
         core::{
-            EntityId, ZenohIdProto, decode_zid, encode_zid, encoded_len_zid,
+            EntityId, ZenohIdProto,
             encoding::{Encoding, decode_encoding, encode_encoding, encoded_len_encoding},
         },
+        ext::ZExtKind,
     },
     zbuf::{BufReaderExt, ZBuf},
 };
 
-#[derive(ZExt, Debug, PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq)]
 pub(crate) struct SourceInfo {
     // It should be possible to use the `deduce` flavor if we reorder the fields but for backward compatibility we keep the current order.
-    #[zid(flag = 4)]
+    // #[zid(flag = 4)]
     pub(crate) zid: ZenohIdProto,
 
-    #[u32]
+    // #[u32]
     pub(crate) eid: EntityId,
 
-    #[u32]
+    // #[u32]
     pub(crate) sn: u32,
 }
 
@@ -43,6 +45,7 @@ impl SourceInfo {
 }
 
 crate::zext!(
+    'static,
     SourceInfo,
     ZExtKind::ZBuf,
     |w, x| {
@@ -70,12 +73,12 @@ crate::zext!(
     }
 );
 
-#[derive(ZExt, Debug, PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq)]
 pub(crate) struct Value<'a> {
-    #[composite(encoding)]
+    // #[composite(encoding)]
     pub(crate) encoding: Encoding<'a>,
 
-    #[zbuf(deduce)]
+    // #[zbuf(deduce)]
     pub(crate) payload: ZBuf<'a>,
 }
 
@@ -100,7 +103,8 @@ impl<'a> Value<'a> {
 }
 
 crate::zext!(
-    Value<'a>,
+    'a,
+    Value,
     ZExtKind::ZBuf,
     |w, x| {
         let len = encoded_len_encoding(&x.encoding) + encoded_len_zbuf(&x.payload);
@@ -123,9 +127,9 @@ crate::zext!(
     }
 );
 
-#[derive(ZExt, Debug, PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq)]
 pub(crate) struct Attachment<'a> {
-    #[zbuf(deduce)]
+    // #[zbuf(deduce)]
     pub(crate) buffer: ZBuf<'a>,
 }
 
@@ -148,7 +152,8 @@ impl<'a> Attachment<'a> {
 }
 
 crate::zext!(
-    Attachment<'a>,
+    'a,
+    Attachment,
     ZExtKind::ZBuf,
     |w, x| {
         let len = encoded_len_zbuf(&x.buffer);

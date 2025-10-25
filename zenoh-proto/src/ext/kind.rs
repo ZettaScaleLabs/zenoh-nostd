@@ -47,7 +47,7 @@ fn infer_from_fields<'a>(fields: impl Iterator<Item = &'a Vec<Attribute>>) -> Ki
 
         match kind {
             Integer(bits) => total_bits += bits,
-            ZBufLike => return ZBuf, // Dès qu'un champ est ZBuf-like, tout devient ZBuf
+            ZBufLike => return ZBuf,
         }
     }
 
@@ -63,31 +63,25 @@ fn infer_from_fields<'a>(fields: impl Iterator<Item = &'a Vec<Attribute>>) -> Ki
 fn infer_field_kind(attrs: &[Attribute]) -> Option<FieldKind> {
     use FieldKind::*;
 
-    for attr in attrs {
-        if let Some(ident) = attr.path().get_ident() {
-            match ident.to_string().as_str() {
-                "u8" => return Some(Integer(8)),
-                "u16" => return Some(Integer(16)),
-                "u32" => return Some(Integer(32)),
-                "u64" => return Some(Integer(64)),
-                "usize" => return Some(Integer(32)),
+    if attrs.len() != 1 {
+        return None;
+    }
 
-                "zid" | "zbuf" | "zstr" | "timestamp" | "array" | "composite" => {
-                    return Some(ZBufLike);
-                }
+    let attr = &attrs[0];
 
-                _ => continue,
+    if let Some(ident) = attr.path().get_ident() {
+        match ident.to_string().as_str() {
+            "u8" => return Some(Integer(8)),
+            "u16" => return Some(Integer(16)),
+            "u32" => return Some(Integer(32)),
+            "u64" => return Some(Integer(64)),
+            "usize" => return Some(Integer(32)),
+
+            "zid" | "zbuf" | "zstr" | "timestamp" | "array" | "composite" => {
+                return Some(ZBufLike);
             }
-        } else {
-            if let Some(segment) = attr.path().segments.first() {
-                let name = segment.ident.to_string();
-                match name.as_str() {
-                    "zid" | "zbuf" | "zstr" | "timestamp" | "array" | "composite" => {
-                        return Some(ZBufLike);
-                    }
-                    _ => continue,
-                }
-            }
+
+            _ => return None,
         }
     }
 

@@ -145,14 +145,11 @@ pub(crate) mod ext {
         protocol::{
             ZCodecError,
             codec::{
-                decode_timestamp, decode_u8, decode_u32, encode_timestamp, encode_u8, encode_u32,
-                encoded_len_timestamp, encoded_len_u32,
+                decode_timestamp, decode_u8, decode_u32, decode_zid, encode_timestamp, encode_u8,
+                encode_u32, encode_zid, encoded_len_timestamp, encoded_len_u32, encoded_len_zid,
             },
             common::extension::{ZExtZ64, ZExtZBufHeader},
-            core::{
-                CongestionControl, EntityId, Priority, ZenohIdProto, decode_zid, encode_zid,
-                encoded_len_zid,
-            },
+            core::{CongestionControl, EntityId, Priority, ZenohIdProto},
             has_flag,
         },
         result::ZResult,

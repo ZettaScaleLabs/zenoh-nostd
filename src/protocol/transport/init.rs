@@ -2,11 +2,11 @@ use crate::{
     protocol::{
         ZCodecError,
         codec::{
-            decode_array, decode_u8, decode_usize, decode_zbuf, encode_array, encode_u8,
-            encode_usize, encode_zbuf,
+            decode_array, decode_u8, decode_usize, decode_zbuf, decode_zid, encode_array,
+            encode_u8, encode_usize, encode_zbuf, encode_zid,
         },
         common::extension::{self, iext},
-        core::{ZenohIdProto, decode_zid, encode_zid, resolution::Resolution, whatami::WhatAmI},
+        core::{ZenohIdProto, resolution::Resolution, whatami::WhatAmI},
         has_flag, msg_id,
         transport::{BatchSize, batch_size, id},
     },

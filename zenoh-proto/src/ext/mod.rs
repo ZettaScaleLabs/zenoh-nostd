@@ -1,30 +1,36 @@
 use proc_macro2::TokenStream;
-use syn::{Data, DeriveInput};
+use quote::ToTokens;
+use syn::DeriveInput;
 
 mod body;
 mod kind;
 
 pub fn derive_zext(input: DeriveInput) -> TokenStream {
     let ident = &input.ident;
-    let data = &input.data;
-    let (impl_generics, ty_generics, where_clause) = input.generics.split_for_impl();
+    let (_, ty_generics, _) = input.generics.split_for_impl();
 
-    let (kind, body) = compute_zext(data);
+    let (kind, body) = compute_zext(&input);
+    let ty_generics = if ty_generics.to_token_stream().is_empty() {
+        quote::quote! {}
+    } else {
+        quote::quote! { <'_> }
+    };
 
     let expanded = quote::quote! {
-        impl #impl_generics crate::protocol::ext::ZExt for #ident #ty_generics #where_clause {
+        impl crate::protocol::ext::ZExt for #ident #ty_generics {
             const KIND: crate::protocol::ext::ZExtKind = #kind;
+
+            #body
         }
 
-        #body
     };
 
     expanded.into()
 }
 
-pub fn compute_zext(data: &Data) -> (TokenStream, TokenStream) {
-    let (token, kind) = kind::infer_kind(data);
-    let body = body::infer_body(&kind, data);
+pub fn compute_zext(input: &DeriveInput) -> (TokenStream, TokenStream) {
+    let (token, kind) = kind::infer_kind(&input.data);
+    let body = body::infer_body(&kind, input);
 
     (token, body)
 }

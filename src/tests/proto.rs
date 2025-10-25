@@ -2,7 +2,7 @@ use zenoh_proto::ZExt;
 
 use crate::{
     protocol::ext::{ZExt, ZExtKind},
-    zbuf::ZBuf,
+    zbuf::{ZBuf, ZBufExt, ZBufMutExt},
 };
 
 #[test]
@@ -97,6 +97,24 @@ fn test_u64() {
     assert!(<U6411 as ZExt>::KIND == ZExtKind::U64);
     assert!(<U6412 as ZExt>::KIND == ZExtKind::U64);
     assert!(<U6413 as ZExt>::KIND == ZExtKind::U64);
+
+    let mut data = [0u8; 10];
+    let mut zbuf = data.as_mut_slice();
+    let mut writer = zbuf.writer();
+
+    let value = U6413 {
+        field1: 255,
+        field2: 20,
+        field3: u16::MAX,
+    };
+
+    <U6413 as ZExt>::ENCODE(&mut writer, &value).unwrap();
+    let mut reader = data.as_slice().reader();
+    let decoded = <U6413 as ZExt>::DECODE(&mut reader).unwrap();
+
+    assert_eq!(value.field1, decoded.field1);
+    assert_eq!(value.field2, decoded.field2);
+    assert_eq!(value.field3, decoded.field3);
 }
 
 #[test]
