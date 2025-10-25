@@ -16,8 +16,10 @@
     ZExt,
     attributes(
         // --- Raw base types ---
-        u8, u16, u32, u64, usize, zbuf, str, timestamp, array, zid,
-        // --- Composite type ---
+        u8, u16, u32, u64, usize, timestamp, array,
+        // --- Unknown size base types ---
+        zbuf, str, zid,
+        // --- Composite ---
         composite,
     )
 )]
