@@ -4,7 +4,7 @@ use syn::{Data, Fields, Ident};
 pub fn compute_zext_u64(ident: &Ident, data: &Data) -> TokenStream {
     let fields = match data {
         Data::Struct(s) => &s.fields,
-        _ => panic!("only structs are supported"),
+        _ => unreachable!(),
     };
 
     let mut field_infos = Vec::new();
@@ -17,11 +17,8 @@ pub fn compute_zext_u64(ident: &Ident, data: &Data) -> TokenStream {
     };
 
     for (i, field) in iter.iter().enumerate() {
-        if field.attrs.len() != 1 {
-            panic!("each field must have exactly one size attribute (#[u8], #[u16], ...)");
-        }
-
         let attr = &field.attrs[0];
+
         let bits = if attr.path().is_ident("u8") {
             8
         } else if attr.path().is_ident("u16") {
@@ -31,9 +28,9 @@ pub fn compute_zext_u64(ident: &Ident, data: &Data) -> TokenStream {
         } else if attr.path().is_ident("u64") {
             64
         } else if attr.path().is_ident("usize") {
-            32
+            64
         } else {
-            panic!("each field must have a size attribute (#[u8], #[u16], ...)");
+            panic!("each field must have a uint attribute (#[u8], #[u16], ...)");
         };
 
         let access = match field.ident {

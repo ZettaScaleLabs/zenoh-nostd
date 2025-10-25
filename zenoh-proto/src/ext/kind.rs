@@ -42,7 +42,9 @@ fn infer_from_fields<'a>(fields: impl Iterator<Item = &'a Vec<Attribute>>) -> Ki
     for attrs in fields {
         let kind = match infer_field_kind(attrs) {
             Some(k) => k,
-            None => panic!("Each field must have an attribute like #[u32], #[zid], #[zstr], etc."),
+            None => panic!(
+                "Each field must have exactly one attribute like #[u32], #[zid], #[zstr], etc."
+            ),
         };
 
         match kind {
@@ -75,7 +77,7 @@ fn infer_field_kind(attrs: &[Attribute]) -> Option<FieldKind> {
             "u16" => return Some(Integer(16)),
             "u32" => return Some(Integer(32)),
             "u64" => return Some(Integer(64)),
-            "usize" => return Some(Integer(32)),
+            "usize" => return Some(Integer(64)),
 
             "zid" | "zbuf" | "zstr" | "timestamp" | "array" | "composite" => {
                 return Some(ZBufLike);
