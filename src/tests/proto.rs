@@ -76,7 +76,7 @@ fn test_u64() {
     assert!(<U6410 as ZExt>::KIND == ZExtKind::U64);
 
     #[derive(ZExt)]
-    struct U6411(#[u32] u32, #[u32] u32);
+    struct U6411(#[u32] u32, #[u16] u16);
     #[derive(ZExt)]
     struct U6412 {
         #[u16]
@@ -110,7 +110,7 @@ fn test_u64() {
 
     <U6413 as ZExt>::ENCODE(&mut writer, &value).unwrap();
     let mut reader = data.as_slice().reader();
-    let decoded = <U6413 as ZExt>::DECODE(&mut reader).unwrap();
+    let decoded = <U6413 as ZExt>::DECODE(&mut reader, 0).unwrap();
 
     assert_eq!(value.field1, decoded.field1);
     assert_eq!(value.field2, decoded.field2);
@@ -146,7 +146,7 @@ fn test_zbuf() {
     struct ZBuf4<'a> {
         #[u16]
         field1: u16,
-        #[zbuf(deduce)]
+        #[zbuf(flag(4))]
         field2: ZBuf<'a>,
     }
 
@@ -162,7 +162,7 @@ fn test_zbuf() {
     struct ZBuf6<'a> {
         #[zbuf(plain)]
         field1: ZBuf<'a>,
-        #[composite]
+        #[composite(encoding)]
         field2: Encoding,
         #[u8]
         field3: u8,

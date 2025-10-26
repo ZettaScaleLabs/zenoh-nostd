@@ -48,10 +48,10 @@ crate::zext!(
     'static,
     SourceInfo,
     ZExtKind::ZBuf,
+    |s| {
+        1 + encoded_len_zid(&s.zid) + encoded_len_u32(s.eid) + encoded_len_u32(s.sn)
+    },
     |w, x| {
-        let len = 1 + encoded_len_zid(&x.zid) + encoded_len_u32(x.eid) + encoded_len_u32(x.sn);
-        encode_usize(w, len)?;
-
         let flags: u8 = (x.zid.size() as u8 - 1) << 4;
         encode_u8(w, flags)?;
 
@@ -59,9 +59,7 @@ crate::zext!(
         encode_u32(w, x.eid)?;
         encode_u32(w, x.sn)
     },
-    |r| {
-        let _ = decode_usize(r)?;
-
+    |r, _l| {
         let flags = decode_u8(r)?;
         let len = 1 + ((flags >> 4) as usize);
 
@@ -106,16 +104,14 @@ crate::zext!(
     'a,
     Value,
     ZExtKind::ZBuf,
+    |s| {
+        encoded_len_encoding(&s.encoding) + encoded_len_zbuf(&s.payload)
+    },
     |w, x| {
-        let len = encoded_len_encoding(&x.encoding) + encoded_len_zbuf(&x.payload);
-        encode_usize(w, len)?;
-
         encode_encoding(w, &x.encoding)?;
         encode_zbuf(w, x.payload)
     },
-    |r| {
-        let len = decode_usize(r)?;
-
+    |r, len| {
         let start = r.remaining();
         let encoding = decode_encoding(r)?;
         let end = r.remaining();
@@ -155,15 +151,13 @@ crate::zext!(
     'a,
     Attachment,
     ZExtKind::ZBuf,
+    |s| {
+        encoded_len_zbuf(&s.buffer)
+    },
     |w, x| {
-        let len = encoded_len_zbuf(&x.buffer);
-        encode_usize(w, len)?;
-
         encode_zbuf(w, &x.buffer)
     },
-    |r| {
-        let len = decode_usize(r)?;
-
+    |r, len| {
         let buffer = decode_zbuf(r, len)?;
         Ok(Attachment { buffer })
     }

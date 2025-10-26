@@ -3,7 +3,9 @@ use crate::{
         ZCodecError,
         codec::{
             decode_str, decode_u8, decode_u64, decode_usize, decode_zbuf, encode_str, encode_u8,
+            encode_usize,
         },
+        common::extension::{ZExtUnit, ZExtZBuf},
         has_flag,
     },
     result::ZResult,
@@ -76,8 +78,12 @@ pub(crate) trait ZExt: Sized {
 
     type Decoded<'a>: Sized;
 
+    const LEN: fn(&Self) -> usize;
     const ENCODE: fn(&mut ZBufWriter<'_>, &Self) -> ZResult<(), ZCodecError>;
-    const DECODE: for<'a> fn(&mut ZBufReader<'a>) -> ZResult<Self::Decoded<'a>, ZCodecError>;
+    const DECODE: for<'a> fn(
+        &mut ZBufReader<'a>,
+        usize,
+    ) -> ZResult<Self::Decoded<'a>, ZCodecError>;
 }
 
 #[macro_export]
@@ -89,24 +95,33 @@ macro_rules! zext {
         }
     };
 
-    ('static, $ext:ident, $kind:expr, |$w:ident, $x:ident| $encode:expr, |$r:ident| $decode:expr) => {
+    ('static, $ext:ident, $kind:expr, |$s:ident| $len:expr, |$w:ident, $x:ident| $encode:expr, |$r:ident, $l:ident| $decode:expr) => {
         impl crate::protocol::ext::ZExt for $ext {
             const KIND: crate::protocol::ext::ZExtKind = $kind;
 
             type Decoded<'a> = $ext;
 
+            const LEN: fn(&Self) -> usize = |$s| { $len };
             const ENCODE: fn(&mut crate::zbuf::ZBufWriter<'_>, &Self) -> crate::result::ZResult<(), crate::protocol::ZCodecError> = |$w, $x| { $encode };
-            const DECODE: for<'a> fn(&mut crate::zbuf::ZBufReader<'a>) -> crate::result::ZResult<Self::Decoded<'a>, crate::protocol::ZCodecError> = |$r| { $decode };
+            const DECODE: for<'a> fn(&mut crate::zbuf::ZBufReader<'a>, usize) -> crate::result::ZResult<Self::Decoded<'a>, crate::protocol::ZCodecError> = |$r, $l| { $decode };
 
         }
 
         paste::paste! {
+            pub(crate) fn [<encoded_len_ $ext:snake>](x: & $ext) -> usize {
+                <$ext as crate::protocol::ext::ZExt>::LEN(x)
+            }
+
             pub(crate) fn [<encode_ $ext:snake>]<Primitive>(writer: &mut crate::zbuf::ZBufWriter<'_>, x: Option<&$ext>, more: bool)
             -> crate::result::ZResult<bool, crate::protocol::ZCodecError>
                 where $ext: crate::protocol::ext::ZExtPrimitive<Primitive>
             {
                 if let Some(x) = x {
                     crate::protocol::ext::encode_ext_header::<$ext, Primitive>(writer, more)?;
+
+                    if <$ext as crate::protocol::ext::ZExt>::KIND == crate::protocol::ext::ZExtKind::ZBuf {
+                        encode_usize(writer, [<encoded_len_ $ext:snake>](x))?;
+                    }
 
                     <$ext as crate::protocol::ext::ZExt>::ENCODE(writer, x)?;
 
@@ -120,23 +135,32 @@ macro_rules! zext {
             -> crate::result::ZResult<$ext, crate::protocol::ZCodecError>
                 where $ext: crate::protocol::ext::ZExtPrimitive<Primitive>
             {
-                <$ext as crate::protocol::ext::ZExt>::DECODE(reader)
+                if let crate::protocol::ext::ZExtKind::ZBuf = <$ext as crate::protocol::ext::ZExt>::KIND {
+                    let len = decode_usize(reader)?;
+                    return <$ext as crate::protocol::ext::ZExt>::DECODE(reader, len);
+                }
+
+                <$ext as crate::protocol::ext::ZExt>::DECODE(reader, 0)
             }
         }
     };
 
-    ('a, $ext:ident, $kind:expr, |$w:ident, $x:ident| $encode:expr, |$r:ident| $decode:expr) => {
+    ('a, $ext:ident, $kind:expr, |$s:ident| $len:expr, |$w:ident, $x:ident| $encode:expr, |$r:ident, $l:ident| $decode:expr) => {
         impl crate::protocol::ext::ZExt for $ext<'_> {
             const KIND: crate::protocol::ext::ZExtKind = $kind;
 
             type Decoded<'a> = $ext<'a>;
 
+            const LEN: fn(&Self) -> usize = |$s| { $len };
             const ENCODE: fn(&mut crate::zbuf::ZBufWriter<'_>, &Self) -> crate::result::ZResult<(), crate::protocol::ZCodecError> = |$w, $x| { $encode };
-            const DECODE: for<'a> fn(&mut crate::zbuf::ZBufReader<'a>) -> crate::result::ZResult<Self::Decoded<'a>, crate::protocol::ZCodecError> = |$r| { $decode };
-
+            const DECODE: for<'a> fn(&mut crate::zbuf::ZBufReader<'a>, usize) -> crate::result::ZResult<Self::Decoded<'a>, crate::protocol::ZCodecError> = |$r, $l| { $decode };
         }
 
         paste::paste! {
+            pub(crate) fn [<encoded_len_ $ext:snake>]<'a>(x: &$ext<'a>) -> usize {
+                <$ext<'a> as crate::protocol::ext::ZExt>::LEN(x)
+            }
+
             pub(crate) fn [<encode_ $ext:snake>]<'a, Primitive>(writer: &mut crate::zbuf::ZBufWriter<'_>, x: Option<&$ext<'a>>, more: bool)
             -> crate::result::ZResult<bool, crate::protocol::ZCodecError>
                 where $ext<'a>: crate::protocol::ext::ZExtPrimitive<Primitive>
@@ -144,7 +168,11 @@ macro_rules! zext {
                 if let Some(x) = x {
                     crate::protocol::ext::encode_ext_header::<$ext, Primitive>(writer, more)?;
 
-                    <$ext as crate::protocol::ext::ZExt>::ENCODE(writer, x)?;
+                    if <$ext<'a> as crate::protocol::ext::ZExt>::KIND == crate::protocol::ext::ZExtKind::ZBuf {
+                        encode_usize(writer, [<encoded_len_ $ext:snake>](x))?;
+                    }
+
+                    <$ext<'a> as crate::protocol::ext::ZExt>::ENCODE(writer, x)?;
 
                     return Ok(true);
                 }
@@ -156,7 +184,12 @@ macro_rules! zext {
             -> crate::result::ZResult<<$ext<'a> as crate::protocol::ext::ZExt>::Decoded<'a>, crate::protocol::ZCodecError>
                 where $ext<'a>: crate::protocol::ext::ZExtPrimitive<Primitive>
             {
-                <$ext<'a> as crate::protocol::ext::ZExt>::DECODE(reader)
+                if let crate::protocol::ext::ZExtKind::ZBuf = <$ext<'a> as crate::protocol::ext::ZExt>::KIND {
+                    let len = decode_usize(reader)?;
+                    return <$ext<'a> as crate::protocol::ext::ZExt>::DECODE(reader, len);
+                }
+
+                <$ext<'a> as crate::protocol::ext::ZExt>::DECODE(reader, 0)
             }
         }
     };

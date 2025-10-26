@@ -36,8 +36,7 @@ pub fn compute_zext_u64(ident: &Ident, data: &Data) -> TokenStream {
         let access = match field.ident {
             Some(ref ident) => quote::quote! { x.#ident },
             None => {
-                let idx = iter.len() - 1 - i;
-                let index = syn::Index::from(idx);
+                let index = syn::Index::from(i);
                 quote::quote! { x.#index }
             }
         };
@@ -47,6 +46,14 @@ pub fn compute_zext_u64(ident: &Ident, data: &Data) -> TokenStream {
         field_infos.push((access, bits, total_bits, ty.clone()));
         total_bits += bits;
     }
+
+    let len_parts = field_infos.iter().map(|(access, _, _, _)| {
+        quote::quote! { crate::protocol::codec::encoded_len_u64(#access as u64) }
+    });
+
+    let len_body = len_parts
+        .reduce(|acc, expr| quote::quote! { #acc + #expr })
+        .unwrap();
 
     let encode_parts = field_infos.iter().map(|(access, _, shift, _)| {
         if *shift == 0 {
@@ -89,11 +96,15 @@ pub fn compute_zext_u64(ident: &Ident, data: &Data) -> TokenStream {
     let expanded = quote::quote! {
         type Decoded<'a> = #ident;
 
+        const LEN: fn(&Self) -> usize = |x| {
+            #len_body as usize
+        };
+
         const ENCODE: fn(&mut crate::zbuf::ZBufWriter<'_>, &Self) -> crate::result::ZResult<(), crate::protocol::ZCodecError> = |w, x| {
             let v: u64 = #encode_body;
             crate::protocol::codec::encode_u64(w, v)
         };
-        const DECODE: for<'a> fn(&mut crate::zbuf::ZBufReader<'a>) -> crate::result::ZResult<Self::Decoded<'a>, crate::protocol::ZCodecError> = |r| {
+        const DECODE: for<'a> fn(&mut crate::zbuf::ZBufReader<'a>, usize) -> crate::result::ZResult<Self::Decoded<'a>, crate::protocol::ZCodecError> = |r, _| {
             let value = crate::protocol::codec::decode_u64(r)?;
             Ok(#decode_body)
         };
