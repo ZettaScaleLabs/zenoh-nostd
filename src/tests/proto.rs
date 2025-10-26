@@ -1,7 +1,10 @@
 use zenoh_proto::ZExt;
 
 use crate::{
-    protocol::ext::{ZExt, ZExtKind},
+    protocol::{
+        core::encoding::{Encoding, encode_encoding},
+        ext::{ZExt, ZExtKind},
+    },
     zbuf::{ZBuf, ZBufExt, ZBufMutExt},
 };
 
@@ -156,14 +159,14 @@ fn test_zbuf() {
     assert!(<ZBuf4 as ZExt>::KIND == ZExtKind::ZBuf);
     assert!(<ZBuf5 as ZExt>::KIND == ZExtKind::ZBuf);
 
-    struct Encoding;
+    use crate::protocol::core::encoding::encoded_len_encoding;
 
     #[derive(ZExt)]
     struct ZBuf6<'a> {
         #[zbuf(plain)]
         field1: ZBuf<'a>,
         #[composite(encoding)]
-        field2: Encoding,
+        field2: Encoding<'a>,
         #[u8]
         field3: u8,
     }

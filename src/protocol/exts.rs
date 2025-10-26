@@ -1,5 +1,3 @@
-use zenoh_proto::ZExt;
-
 #[cfg(test)]
 use crate::zbuf::ZBufWriter;
 use crate::{

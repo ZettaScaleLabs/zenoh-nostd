@@ -1,8 +1,9 @@
 use proc_macro2::TokenStream;
 use quote::ToTokens;
-use syn::{Attribute, Data, Generics, Ident};
+use syn::{Data, Generics, Ident};
 
 mod decode;
+mod encode;
 mod flag;
 mod len;
 
@@ -17,6 +18,9 @@ pub fn compute_zext_zbuf(ident: &Ident, generics: &Generics, data: &Data) -> Tok
     let flag_needed = flag_needed(data);
     let len_body = len::len_body(data, flag_needed);
 
+    let flag_body = flag::flag_body(data, flag_needed);
+    let encode_body = encode::encode_body(data);
+
     let expanded = quote::quote! {
         type Decoded<'a> = #ident #ty_generics;
 
@@ -26,7 +30,11 @@ pub fn compute_zext_zbuf(ident: &Ident, generics: &Generics, data: &Data) -> Tok
 
 
         const ENCODE: fn(&mut crate::zbuf::ZBufWriter<'_>, &Self) -> crate::result::ZResult<(), crate::protocol::ZCodecError> = |w, x| {
-            Err(crate::protocol::ZCodecError::CouldNotWrite)
+            #flag_body
+
+            #encode_body
+
+            Ok(())
         };
         const DECODE: for<'a> fn(&mut crate::zbuf::ZBufReader<'a>, usize) -> crate::result::ZResult<Self::Decoded<'a>, crate::protocol::ZCodecError> = |r, _| {
             Err(crate::protocol::ZCodecError::CouldNotRead)
@@ -51,25 +59,25 @@ fn flag_needed(data: &Data) -> bool {
     let mut total_bits = 0u8;
 
     for field in iter.iter() {
-        for attr in &field.attrs {
-            if attr.path().is_ident("zbuf")
-                || attr.path().is_ident("str")
-                || attr.path().is_ident("zid")
-            {
-                attr.parse_nested_meta(|meta| {
-                    if meta.path.is_ident("flag") {
-                        let content;
-                        syn::parenthesized!(content in meta.input);
+        let attr = &field.attrs[0];
 
-                        let value: syn::LitInt = content.parse()?;
-                        let flag_size = value.base10_parse::<u8>()?;
-                        total_bits += flag_size;
-                    }
+        if attr.path().is_ident("zbuf")
+            || attr.path().is_ident("str")
+            || attr.path().is_ident("zid")
+        {
+            attr.parse_nested_meta(|meta| {
+                if meta.path.is_ident("flag") || meta.path.is_ident("eflag") {
+                    let content;
+                    syn::parenthesized!(content in meta.input);
 
-                    Ok(())
-                })
-                .unwrap();
-            }
+                    let value: syn::LitInt = content.parse()?;
+                    let flag_size = value.base10_parse::<u8>()?;
+                    total_bits += flag_size;
+                }
+
+                Ok(())
+            })
+            .unwrap();
         }
     }
 
@@ -80,23 +88,4 @@ fn flag_needed(data: &Data) -> bool {
     } else {
         false
     }
-}
-
-fn composite_ident(attr: &Attribute) -> Option<Ident> {
-    let mut ident_opt = None;
-
-    attr.parse_nested_meta(|meta| {
-        if meta.path.is_ident("composite") {
-            let content;
-            syn::parenthesized!(content in meta.input);
-
-            let value: syn::Ident = content.parse()?;
-            ident_opt = Some(value);
-        }
-
-        Ok(())
-    })
-    .unwrap();
-
-    ident_opt
 }

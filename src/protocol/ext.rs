@@ -1,11 +1,7 @@
 use crate::{
     protocol::{
         ZCodecError,
-        codec::{
-            decode_str, decode_u8, decode_u64, decode_usize, decode_zbuf, encode_str, encode_u8,
-            encode_usize,
-        },
-        common::extension::{ZExtUnit, ZExtZBuf},
+        codec::{decode_u8, decode_u64, decode_usize, decode_zbuf, encode_u8},
         has_flag,
     },
     result::ZResult,
