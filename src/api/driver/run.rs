@@ -5,16 +5,13 @@ use embassy_time::{Instant, Timer};
 
 use crate::{
     api::driver::SessionDriver,
-    platform::{Platform, ZCommunicationError},
-    protocol::transport::{
-            self, TransportMessage,
-            keepalive::KeepAlive,
-        },
-    result::ZResult,
+    platform::Platform,
+    protocol::transport::{self, TransportMessage, keepalive::KeepAlive},
+    result::{ZError, ZResult},
 };
 
 impl<T: Platform> SessionDriver<T> {
-    pub async fn run(&self) -> ZResult<(), ZCommunicationError> {
+    pub async fn run(&self) -> ZResult<()> {
         let mut rx_guard = self.rx.lock().await;
         let rx = rx_guard.deref_mut();
 
@@ -38,7 +35,7 @@ impl<T: Platform> SessionDriver<T> {
                     match read {
                         embassy_futures::select::Either::First(_) => {
                             crate::warn!("Connection closed by peer");
-                            break Err(ZCommunicationError::ConnectionClosed);
+                            break Err(ZError::ConnectionClosed);
                         }
                         embassy_futures::select::Either::Second(tmsg) => match tmsg {
                             Ok(tmsg) => {
@@ -46,7 +43,7 @@ impl<T: Platform> SessionDriver<T> {
                             }
                             Err(_) => {
                                 crate::warn!("Did not read from connection");
-                                break Err(ZCommunicationError::DidNotRead);
+                                break Err(ZError::ConnectionClosed);
                             }
                         },
                     }

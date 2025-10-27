@@ -2,6 +2,7 @@ use crate::{
     protocol::{
         ZCodecError,
         common::imsg,
+        zcodec::decode_u8,
         zenoh::{err::Err, put::Put, query::Query, reply::Reply},
     },
     result::ZResult,
@@ -9,43 +10,41 @@ use crate::{
     zbuf::{ZBufReader, ZBufWriter},
 };
 
-pub mod err;
-pub mod put;
-pub mod query;
-pub mod reply;
+pub(crate) mod err;
+pub(crate) mod put;
+pub(crate) mod query;
+pub(crate) mod reply;
 
-pub mod id {
-    pub const OAM: u8 = 0x00;
-    pub const PUT: u8 = 0x01;
-    pub const DEL: u8 = 0x02;
-    pub const QUERY: u8 = 0x03;
-    pub const REPLY: u8 = 0x04;
-    pub const ERR: u8 = 0x05;
+pub(crate) mod id {
+    pub(crate) const PUT: u8 = 0x01;
+    pub(crate) const QUERY: u8 = 0x03;
+    pub(crate) const REPLY: u8 = 0x04;
+    pub(crate) const ERR: u8 = 0x05;
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub enum PushBody<'a> {
+pub(crate) enum PushBody<'a> {
     Put(Put<'a>),
 }
 
 impl<'a> PushBody<'a> {
-    pub fn encode(&self, writer: &mut ZBufWriter<'_>) -> ZResult<(), ZCodecError> {
+    pub(crate) fn encode(&self, writer: &mut ZBufWriter<'_>) -> ZResult<(), ZCodecError> {
         match self {
             PushBody::Put(put) => put.encode(writer),
         }
     }
 
-    pub fn decode(reader: &mut ZBufReader<'a>) -> ZResult<Self, ZCodecError> {
-        let header = crate::protocol::zcodec::decode_u8(reader)?;
+    pub(crate) fn decode(reader: &mut ZBufReader<'a>) -> ZResult<Self, ZCodecError> {
+        let header = decode_u8(reader)?;
 
         match imsg::mid(header) {
-            id::PUT => Ok(PushBody::Put(Put::decode(header, reader)?)),
-            _ => zbail!(ZCodecError::Invalid),
+            id::PUT => Ok(PushBody::Put(Put::decode(reader, header)?)),
+            _ => zbail!(ZCodecError::CouldNotRead),
         }
     }
 
     #[cfg(test)]
-    pub fn rand(zbuf: &mut ZBufWriter<'a>) -> Self {
+    pub(crate) fn rand(zbuf: &mut ZBufWriter<'a>) -> Self {
         use rand::Rng;
 
         let mut rng = rand::thread_rng();
@@ -58,28 +57,28 @@ impl<'a> PushBody<'a> {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub enum RequestBody<'a> {
+pub(crate) enum RequestBody<'a> {
     Query(Query<'a>),
 }
 
 impl<'a> RequestBody<'a> {
-    pub fn encode(&self, writer: &mut ZBufWriter<'_>) -> ZResult<(), ZCodecError> {
+    pub(crate) fn encode(&self, writer: &mut ZBufWriter<'_>) -> ZResult<(), ZCodecError> {
         match self {
             RequestBody::Query(query) => query.encode(writer),
         }
     }
 
-    pub fn decode(reader: &mut ZBufReader<'a>) -> ZResult<Self, ZCodecError> {
-        let header = crate::protocol::zcodec::decode_u8(reader)?;
+    pub(crate) fn decode(reader: &mut ZBufReader<'a>) -> ZResult<Self, ZCodecError> {
+        let header = decode_u8(reader)?;
 
         match imsg::mid(header) {
-            id::QUERY => Ok(RequestBody::Query(Query::decode(header, reader)?)),
-            _ => zbail!(ZCodecError::Invalid),
+            id::QUERY => Ok(RequestBody::Query(Query::decode(reader, header)?)),
+            _ => zbail!(ZCodecError::CouldNotRead),
         }
     }
 
     #[cfg(test)]
-    pub fn rand(zbuf: &mut ZBufWriter<'a>) -> Self {
+    pub(crate) fn rand(zbuf: &mut ZBufWriter<'a>) -> Self {
         use rand::Rng;
 
         let mut rng = rand::thread_rng();
@@ -92,33 +91,33 @@ impl<'a> RequestBody<'a> {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub enum ResponseBody<'a> {
+pub(crate) enum ResponseBody<'a> {
     Reply(Reply<'a>),
     Err(Err<'a>),
 }
 
 impl<'a> ResponseBody<'a> {
-    pub fn encode(&self, writer: &mut ZBufWriter<'_>) -> ZResult<(), ZCodecError> {
+    pub(crate) fn encode(&self, writer: &mut ZBufWriter<'_>) -> ZResult<(), ZCodecError> {
         match self {
             ResponseBody::Reply(reply) => reply.encode(writer),
             ResponseBody::Err(err) => err.encode(writer),
         }
     }
 
-    pub fn decode(reader: &mut ZBufReader<'a>) -> ZResult<Self, ZCodecError> {
-        let header = crate::protocol::zcodec::decode_u8(reader)?;
+    pub(crate) fn decode(reader: &mut ZBufReader<'a>) -> ZResult<Self, ZCodecError> {
+        let header = decode_u8(reader)?;
 
         match imsg::mid(header) {
-            id::REPLY => Ok(ResponseBody::Reply(Reply::decode(header, reader)?)),
-            id::ERR => Ok(ResponseBody::Err(Err::decode(header, reader)?)),
+            id::REPLY => Ok(ResponseBody::Reply(Reply::decode(reader, header)?)),
+            id::ERR => Ok(ResponseBody::Err(Err::decode(reader, header)?)),
             _ => {
-                zbail!(ZCodecError::Invalid)
+                zbail!(ZCodecError::CouldNotRead)
             }
         }
     }
 
     #[cfg(test)]
-    pub fn rand(zbuf: &mut ZBufWriter<'a>) -> Self {
+    pub(crate) fn rand(zbuf: &mut ZBufWriter<'a>) -> Self {
         use rand::Rng;
         let mut rng = rand::thread_rng();
 
@@ -130,15 +129,15 @@ impl<'a> ResponseBody<'a> {
     }
 }
 
-pub mod ext {
+pub(crate) mod ext {
     use crate::{
         protocol::{
             ZCodecError,
             common::extension::ZExtZBufHeader,
             core::{EntityGlobalIdProto, ZenohIdProto, encoding::Encoding},
             zcodec::{
-                decode_u32, decode_zbuf, encode_u8, encode_u32, encode_zbuf, encoded_len_u32,
-                encoded_len_zbuf,
+                decode_u8, decode_u32, decode_zbuf, encode_u8, encode_u32, encode_zbuf,
+                encoded_len_u32, encoded_len_zbuf,
             },
         },
         result::ZResult,
@@ -146,41 +145,45 @@ pub mod ext {
     };
 
     #[derive(Debug, Clone, PartialEq, Eq)]
-    pub struct SourceInfoType<const ID: u8> {
-        pub id: EntityGlobalIdProto,
-        pub sn: u32,
+    pub(crate) struct SourceInfoType<const ID: u8> {
+        pub(crate) id: EntityGlobalIdProto,
+        pub(crate) sn: u32,
     }
 
-    impl<const ID: u8> SourceInfoType<{ ID }> {
-        pub fn encoded_len(&self) -> usize {
+    impl<const ID: u8> SourceInfoType<ID> {
+        pub(crate) fn encoded_len(&self) -> usize {
             1 + self.id.zid.encoded_len(false)
                 + encoded_len_u32(self.id.eid)
                 + encoded_len_u32(self.sn)
         }
 
-        pub fn encode(&self, more: bool, writer: &mut ZBufWriter<'_>) -> ZResult<(), ZCodecError> {
-            let header: ZExtZBufHeader<{ ID }> = ZExtZBufHeader::new(self.encoded_len());
-            header.encode(more, writer)?;
+        pub(crate) fn encode(
+            &self,
+            writer: &mut ZBufWriter<'_>,
+            more: bool,
+        ) -> ZResult<(), ZCodecError> {
+            let header: ZExtZBufHeader<ID> = ZExtZBufHeader::new(self.encoded_len());
+            header.encode(writer, more)?;
 
             let flags: u8 = (self.id.zid.size() as u8 - 1) << 4;
-            encode_u8(flags, writer)?;
+            encode_u8(writer, flags)?;
 
-            self.id.zid.encode(false, writer)?;
-            encode_u32(self.id.eid, writer)?;
-            encode_u32(self.sn, writer)?;
+            self.id.zid.encode(writer, false)?;
+            encode_u32(writer, self.id.eid)?;
+            encode_u32(writer, self.sn)?;
 
             Ok(())
         }
 
-        pub fn decode(
-            header: u8,
+        pub(crate) fn decode(
             reader: &mut ZBufReader<'_>,
+            header: u8,
         ) -> ZResult<(Self, bool), ZCodecError> {
-            let (_, more) = ZExtZBufHeader::<{ ID }>::decode(header, reader)?;
-            let flags = crate::protocol::zcodec::decode_u8(reader)?;
+            let (_, more) = ZExtZBufHeader::<ID>::decode(reader, header)?;
+            let flags = decode_u8(reader)?;
             let length = 1 + ((flags >> 4) as usize);
 
-            let zid = ZenohIdProto::decode(Some(length), reader)?;
+            let zid = ZenohIdProto::decode(reader, Some(length))?;
             let eid = decode_u32(reader)?;
             let sn = decode_u32(reader)?;
 
@@ -194,7 +197,7 @@ pub mod ext {
         }
 
         #[cfg(test)]
-        pub fn rand() -> Self {
+        pub(crate) fn rand() -> Self {
             use rand::Rng;
             let mut rng = rand::thread_rng();
 
@@ -205,44 +208,48 @@ pub mod ext {
     }
 
     #[derive(Debug, Clone, PartialEq, Eq)]
-    pub struct ValueType<'a, const VID: u8, const SID: u8> {
-        pub encoding: Encoding<'a>,
-        pub payload: crate::zbuf::ZBuf<'a>,
+    pub(crate) struct ValueType<'a, const VID: u8, const SID: u8> {
+        pub(crate) encoding: Encoding<'a>,
+        pub(crate) payload: crate::zbuf::ZBuf<'a>,
     }
 
-    impl<'a, const VID: u8, const SID: u8> ValueType<'a, { VID }, { SID }> {
-        pub const VID: u8 = VID;
-        pub const SID: u8 = SID;
+    impl<'a, const VID: u8, const SID: u8> ValueType<'a, VID, SID> {
+        pub(crate) const VID: u8 = VID;
+        pub(crate) const SID: u8 = SID;
 
-        pub fn encode(&self, more: bool, writer: &mut ZBufWriter<'_>) -> ZResult<(), ZCodecError> {
-            let header: ZExtZBufHeader<{ VID }> = ZExtZBufHeader::new(
+        pub(crate) fn encode(
+            &self,
+            writer: &mut ZBufWriter<'_>,
+            more: bool,
+        ) -> ZResult<(), ZCodecError> {
+            let header: ZExtZBufHeader<VID> = ZExtZBufHeader::new(
                 self.encoding.encoded_len() + encoded_len_zbuf(false, self.payload),
             );
 
-            header.encode(more, writer)?;
+            header.encode(writer, more)?;
             self.encoding.encode(writer)?;
 
-            encode_zbuf(false, self.payload, writer)
+            encode_zbuf(writer, self.payload, false)
         }
 
-        pub fn decode(
-            header: u8,
+        pub(crate) fn decode(
             reader: &mut ZBufReader<'a>,
+            header: u8,
         ) -> ZResult<(Self, bool), ZCodecError> {
-            let (h, more) = ZExtZBufHeader::<{ VID }>::decode(header, reader)?;
+            let (h, more) = ZExtZBufHeader::<VID>::decode(reader, header)?;
 
             let start = reader.remaining();
             let encoding = Encoding::decode(reader)?;
             let end = reader.remaining();
 
             let len = h.len - (start - end);
-            let payload = decode_zbuf(Some(len), reader)?;
+            let payload = decode_zbuf(reader, Some(len))?;
 
             Ok((Self { encoding, payload }, more))
         }
 
         #[cfg(test)]
-        pub fn rand(zbuf: &mut ZBufWriter<'a>) -> Self {
+        pub(crate) fn rand(zbuf: &mut ZBufWriter<'a>) -> Self {
             use rand::Rng;
 
             use crate::zbuf::BufWriterExt;
@@ -261,29 +268,33 @@ pub mod ext {
     }
 
     #[derive(Debug, Clone, PartialEq, Eq)]
-    pub struct AttachmentType<'a, const ID: u8> {
-        pub buffer: crate::zbuf::ZBuf<'a>,
+    pub(crate) struct AttachmentType<'a, const ID: u8> {
+        pub(crate) buffer: crate::zbuf::ZBuf<'a>,
     }
 
-    impl<'a, const ID: u8> AttachmentType<'a, { ID }> {
-        pub fn encode(&self, more: bool, writer: &mut ZBufWriter<'_>) -> ZResult<(), ZCodecError> {
-            let header: ZExtZBufHeader<{ ID }> =
+    impl<'a, const ID: u8> AttachmentType<'a, ID> {
+        pub(crate) fn encode(
+            &self,
+            writer: &mut ZBufWriter<'_>,
+            more: bool,
+        ) -> ZResult<(), ZCodecError> {
+            let header: ZExtZBufHeader<ID> =
                 ZExtZBufHeader::new(encoded_len_zbuf(false, self.buffer));
-            header.encode(more, writer)?;
-            encode_zbuf(false, self.buffer, writer)
+            header.encode(writer, more)?;
+            encode_zbuf(writer, self.buffer, false)
         }
 
-        pub fn decode(
-            header: u8,
+        pub(crate) fn decode(
             reader: &mut ZBufReader<'a>,
+            header: u8,
         ) -> ZResult<(Self, bool), ZCodecError> {
-            let (h, more) = ZExtZBufHeader::<{ ID }>::decode(header, reader)?;
-            let buffer = decode_zbuf(Some(h.len), reader)?;
+            let (h, more) = ZExtZBufHeader::<ID>::decode(reader, header)?;
+            let buffer = decode_zbuf(reader, Some(h.len))?;
             Ok((Self { buffer }, more))
         }
 
         #[cfg(test)]
-        pub fn rand(zbuf: &mut ZBufWriter<'a>) -> Self {
+        pub(crate) fn rand(zbuf: &mut ZBufWriter<'a>) -> Self {
             use rand::Rng;
 
             use crate::zbuf::BufWriterExt;

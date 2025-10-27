@@ -1,6 +1,6 @@
 use core::net::SocketAddr;
 
-use crate::{protocol::ZCodecError, result::ZResult};
+use crate::result::ZResult;
 
 pub mod tcp;
 
@@ -13,28 +13,16 @@ pub trait Platform {
     fn new_tcp_stream(
         &self,
         addr: &SocketAddr,
-    ) -> impl Future<Output = ZResult<Self::AbstractedTcpStream, ZCommunicationError>>;
+    ) -> impl Future<Output = ZResult<Self::AbstractedTcpStream, ZConnectionError>>;
 }
 
 crate::__internal_zerr! {
     /// Errors related to connections.
     #[err = "connection error"]
-    enum ZCommunicationError {
-        ConnectionClosed,
-        DidNotRead,
-        DidNotWrite,
-        Invalid,
-        TimedOut
-    }
-}
-
-impl From<ZCodecError> for ZCommunicationError {
-    fn from(x: ZCodecError) -> Self {
-        match x {
-            ZCodecError::DidNotRead => ZCommunicationError::DidNotRead,
-            ZCodecError::DidNotWrite => ZCommunicationError::DidNotWrite,
-            ZCodecError::Invalid => ZCommunicationError::Invalid,
-            _ => ZCommunicationError::Invalid,
-        }
+    enum ZConnectionError {
+        CouldNotGetAddrInfo,
+        CouldNotConnect,
+        CouldNotWrite,
+        CouldNotRead
     }
 }

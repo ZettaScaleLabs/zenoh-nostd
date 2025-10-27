@@ -2,8 +2,8 @@ use core::ops::DerefMut;
 
 use crate::{
     api::{driver::SessionDriver, sample::ZSample},
-    keyexpr::borrowed::keyexpr,
-    platform::{Platform, ZCommunicationError},
+    platform::Platform,
+    protocol::keyexpr::borrowed::keyexpr,
     protocol::{
         network::{NetworkBody, NetworkMessage},
         transport::{
@@ -19,10 +19,7 @@ use crate::{
 };
 
 impl<T: Platform> SessionDriver<T> {
-    pub async fn internal_update<'a>(
-        &self,
-        mut reader: ZBufReader<'a>,
-    ) -> ZResult<(), ZCommunicationError> {
+    pub(crate) async fn internal_update<'a>(&self, mut reader: ZBufReader<'a>) -> ZResult<()> {
         TransportMessage::decode_batch_async(
             &mut reader,
             None::<fn(InitSyn) -> ZResult<()>>,

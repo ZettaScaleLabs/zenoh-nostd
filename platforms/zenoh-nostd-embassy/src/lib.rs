@@ -2,11 +2,7 @@
 
 use embassy_net::{IpAddress, IpEndpoint, Stack, tcp::TcpSocket};
 use static_cell::StaticCell;
-use zenoh_nostd::{
-    platform::{Platform, ZCommunicationError},
-    result::ZResult,
-    zbail,
-};
+use zenoh_nostd::{Platform, ZConnectionError, result::ZResult, zbail};
 
 pub mod tcp;
 
@@ -20,7 +16,7 @@ impl Platform for PlatformEmbassy {
     async fn new_tcp_stream(
         &self,
         addr: &core::net::SocketAddr,
-    ) -> ZResult<Self::AbstractedTcpStream, ZCommunicationError> {
+    ) -> ZResult<Self::AbstractedTcpStream, ZConnectionError> {
         static RX_BUF: StaticCell<[u8; 1024]> = StaticCell::new();
         static TX_BUF: StaticCell<[u8; 1024]> = StaticCell::new();
         let (rx_buf, tx_buf) = (RX_BUF.init([0; 1024]), TX_BUF.init([0; 1024]));
@@ -29,7 +25,7 @@ impl Platform for PlatformEmbassy {
 
         let address: IpAddress = match addr.ip() {
             core::net::IpAddr::V4(v4) => IpAddress::Ipv4(v4),
-            core::net::IpAddr::V6(_) => zbail!(ZCommunicationError::Invalid),
+            core::net::IpAddr::V6(_) => zbail!(ZConnectionError::CouldNotConnect),
         };
 
         let ip_endpoint = IpEndpoint::new(address, addr.port());
@@ -37,7 +33,7 @@ impl Platform for PlatformEmbassy {
         socket
             .connect(ip_endpoint)
             .await
-            .map_err(|_| ZCommunicationError::ConnectionClosed)?;
+            .map_err(|_| ZConnectionError::CouldNotConnect)?;
 
         Ok(Self::AbstractedTcpStream { socket, mtu: 1024 })
     }

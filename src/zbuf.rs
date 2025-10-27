@@ -1,42 +1,34 @@
 use crate::{result::ZResult, zbail};
 
 crate::__internal_zerr! {
-    /// An error that can occur during I/O operations.
-    #[err = "io error"]
-    enum ZIOError {
-        DidNotRead,
-        DidNotWrite,
-        Invalid,
+    /// An error that can occur during zbuf operations.
+    #[err = "io buffer error"]
+    enum ZBufError {
+        CouldNotRead,
+        CouldNotWrite,
+        CouldNotParse,
     }
 }
 
 pub type ZBuf<'a> = &'a [u8];
 pub type ZBufMut<'a> = &'a mut [u8];
+pub(crate) type ZBufReader<'a> = &'a [u8];
+pub(crate) type ZBufWriter<'a> = &'a mut [u8];
 
-pub type ZBufReader<'a> = &'a [u8];
-pub type ZBufWriter<'a> = &'a mut [u8];
-
-pub trait ZBufExt<'a> {
-    fn as_bytes(&self) -> &[u8];
-    fn as_str(&self) -> ZResult<&'a str, ZIOError>;
+pub(crate) trait ZBufExt<'a> {
+    fn as_str(&self) -> ZResult<&'a str, ZBufError>;
     fn reader(&self) -> ZBufReader<'a>;
 }
 
-pub trait ZBufMutExt<'a> {
-    fn as_bytes(&self) -> &[u8];
-    fn as_str(&'a self) -> ZResult<&'a str, ZIOError>;
+pub(crate) trait ZBufMutExt<'a> {
+    #[cfg(test)]
     fn reader(&'a self) -> ZBufReader<'a>;
     fn writer(&mut self) -> ZBufWriter<'_>;
-    fn into_inner(self) -> ZBuf<'a>;
 }
 
 impl<'a> ZBufExt<'a> for ZBuf<'a> {
-    fn as_bytes(&self) -> &[u8] {
-        self
-    }
-
-    fn as_str(&self) -> ZResult<&'a str, ZIOError> {
-        core::str::from_utf8(self).map_err(|_| ZIOError::Invalid)
+    fn as_str(&self) -> ZResult<&'a str, ZBufError> {
+        core::str::from_utf8(self).map_err(|_| ZBufError::CouldNotParse)
     }
 
     fn reader(&self) -> ZBufReader<'a> {
@@ -45,67 +37,46 @@ impl<'a> ZBufExt<'a> for ZBuf<'a> {
 }
 
 impl<'a> ZBufMutExt<'a> for ZBufMut<'a> {
-    fn as_bytes(&self) -> &[u8] {
-        self
-    }
-
-    fn as_str(&'a self) -> ZResult<&'a str, ZIOError> {
-        core::str::from_utf8(self).map_err(|_| ZIOError::Invalid)
-    }
-
     fn writer(&mut self) -> ZBufWriter<'_> {
         self
     }
 
+    #[cfg(test)]
     fn reader(&'a self) -> ZBufReader<'a> {
         self
     }
-
-    fn into_inner(self) -> ZBuf<'a> {
-        self
-    }
 }
 
-pub struct SliceMark<'s> {
-    ptr: *const u8,
-    len: usize,
-
-    _phantom: core::marker::PhantomData<&'s [u8]>,
-}
-
-pub trait BufReaderExt<'a> {
+pub(crate) trait BufReaderExt<'a> {
     fn mark(&self) -> ZBuf<'a>;
     fn rewind(&mut self, mark: ZBuf<'a>);
     fn remaining(&self) -> usize;
     fn can_read(&self) -> bool;
-    fn read_u8(&mut self) -> ZResult<u8, ZIOError>;
-    fn read(&mut self, dst: ZBufMut<'_>) -> ZResult<usize, ZIOError>;
-    fn read_exact(&mut self, dst: ZBufMut<'_>) -> ZResult<usize, ZIOError>;
-    fn read_zbuf(&mut self, len: usize) -> ZResult<ZBuf<'a>, ZIOError>;
+    fn read_u8(&mut self) -> ZResult<u8, ZBufError>;
+    fn read(&mut self, dst: ZBufMut<'_>) -> ZResult<usize, ZBufError>;
+    fn read_zbuf(&mut self, len: usize) -> ZResult<ZBuf<'a>, ZBufError>;
 }
 
-pub trait BufWriterExt<'a> {
-    fn mark(&mut self) -> SliceMark<'a>;
-    fn rewind(&mut self, mark: SliceMark<'a>);
+pub(crate) trait BufWriterExt<'a> {
     fn remaining(&self) -> usize;
-    fn write_u8(&mut self, value: u8) -> ZResult<(), ZIOError>;
-    fn write(&mut self, src: ZBuf<'_>) -> ZResult<usize, ZIOError>;
-    fn write_exact(&mut self, src: ZBuf<'_>) -> ZResult<(), ZIOError>;
+    fn write_u8(&mut self, value: u8) -> ZResult<(), ZBufError>;
+    fn write(&mut self, src: ZBuf<'_>) -> ZResult<usize, ZBufError>;
+    fn write_exact(&mut self, src: ZBuf<'_>) -> ZResult<(), ZBufError>;
     fn write_slot(
         &mut self,
         len: usize,
         writer: impl FnOnce(ZBufMut<'_>) -> usize,
-    ) -> ZResult<usize, ZIOError>;
+    ) -> ZResult<usize, ZBufError>;
 
     #[cfg(test)]
     fn write_slot_return(
         &mut self,
         len: usize,
         writer: impl FnOnce(ZBufMut<'_>) -> usize,
-    ) -> ZResult<ZBuf<'a>, ZIOError>;
+    ) -> ZResult<ZBuf<'a>, ZBufError>;
 
     #[cfg(test)]
-    fn write_str_return(&mut self, str: &str) -> ZResult<&'a str, ZIOError>;
+    fn write_str_return(&mut self, str: &str) -> ZResult<&'a str, ZBufError>;
 }
 
 impl<'a> BufReaderExt<'a> for ZBufReader<'a> {
@@ -125,9 +96,9 @@ impl<'a> BufReaderExt<'a> for ZBufReader<'a> {
         !self.is_empty()
     }
 
-    fn read_u8(&mut self) -> ZResult<u8, ZIOError> {
+    fn read_u8(&mut self) -> ZResult<u8, ZBufError> {
         if !self.can_read() {
-            zbail!(ZIOError::DidNotRead);
+            zbail!(ZBufError::CouldNotRead);
         }
 
         let value = self[0];
@@ -136,10 +107,10 @@ impl<'a> BufReaderExt<'a> for ZBufReader<'a> {
         Ok(value)
     }
 
-    fn read(&mut self, dst: ZBufMut<'_>) -> ZResult<usize, ZIOError> {
+    fn read(&mut self, dst: ZBufMut<'_>) -> ZResult<usize, ZBufError> {
         let len = self.remaining().min(dst.len());
         if len == 0 {
-            zbail!(ZIOError::DidNotRead);
+            zbail!(ZBufError::CouldNotRead);
         }
 
         let (to_write, remain) = self.split_at(len);
@@ -149,22 +120,9 @@ impl<'a> BufReaderExt<'a> for ZBufReader<'a> {
         Ok(len)
     }
 
-    fn read_exact(&mut self, dst: ZBufMut<'_>) -> ZResult<usize, ZIOError> {
-        let len = dst.len();
+    fn read_zbuf(&mut self, len: usize) -> ZResult<ZBuf<'a>, ZBufError> {
         if self.len() < len {
-            zbail!(ZIOError::DidNotRead);
-        }
-
-        let (to_write, remain) = self.split_at(len);
-        dst.copy_from_slice(to_write);
-        *self = remain;
-
-        Ok(len)
-    }
-
-    fn read_zbuf(&mut self, len: usize) -> ZResult<ZBuf<'a>, ZIOError> {
-        if self.len() < len {
-            zbail!(ZIOError::DidNotRead);
+            zbail!(ZBufError::CouldNotRead);
         }
 
         let (zbuf, remain) = self.split_at(len);
@@ -175,30 +133,18 @@ impl<'a> BufReaderExt<'a> for ZBufReader<'a> {
 }
 
 impl<'a> BufWriterExt<'a> for ZBufWriter<'a> {
-    fn mark(&mut self) -> SliceMark<'a> {
-        SliceMark {
-            ptr: self.as_ptr(),
-            len: self.len(),
-            _phantom: core::marker::PhantomData,
-        }
-    }
-
-    fn rewind(&mut self, mark: SliceMark<'a>) {
-        *self = unsafe { core::slice::from_raw_parts_mut(mark.ptr as *mut u8, mark.len) };
-    }
-
     fn remaining(&self) -> usize {
         self.len()
     }
 
-    fn write_u8(&mut self, value: u8) -> ZResult<(), ZIOError> {
+    fn write_u8(&mut self, value: u8) -> ZResult<(), ZBufError> {
         self.write(&[value]).map(|_| ())
     }
 
-    fn write(&mut self, src: &[u8]) -> ZResult<usize, ZIOError> {
+    fn write(&mut self, src: &[u8]) -> ZResult<usize, ZBufError> {
         let len = self.len().min(src.len());
         if len == 0 {
-            zbail!(ZIOError::DidNotWrite);
+            zbail!(ZBufError::CouldNotWrite);
         }
 
         let (to_write, remain) = core::mem::take(self).split_at_mut(len);
@@ -208,10 +154,10 @@ impl<'a> BufWriterExt<'a> for ZBufWriter<'a> {
         Ok(len)
     }
 
-    fn write_exact(&mut self, src: &[u8]) -> ZResult<(), ZIOError> {
+    fn write_exact(&mut self, src: &[u8]) -> ZResult<(), ZBufError> {
         let len = src.len();
         if self.len() < len {
-            zbail!(ZIOError::DidNotWrite);
+            zbail!(ZBufError::CouldNotWrite);
         }
 
         self.write(src).map(|_| ())
@@ -221,9 +167,9 @@ impl<'a> BufWriterExt<'a> for ZBufWriter<'a> {
         &mut self,
         len: usize,
         writer: impl FnOnce(&mut [u8]) -> usize,
-    ) -> ZResult<usize, ZIOError> {
+    ) -> ZResult<usize, ZBufError> {
         if self.len() < len {
-            zbail!(ZIOError::DidNotWrite);
+            zbail!(ZBufError::CouldNotWrite);
         }
 
         let written = writer(&mut self[..len]);
@@ -238,9 +184,9 @@ impl<'a> BufWriterExt<'a> for ZBufWriter<'a> {
         &mut self,
         len: usize,
         writer: impl FnOnce(ZBufMut<'_>) -> usize,
-    ) -> ZResult<ZBuf<'a>, ZIOError> {
+    ) -> ZResult<ZBuf<'a>, ZBufError> {
         if self.len() < len {
-            zbail!(ZIOError::DidNotWrite);
+            zbail!(ZBufError::CouldNotWrite);
         }
 
         let written = writer(&mut self[..len]);
@@ -255,7 +201,7 @@ impl<'a> BufWriterExt<'a> for ZBufWriter<'a> {
     }
 
     #[cfg(test)]
-    fn write_str_return(&mut self, str: &str) -> ZResult<&'a str, ZIOError> {
+    fn write_str_return(&mut self, str: &str) -> ZResult<&'a str, ZBufError> {
         let bytes = str.as_bytes();
 
         let slot = self.write_slot_return(bytes.len(), |buf| {
@@ -263,6 +209,6 @@ impl<'a> BufWriterExt<'a> for ZBufWriter<'a> {
             bytes.len()
         })?;
 
-        core::str::from_utf8(slot).map_err(|_| ZIOError::Invalid)
+        slot.as_str()
     }
 }

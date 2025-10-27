@@ -1,8 +1,10 @@
 use core::{convert::TryFrom, fmt};
 
-pub const PROTO_SEPARATOR: char = '/';
-pub const METADATA_SEPARATOR: char = '?';
-pub const CONFIG_SEPARATOR: char = '#';
+use crate::protocol::ZProtocolError;
+
+pub(crate) const PROTO_SEPARATOR: char = '/';
+pub(crate) const METADATA_SEPARATOR: char = '?';
+pub(crate) const CONFIG_SEPARATOR: char = '#';
 
 pub(super) fn protocol(s: &str) -> &str {
     let pdix = s.find(PROTO_SEPARATOR).unwrap_or(s.len());
@@ -18,10 +20,10 @@ pub(super) fn address(s: &str) -> &str {
 
 #[repr(transparent)]
 #[derive(Copy, Clone, PartialEq, Eq, Hash)]
-pub struct Protocol<'a>(pub(super) &'a str);
+pub(crate) struct Protocol<'a>(pub(super) &'a str);
 
 impl<'a> Protocol<'a> {
-    pub fn as_str(&self) -> &'_ str {
+    pub(crate) fn as_str(&self) -> &'_ str {
         self.0
     }
 }
@@ -46,10 +48,10 @@ impl fmt::Debug for Protocol<'_> {
 
 #[repr(transparent)]
 #[derive(Copy, Clone, PartialEq, Eq, Hash)]
-pub struct Address<'a>(pub(super) &'a str);
+pub(crate) struct Address<'a>(pub(super) &'a str);
 
 impl<'a> Address<'a> {
-    pub fn as_str(&self) -> &'_ str {
+    pub(crate) fn as_str(&self) -> &'_ str {
         self.0
     }
 }
@@ -84,35 +86,11 @@ pub struct EndPoint {
 }
 
 impl EndPoint {
-    pub fn new(
-        protocol: &'static str,
-        address: &'static str,
-    ) -> crate::result::ZResult<Self, crate::protocol::ZProtocolError> {
-        let len = protocol.len() + address.len();
-        if len > u8::MAX as usize {
-            crate::zbail!(crate::protocol::ZProtocolError::Invalid);
-        }
-
-        let s: &'static str = format_args!("{protocol}{PROTO_SEPARATOR}{address}")
-            .as_str()
-            .ok_or(crate::protocol::ZProtocolError::Invalid)?;
-
-        Self::try_from(s)
-    }
-
-    pub fn as_str(&self) -> &str {
-        self.inner
-    }
-
-    pub fn split(&self) -> (Protocol<'_>, Address<'_>) {
-        (self.protocol(), self.address())
-    }
-
-    pub fn protocol(&self) -> Protocol<'_> {
+    pub(crate) fn protocol(&self) -> Protocol<'_> {
         Protocol(protocol(self.inner))
     }
 
-    pub fn address(&self) -> Address<'_> {
+    pub(crate) fn address(&self) -> Address<'_> {
         Address(address(self.inner))
     }
 }
@@ -130,23 +108,23 @@ impl fmt::Debug for EndPoint {
 }
 
 impl TryFrom<&'static str> for EndPoint {
-    type Error = crate::protocol::ZProtocolError;
+    type Error = ZProtocolError;
 
     fn try_from(s: &'static str) -> Result<Self, Self::Error> {
         let pidx = s
             .find(PROTO_SEPARATOR)
             .and_then(|i| (!s[..i].is_empty() && !s[i + 1..].is_empty()).then_some(i))
-            .ok_or(crate::protocol::ZProtocolError::Invalid)?;
+            .ok_or(ZProtocolError::NoProtocolSeparator)?;
 
         match (s.find(METADATA_SEPARATOR), s.find(CONFIG_SEPARATOR)) {
             (None, None) => Ok(EndPoint { inner: s }),
 
             (Some(midx), None) if midx > pidx && !s[midx + 1..].is_empty() => {
-                crate::zbail!(crate::protocol::ZProtocolError::Invalid)
+                crate::zbail!(ZProtocolError::MetadataNotSupported)
             }
 
             (None, Some(cidx)) if cidx > pidx && !s[cidx + 1..].is_empty() => {
-                crate::zbail!(crate::protocol::ZProtocolError::Invalid)
+                crate::zbail!(ZProtocolError::ConfigNotSupported)
             }
 
             (Some(midx), Some(cidx))
@@ -155,9 +133,9 @@ impl TryFrom<&'static str> for EndPoint {
                     && !s[midx + 1..cidx].is_empty()
                     && !s[cidx + 1..].is_empty() =>
             {
-                crate::zbail!(crate::protocol::ZProtocolError::Invalid)
+                crate::zbail!(ZProtocolError::MetadataNotSupported)
             }
-            _ => Err(crate::protocol::ZProtocolError::Invalid),
+            _ => Err(ZProtocolError::MetadataNotSupported),
         }
     }
 }

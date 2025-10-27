@@ -1,48 +1,44 @@
-use crate::zbuf::ZIOError;
+use crate::zbuf::ZBufError;
 
-pub mod common;
-pub mod core;
+pub(crate) mod keyexpr;
 
-pub mod zenoh;
+pub(crate) mod common;
+pub(crate) mod core;
 
-pub mod network;
-pub mod transport;
+pub(crate) mod zenoh;
 
-pub mod zcodec;
+pub(crate) mod network;
+pub(crate) mod transport;
 
-pub const VERSION: u8 = 0x09;
+pub(crate) mod zcodec;
+
+pub(crate) const VERSION: u8 = 0x09;
 
 crate::__internal_zerr! {
     /// Errors related to Zenoh protocol
     #[err = "zenoh protocol error"]
     enum ZProtocolError {
-        Invalid,
+        NoProtocolSeparator,
+        MetadataNotSupported,
+        ConfigNotSupported,
+        CouldNotParse
     }
 
     /// Errors related to encoding/decoding Zenoh protocol messages
     #[err = "zenoh codec error"]
     enum ZCodecError {
-        DidNotRead,
-        DidNotWrite,
-        Invalid,
-        Overflow
+        CouldNotRead,
+        CouldNotWrite,
+        CouldNotParse
     }
 }
 
-impl From<ZProtocolError> for ZCodecError {
-    fn from(e: ZProtocolError) -> Self {
+impl From<ZBufError> for ZCodecError {
+    fn from(e: ZBufError) -> Self {
         match e {
-            ZProtocolError::Invalid => ZCodecError::Invalid,
-        }
-    }
-}
-
-impl From<ZIOError> for ZCodecError {
-    fn from(e: ZIOError) -> Self {
-        match e {
-            ZIOError::DidNotRead => ZCodecError::DidNotRead,
-            ZIOError::DidNotWrite => ZCodecError::DidNotWrite,
-            ZIOError::Invalid => ZCodecError::Invalid,
+            ZBufError::CouldNotRead => ZCodecError::CouldNotRead,
+            ZBufError::CouldNotWrite => ZCodecError::CouldNotWrite,
+            ZBufError::CouldNotParse => ZCodecError::CouldNotParse,
         }
     }
 }

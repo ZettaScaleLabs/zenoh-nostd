@@ -7,7 +7,7 @@ use crate::{
         },
         core::wire_expr::WireExpr,
         network::{Mapping, id, request::RequestId},
-        zcodec::{decode_u32, encode_u32},
+        zcodec::{decode_u8, decode_u32, encode_u8, encode_u32},
         zenoh::ResponseBody,
     },
     result::ZResult,
@@ -15,24 +15,24 @@ use crate::{
     zbuf::{ZBufReader, ZBufWriter},
 };
 
-pub mod flag {
-    pub const N: u8 = 1 << 5;
-    pub const M: u8 = 1 << 6;
-    pub const Z: u8 = 1 << 7;
+pub(crate) mod flag {
+    pub(crate) const N: u8 = 1 << 5;
+    pub(crate) const M: u8 = 1 << 6;
+    pub(crate) const Z: u8 = 1 << 7;
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct Response<'a> {
-    pub rid: RequestId,
-    pub wire_expr: WireExpr<'a>,
-    pub payload: ResponseBody<'a>,
-    pub ext_qos: ext::QoSType,
-    pub ext_tstamp: Option<ext::TimestampType>,
-    pub ext_respid: Option<ext::ResponderIdType>,
+pub(crate) struct Response<'a> {
+    pub(crate) rid: RequestId,
+    pub(crate) wire_expr: WireExpr<'a>,
+    pub(crate) payload: ResponseBody<'a>,
+    pub(crate) ext_qos: ext::QoSType,
+    pub(crate) ext_tstamp: Option<ext::TimestampType>,
+    pub(crate) ext_respid: Option<ext::ResponderIdType>,
 }
 
 impl<'a> Response<'a> {
-    pub fn encode(&self, writer: &mut ZBufWriter<'_>) -> ZResult<(), ZCodecError> {
+    pub(crate) fn encode(&self, writer: &mut ZBufWriter<'_>) -> ZResult<(), ZCodecError> {
         let mut header = id::RESPONSE;
         let mut n_exts = ((self.ext_qos != ext::QoSType::DEFAULT) as u8)
             + (self.ext_tstamp.is_some() as u8)
@@ -50,31 +50,31 @@ impl<'a> Response<'a> {
             header |= flag::N;
         }
 
-        crate::protocol::zcodec::encode_u8(header, writer)?;
-        encode_u32(self.rid, writer)?;
+        encode_u8(writer, header)?;
+        encode_u32(writer, self.rid)?;
         self.wire_expr.encode(writer)?;
 
         if self.ext_qos != ext::QoSType::DEFAULT {
             n_exts -= 1;
-            self.ext_qos.encode(n_exts != 0, writer)?;
+            self.ext_qos.encode(writer, n_exts != 0)?;
         }
 
         if let Some(ts) = self.ext_tstamp.as_ref() {
             n_exts -= 1;
-            ts.encode(n_exts != 0, writer)?;
+            ts.encode(writer, n_exts != 0)?;
         }
 
         if let Some(ri) = self.ext_respid.as_ref() {
             n_exts -= 1;
-            ri.encode(n_exts != 0, writer)?;
+            ri.encode(writer, n_exts != 0)?;
         }
 
         self.payload.encode(writer)
     }
 
-    pub fn decode(header: u8, reader: &mut ZBufReader<'a>) -> ZResult<Self, ZCodecError> {
+    pub(crate) fn decode(reader: &mut ZBufReader<'a>, header: u8) -> ZResult<Self, ZCodecError> {
         if imsg::mid(header) != id::RESPONSE {
-            zbail!(ZCodecError::Invalid);
+            zbail!(ZCodecError::CouldNotRead);
         }
 
         let rid = decode_u32(reader)?;
@@ -93,25 +93,25 @@ impl<'a> Response<'a> {
 
         let mut has_ext = imsg::has_flag(header, flag::Z);
         while has_ext {
-            let ext = crate::protocol::zcodec::decode_u8(reader)?;
-            match iext::eid(ext) {
+            let ext = decode_u8(reader)?;
+            match iext::eheader(ext) {
                 ext::QoS::ID => {
-                    let (q, ext) = ext::QoSType::decode(ext, reader)?;
+                    let (q, ext) = ext::QoSType::decode(reader, ext)?;
                     ext_qos = q;
                     has_ext = ext;
                 }
                 ext::Timestamp::ID => {
-                    let (t, ext) = ext::TimestampType::decode(ext, reader)?;
+                    let (t, ext) = ext::TimestampType::decode(reader, ext)?;
                     ext_tstamp = Some(t);
                     has_ext = ext;
                 }
                 ext::ResponderId::ID => {
-                    let (t, ext) = ext::ResponderIdType::decode(ext, reader)?;
+                    let (t, ext) = ext::ResponderIdType::decode(reader, ext)?;
                     ext_respid = Some(t);
                     has_ext = ext;
                 }
                 _ => {
-                    has_ext = extension::skip("Response", ext, reader)?;
+                    has_ext = extension::skip("Response", reader, ext)?;
                 }
             }
         }
@@ -129,7 +129,7 @@ impl<'a> Response<'a> {
     }
 
     #[cfg(test)]
-    pub fn rand(zbuf: &mut ZBufWriter<'a>) -> Self {
+    pub(crate) fn rand(zbuf: &mut ZBufWriter<'a>) -> Self {
         use rand::Rng;
         let mut rng = rand::thread_rng();
 
@@ -151,27 +151,27 @@ impl<'a> Response<'a> {
     }
 }
 
-pub mod ext {
-    pub type QoS = crate::zextz64!(0x1, false);
-    pub type QoSType = crate::protocol::network::ext::QoSType<{ QoS::ID }>;
+pub(crate) mod ext {
+    pub(crate) type QoS = crate::zextz64!(0x1, false);
+    pub(crate) type QoSType = crate::protocol::network::ext::QoSType<{ QoS::ID }>;
 
-    pub type Timestamp<'a> = crate::zextzbuf!('a, 0x2, false);
-    pub type TimestampType = crate::protocol::network::ext::TimestampType<{ Timestamp::ID }>;
+    pub(crate) type Timestamp<'a> = crate::zextzbuf!('a, 0x2, false);
+    pub(crate) type TimestampType = crate::protocol::network::ext::TimestampType<{ Timestamp::ID }>;
 
-    pub type ResponderId<'a> = crate::zextzbuf!('a, 0x3, false);
-    pub type ResponderIdType =
+    pub(crate) type ResponderId<'a> = crate::zextzbuf!('a, 0x3, false);
+    pub(crate) type ResponderIdType =
         crate::protocol::network::ext::EntityGlobalIdType<{ ResponderId::ID }>;
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct ResponseFinal {
-    pub rid: RequestId,
-    pub ext_qos: ext::QoSType,
-    pub ext_tstamp: Option<ext::TimestampType>,
+pub(crate) struct ResponseFinal {
+    pub(crate) rid: RequestId,
+    pub(crate) ext_qos: ext::QoSType,
+    pub(crate) ext_tstamp: Option<ext::TimestampType>,
 }
 
 impl ResponseFinal {
-    pub fn encode(&self, writer: &mut ZBufWriter<'_>) -> ZResult<(), ZCodecError> {
+    pub(crate) fn encode(&self, writer: &mut ZBufWriter<'_>) -> ZResult<(), ZCodecError> {
         let mut header = id::RESPONSE_FINAL;
         let mut n_exts =
             ((self.ext_qos != ext::QoSType::DEFAULT) as u8) + (self.ext_tstamp.is_some() as u8);
@@ -180,25 +180,25 @@ impl ResponseFinal {
             header |= flag::Z;
         }
 
-        crate::protocol::zcodec::encode_u8(header, writer)?;
-        encode_u32(self.rid, writer)?;
+        encode_u8(writer, header)?;
+        encode_u32(writer, self.rid)?;
 
         if self.ext_qos != ext::QoSType::DEFAULT {
             n_exts -= 1;
-            self.ext_qos.encode(n_exts != 0, writer)?;
+            self.ext_qos.encode(writer, n_exts != 0)?;
         }
 
         if let Some(ts) = self.ext_tstamp.as_ref() {
             n_exts -= 1;
-            ts.encode(n_exts != 0, writer)?;
+            ts.encode(writer, n_exts != 0)?;
         }
 
         Ok(())
     }
 
-    pub fn decode(header: u8, reader: &mut ZBufReader<'_>) -> ZResult<Self, ZCodecError> {
+    pub(crate) fn decode(reader: &mut ZBufReader<'_>, header: u8) -> ZResult<Self, ZCodecError> {
         if imsg::mid(header) != id::RESPONSE_FINAL {
-            zbail!(ZCodecError::Invalid)
+            zbail!(ZCodecError::CouldNotRead)
         }
 
         let rid: RequestId = decode_u32(reader)?;
@@ -208,20 +208,20 @@ impl ResponseFinal {
 
         let mut has_ext = imsg::has_flag(header, flag::Z);
         while has_ext {
-            let ext: u8 = crate::protocol::zcodec::decode_u8(reader)?;
-            match iext::eid(ext) {
+            let ext: u8 = decode_u8(reader)?;
+            match iext::eheader(ext) {
                 ext::QoS::ID => {
-                    let (q, ext) = ext::QoSType::decode(ext, reader)?;
+                    let (q, ext) = ext::QoSType::decode(reader, ext)?;
                     ext_qos = q;
                     has_ext = ext;
                 }
                 ext::Timestamp::ID => {
-                    let (t, ext) = ext::TimestampType::decode(ext, reader)?;
+                    let (t, ext) = ext::TimestampType::decode(reader, ext)?;
                     ext_tstamp = Some(t);
                     has_ext = ext;
                 }
                 _ => {
-                    has_ext = extension::skip("ResponseFinal", ext, reader)?;
+                    has_ext = extension::skip("ResponseFinal", reader, ext)?;
                 }
             }
         }
@@ -234,7 +234,7 @@ impl ResponseFinal {
     }
 
     #[cfg(test)]
-    pub fn rand() -> Self {
+    pub(crate) fn rand(_: &mut ZBufWriter<'_>) -> Self {
         use rand::Rng;
 
         let mut rng = rand::thread_rng();

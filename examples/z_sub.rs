@@ -1,12 +1,4 @@
-use embassy_executor::Spawner;
-
-use zenoh_nostd::{
-    api::{sample::ZSample, subscriber::ZSubscriber},
-    keyexpr::borrowed::keyexpr,
-    platform::platform_std::PlatformStd,
-    protocol::core::endpoint::EndPoint,
-    zsubscriber,
-};
+use zenoh_nostd::{EndPoint, PlatformStd, ZSample, ZSubscriber, keyexpr, zsubscriber};
 
 const CONNECT: Option<&str> = option_env!("CONNECT");
 
@@ -30,7 +22,7 @@ async fn callback_2(subscriber: ZSubscriber<32, 128>) {
 }
 
 #[embassy_executor::main]
-async fn main(spawner: Spawner) {
+async fn main(spawner: embassy_executor::Spawner) {
     #[cfg(feature = "log")]
     env_logger::init();
 
@@ -41,7 +33,7 @@ async fn main(spawner: Spawner) {
                 PlatformStd: (spawner, PlatformStd {}),
                 TX: 512,
                 RX: 512,
-                SUBSCRIBERS: 2
+                MAX_SUBSCRIBERS: 2
         ),
         EndPoint::try_from(CONNECT.unwrap_or("tcp/127.0.0.1:7447")).unwrap()
     )
@@ -55,7 +47,10 @@ async fn main(spawner: Spawner) {
         .unwrap();
 
     let async_sub = session
-        .declare_subscriber(ke, zsubscriber!(QUEUE: 8, KE: 32, PL: 128))
+        .declare_subscriber(
+            ke,
+            zsubscriber!(QUEUE_SIZE: 8, MAX_KEYEXPR: 32, MAX_PAYLOAD: 128),
+        )
         .await
         .unwrap();
 

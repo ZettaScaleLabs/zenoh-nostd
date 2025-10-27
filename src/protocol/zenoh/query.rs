@@ -5,7 +5,7 @@ use crate::{
             extension::{self, iext},
             imsg,
         },
-        zcodec::{decode_str, encode_str, encode_u64},
+        zcodec::{decode_str, decode_u8, encode_str, encode_u8, encode_u64},
         zenoh::id,
     },
     result::ZResult,
@@ -15,7 +15,7 @@ use crate::{
 
 #[repr(u8)]
 #[derive(Debug, Default, Clone, PartialEq, Eq, Copy)]
-pub enum ConsolidationMode {
+pub(crate) enum ConsolidationMode {
     #[default]
     Auto,
     None,
@@ -24,9 +24,9 @@ pub enum ConsolidationMode {
 }
 
 impl ConsolidationMode {
-    pub const DEFAULT: Self = Self::Auto;
+    pub(crate) const DEFAULT: Self = Self::Auto;
 
-    pub fn encode(&self, writer: &mut ZBufWriter<'_>) -> ZResult<(), ZCodecError> {
+    pub(crate) fn encode(&self, writer: &mut ZBufWriter<'_>) -> ZResult<(), ZCodecError> {
         let x: u64 = match self {
             ConsolidationMode::Auto => 0,
             ConsolidationMode::None => 1,
@@ -34,11 +34,11 @@ impl ConsolidationMode {
             ConsolidationMode::Latest => 3,
         };
 
-        encode_u64(x, writer)
+        encode_u64(writer, x)
     }
 
-    pub fn decode(reader: &mut ZBufReader<'_>) -> ZResult<Self, ZCodecError> {
-        let x = crate::protocol::zcodec::decode_u8(reader)?;
+    pub(crate) fn decode(reader: &mut ZBufReader<'_>) -> ZResult<Self, ZCodecError> {
+        let x = decode_u8(reader)?;
 
         match x {
             0 => Ok(ConsolidationMode::Auto),
@@ -50,7 +50,7 @@ impl ConsolidationMode {
     }
 
     #[cfg(test)]
-    pub fn rand() -> Self {
+    pub(crate) fn rand() -> Self {
         use rand::prelude::SliceRandom;
         let mut rng = rand::thread_rng();
 
@@ -60,23 +60,23 @@ impl ConsolidationMode {
     }
 }
 
-pub mod flag {
-    pub const C: u8 = 1 << 5;
-    pub const P: u8 = 1 << 6;
-    pub const Z: u8 = 1 << 7;
+pub(crate) mod flag {
+    pub(crate) const C: u8 = 1 << 5;
+    pub(crate) const P: u8 = 1 << 6;
+    pub(crate) const Z: u8 = 1 << 7;
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct Query<'a> {
-    pub consolidation: ConsolidationMode,
-    pub parameters: &'a str,
-    pub ext_sinfo: Option<ext::SourceInfoType>,
-    pub ext_body: Option<ext::QueryBodyType<'a>>,
-    pub ext_attachment: Option<ext::AttachmentType<'a>>,
+pub(crate) struct Query<'a> {
+    pub(crate) consolidation: ConsolidationMode,
+    pub(crate) parameters: &'a str,
+    pub(crate) ext_sinfo: Option<ext::SourceInfoType>,
+    pub(crate) ext_body: Option<ext::QueryBodyType<'a>>,
+    pub(crate) ext_attachment: Option<ext::AttachmentType<'a>>,
 }
 
 impl<'a> Query<'a> {
-    pub fn encode(&self, writer: &mut ZBufWriter<'_>) -> ZResult<(), ZCodecError> {
+    pub(crate) fn encode(&self, writer: &mut ZBufWriter<'_>) -> ZResult<(), ZCodecError> {
         let mut header = id::QUERY;
 
         if self.consolidation != ConsolidationMode::DEFAULT {
@@ -95,37 +95,37 @@ impl<'a> Query<'a> {
             header |= flag::Z;
         }
 
-        crate::protocol::zcodec::encode_u8(header, writer)?;
+        encode_u8(writer, header)?;
 
         if self.consolidation != ConsolidationMode::DEFAULT {
             self.consolidation.encode(writer)?;
         }
 
         if !self.parameters.is_empty() {
-            encode_str(true, self.parameters, writer)?;
+            encode_str(writer, self.parameters, true)?;
         }
 
         if let Some(sinfo) = self.ext_sinfo.as_ref() {
             n_exts -= 1;
-            sinfo.encode(n_exts != 0, writer)?;
+            sinfo.encode(writer, n_exts != 0)?;
         }
 
         if let Some(body) = self.ext_body.as_ref() {
             n_exts -= 1;
-            body.encode(n_exts != 0, writer)?;
+            body.encode(writer, n_exts != 0)?;
         }
 
         if let Some(att) = self.ext_attachment.as_ref() {
             n_exts -= 1;
-            att.encode(n_exts != 0, writer)?;
+            att.encode(writer, n_exts != 0)?;
         }
 
         Ok(())
     }
 
-    pub fn decode(header: u8, reader: &mut ZBufReader<'a>) -> ZResult<Self, ZCodecError> {
+    pub(crate) fn decode(reader: &mut ZBufReader<'a>, header: u8) -> ZResult<Self, ZCodecError> {
         if imsg::mid(header) != id::QUERY {
-            zbail!(ZCodecError::Invalid);
+            zbail!(ZCodecError::CouldNotRead);
         }
 
         let mut consolidation = ConsolidationMode::DEFAULT;
@@ -135,7 +135,7 @@ impl<'a> Query<'a> {
 
         let mut parameters = "";
         if imsg::has_flag(header, flag::P) {
-            parameters = decode_str(None, reader)?;
+            parameters = decode_str(reader, None)?;
         }
 
         let mut ext_sinfo: Option<ext::SourceInfoType> = None;
@@ -144,29 +144,29 @@ impl<'a> Query<'a> {
 
         let mut has_ext = imsg::has_flag(header, flag::Z);
         while has_ext {
-            let ext = crate::protocol::zcodec::decode_u8(reader)?;
+            let ext = decode_u8(reader)?;
 
-            match iext::eid(ext) {
+            match iext::eheader(ext) {
                 ext::SourceInfo::ID => {
-                    let (s, ext) = ext::SourceInfoType::decode(ext, reader)?;
+                    let (s, ext) = ext::SourceInfoType::decode(reader, ext)?;
 
                     ext_sinfo = Some(s);
                     has_ext = ext;
                 }
                 ext::QueryBodyType::SID | ext::QueryBodyType::VID => {
-                    let (s, ext) = ext::QueryBodyType::decode(ext, reader)?;
+                    let (s, ext) = ext::QueryBodyType::decode(reader, ext)?;
 
                     ext_body = Some(s);
                     has_ext = ext;
                 }
                 ext::Attachment::ID => {
-                    let (a, ext) = ext::AttachmentType::decode(ext, reader)?;
+                    let (a, ext) = ext::AttachmentType::decode(reader, ext)?;
 
                     ext_attachment = Some(a);
                     has_ext = ext;
                 }
                 _ => {
-                    has_ext = extension::skip("Query", ext, reader)?;
+                    has_ext = extension::skip("Query", reader, ext)?;
                 }
             }
         }
@@ -181,7 +181,7 @@ impl<'a> Query<'a> {
     }
 
     #[cfg(test)]
-    pub fn rand(zbuf: &mut ZBufWriter<'a>) -> Self {
+    pub(crate) fn rand(zbuf: &mut ZBufWriter<'a>) -> Self {
         use rand::{
             Rng,
             distributions::{Alphanumeric, DistString},
@@ -216,16 +216,17 @@ impl<'a> Query<'a> {
     }
 }
 
-pub mod ext {
+pub(crate) mod ext {
     use crate::protocol::common::extension::ZExtZBuf;
 
-    pub type SourceInfo<'a> = crate::zextzbuf!('a, 0x1, false);
-    pub type SourceInfoType = crate::protocol::zenoh::ext::SourceInfoType<{ SourceInfo::ID }>;
+    pub(crate) type SourceInfo<'a> = crate::zextzbuf!('a, 0x1, false);
+    pub(crate) type SourceInfoType =
+        crate::protocol::zenoh::ext::SourceInfoType<{ SourceInfo::ID }>;
 
-    pub type QueryBodyType<'a> =
+    pub(crate) type QueryBodyType<'a> =
         crate::protocol::zenoh::ext::ValueType<'a, { ZExtZBuf::<0x03>::id(false) }, 0x04>;
 
-    pub type Attachment<'a> = crate::zextzbuf!('a, 0x5, false);
-    pub type AttachmentType<'a> =
+    pub(crate) type Attachment<'a> = crate::zextzbuf!('a, 0x5, false);
+    pub(crate) type AttachmentType<'a> =
         crate::protocol::zenoh::ext::AttachmentType<'a, { Attachment::ID }>;
 }

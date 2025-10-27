@@ -3,7 +3,7 @@ use core::str::FromStr;
 use heapless::{String, Vec};
 
 use crate::{
-    keyexpr::borrowed::keyexpr,
+    protocol::keyexpr::borrowed::keyexpr,
     result::{ZError, ZResult},
     zbuf::ZBuf,
 };
@@ -14,7 +14,7 @@ pub struct ZSample<'a> {
 }
 
 impl<'a> ZSample<'a> {
-    pub fn new(keyexpr: &'a keyexpr, payload: ZBuf<'a>) -> ZSample<'a> {
+    pub(crate) fn new(keyexpr: &'a keyexpr, payload: ZBuf<'a>) -> ZSample<'a> {
         ZSample { keyexpr, payload }
     }
 
@@ -26,22 +26,27 @@ impl<'a> ZSample<'a> {
         self.payload
     }
 
-    pub fn into_owned<const KE: usize, const PL: usize>(self) -> ZResult<ZOwnedSample<KE, PL>> {
+    pub(crate) fn into_owned<const KE: usize, const PL: usize>(
+        self,
+    ) -> ZResult<ZOwnedSample<KE, PL>> {
         Ok(ZOwnedSample::new(
-            String::from_str(self.keyexpr.as_str()).map_err(|_| ZError::Invalid)?,
-            Vec::from_slice(self.payload).map_err(|_| ZError::Invalid)?,
+            String::from_str(self.keyexpr.as_str()).map_err(|_| ZError::CapacityExceeded)?,
+            Vec::from_slice(self.payload).map_err(|_| ZError::CapacityExceeded)?,
         ))
     }
 }
 
 #[derive(Debug, Clone)]
-pub struct ZOwnedSample<const KE: usize, const PL: usize> {
-    keyexpr: String<KE>,
-    payload: Vec<u8, PL>,
+pub struct ZOwnedSample<const MAX_KEYEXPR: usize, const MAX_PAYLOAD: usize> {
+    keyexpr: String<MAX_KEYEXPR>,
+    payload: Vec<u8, MAX_PAYLOAD>,
 }
 
-impl<const KE: usize, const PL: usize> ZOwnedSample<KE, PL> {
-    pub fn new(keyexpr: String<KE>, payload: Vec<u8, PL>) -> ZOwnedSample<KE, PL> {
+impl<const MAX_KEYEXPR: usize, const MAX_PAYLOAD: usize> ZOwnedSample<MAX_KEYEXPR, MAX_PAYLOAD> {
+    pub(crate) fn new(
+        keyexpr: String<MAX_KEYEXPR>,
+        payload: Vec<u8, MAX_PAYLOAD>,
+    ) -> ZOwnedSample<MAX_KEYEXPR, MAX_PAYLOAD> {
         ZOwnedSample { keyexpr, payload }
     }
 

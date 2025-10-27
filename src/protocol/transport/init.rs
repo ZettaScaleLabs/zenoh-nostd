@@ -7,37 +7,37 @@ use crate::{
         },
         core::{ZenohIdProto, resolution::Resolution, whatami::WhatAmI},
         transport::{BatchSize, batch_size, id},
-        zcodec::{decode_array, decode_zbuf, encode_array, encode_u8, encode_zbuf},
+        zcodec::{decode_array, decode_u8, decode_zbuf, encode_array, encode_u8, encode_zbuf},
     },
     result::ZResult,
     zbail,
     zbuf::{ZBuf, ZBufReader, ZBufWriter},
 };
 
-pub mod flag {
-    pub const A: u8 = 1 << 5;
-    pub const S: u8 = 1 << 6;
-    pub const Z: u8 = 1 << 7;
+pub(crate) mod flag {
+    pub(crate) const A: u8 = 1 << 5;
+    pub(crate) const S: u8 = 1 << 6;
+    pub(crate) const Z: u8 = 1 << 7;
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct InitSyn<'a> {
-    pub version: u8,
-    pub whatami: WhatAmI,
-    pub zid: ZenohIdProto,
-    pub resolution: Resolution,
-    pub batch_size: BatchSize,
-    pub ext_qos: Option<ext::QoS>,
-    pub ext_qos_link: Option<ext::QoSLink>,
-    pub ext_auth: Option<ext::Auth<'a>>,
-    pub ext_mlink: Option<ext::MultiLink<'a>>,
-    pub ext_lowlatency: Option<ext::LowLatency>,
-    pub ext_compression: Option<ext::Compression>,
-    pub ext_patch: ext::PatchType,
+pub(crate) struct InitSyn<'a> {
+    pub(crate) version: u8,
+    pub(crate) whatami: WhatAmI,
+    pub(crate) zid: ZenohIdProto,
+    pub(crate) resolution: Resolution,
+    pub(crate) batch_size: BatchSize,
+    pub(crate) ext_qos: Option<ext::QoS>,
+    pub(crate) ext_qos_link: Option<ext::QoSLink>,
+    pub(crate) ext_auth: Option<ext::Auth<'a>>,
+    pub(crate) ext_mlink: Option<ext::MultiLink<'a>>,
+    pub(crate) ext_lowlatency: Option<ext::LowLatency>,
+    pub(crate) ext_compression: Option<ext::Compression>,
+    pub(crate) ext_patch: ext::PatchType,
 }
 
 impl<'a> InitSyn<'a> {
-    pub fn encode(&self, writer: &mut ZBufWriter<'_>) -> ZResult<(), ZCodecError> {
+    pub(crate) fn encode(&self, writer: &mut ZBufWriter<'_>) -> ZResult<(), ZCodecError> {
         let mut header = id::INIT;
         if self.resolution != Resolution::default() || self.batch_size != batch_size::UNICAST {
             header |= flag::S;
@@ -54,8 +54,8 @@ impl<'a> InitSyn<'a> {
             header |= flag::Z;
         }
 
-        crate::protocol::zcodec::encode_u8(header, writer)?;
-        encode_u8(self.version, writer)?;
+        encode_u8(writer, header)?;
+        encode_u8(writer, self.version)?;
 
         let whatami: u8 = match self.whatami {
             WhatAmI::Router => 0b00,
@@ -64,74 +64,74 @@ impl<'a> InitSyn<'a> {
         };
 
         let flags: u8 = ((self.zid.size() as u8 - 1) << 4) | whatami;
-        encode_u8(flags, writer)?;
-        self.zid.encode(false, writer)?;
+        encode_u8(writer, flags)?;
+        self.zid.encode(writer, false)?;
 
         if imsg::has_flag(header, flag::S) {
-            encode_u8(self.resolution.as_u8(), writer)?;
-            encode_array(&self.batch_size.to_le_bytes(), writer)?;
+            encode_u8(writer, self.resolution.as_u8())?;
+            encode_array(writer, &self.batch_size.to_le_bytes())?;
         }
 
         if let Some(qos) = self.ext_qos.as_ref() {
             n_exts -= 1;
-            qos.encode(n_exts != 0, writer)?;
+            qos.encode(writer, n_exts != 0)?;
         }
 
         if let Some(qos_link) = self.ext_qos_link.as_ref() {
             n_exts -= 1;
-            qos_link.encode(n_exts != 0, writer)?;
+            qos_link.encode(writer, n_exts != 0)?;
         }
 
         if let Some(auth) = self.ext_auth.as_ref() {
             n_exts -= 1;
-            auth.encode(n_exts != 0, writer)?;
+            auth.encode(writer, n_exts != 0)?;
         }
 
         if let Some(mlink) = self.ext_mlink.as_ref() {
             n_exts -= 1;
-            mlink.encode(n_exts != 0, writer)?;
+            mlink.encode(writer, n_exts != 0)?;
         }
 
         if let Some(lowlatency) = self.ext_lowlatency.as_ref() {
             n_exts -= 1;
-            lowlatency.encode(n_exts != 0, writer)?;
+            lowlatency.encode(writer, n_exts != 0)?;
         }
 
         if let Some(compression) = self.ext_compression.as_ref() {
             n_exts -= 1;
-            compression.encode(n_exts != 0, writer)?;
+            compression.encode(writer, n_exts != 0)?;
         }
 
         if self.ext_patch != ext::PatchType::NONE {
             n_exts -= 1;
-            self.ext_patch.encode(n_exts != 0, writer)?;
+            self.ext_patch.encode(writer, n_exts != 0)?;
         }
 
         Ok(())
     }
 
-    pub fn decode(header: u8, reader: &mut ZBufReader<'a>) -> ZResult<Self, ZCodecError> {
+    pub(crate) fn decode(reader: &mut ZBufReader<'a>, header: u8) -> ZResult<Self, ZCodecError> {
         if imsg::mid(header) != id::INIT || imsg::has_flag(header, flag::A) {
-            zbail!(ZCodecError::Invalid)
+            zbail!(ZCodecError::CouldNotRead)
         }
 
-        let version: u8 = crate::protocol::zcodec::decode_u8(reader)?;
-        let flags: u8 = crate::protocol::zcodec::decode_u8(reader)?;
+        let version: u8 = decode_u8(reader)?;
+        let flags: u8 = decode_u8(reader)?;
         let whatami = match flags & 0b11 {
             0b00 => WhatAmI::Router,
             0b01 => WhatAmI::Peer,
             0b10 => WhatAmI::Client,
-            _ => zbail!(ZCodecError::Invalid),
+            _ => zbail!(ZCodecError::CouldNotParse),
         };
 
         let length = 1 + ((flags >> 4) as usize);
-        let zid: ZenohIdProto = ZenohIdProto::decode(Some(length), reader)?;
+        let zid: ZenohIdProto = ZenohIdProto::decode(reader, Some(length))?;
 
         let mut resolution = Resolution::default();
         let mut batch_size = batch_size::UNICAST.to_le_bytes();
 
         if imsg::has_flag(header, flag::S) {
-            let flags: u8 = crate::protocol::zcodec::decode_u8(reader)?;
+            let flags: u8 = decode_u8(reader)?;
             resolution = Resolution::from(flags & 0b00111111);
             batch_size = decode_array(reader)?;
         }
@@ -149,26 +149,26 @@ impl<'a> InitSyn<'a> {
         let mut has_ext = imsg::has_flag(header, flag::Z);
 
         while has_ext {
-            let ext: u8 = crate::protocol::zcodec::decode_u8(reader)?;
+            let ext: u8 = decode_u8(reader)?;
 
-            match iext::eid(ext) {
+            match iext::eheader(ext) {
                 ext::QoS::ID => {
                     let (q, ext) = ext::QoS::decode(ext)?;
                     ext_qos = Some(q);
                     has_ext = ext;
                 }
                 ext::QoSLink::ID => {
-                    let (q, ext) = ext::QoSLink::decode(ext, reader)?;
+                    let (q, ext) = ext::QoSLink::decode(reader, ext)?;
                     ext_qos_link = Some(q);
                     has_ext = ext;
                 }
                 ext::Auth::ID => {
-                    let (a, ext) = ext::Auth::decode(ext, reader)?;
+                    let (a, ext) = ext::Auth::decode(reader, ext)?;
                     ext_auth = Some(a);
                     has_ext = ext;
                 }
                 ext::MultiLink::ID => {
-                    let (a, ext) = ext::MultiLink::decode(ext, reader)?;
+                    let (a, ext) = ext::MultiLink::decode(reader, ext)?;
                     ext_mlink = Some(a);
                     has_ext = ext;
                 }
@@ -183,12 +183,12 @@ impl<'a> InitSyn<'a> {
                     has_ext = ext;
                 }
                 ext::Patch::ID => {
-                    let (p, ext) = ext::PatchType::decode(ext, reader)?;
+                    let (p, ext) = ext::PatchType::decode(reader, ext)?;
                     ext_patch = p;
                     has_ext = ext;
                 }
                 _ => {
-                    has_ext = extension::skip("Init Syn", ext, reader)?;
+                    has_ext = extension::skip("Init Syn", reader, ext)?;
                 }
             }
         }
@@ -210,7 +210,7 @@ impl<'a> InitSyn<'a> {
     }
 
     #[cfg(test)]
-    pub fn rand(zbuf: &mut ZBufWriter<'a>) -> Self {
+    pub(crate) fn rand(zbuf: &mut ZBufWriter<'a>) -> Self {
         use rand::Rng;
 
         use crate::protocol::common::extension::{ZExtUnit, ZExtZ64, ZExtZBuf};
@@ -222,12 +222,12 @@ impl<'a> InitSyn<'a> {
         let zid = ZenohIdProto::default();
         let resolution = Resolution::rand();
         let batch_size: BatchSize = rng.r#gen();
-        let ext_qos = rng.gen_bool(0.5).then_some(ZExtUnit::rand());
-        let ext_qos_link = rng.gen_bool(0.5).then_some(ZExtZ64::rand());
+        let ext_qos = rng.gen_bool(0.5).then_some(ZExtUnit::rand(zbuf));
+        let ext_qos_link = rng.gen_bool(0.5).then_some(ZExtZ64::rand(zbuf));
         let ext_auth = rng.gen_bool(0.5).then_some(ZExtZBuf::rand(zbuf));
         let ext_mlink = rng.gen_bool(0.5).then_some(ZExtZBuf::rand(zbuf));
-        let ext_lowlatency = rng.gen_bool(0.5).then_some(ZExtUnit::rand());
-        let ext_compression = rng.gen_bool(0.5).then_some(ZExtUnit::rand());
+        let ext_lowlatency = rng.gen_bool(0.5).then_some(ZExtUnit::rand(zbuf));
+        let ext_compression = rng.gen_bool(0.5).then_some(ZExtUnit::rand(zbuf));
         let ext_patch = ext::PatchType::rand();
 
         Self {
@@ -247,41 +247,41 @@ impl<'a> InitSyn<'a> {
     }
 }
 
-pub mod ext {
-    pub type QoS = crate::zextunit!(0x1, false);
-    pub type QoSLink = crate::zextz64!(0x1, false);
+pub(crate) mod ext {
+    pub(crate) type QoS = crate::zextunit!(0x1, false);
+    pub(crate) type QoSLink = crate::zextz64!(0x1, false);
 
-    pub type Auth<'a> = crate::zextzbuf!('a, 0x3, false);
+    pub(crate) type Auth<'a> = crate::zextzbuf!('a, 0x3, false);
 
-    pub type MultiLink<'a> = crate::zextzbuf!('a, 0x4, false);
+    pub(crate) type MultiLink<'a> = crate::zextzbuf!('a, 0x4, false);
 
-    pub type LowLatency = crate::zextunit!(0x5, false);
+    pub(crate) type LowLatency = crate::zextunit!(0x5, false);
 
-    pub type Compression = crate::zextunit!(0x6, false);
+    pub(crate) type Compression = crate::zextunit!(0x6, false);
 
-    pub type Patch = crate::zextz64!(0x7, false);
-    pub type PatchType = crate::protocol::transport::ext::PatchType<{ Patch::ID }>;
+    pub(crate) type Patch = crate::zextz64!(0x7, false);
+    pub(crate) type PatchType = crate::protocol::transport::ext::PatchType<{ Patch::ID }>;
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct InitAck<'a> {
-    pub version: u8,
-    pub whatami: WhatAmI,
-    pub zid: ZenohIdProto,
-    pub resolution: Resolution,
-    pub batch_size: BatchSize,
-    pub cookie: ZBuf<'a>,
-    pub ext_qos: Option<ext::QoS>,
-    pub ext_qos_link: Option<ext::QoSLink>,
-    pub ext_auth: Option<ext::Auth<'a>>,
-    pub ext_mlink: Option<ext::MultiLink<'a>>,
-    pub ext_lowlatency: Option<ext::LowLatency>,
-    pub ext_compression: Option<ext::Compression>,
-    pub ext_patch: ext::PatchType,
+pub(crate) struct InitAck<'a> {
+    pub(crate) version: u8,
+    pub(crate) whatami: WhatAmI,
+    pub(crate) zid: ZenohIdProto,
+    pub(crate) resolution: Resolution,
+    pub(crate) batch_size: BatchSize,
+    pub(crate) cookie: ZBuf<'a>,
+    pub(crate) ext_qos: Option<ext::QoS>,
+    pub(crate) ext_qos_link: Option<ext::QoSLink>,
+    pub(crate) ext_auth: Option<ext::Auth<'a>>,
+    pub(crate) ext_mlink: Option<ext::MultiLink<'a>>,
+    pub(crate) ext_lowlatency: Option<ext::LowLatency>,
+    pub(crate) ext_compression: Option<ext::Compression>,
+    pub(crate) ext_patch: ext::PatchType,
 }
 
 impl<'a> InitAck<'a> {
-    pub fn encode(&self, writer: &mut ZBufWriter<'_>) -> ZResult<(), ZCodecError> {
+    pub(crate) fn encode(&self, writer: &mut ZBufWriter<'_>) -> ZResult<(), ZCodecError> {
         let mut header = id::INIT | flag::A;
         if self.resolution != Resolution::default() || self.batch_size != batch_size::UNICAST {
             header |= flag::S;
@@ -298,8 +298,8 @@ impl<'a> InitAck<'a> {
             header |= flag::Z;
         }
 
-        crate::protocol::zcodec::encode_u8(header, writer)?;
-        encode_u8(self.version, writer)?;
+        encode_u8(writer, header)?;
+        encode_u8(writer, self.version)?;
 
         let whatami: u8 = match self.whatami {
             WhatAmI::Router => 0b00,
@@ -308,82 +308,82 @@ impl<'a> InitAck<'a> {
         };
 
         let flags: u8 = ((self.zid.size() as u8 - 1) << 4) | whatami;
-        encode_u8(flags, writer)?;
-        self.zid.encode(false, writer)?;
+        encode_u8(writer, flags)?;
+        self.zid.encode(writer, false)?;
 
         if imsg::has_flag(header, flag::S) {
-            encode_u8(self.resolution.as_u8(), writer)?;
-            encode_array(&self.batch_size.to_le_bytes(), writer)?;
+            encode_u8(writer, self.resolution.as_u8())?;
+            encode_array(writer, &self.batch_size.to_le_bytes())?;
         }
 
-        encode_zbuf(true, self.cookie, writer)?;
+        encode_zbuf(writer, self.cookie, true)?;
 
         if let Some(qos) = self.ext_qos.as_ref() {
             n_exts -= 1;
-            qos.encode(n_exts != 0, writer)?;
+            qos.encode(writer, n_exts != 0)?;
         }
 
         if let Some(qos_link) = self.ext_qos_link.as_ref() {
             n_exts -= 1;
-            qos_link.encode(n_exts != 0, writer)?;
+            qos_link.encode(writer, n_exts != 0)?;
         }
 
         if let Some(auth) = self.ext_auth.as_ref() {
             n_exts -= 1;
-            auth.encode(n_exts != 0, writer)?;
+            auth.encode(writer, n_exts != 0)?;
         }
 
         if let Some(mlink) = self.ext_mlink.as_ref() {
             n_exts -= 1;
-            mlink.encode(n_exts != 0, writer)?;
+            mlink.encode(writer, n_exts != 0)?;
         }
 
         if let Some(lowlatency) = self.ext_lowlatency.as_ref() {
             n_exts -= 1;
-            lowlatency.encode(n_exts != 0, writer)?;
+            lowlatency.encode(writer, n_exts != 0)?;
         }
 
         if let Some(compression) = self.ext_compression.as_ref() {
             n_exts -= 1;
-            compression.encode(n_exts != 0, writer)?;
+            compression.encode(writer, n_exts != 0)?;
         }
 
         if self.ext_patch != ext::PatchType::NONE {
             n_exts -= 1;
-            self.ext_patch.encode(n_exts != 0, writer)?;
+            self.ext_patch.encode(writer, n_exts != 0)?;
         }
 
         Ok(())
     }
 
-    pub fn decode(header: u8, reader: &mut ZBufReader<'a>) -> ZResult<Self, ZCodecError> {
+    pub(crate) fn decode(reader: &mut ZBufReader<'a>, header: u8) -> ZResult<Self, ZCodecError> {
         if imsg::mid(header) != id::INIT || !imsg::has_flag(header, flag::A) {
-            zbail!(ZCodecError::Invalid)
+            zbail!(ZCodecError::CouldNotRead)
         }
 
-        let version: u8 = crate::protocol::zcodec::decode_u8(reader)?;
-        let flags: u8 = crate::protocol::zcodec::decode_u8(reader)?;
+        let version: u8 = decode_u8(reader)?;
+        let flags: u8 = decode_u8(reader)?;
 
         let whatami = match flags & 0b11 {
             0b00 => WhatAmI::Router,
             0b01 => WhatAmI::Peer,
             0b10 => WhatAmI::Client,
-            _ => zbail!(ZCodecError::Invalid),
+            _ => zbail!(ZCodecError::CouldNotParse),
         };
 
         let length = 1 + ((flags >> 4) as usize);
-        let zid: ZenohIdProto = ZenohIdProto::decode(Some(length), reader)?;
+        let zid: ZenohIdProto = ZenohIdProto::decode(reader, Some(length))?;
         let mut resolution = Resolution::default();
         let mut batch_size = batch_size::UNICAST.to_le_bytes();
 
         if imsg::has_flag(header, flag::S) {
-            let flags: u8 = crate::protocol::zcodec::decode_u8(reader)?;
+            let flags: u8 = decode_u8(reader)?;
             resolution = Resolution::from(flags & 0b00111111);
             batch_size = decode_array(reader)?;
         }
 
         let batch_size = BatchSize::from_le_bytes(batch_size);
-        let cookie: ZBuf<'a> = decode_zbuf(None, reader)?;
+        let cookie: ZBuf<'a> = decode_zbuf(reader, None)?;
 
         let mut ext_qos = None;
         let mut ext_qos_link = None;
@@ -396,25 +396,25 @@ impl<'a> InitAck<'a> {
         let mut has_ext = imsg::has_flag(header, flag::Z);
 
         while has_ext {
-            let ext: u8 = crate::protocol::zcodec::decode_u8(reader)?;
-            match iext::eid(ext) {
+            let ext: u8 = decode_u8(reader)?;
+            match iext::eheader(ext) {
                 ext::QoS::ID => {
                     let (q, ext) = ext::QoS::decode(ext)?;
                     ext_qos = Some(q);
                     has_ext = ext;
                 }
                 ext::QoSLink::ID => {
-                    let (q, ext) = ext::QoSLink::decode(ext, reader)?;
+                    let (q, ext) = ext::QoSLink::decode(reader, ext)?;
                     ext_qos_link = Some(q);
                     has_ext = ext;
                 }
                 ext::Auth::ID => {
-                    let (a, ext) = ext::Auth::decode(ext, reader)?;
+                    let (a, ext) = ext::Auth::decode(reader, ext)?;
                     ext_auth = Some(a);
                     has_ext = ext;
                 }
                 ext::MultiLink::ID => {
-                    let (a, ext) = ext::MultiLink::decode(ext, reader)?;
+                    let (a, ext) = ext::MultiLink::decode(reader, ext)?;
                     ext_mlink = Some(a);
                     has_ext = ext;
                 }
@@ -429,12 +429,12 @@ impl<'a> InitAck<'a> {
                     has_ext = ext;
                 }
                 ext::Patch::ID => {
-                    let (p, ext) = ext::PatchType::decode(ext, reader)?;
+                    let (p, ext) = ext::PatchType::decode(reader, ext)?;
                     ext_patch = p;
                     has_ext = ext;
                 }
                 _ => {
-                    has_ext = extension::skip("InitAck", ext, reader)?;
+                    has_ext = extension::skip("InitAck", reader, ext)?;
                 }
             }
         }
@@ -457,7 +457,7 @@ impl<'a> InitAck<'a> {
     }
 
     #[cfg(test)]
-    pub fn rand(zbuf: &mut ZBufWriter<'a>) -> Self {
+    pub(crate) fn rand(zbuf: &mut ZBufWriter<'a>) -> Self {
         use rand::Rng;
 
         use crate::{
@@ -482,12 +482,12 @@ impl<'a> InitAck<'a> {
                 b.len()
             })
             .unwrap();
-        let ext_qos = rng.gen_bool(0.5).then_some(ZExtUnit::rand());
-        let ext_qos_link = rng.gen_bool(0.5).then_some(ZExtZ64::rand());
+        let ext_qos = rng.gen_bool(0.5).then_some(ZExtUnit::rand(zbuf));
+        let ext_qos_link = rng.gen_bool(0.5).then_some(ZExtZ64::rand(zbuf));
         let ext_auth = rng.gen_bool(0.5).then_some(ZExtZBuf::rand(zbuf));
         let ext_mlink = rng.gen_bool(0.5).then_some(ZExtZBuf::rand(zbuf));
-        let ext_lowlatency = rng.gen_bool(0.5).then_some(ZExtUnit::rand());
-        let ext_compression = rng.gen_bool(0.5).then_some(ZExtUnit::rand());
+        let ext_lowlatency = rng.gen_bool(0.5).then_some(ZExtUnit::rand(zbuf));
+        let ext_compression = rng.gen_bool(0.5).then_some(ZExtUnit::rand(zbuf));
         let ext_patch = ext::PatchType::rand();
 
         Self {

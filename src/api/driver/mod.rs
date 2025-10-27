@@ -1,6 +1,6 @@
-pub mod run;
-pub mod send;
-pub mod update;
+pub(crate) mod run;
+pub(crate) mod send;
+pub(crate) mod update;
 
 use core::ops::DerefMut;
 
@@ -10,8 +10,8 @@ use embassy_time::Instant;
 use crate::{
     api::{callback::ZCallback, subscriber::ZSubscriberCallbacks},
     io::transport::{TransportConfig, TransportRx, TransportTx},
-    keyexpr::borrowed::keyexpr,
     platform::Platform,
+    protocol::keyexpr::borrowed::keyexpr,
     protocol::transport::TransportSn,
     result::ZResult,
 };
@@ -43,7 +43,7 @@ pub struct SessionDriver<T: Platform + 'static> {
 }
 
 impl<T: Platform> SessionDriver<T> {
-    pub fn new(
+    pub(crate) fn new(
         config: TransportConfig,
         tx: (&'static mut [u8], TransportTx<'static, T>),
         rx: (&'static mut [u8], TransportRx<'static, T>),
@@ -67,7 +67,7 @@ impl<T: Platform> SessionDriver<T> {
         }
     }
 
-    pub async fn register_subscriber_callback(
+    pub(crate) async fn register_subscriber_callback(
         &self,
         id: u32,
         ke: &'static keyexpr,

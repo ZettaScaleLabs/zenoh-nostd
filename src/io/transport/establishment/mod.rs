@@ -11,7 +11,7 @@ use crate::protocol::{
     transport::TransportSn,
 };
 
-pub mod open;
+pub(crate) mod open;
 
 const RES_U8: TransportSn = (u8::MAX >> 1) as TransportSn; // 1 byte max when encoded
 const RES_U16: TransportSn = (u16::MAX >> 2) as TransportSn; // 2 bytes max when encoded
@@ -24,8 +24,8 @@ pub(super) fn compute_sn(
     resolution: Resolution,
 ) -> TransportSn {
     let mut hasher = Shake128::default();
-    hasher.update(&zid1.to_le_bytes()[..zid1.size()]);
-    hasher.update(&zid2.to_le_bytes()[..zid2.size()]);
+    hasher.update(&zid1.as_le_bytes()[..zid1.size()]);
+    hasher.update(&zid2.as_le_bytes()[..zid2.size()]);
     let mut array = (0 as TransportSn).to_le_bytes();
     hasher.finalize_xof().read(&mut array);
     TransportSn::from_le_bytes(array) & get_mask(resolution.get(Field::FrameSN))

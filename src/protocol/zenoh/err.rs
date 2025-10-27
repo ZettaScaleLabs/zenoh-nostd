@@ -6,7 +6,7 @@ use crate::{
             imsg,
         },
         core::encoding::Encoding,
-        zcodec::{decode_zbuf, encode_zbuf},
+        zcodec::{decode_u8, decode_zbuf, encode_u8, encode_zbuf},
         zenoh::id,
     },
     result::ZResult,
@@ -14,22 +14,22 @@ use crate::{
     zbuf::{ZBufReader, ZBufWriter},
 };
 
-pub mod flag {
+pub(crate) mod flag {
 
-    pub const E: u8 = 1 << 6;
-    pub const Z: u8 = 1 << 7;
+    pub(crate) const E: u8 = 1 << 6;
+    pub(crate) const Z: u8 = 1 << 7;
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct Err<'a> {
-    pub encoding: Encoding<'a>,
-    pub ext_sinfo: Option<ext::SourceInfoType>,
+pub(crate) struct Err<'a> {
+    pub(crate) encoding: Encoding<'a>,
+    pub(crate) ext_sinfo: Option<ext::SourceInfoType>,
 
-    pub payload: crate::zbuf::ZBuf<'a>,
+    pub(crate) payload: crate::zbuf::ZBuf<'a>,
 }
 
 impl<'a> Err<'a> {
-    pub fn encode(&self, writer: &mut ZBufWriter<'_>) -> ZResult<(), ZCodecError> {
+    pub(crate) fn encode(&self, writer: &mut ZBufWriter<'_>) -> ZResult<(), ZCodecError> {
         let mut header = id::ERR;
         if self.encoding != Encoding::empty() {
             header |= flag::E;
@@ -40,7 +40,7 @@ impl<'a> Err<'a> {
             header |= flag::Z;
         }
 
-        crate::protocol::zcodec::encode_u8(header, writer)?;
+        encode_u8(writer, header)?;
 
         if self.encoding != Encoding::empty() {
             self.encoding.encode(writer)?;
@@ -48,15 +48,15 @@ impl<'a> Err<'a> {
 
         if let Some(sinfo) = self.ext_sinfo.as_ref() {
             n_exts -= 1;
-            sinfo.encode(n_exts != 0, writer)?;
+            sinfo.encode(writer, n_exts != 0)?;
         }
 
-        encode_zbuf(true, self.payload, writer)
+        encode_zbuf(writer, self.payload, true)
     }
 
-    pub fn decode(header: u8, reader: &mut ZBufReader<'a>) -> ZResult<Self, ZCodecError> {
+    pub(crate) fn decode(reader: &mut ZBufReader<'a>, header: u8) -> ZResult<Self, ZCodecError> {
         if imsg::mid(header) != id::ERR {
-            zbail!(ZCodecError::Invalid);
+            zbail!(ZCodecError::CouldNotRead);
         }
 
         let mut encoding = Encoding::empty();
@@ -68,21 +68,21 @@ impl<'a> Err<'a> {
 
         let mut has_ext = imsg::has_flag(header, flag::Z);
         while has_ext {
-            let ext = crate::protocol::zcodec::decode_u8(reader)?;
-            match iext::eid(ext) {
+            let ext = decode_u8(reader)?;
+            match iext::eheader(ext) {
                 ext::SourceInfo::ID => {
-                    let (s, ext) = ext::SourceInfoType::decode(ext, reader)?;
+                    let (s, ext) = ext::SourceInfoType::decode(reader, ext)?;
 
                     ext_sinfo = Some(s);
                     has_ext = ext;
                 }
                 _ => {
-                    has_ext = extension::skip("Err", ext, reader)?;
+                    has_ext = extension::skip("Err", reader, ext)?;
                 }
             }
         }
 
-        let payload = decode_zbuf(None, reader)?;
+        let payload = decode_zbuf(reader, None)?;
 
         Ok(Err {
             encoding,
@@ -93,7 +93,7 @@ impl<'a> Err<'a> {
     }
 
     #[cfg(test)]
-    pub fn rand(zbuf: &mut ZBufWriter<'a>) -> Self {
+    pub(crate) fn rand(zbuf: &mut ZBufWriter<'a>) -> Self {
         use rand::Rng;
 
         use crate::zbuf::BufWriterExt;
@@ -117,8 +117,9 @@ impl<'a> Err<'a> {
     }
 }
 
-pub mod ext {
+pub(crate) mod ext {
 
-    pub type SourceInfo<'a> = crate::zextzbuf!('a, 0x1, false);
-    pub type SourceInfoType = crate::protocol::zenoh::ext::SourceInfoType<{ SourceInfo::ID }>;
+    pub(crate) type SourceInfo<'a> = crate::zextzbuf!('a, 0x1, false);
+    pub(crate) type SourceInfoType =
+        crate::protocol::zenoh::ext::SourceInfoType<{ SourceInfo::ID }>;
 }

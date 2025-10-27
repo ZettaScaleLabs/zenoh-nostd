@@ -10,23 +10,23 @@ use crate::{
     zbuf::{ZBufReader, ZBufWriter},
 };
 
-pub mod flag {
+pub(crate) mod flag {
 
-    pub const Z: u8 = 1 << 7;
+    pub(crate) const Z: u8 = 1 << 7;
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct KeepAlive;
+pub(crate) struct KeepAlive;
 
 impl KeepAlive {
-    pub fn encode(&self, writer: &mut ZBufWriter<'_>) -> ZResult<(), ZCodecError> {
-        encode_u8(id::KEEP_ALIVE, writer)?;
+    pub(crate) fn encode(&self, writer: &mut ZBufWriter<'_>) -> ZResult<(), ZCodecError> {
+        encode_u8(writer, id::KEEP_ALIVE)?;
         Ok(())
     }
 
-    pub fn decode(header: u8, reader: &mut ZBufReader<'_>) -> ZResult<Self, ZCodecError> {
+    pub(crate) fn decode(reader: &mut ZBufReader<'_>, header: u8) -> ZResult<Self, ZCodecError> {
         if imsg::mid(header) != id::KEEP_ALIVE {
-            zbail!(ZCodecError::Invalid)
+            zbail!(ZCodecError::CouldNotRead)
         }
 
         let has_ext = imsg::has_flag(header, flag::Z);
@@ -38,7 +38,7 @@ impl KeepAlive {
     }
 
     #[cfg(test)]
-    pub fn rand() -> Self {
+    pub(crate) fn rand(_: &mut ZBufWriter<'_>) -> Self {
         Self
     }
 }

@@ -3,24 +3,24 @@ use heapless::index_map::{FnvIndexMap, Iter};
 
 use crate::{
     api::{callback::ZCallback, sample::ZOwnedSample},
-    keyexpr::borrowed::keyexpr,
+    protocol::keyexpr::borrowed::keyexpr,
     result::{ZError, ZResult},
     zbail,
 };
 
-pub enum ZSubscriberInner<const KE: usize, const PL: usize> {
+pub enum ZSubscriberInner<const MAX_KEYEXPR: usize, const MAX_PAYLOAD: usize> {
     Sync,
-    Async(DynamicReceiver<'static, ZOwnedSample<KE, PL>>),
+    Async(DynamicReceiver<'static, ZOwnedSample<MAX_KEYEXPR, MAX_PAYLOAD>>),
 }
 
-pub struct ZSubscriber<const KE: usize, const PL: usize> {
+pub struct ZSubscriber<const MAX_KEYEXPR: usize, const MAX_PAYLOAD: usize> {
     id: u32,
     ke: &'static keyexpr,
-    inner: ZSubscriberInner<KE, PL>,
+    inner: ZSubscriberInner<MAX_KEYEXPR, MAX_PAYLOAD>,
 }
 
-impl<const KE: usize, const PL: usize> ZSubscriber<KE, PL> {
-    pub fn sync_sub(id: u32, ke: &'static keyexpr) -> Self {
+impl<const MAX_KEYEXPR: usize, const MAX_PAYLOAD: usize> ZSubscriber<MAX_KEYEXPR, MAX_PAYLOAD> {
+    pub(crate) fn new_sync(id: u32, ke: &'static keyexpr) -> Self {
         Self {
             id,
             ke,
@@ -28,10 +28,10 @@ impl<const KE: usize, const PL: usize> ZSubscriber<KE, PL> {
         }
     }
 
-    pub fn async_sub(
+    pub(crate) fn new_async(
         id: u32,
         ke: &'static keyexpr,
-        rx: DynamicReceiver<'static, ZOwnedSample<KE, PL>>,
+        rx: DynamicReceiver<'static, ZOwnedSample<MAX_KEYEXPR, MAX_PAYLOAD>>,
     ) -> Self {
         ZSubscriber {
             id,
@@ -48,9 +48,9 @@ impl<const KE: usize, const PL: usize> ZSubscriber<KE, PL> {
         self.ke
     }
 
-    pub async fn recv(&self) -> ZResult<ZOwnedSample<KE, PL>> {
+    pub async fn recv(&self) -> ZResult<ZOwnedSample<MAX_KEYEXPR, MAX_PAYLOAD>> {
         match &self.inner {
-            ZSubscriberInner::Sync => Err(ZError::Invalid),
+            ZSubscriberInner::Sync => Err(ZError::CouldNotRecvFromSubscriber),
             ZSubscriberInner::Async(rx) => Ok(rx.receive().await),
         }
     }
@@ -85,14 +85,16 @@ impl<const N: usize> ZSubscriberCallbackStorage<N> {
 impl<const N: usize> ZSubscriberCallbacks for ZSubscriberCallbackStorage<N> {
     fn insert(&mut self, id: u32, ke: &'static keyexpr, callback: ZCallback) -> ZResult<()> {
         if self.lookup.contains_key(&id) {
-            zbail!(ZError::Invalid)
+            zbail!(ZError::SubscriberCallbackAlreadySet)
         }
 
-        self.lookup.insert(id, ke).map_err(|_| ZError::Invalid)?;
+        self.lookup
+            .insert(id, ke)
+            .map_err(|_| ZError::CapacityExceeded)?;
 
         self.callbacks
             .insert(id, callback)
-            .map_err(|_| ZError::Invalid)
+            .map_err(|_| ZError::CapacityExceeded)
             .map(|_| ())
     }
 
@@ -113,21 +115,16 @@ impl<const N: usize> ZSubscriberCallbacks for ZSubscriberCallbackStorage<N> {
 macro_rules! zsubscriber {
     ($sync:expr) => {
         (
-            $crate::api::callback::ZCallback::Sync($sync),
-            None::<
-                embassy_sync::channel::DynamicReceiver<
-                    'static,
-                    $crate::api::sample::ZOwnedSample<0, 0>,
-                >,
-            >,
+            $crate::ZCallback::new_sync($sync),
+            None::<embassy_sync::channel::DynamicReceiver<'static, $crate::ZOwnedSample<0, 0>>>,
         )
     };
 
-    (QUEUE: $queue:expr, KE: $ke:expr, PL: $pl:expr) => {{
+    (QUEUE_SIZE: $queue:expr, MAX_KEYEXPR: $ke:expr, MAX_PAYLOAD: $pl:expr) => {{
         static CHANNEL: static_cell::StaticCell<
             embassy_sync::channel::Channel<
                 embassy_sync::blocking_mutex::raw::CriticalSectionRawMutex,
-                $crate::api::sample::ZOwnedSample<$ke, $pl>,
+                $crate::ZOwnedSample<$ke, $pl>,
                 $queue,
             >,
         > = static_cell::StaticCell::new();
@@ -135,7 +132,7 @@ macro_rules! zsubscriber {
         let channel = CHANNEL.init(embassy_sync::channel::Channel::new());
 
         (
-            $crate::api::callback::ZCallback::Async(channel),
+            $crate::ZCallback::new_async(channel),
             Some(channel.dyn_receiver()),
         )
     }};
