@@ -1,7 +1,7 @@
 use proc_macro2::{Span, TokenStream};
 use syn::Ident;
 
-use crate::ext::parse::{FieldKind, ParsedField, SizeFlavor};
+use crate::ext::parse::{FieldKind, ParsedField, SizeFlavour};
 
 pub fn decode_body(fields: &Vec<ParsedField>, named: bool) -> TokenStream {
     let mut decode_parts = Vec::new();
@@ -55,16 +55,16 @@ pub fn decode_body(fields: &Vec<ParsedField>, named: bool) -> TokenStream {
                     let #faccess = crate::protocol::codec::decode_array(r)?;
                 });
             }
-            crate::ext::parse::FieldKind::ZBuf(flavor)
-            | crate::ext::parse::FieldKind::Str(flavor)
-            | crate::ext::parse::FieldKind::Zid(flavor) => {
-                match flavor {
-                    SizeFlavor::Plain => {
+            crate::ext::parse::FieldKind::ZBuf(flavour)
+            | crate::ext::parse::FieldKind::Str(flavour)
+            | crate::ext::parse::FieldKind::Zid(flavour) => {
+                match flavour {
+                    SizeFlavour::Plain => {
                         decode_parts.push(
                             quote::quote! { let #faccess = crate::protocol::codec::decode_usize(r)?; },
                         );
                     }
-                    SizeFlavor::Deduced => {
+                    SizeFlavour::Deduced => {
                         decode_parts.push(quote::quote! {
                             let #faccess = l - ((_start - r.remaining()) as usize);
                         });

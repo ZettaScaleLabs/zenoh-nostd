@@ -1,6 +1,6 @@
 use proc_macro2::TokenStream;
 
-use crate::ext::parse::{FieldKind, ParsedField, SizeFlavor};
+use crate::ext::parse::{FieldKind, ParsedField, SizeFlavour};
 
 pub fn len_body(fields: &Vec<ParsedField>) -> TokenStream {
     let mut flag_needed = false;
@@ -28,7 +28,7 @@ pub fn len_body(fields: &Vec<ParsedField>) -> TokenStream {
                 len_parts
                     .push(quote::quote! { crate::protocol::codec::encoded_len_array(&x. #access) });
             }
-            FieldKind::ZBuf(flavor) | FieldKind::Str(flavor) | FieldKind::Zid(flavor) => {
+            FieldKind::ZBuf(flavour) | FieldKind::Str(flavour) | FieldKind::Zid(flavour) => {
                 let encoded_len_fn = match kind {
                     FieldKind::ZBuf(_) => quote::format_ident!("encoded_len_zbuf"),
                     FieldKind::Str(_) => quote::format_ident!("encoded_len_str"),
@@ -36,8 +36,8 @@ pub fn len_body(fields: &Vec<ParsedField>) -> TokenStream {
                     _ => unreachable!(),
                 };
 
-                match flavor {
-                    SizeFlavor::Plain => {
+                match flavour {
+                    SizeFlavour::Plain => {
                         len_parts.push(quote::quote! {
                             crate::protocol::codec::encoded_len_u64(crate::protocol::codec::#encoded_len_fn(&x. #access) as u64)
                         });
@@ -58,9 +58,9 @@ pub fn len_body(fields: &Vec<ParsedField>) -> TokenStream {
         }
 
         match kind {
-            FieldKind::Zid(flavor) | FieldKind::Str(flavor) | FieldKind::ZBuf(flavor) => {
-                match flavor {
-                    SizeFlavor::MaybeEmptyFlag(_) | SizeFlavor::NonEmptyFlag(_) => {
+            FieldKind::Zid(flavour) | FieldKind::Str(flavour) | FieldKind::ZBuf(flavour) => {
+                match flavour {
+                    SizeFlavour::MaybeEmptyFlag(_) | SizeFlavour::NonEmptyFlag(_) => {
                         flag_needed = true;
                     }
                     _ => {}

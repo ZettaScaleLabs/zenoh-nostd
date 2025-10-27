@@ -6,7 +6,7 @@ mod ext;
 ///
 /// Attributes of type u8, u16, u32, u64, usize, timestamp, array can be used out of the box.
 ///
-/// Attributes of type zbuf, str and zid must precise a flavor:
+/// Attributes of type zbuf, str and zid must precise a flavour:
 ///     - (flag = <no.bits>) will write the size of the zbuf/str/zid in a flag with the given number of bits. It will assume that the field cannot be empty to optimize the size.
 ///     - (eflag = <no.bits>) will write the size of the zbuf/str/zid in a flag with the given number of bits. It will assume that the field can be empty.
 ///         *Note*: this can be used multiple times and it will pack the sizes together in the same flag byte.

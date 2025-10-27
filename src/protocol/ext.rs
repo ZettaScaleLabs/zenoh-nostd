@@ -74,12 +74,19 @@ pub(crate) trait ZExt: Sized {
 
     type Decoded<'a>: Sized;
 
-    const LEN: fn(&Self) -> usize;
-    const ENCODE: fn(&mut ZBufWriter<'_>, &Self) -> ZResult<(), ZCodecError>;
-    const DECODE: for<'a> fn(
-        &mut ZBufReader<'a>,
-        usize,
+    fn len(&self) -> usize;
+    fn encode(&self, writer: &mut ZBufWriter<'_>) -> ZResult<(), ZCodecError>;
+    fn decode<'a>(
+        reader: &mut ZBufReader<'a>,
+        len: usize,
     ) -> ZResult<Self::Decoded<'a>, ZCodecError>;
+
+    // const LEN: fn(&Self) -> usize;
+    // const ENCODE: fn(&mut ZBufWriter<'_>, &Self) -> ZResult<(), ZCodecError>;
+    // const DECODE: for<'a> fn(
+    //     &mut ZBufReader<'a>,
+    //     usize,
+    // ) -> ZResult<Self::Decoded<'a>, ZCodecError>;
 }
 
 #[macro_export]
@@ -91,18 +98,7 @@ macro_rules! zext {
         }
     };
 
-    ('static, $ext:ident, $kind:expr, |$s:ident| $len:expr, |$w:ident, $x:ident| $encode:expr, |$r:ident, $l:ident| $decode:expr) => {
-        impl crate::protocol::ext::ZExt for $ext {
-            const KIND: crate::protocol::ext::ZExtKind = $kind;
-
-            type Decoded<'a> = $ext;
-
-            const LEN: fn(&Self) -> usize = |$s| { $len };
-            const ENCODE: fn(&mut crate::zbuf::ZBufWriter<'_>, &Self) -> crate::result::ZResult<(), crate::protocol::ZCodecError> = |$w, $x| { $encode };
-            const DECODE: for<'a> fn(&mut crate::zbuf::ZBufReader<'a>, usize) -> crate::result::ZResult<Self::Decoded<'a>, crate::protocol::ZCodecError> = |$r, $l| { $decode };
-
-        }
-
+    ('static, $ext:ident) => {
         paste::paste! {
             pub(crate) fn [<encoded_len_ $ext:snake>](x: & $ext) -> usize {
                 <$ext as crate::protocol::ext::ZExt>::LEN(x)
@@ -116,7 +112,7 @@ macro_rules! zext {
                     crate::protocol::ext::encode_ext_header::<$ext, Primitive>(writer, more)?;
 
                     if <$ext as crate::protocol::ext::ZExt>::KIND == crate::protocol::ext::ZExtKind::ZBuf {
-                        encode_usize(writer, [<encoded_len_ $ext:snake>](x))?;
+                        crate::protocol::codec::encode_usize(writer, [<encoded_len_ $ext:snake>](x))?;
                     }
 
                     <$ext as crate::protocol::ext::ZExt>::ENCODE(writer, x)?;
@@ -132,7 +128,7 @@ macro_rules! zext {
                 where $ext: crate::protocol::ext::ZExtPrimitive<Primitive>
             {
                 if let crate::protocol::ext::ZExtKind::ZBuf = <$ext as crate::protocol::ext::ZExt>::KIND {
-                    let len = decode_usize(reader)?;
+                    let len = crate::protocol::codec::decode_usize(reader)?;
                     return <$ext as crate::protocol::ext::ZExt>::DECODE(reader, len);
                 }
 
@@ -141,17 +137,7 @@ macro_rules! zext {
         }
     };
 
-    ('a, $ext:ident, $kind:expr, |$s:ident| $len:expr, |$w:ident, $x:ident| $encode:expr, |$r:ident, $l:ident| $decode:expr) => {
-        impl crate::protocol::ext::ZExt for $ext<'_> {
-            const KIND: crate::protocol::ext::ZExtKind = $kind;
-
-            type Decoded<'a> = $ext<'a>;
-
-            const LEN: fn(&Self) -> usize = |$s| { $len };
-            const ENCODE: fn(&mut crate::zbuf::ZBufWriter<'_>, &Self) -> crate::result::ZResult<(), crate::protocol::ZCodecError> = |$w, $x| { $encode };
-            const DECODE: for<'a> fn(&mut crate::zbuf::ZBufReader<'a>, usize) -> crate::result::ZResult<Self::Decoded<'a>, crate::protocol::ZCodecError> = |$r, $l| { $decode };
-        }
-
+    ('a, $ext:ident) => {
         paste::paste! {
             pub(crate) fn [<encoded_len_ $ext:snake>]<'a>(x: &$ext<'a>) -> usize {
                 <$ext<'a> as crate::protocol::ext::ZExt>::LEN(x)
@@ -165,7 +151,7 @@ macro_rules! zext {
                     crate::protocol::ext::encode_ext_header::<$ext, Primitive>(writer, more)?;
 
                     if <$ext<'a> as crate::protocol::ext::ZExt>::KIND == crate::protocol::ext::ZExtKind::ZBuf {
-                        encode_usize(writer, [<encoded_len_ $ext:snake>](x))?;
+                        crate::protocol::codec::encode_usize(writer, [<encoded_len_ $ext:snake>](x))?;
                     }
 
                     <$ext<'a> as crate::protocol::ext::ZExt>::ENCODE(writer, x)?;
@@ -181,7 +167,7 @@ macro_rules! zext {
                 where $ext<'a>: crate::protocol::ext::ZExtPrimitive<Primitive>
             {
                 if let crate::protocol::ext::ZExtKind::ZBuf = <$ext<'a> as crate::protocol::ext::ZExt>::KIND {
-                    let len = decode_usize(reader)?;
+                    let len = crate::protocol::codec::decode_usize(reader)?;
                     return <$ext<'a> as crate::protocol::ext::ZExt>::DECODE(reader, len);
                 }
 

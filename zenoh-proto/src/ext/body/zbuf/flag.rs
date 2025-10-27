@@ -1,7 +1,7 @@
 use proc_macro2::{Span, TokenStream};
 use syn::Ident;
 
-use crate::ext::parse::{FieldKind, ParsedField, SizeFlavor};
+use crate::ext::parse::{FieldKind, ParsedField, SizeFlavour};
 
 pub fn flag_body(fields: &Vec<ParsedField>, named: bool) -> (TokenStream, TokenStream) {
     let mut enc_flag_parts = Vec::new();
@@ -21,10 +21,10 @@ pub fn flag_body(fields: &Vec<ParsedField>, named: bool) -> (TokenStream, TokenS
         };
 
         match kind {
-            FieldKind::ZBuf(flavor) | FieldKind::Str(flavor) | FieldKind::Zid(flavor) => {
-                let (flag_size, maybe_empty) = match flavor {
-                    SizeFlavor::NonEmptyFlag(size) => (*size, false),
-                    SizeFlavor::MaybeEmptyFlag(size) => (*size, true),
+            FieldKind::ZBuf(flavour) | FieldKind::Str(flavour) | FieldKind::Zid(flavour) => {
+                let (flag_size, maybe_empty) = match flavour {
+                    SizeFlavour::NonEmptyFlag(size) => (*size, false),
+                    SizeFlavour::MaybeEmptyFlag(size) => (*size, true),
                     _ => continue,
                 };
 

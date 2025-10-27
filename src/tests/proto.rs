@@ -2,7 +2,6 @@ use zenoh_proto::ZExt;
 
 use crate::{
     protocol::{
-        codec::{encoded_len_u32, encoded_len_u64},
         core::encoding::Encoding,
         ext::{ZExt, ZExtKind},
     },
@@ -112,9 +111,11 @@ fn test_u64() {
         field3: u16::MAX,
     };
 
+    let len = <U6413 as ZExt>::LEN(&value);
     <U6413 as ZExt>::ENCODE(&mut writer, &value).unwrap();
+
     let mut reader = data.as_slice().reader();
-    let decoded = <U6413 as ZExt>::DECODE(&mut reader, 0).unwrap();
+    let decoded = <U6413 as ZExt>::DECODE(&mut reader, len).unwrap();
 
     assert_eq!(value.field1, decoded.field1);
     assert_eq!(value.field2, decoded.field2);
@@ -195,12 +196,12 @@ fn test_zbuf() {
         field4: zbuf3,
         field5: zbuf4,
     };
-    let len = <ZBuf4 as ZExt>::LEN(&zb);
 
     let mut data = [0u8; 100];
     let mut zbuf = data.as_mut_slice();
     let mut writer = zbuf.writer();
 
+    let len = <ZBuf4 as ZExt>::LEN(&zb);
     <ZBuf4 as ZExt>::ENCODE(&mut writer, &zb).unwrap();
 
     let mut reader = data.as_slice().reader();

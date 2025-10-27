@@ -1,6 +1,6 @@
 use proc_macro2::TokenStream;
 
-use crate::ext::parse::{ParsedField, SizeFlavor};
+use crate::ext::parse::{ParsedField, SizeFlavour};
 
 pub fn encode_body(fields: &Vec<ParsedField>) -> TokenStream {
     let mut encode_parts = Vec::new();
@@ -45,11 +45,11 @@ pub fn encode_body(fields: &Vec<ParsedField>) -> TokenStream {
                     crate::protocol::codec::encode_array(w, &x. #access)?;
                 });
             }
-            crate::ext::parse::FieldKind::ZBuf(flavor)
-            | crate::ext::parse::FieldKind::Str(flavor)
-            | crate::ext::parse::FieldKind::Zid(flavor) => {
-                match flavor {
-                    SizeFlavor::Plain => {
+            crate::ext::parse::FieldKind::ZBuf(flavour)
+            | crate::ext::parse::FieldKind::Str(flavour)
+            | crate::ext::parse::FieldKind::Zid(flavour) => {
+                match flavour {
+                    SizeFlavour::Plain => {
                         let encoded_len_fn = match kind {
                             crate::ext::parse::FieldKind::ZBuf(_) => {
                                 quote::format_ident!("encoded_len_zbuf")

@@ -5,41 +5,41 @@ use syn::{
     parse::{Parse, ParseStream},
 };
 
-pub enum SizeFlavor {
+pub enum SizeFlavour {
     Plain,
     Deduced,
     NonEmptyFlag(u8),
     MaybeEmptyFlag(u8),
 }
 
-impl SizeFlavor {
-    fn from_attr(attr: &Attribute) -> SizeFlavor {
-        let mut flavor = Option::<SizeFlavor>::None;
+impl SizeFlavour {
+    fn from_attr(attr: &Attribute) -> SizeFlavour {
+        let mut flavour = Option::<SizeFlavour>::None;
 
         attr.parse_nested_meta(|meta| {
             if meta.path.is_ident("plain") {
-                flavor = Some(SizeFlavor::Plain);
+                flavour = Some(SizeFlavour::Plain);
             } else if meta.path.is_ident("deduced") {
-                flavor = Some(SizeFlavor::Deduced);
+                flavour = Some(SizeFlavour::Deduced);
             } else if meta.path.is_ident("flag") {
-                let value = meta.value().expect("Expected value for flag flavor");
+                let value = meta.value().expect("Expected value for flag flavour");
                 let lit: LitInt = value.parse()?;
                 let flag_index = lit.base10_parse::<u8>()?;
 
-                flavor = Some(SizeFlavor::NonEmptyFlag(flag_index));
+                flavour = Some(SizeFlavour::NonEmptyFlag(flag_index));
             } else if meta.path.is_ident("eflag") {
-                let value = meta.value().expect("Expected value for eflag flavor");
+                let value = meta.value().expect("Expected value for eflag flavour");
                 let lit: LitInt = value.parse()?;
                 let flag_index = lit.base10_parse::<u8>()?;
 
-                flavor = Some(SizeFlavor::MaybeEmptyFlag(flag_index));
+                flavour = Some(SizeFlavour::MaybeEmptyFlag(flag_index));
             }
 
             Ok(())
         })
-        .expect("Failed to parse size flavor attribute");
+        .expect("Failed to parse size flavour attribute");
 
-        flavor.expect("Field expected to have a size flavor attribute")
+        flavour.expect("Field expected to have a size flavour attribute")
     }
 }
 
@@ -67,9 +67,9 @@ pub enum FieldKind {
     Timestamp,
     Array,
 
-    ZBuf(SizeFlavor),
-    Str(SizeFlavor),
-    Zid(SizeFlavor),
+    ZBuf(SizeFlavour),
+    Str(SizeFlavour),
+    Zid(SizeFlavour),
 
     Composite(CompositeAttr),
 }
@@ -91,14 +91,14 @@ impl FieldKind {
         } else if attr.path().is_ident("array") {
             FieldKind::Array
         } else if attr.path().is_ident("zbuf") {
-            let flavor = SizeFlavor::from_attr(attr);
-            FieldKind::ZBuf(flavor)
+            let flavour = SizeFlavour::from_attr(attr);
+            FieldKind::ZBuf(flavour)
         } else if attr.path().is_ident("str") {
-            let flavor = SizeFlavor::from_attr(attr);
-            FieldKind::Str(flavor)
+            let flavour = SizeFlavour::from_attr(attr);
+            FieldKind::Str(flavour)
         } else if attr.path().is_ident("zid") {
-            let flavor = SizeFlavor::from_attr(attr);
-            FieldKind::Zid(flavor)
+            let flavour = SizeFlavour::from_attr(attr);
+            FieldKind::Zid(flavour)
         } else if attr.path().is_ident("composite") {
             let composite_attr: CompositeAttr = attr
                 .parse_args()
@@ -133,7 +133,7 @@ impl Extension {
 
         for (i, field) in fields.enumerate() {
             if is_deduced {
-                panic!("Deduced size flavor must appear at the end of the struct");
+                panic!("Deduced size flavour must appear at the end of the struct");
             }
 
             let attrs = &field.attrs;
@@ -148,19 +148,19 @@ impl Extension {
             let kind = FieldKind::from_attr(attr);
 
             match &kind {
-                FieldKind::ZBuf(flavor) | FieldKind::Str(flavor) | FieldKind::Zid(flavor) => {
+                FieldKind::ZBuf(flavour) | FieldKind::Str(flavour) | FieldKind::Zid(flavour) => {
                     is_zbuf = true;
 
-                    match flavor {
-                        SizeFlavor::NonEmptyFlag(size) => {
+                    match flavour {
+                        SizeFlavour::NonEmptyFlag(size) => {
                             total_flag_bits += *size;
                         }
-                        SizeFlavor::MaybeEmptyFlag(size) => {
+                        SizeFlavour::MaybeEmptyFlag(size) => {
                             total_flag_bits += *size;
                         }
-                        SizeFlavor::Deduced => {
+                        SizeFlavour::Deduced => {
                             if is_deduced {
-                                panic!("Only one field can have deduced size flavor");
+                                panic!("Only one field can have deduced size flavour");
                             }
 
                             is_deduced = true;
