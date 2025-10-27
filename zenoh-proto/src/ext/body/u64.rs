@@ -1,114 +1,83 @@
 use proc_macro2::TokenStream;
-use syn::{Data, Fields, Ident};
 
-pub fn compute_zext_u64(ident: &Ident, data: &Data) -> TokenStream {
-    let fields = match data {
-        Data::Struct(s) => &s.fields,
-        _ => unreachable!(),
-    };
+use crate::ext::parse::ParsedField;
 
-    let mut field_infos = Vec::new();
+pub fn compute_body_u64(
+    fields: Vec<ParsedField>,
+    named: bool,
+) -> (TokenStream, TokenStream, TokenStream) {
+    let len_body = fields
+        .iter()
+        .map(|field| {
+            let access = &field.access;
+            quote::quote! { crate::protocol::codec::encoded_len_u64(x. #access as u64) }
+        })
+        .reduce(|acc, expr| quote::quote! { #acc + #expr })
+        .expect("at least one field for u64 extension");
+
+    let mut fields_bit_shift = Vec::new();
     let mut total_bits = 0u64;
 
-    let iter = match fields {
-        Fields::Named(fields_named) => fields_named.named.iter().collect::<Vec<_>>(),
-        Fields::Unnamed(fields_unnamed) => fields_unnamed.unnamed.iter().collect::<Vec<_>>(),
-        Fields::Unit => unreachable!(),
-    };
-
-    for (i, field) in iter.iter().enumerate() {
-        let attr = &field.attrs[0];
-
-        let bits = if attr.path().is_ident("u8") {
-            8
-        } else if attr.path().is_ident("u16") {
-            16
-        } else if attr.path().is_ident("u32") {
-            32
-        } else if attr.path().is_ident("u64") {
-            64
-        } else if attr.path().is_ident("usize") {
-            64
-        } else {
-            panic!("each field must have a uint attribute (#[u8], #[u16], ...)");
+    for field in &fields {
+        let (bits, ty) = match &field.kind {
+            crate::ext::parse::FieldKind::U8 => (8, quote::quote! { u8 }),
+            crate::ext::parse::FieldKind::U16 => (16, quote::quote! { u16 }),
+            crate::ext::parse::FieldKind::U32 => (32, quote::quote! { u32 }),
+            crate::ext::parse::FieldKind::U64 => (64, quote::quote! { u64 }),
+            crate::ext::parse::FieldKind::Usize => (64, quote::quote! { usize }),
+            _ => panic!("each field must have a uint kind for u64 extension"),
         };
 
-        let access = match field.ident {
-            Some(ref ident) => quote::quote! { x.#ident },
-            None => {
-                let index = syn::Index::from(i);
-                quote::quote! { x.#index }
-            }
-        };
-
-        let ty = &field.ty;
-
-        field_infos.push((access, bits, total_bits, ty.clone()));
+        fields_bit_shift.push((field.access.clone(), ty, bits, total_bits));
         total_bits += bits;
     }
 
-    let len_parts = field_infos.iter().map(|(access, _, _, _)| {
-        quote::quote! { crate::protocol::codec::encoded_len_u64(#access as u64) }
-    });
-
-    let len_body = len_parts
-        .reduce(|acc, expr| quote::quote! { #acc + #expr })
-        .unwrap();
-
-    let encode_parts = field_infos.iter().map(|(access, _, shift, _)| {
-        if *shift == 0 {
-            quote::quote! { (#access as u64) }
-        } else {
-            quote::quote! { ((#access as u64) << #shift) }
-        }
-    });
-
-    let encode_body = encode_parts
+    let encode_body = fields_bit_shift
+        .iter()
+        .map(|(access, _, _, shift)| {
+            if *shift == 0 {
+                quote::quote! { (x.#access as u64) }
+            } else {
+                quote::quote! { ((x.#access as u64) << #shift) }
+            }
+        })
         .reduce(|acc, expr| quote::quote! { #acc | #expr })
         .unwrap();
 
-    let decode_parts = field_infos
+    let decode_body = fields_bit_shift
         .iter()
-        .enumerate()
-        .map(|(i, (_, bits, shift, ty))| {
+        .map(|(access, ty, bits, shift)| {
             let mask = (1u128 << bits) - 1;
             let mask64 = mask as u64;
-            let value_expr = quote::quote! {
+            let value = quote::quote! {
                 (((value >> #shift) & #mask64) as #ty)
             };
 
-            match fields {
-                Fields::Named(_) => {
-                    let field_ident = &fields.iter().collect::<Vec<_>>()[i].ident;
-                    quote::quote! { #field_ident: #value_expr }
-                }
-                Fields::Unnamed(_) => quote::quote! { #value_expr },
-                Fields::Unit => unreachable!(),
+            if named {
+                quote::quote! { #access: #value }
+            } else {
+                quote::quote! { #value }
             }
-        });
+        })
+        .collect::<Vec<_>>();
 
-    let decode_body = match fields {
-        Fields::Named(_) => quote::quote! { Self { #(#decode_parts),* } },
-        Fields::Unnamed(_) => quote::quote! { Self(#(#decode_parts),*) },
-        Fields::Unit => unreachable!(),
-    };
+    (
+        len_body,
+        quote::quote! {
+            crate::protocol::codec::encode_u64(w, #encode_body)?;
 
-    let expanded = quote::quote! {
-        type Decoded<'a> = #ident;
-
-        const LEN: fn(&Self) -> usize = |x| {
-            #len_body as usize
-        };
-
-        const ENCODE: fn(&mut crate::zbuf::ZBufWriter<'_>, &Self) -> crate::result::ZResult<(), crate::protocol::ZCodecError> = |w, x| {
-            let v: u64 = #encode_body;
-            crate::protocol::codec::encode_u64(w, v)
-        };
-        const DECODE: for<'a> fn(&mut crate::zbuf::ZBufReader<'a>, usize) -> crate::result::ZResult<Self::Decoded<'a>, crate::protocol::ZCodecError> = |r, _| {
-            let value = crate::protocol::codec::decode_u64(r)?;
-            Ok(#decode_body)
-        };
-    };
-
-    expanded.into()
+            Ok(())
+        },
+        if named {
+            quote::quote! {
+                let value = crate::protocol::codec::decode_u64(r)?;
+                Ok(Self { #(#decode_body),* })
+            }
+        } else {
+            quote::quote! {
+                let value = crate::protocol::codec::decode_u64(r)?;
+                Ok(Self( #(#decode_body),* ))
+            }
+        },
+    )
 }

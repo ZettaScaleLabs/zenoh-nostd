@@ -2,7 +2,8 @@ use zenoh_proto::ZExt;
 
 use crate::{
     protocol::{
-        core::encoding::{Encoding, encode_encoding},
+        codec::{encoded_len_u32, encoded_len_u64},
+        core::encoding::Encoding,
         ext::{ZExt, ZExtKind},
     },
     zbuf::{ZBuf, ZBufExt, ZBufMutExt},
@@ -124,11 +125,11 @@ fn test_u64() {
 #[allow(dead_code)]
 fn test_zbuf() {
     #[derive(ZExt)]
-    struct ZBuf1<'a>(#[zbuf(deduce)] ZBuf<'a>);
+    struct ZBuf1<'a>(#[zbuf(deduced)] ZBuf<'a>);
 
     #[derive(ZExt)]
     struct ZBuf2<'a> {
-        #[zbuf(deduce)]
+        #[zbuf(plain)]
         field1: ZBuf<'a>,
     }
 
@@ -149,27 +150,66 @@ fn test_zbuf() {
     struct ZBuf4<'a> {
         #[u16]
         field1: u16,
-        #[zbuf(flag(4))]
+        #[zbuf(flag = 4)]
         field2: ZBuf<'a>,
+        #[zbuf(flag = 4)]
+        field3: ZBuf<'a>,
+        #[zbuf(plain)]
+        field4: ZBuf<'a>,
+        #[zbuf(deduced)]
+        field5: ZBuf<'a>,
     }
 
     #[derive(ZExt)]
-    struct ZBuf5<'a>(#[zbuf(plain)] ZBuf<'a>, #[zbuf(deduce)] ZBuf<'a>);
+    struct ZBuf5<'a>(#[zbuf(plain)] ZBuf<'a>, #[zbuf(deduced)] ZBuf<'a>);
 
     assert!(<ZBuf4 as ZExt>::KIND == ZExtKind::ZBuf);
     assert!(<ZBuf5 as ZExt>::KIND == ZExtKind::ZBuf);
-
-    use crate::protocol::core::encoding::encoded_len_encoding;
 
     #[derive(ZExt)]
     struct ZBuf6<'a> {
         #[zbuf(plain)]
         field1: ZBuf<'a>,
-        #[composite(encoding)]
+        #[composite(crate::protocol::core::encoding, encoding)]
         field2: Encoding<'a>,
         #[u8]
         field3: u8,
     }
 
     assert!(<ZBuf6 as ZExt>::KIND == ZExtKind::ZBuf);
+
+    let array1 = [1u8, 2, 3, 4, 5];
+    let array2 = [10u8, 20, 30, 40, 50, 60, 70, 80];
+    let array3 = [100u8, 101, 102];
+    let array4 = [200u8, 201, 202, 203, 204, 205];
+
+    let zbuf1 = array1.as_slice();
+    let zbuf2 = array2.as_slice();
+    let zbuf3 = array3.as_slice();
+    let zbuf4 = array4.as_slice();
+
+    let zb = ZBuf4 {
+        field1: 42,
+        field2: zbuf1,
+        field3: zbuf2,
+        field4: zbuf3,
+        field5: zbuf4,
+    };
+    let len = <ZBuf4 as ZExt>::LEN(&zb);
+
+    let mut data = [0u8; 100];
+    let mut zbuf = data.as_mut_slice();
+    let mut writer = zbuf.writer();
+
+    <ZBuf4 as ZExt>::ENCODE(&mut writer, &zb).unwrap();
+
+    let mut reader = data.as_slice().reader();
+    let decoded = <ZBuf4 as ZExt>::DECODE(&mut reader, len).unwrap();
+
+    assert_eq!(zb.field1, decoded.field1);
+    assert_eq!(zb.field1, decoded.field1);
+    assert_eq!(zb.field2, decoded.field2);
+    assert_eq!(zb.field3, decoded.field3);
+    assert_eq!(zb.field4, decoded.field4);
+    assert_eq!(zb.field5, decoded.field5);
 }

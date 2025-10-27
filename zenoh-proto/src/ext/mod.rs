@@ -1,36 +1,79 @@
 use proc_macro2::TokenStream;
 use quote::ToTokens;
-use syn::DeriveInput;
+use syn::{Data, DeriveInput, TypeGenerics};
+
+use crate::ext::parse::Extension;
+
+mod parse;
 
 mod body;
-mod kind;
 
 pub fn derive_zext(input: DeriveInput) -> TokenStream {
     let ident = &input.ident;
+    let data = &input.data;
     let (_, ty_generics, _) = input.generics.split_for_impl();
+    let (ty_generics_induced, ty_generics_explicit) = compute_generic_zext(ty_generics);
 
-    let (kind, body) = compute_zext(&input);
-    let ty_generics = if ty_generics.to_token_stream().is_empty() {
-        quote::quote! {}
-    } else {
-        quote::quote! { <'_> }
-    };
+    let (kind, len, encode, decode) = compute_zext(data);
 
     let expanded = quote::quote! {
-        impl crate::protocol::ext::ZExt for #ident #ty_generics {
+        impl crate::protocol::ext::ZExt for #ident #ty_generics_induced {
             const KIND: crate::protocol::ext::ZExtKind = #kind;
 
-            #body
-        }
+            type Decoded<'a> = #ident #ty_generics_explicit;
 
+            const LEN: fn(&Self) -> usize = |x| {
+                let _ = &x;
+
+                #len
+            };
+
+            const ENCODE: fn(&mut crate::zbuf::ZBufWriter<'_>, &Self) -> crate::result::ZResult<(), crate::protocol::ZCodecError> = |w, x| {
+                let _ = (&w, &x);
+
+                #encode
+            };
+
+            const DECODE: for<'a> fn(&mut crate::zbuf::ZBufReader<'a>, usize) -> crate::result::ZResult<Self::Decoded<'a>, crate::protocol::ZCodecError> = |r, l| {
+                let _ = (&r, &l);
+
+                use crate::zbuf::BufReaderExt;
+                let _start = r.remaining();
+
+                #decode
+            };
+        }
     };
 
     expanded.into()
 }
 
-pub fn compute_zext(input: &DeriveInput) -> (TokenStream, TokenStream) {
-    let (token, kind) = kind::infer_kind(&input.data);
-    let body = body::infer_body(&kind, input);
+fn compute_generic_zext(ty_generics: TypeGenerics) -> (TokenStream, TokenStream) {
+    let ty_generics_induced = if ty_generics.to_token_stream().is_empty() {
+        quote::quote! {}
+    } else {
+        quote::quote! { <'_> }
+    };
 
-    (token, body)
+    let ty_generics_explicit = if ty_generics.to_token_stream().is_empty() {
+        quote::quote! {}
+    } else {
+        quote::quote! { <'a> }
+    };
+
+    (ty_generics_induced, ty_generics_explicit)
+}
+
+pub fn compute_zext(data: &Data) -> (TokenStream, TokenStream, TokenStream, TokenStream) {
+    let (ext, named) = Extension::from_data(data);
+
+    let kind = match &ext {
+        Extension::Unit => quote::quote! { crate::protocol::ext::ZExtKind::Unit },
+        Extension::U64(_) => quote::quote! { crate::protocol::ext::ZExtKind::U64 },
+        Extension::ZBuf(_) => quote::quote! { crate::protocol::ext::ZExtKind::ZBuf },
+    };
+
+    let (len, encode, decode) = body::compute_body(ext, named);
+
+    (kind, len, encode, decode)
 }

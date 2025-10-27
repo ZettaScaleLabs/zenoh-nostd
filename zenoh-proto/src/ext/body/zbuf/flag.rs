@@ -1,85 +1,85 @@
-use proc_macro2::TokenStream;
-use syn::Data;
+use proc_macro2::{Span, TokenStream};
+use syn::Ident;
 
-pub fn flag_body(data: &Data, flag_needed: bool) -> TokenStream {
-    if !flag_needed {
-        return quote::quote! {};
-    }
+use crate::ext::parse::{FieldKind, ParsedField, SizeFlavor};
 
-    let fields = match data {
-        Data::Struct(s) => &s.fields,
-        _ => unreachable!(),
-    };
-
-    let iter = match fields {
-        syn::Fields::Named(fields_named) => fields_named.named.iter().collect::<Vec<_>>(),
-        syn::Fields::Unnamed(fields_unnamed) => fields_unnamed.unnamed.iter().collect::<Vec<_>>(),
-        syn::Fields::Unit => unreachable!(),
-    };
-
-    let mut flag_parts = Vec::<TokenStream>::new();
+pub fn flag_body(fields: &Vec<ParsedField>, named: bool) -> (TokenStream, TokenStream) {
+    let mut enc_flag_parts = Vec::new();
+    let mut dec_flag_parts = Vec::new();
     let mut shift = 0u8;
 
-    for (i, field) in iter.iter().enumerate() {
-        let attr = &field.attrs[0];
+    for field in fields {
+        let access = &field.access;
+        let kind = &field.kind;
 
-        if attr.path().is_ident("zbuf")
-            || attr.path().is_ident("str")
-            || attr.path().is_ident("zid")
-        {
-            attr.parse_nested_meta(|meta| {
-                if meta.path.is_ident("flag") || meta.path.is_ident("eflag") {
-                    let content;
-                    syn::parenthesized!(content in meta.input);
+        let faccess = if named {
+            quote::quote! { #access }
+        } else {
+            let string = access.to_string();
+            let ident = Ident::new(&format!("_field_{}", string), Span::call_site());
+            quote::quote! { #ident }
+        };
 
-                    let value: syn::LitInt = content.parse()?;
-                    let flag_size = value.base10_parse::<u8>()?;
+        match kind {
+            FieldKind::ZBuf(flavor) | FieldKind::Str(flavor) | FieldKind::Zid(flavor) => {
+                let (flag_size, maybe_empty) = match flavor {
+                    SizeFlavor::NonEmptyFlag(size) => (*size, false),
+                    SizeFlavor::MaybeEmptyFlag(size) => (*size, true),
+                    _ => continue,
+                };
 
-                    let access = match &field.ident {
-                        Some(ident) => quote::quote! { x.#ident },
-                        None => {
-                            let index = syn::Index::from(i);
-                            quote::quote! { x.#index }
-                        }
-                    };
-
-                    let len = match attr.path().get_ident().unwrap().to_string().as_str() {
-                        "zbuf" => {
-                            quote::quote! { crate::protocol::codec::encoded_len_zbuf(&#access) }
-                        }
-                        "str" => {
-                            quote::quote! { crate::protocol::codec::encoded_len_str(&#access) }
-                        }
-                        "zid" => {
-                            quote::quote! { crate::protocol::codec::encoded_len_zid(&#access) }
-                        }
-                        _ => unreachable!(),
-                    };
-
-                    if meta.path.is_ident("flag") {
-                        flag_parts.push(quote::quote! {
-                            flag |= ((#len as u8 - 1) & ((1 << #flag_size) - 1)) << #shift;
-                        });
-                    } else {
-                        flag_parts.push(quote::quote! {
-                            flag |= ((#len as u8) & ((1 << #flag_size) - 1)) << #shift;
-                        });
+                let len = match kind {
+                    FieldKind::ZBuf(_) => {
+                        quote::quote! { crate::protocol::codec::encoded_len_zbuf(&x. #access) }
                     }
+                    FieldKind::Str(_) => {
+                        quote::quote! { crate::protocol::codec::encoded_len_str(&x. #access) }
+                    }
+                    FieldKind::Zid(_) => {
+                        quote::quote! { crate::protocol::codec::encoded_len_zid(&x. #access) }
+                    }
+                    _ => unreachable!(),
+                };
 
-                    shift += flag_size;
+                if maybe_empty {
+                    enc_flag_parts.push(quote::quote! {
+                        flag |= ((#len as u8) & ((1 << #flag_size) - 1)) << #shift;
+                    });
+
+                    dec_flag_parts.push(quote::quote! {
+                        let #faccess =
+                            ((flag >> #shift) & ((1 << #flag_size) - 1)) as usize;
+                    });
+                } else {
+                    enc_flag_parts.push(quote::quote! {
+                        flag |= ((#len as u8 - 1) & ((1 << #flag_size) - 1)) << #shift;
+                    });
+
+                    dec_flag_parts.push(quote::quote! {
+                        let #faccess =
+                            (((flag >> #shift) & ((1 << #flag_size) - 1)) as usize) + 1;
+                    });
                 }
 
-                Ok(())
-            })
-            .unwrap();
+                shift += flag_size;
+            }
+            _ => {}
         }
     }
 
-    let expanded = quote::quote! {
-        let mut flag: u8 = 0;
-        #(#flag_parts)*
-        crate::protocol::codec::encode_u8(w, flag)?;
-    };
+    if enc_flag_parts.is_empty() {
+        return (quote::quote! {}, quote::quote! {});
+    }
 
-    expanded
+    (
+        quote::quote! {
+            let mut flag: u8 = 0;
+            #(#enc_flag_parts)*
+            crate::protocol::codec::encode_u8(w, flag)?;
+        },
+        quote::quote! {
+            let flag = crate::protocol::codec::decode_u8(r)?;
+            #(#dec_flag_parts)*
+        },
+    )
 }

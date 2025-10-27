@@ -1,20 +1,15 @@
 use proc_macro2::TokenStream;
-use syn::DeriveInput;
+
+use crate::ext::parse::Extension;
 
 mod u64;
 mod unit;
 mod zbuf;
 
-use crate::ext::kind::Kind;
-
-pub fn infer_body(kind: &Kind, input: &DeriveInput) -> TokenStream {
-    let ident = &input.ident;
-    let generics = &input.generics;
-    let data = &input.data;
-
-    match kind {
-        Kind::Unit => unit::compute_zext_unit(ident),
-        Kind::U64 => u64::compute_zext_u64(ident, data),
-        Kind::ZBuf => zbuf::compute_zext_zbuf(ident, generics, data),
+pub fn compute_body(ext: Extension, named: bool) -> (TokenStream, TokenStream, TokenStream) {
+    match ext {
+        Extension::Unit => unit::compute_body_unit(),
+        Extension::U64(fields) => u64::compute_body_u64(fields, named),
+        Extension::ZBuf(fields) => zbuf::compute_body_zbuf(fields, named),
     }
 }

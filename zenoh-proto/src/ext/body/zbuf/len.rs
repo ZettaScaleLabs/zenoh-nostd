@@ -1,74 +1,87 @@
 use proc_macro2::TokenStream;
-use syn::{Data, Path};
 
-pub fn len_body(data: &Data, flag_needed: bool) -> TokenStream {
-    let fields = match data {
-        Data::Struct(s) => &s.fields,
-        _ => unreachable!(),
-    };
+use crate::ext::parse::{FieldKind, ParsedField, SizeFlavor};
 
-    let iter = match fields {
-        syn::Fields::Named(fields_named) => fields_named.named.iter().collect::<Vec<_>>(),
-        syn::Fields::Unnamed(fields_unnamed) => fields_unnamed.unnamed.iter().collect::<Vec<_>>(),
-        syn::Fields::Unit => unreachable!(),
-    };
-
+pub fn len_body(fields: &Vec<ParsedField>) -> TokenStream {
+    let mut flag_needed = false;
     let mut len_parts = Vec::new();
 
-    if flag_needed {
-        len_parts.push(quote::quote! { 1 });
-    }
+    for field in fields {
+        let access = &field.access;
+        let kind = &field.kind;
 
-    for (i, field) in iter.iter().enumerate() {
-        let access = match &field.ident {
-            Some(ident) => quote::quote! { x.#ident },
-            None => {
-                let index = syn::Index::from(i);
-                quote::quote! { x.#index }
+        match kind {
+            FieldKind::U8 => {
+                len_parts.push(quote::quote! { 1 });
             }
-        };
+            FieldKind::U16 | FieldKind::U32 | FieldKind::U64 | FieldKind::Usize => {
+                len_parts.push(
+                    quote::quote! { crate::protocol::codec::encoded_len_u64(x. #access as u64) },
+                );
+            }
+            FieldKind::Timestamp => {
+                len_parts.push(
+                    quote::quote! { crate::protocol::codec::encoded_len_timestamp(&x. #access) },
+                );
+            }
+            FieldKind::Array => {
+                len_parts
+                    .push(quote::quote! { crate::protocol::codec::encoded_len_array(&x. #access) });
+            }
+            FieldKind::ZBuf(flavor) | FieldKind::Str(flavor) | FieldKind::Zid(flavor) => {
+                let encoded_len_fn = match kind {
+                    FieldKind::ZBuf(_) => quote::format_ident!("encoded_len_zbuf"),
+                    FieldKind::Str(_) => quote::format_ident!("encoded_len_str"),
+                    FieldKind::Zid(_) => quote::format_ident!("encoded_len_zid"),
+                    _ => unreachable!(),
+                };
 
-        let attr = &field.attrs[0];
+                match flavor {
+                    SizeFlavor::Plain => {
+                        len_parts.push(quote::quote! {
+                            crate::protocol::codec::encoded_len_u64(crate::protocol::codec::#encoded_len_fn(&x. #access) as u64)
+                        });
+                    }
+                    _ => {}
+                }
 
-        if attr.path().is_ident("u8") {
-            len_parts
-                .push(quote::quote! { crate::protocol::codec::encoded_len_u64(#access as u64) });
-        } else if attr.path().is_ident("u16") {
-            len_parts
-                .push(quote::quote! { crate::protocol::codec::encoded_len_u64(#access as u64) });
-        } else if attr.path().is_ident("u32") {
-            len_parts
-                .push(quote::quote! { crate::protocol::codec::encoded_len_u64(#access as u64) });
-        } else if attr.path().is_ident("u64") {
-            len_parts
-                .push(quote::quote! { crate::protocol::codec::encoded_len_u64(#access as u64) });
-        } else if attr.path().is_ident("usize") {
-            len_parts
-                .push(quote::quote! { crate::protocol::codec::encoded_len_u64(#access as u64) });
-        } else if attr.path().is_ident("timestamp") {
-            len_parts
-                .push(quote::quote! { crate::protocol::codec::encoded_len_timestamp(&#access) });
-        } else if attr.path().is_ident("array") {
-            len_parts.push(quote::quote! { crate::protocol::codec::encoded_len_array(&#access) });
-        } else if attr.path().is_ident("zid") {
-            len_parts.push(quote::quote! { crate::protocol::codec::encoded_len_zid(&#access) });
-        } else if attr.path().is_ident("str") {
-            len_parts.push(quote::quote! { crate::protocol::codec::encoded_len_str(&#access) });
-        } else if attr.path().is_ident("zbuf") {
-            len_parts.push(quote::quote! { crate::protocol::codec::encoded_len_zbuf(&#access) });
-        } else if attr.path().is_ident("composite") {
-            let path: Path = attr.parse_args().unwrap();
-            let ident = path.get_ident().unwrap();
+                len_parts
+                    .push(quote::quote! { crate::protocol::codec::#encoded_len_fn(&x. #access) });
+            }
+            FieldKind::Composite(attr) => {
+                let path = &attr.path;
+                let ident = &attr.ident;
 
-            let func_ident = quote::format_ident!("encoded_len_{}", ident);
-            len_parts.push(quote::quote! { #func_ident(&#access) });
+                let func_ident = quote::format_ident!("encoded_len_{}", ident);
+                len_parts.push(quote::quote! { #path :: #func_ident(&x. #access) });
+            }
+        }
+
+        match kind {
+            FieldKind::Zid(flavor) | FieldKind::Str(flavor) | FieldKind::ZBuf(flavor) => {
+                match flavor {
+                    SizeFlavor::MaybeEmptyFlag(_) | SizeFlavor::NonEmptyFlag(_) => {
+                        flag_needed = true;
+                    }
+                    _ => {}
+                }
+            }
+            _ => {}
         }
     }
 
     let len_body = len_parts
         .into_iter()
         .reduce(|acc, expr| quote::quote! { #acc + #expr })
-        .unwrap();
+        .expect("at least one field for zbuf extension");
 
-    len_body
+    if flag_needed {
+        quote::quote! {
+            1 + (#len_body)
+        }
+    } else {
+        quote::quote! {
+            #len_body
+        }
+    }
 }
