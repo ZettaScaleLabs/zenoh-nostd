@@ -1,5 +1,0 @@
-clippy:
-    cargo clippy --examples --fix --lib --allow-dirty --allow-staged
-
-esp32s3 example *args:
-    cargo run --example {{example}} --features='zenoh-nostd/defmt' -- {{args}}
