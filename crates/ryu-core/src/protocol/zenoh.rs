@@ -1,13 +1,22 @@
 use ryu_derive::ZExt;
 
-#[cfg(test)]
-use crate::ByteWriter;
+use crate::{
+    ByteIOResult, ByteReader, ByteReaderExt, ByteWriter, MSG_ID_MASK, ZStruct, zenoh::put::Put,
+};
+
 use crate::core::{ZenohIdProto, encoding::Encoding};
 
 pub mod err;
 pub mod put;
 pub mod query;
 pub mod reply;
+
+crate::__internal_zaggregate! {
+    #[derive(Debug, PartialEq)]
+    pub enum PushBody<'a> {
+        Put<'a>,
+    }
+}
 
 // TODO for v2: **zid** should be put at the end with a **deduced** flavour. This would reduce 1 byte of
 // overhead.
@@ -91,4 +100,22 @@ impl<'a> Value<'a> {
 pub struct Attachment<'a> {
     #[size(deduced)]
     pub buffer: &'a [u8],
+}
+
+impl<'a> Attachment<'a> {
+    #[cfg(test)]
+    pub(crate) fn rand(zbuf: &mut ByteWriter<'a>) -> Self {
+        use crate::ByteWriterExt;
+        use rand::Rng;
+
+        let mut rng = rand::thread_rng();
+        let buffer = zbuf
+            .write_slot(rng.gen_range(0..=64), |b: &mut [u8]| {
+                rng.fill(b);
+                b.len()
+            })
+            .unwrap();
+
+        Self { buffer }
+    }
 }

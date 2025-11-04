@@ -28,7 +28,7 @@ pub fn parse_body(r#struct: &ZStruct) -> TokenStream {
                     let ty = &ext.ty;
                     len_parts.push(quote::quote! {
                         if let Some(ext) = &self.#access {
-                            < #ty as crate::ZExtAttribute<Self>>::z_len(ext)
+                            < #ty as crate::ZExtField<Self>>::z_len(ext)
                         } else {
                             0usize
                         }

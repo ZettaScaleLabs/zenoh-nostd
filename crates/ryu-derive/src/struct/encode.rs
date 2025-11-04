@@ -43,7 +43,7 @@ pub fn parse_body(r#struct: &ZStruct, flag: TokenStream) -> TokenStream {
                     enc.push(quote::quote! {
                         if let Some(ext) = &self.#access {
                             n_exts -= 1;
-                            < #ty as crate::ZExtAttribute<Self>>::z_encode(ext, w, n_exts != 0)?;
+                            < #ty as crate::ZExtField<Self>>::z_encode(ext, w, n_exts != 0)?;
                         }
                     });
                 }

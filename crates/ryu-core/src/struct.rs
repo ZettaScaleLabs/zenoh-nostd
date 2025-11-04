@@ -143,14 +143,14 @@ pub fn decode_ext_header(r: &mut ByteReader) -> ByteIOResult<(u8, ZExtKind, bool
 #[macro_export]
 macro_rules! zextfield {
     (impl<'a> $ext:ty, $t:ty, $id:expr, $m:expr) => {
-        impl<'a> zenoh_codec::ZExtField<$t> for $ext {
+        impl<'a> crate::ZExtField<$t> for $ext {
             const ID: u8 = $id;
             const MANDATORY: bool = $m;
         }
     };
 
     ($ext:ty, $t:ty, $id:expr, $m:expr) => {
-        impl zenoh_codec::ZExtField<$t> for $ext {
+        impl crate::ZExtField<$t> for $ext {
             const ID: u8 = $id;
             const MANDATORY: bool = $m;
         }

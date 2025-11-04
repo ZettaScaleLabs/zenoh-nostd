@@ -12,4 +12,7 @@ pub use r#struct::*;
 mod protocol;
 pub use protocol::*;
 
+#[cfg(test)]
+mod tests;
+
 pub use ryu_derive::*;

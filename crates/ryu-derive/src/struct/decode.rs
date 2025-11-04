@@ -65,8 +65,8 @@ pub fn parse_body(r#struct: &ZStruct, flag: TokenStream) -> TokenStream {
                     });
 
                     body.push(quote::quote! {
-                        < #ty as crate::ZExtAttribute<Self>>::ID => {
-                            #access = Some(< #ty as crate::ZExtAttribute<Self>>::z_decode(r)?);
+                        < #ty as crate::ZExtField<Self>>::ID => {
+                            #access = Some(< #ty as crate::ZExtField<Self>>::z_decode(r)?);
                         }
                     });
                 }
@@ -80,10 +80,10 @@ pub fn parse_body(r#struct: &ZStruct, flag: TokenStream) -> TokenStream {
                             #(#body),*,
                             _ => {
                                 if mandatory {
-                                    return Err(crate::ZCodecError::MissingMandatoryExtension);
+                                    return Err(crate::io::ByteIOError::CouldNotParse);
                                 }
 
-                                crate::ext::skip_ext(r, kind)?;
+                                crate::skip_ext(r, kind)?;
                             }
                         }
                     }

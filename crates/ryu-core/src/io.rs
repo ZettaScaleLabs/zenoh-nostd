@@ -47,6 +47,9 @@ pub trait ByteWriterExt<'a> {
         len: usize,
         writer: impl FnOnce(&'_ mut [u8]) -> usize,
     ) -> ByteIOResult<&'a [u8]>;
+
+    #[cfg(test)]
+    fn write_str(&mut self, str: &str) -> ByteIOResult<&'a str>;
 }
 
 impl<'a> ByteReaderExt<'a> for ByteReader<'a> {
@@ -177,5 +180,17 @@ impl<'a> ByteWriterExt<'a> for ByteWriter<'a> {
         *self = remain;
 
         Ok(slot)
+    }
+
+    #[cfg(test)]
+    fn write_str(&mut self, str: &str) -> ByteIOResult<&'a str> {
+        let bytes = str.as_bytes();
+
+        let slot = self.write_slot(bytes.len(), |buf| {
+            buf[..bytes.len()].copy_from_slice(bytes);
+            bytes.len()
+        })?;
+
+        core::str::from_utf8(slot).map_err(|_| ByteIOError::CouldNotWrite)
     }
 }
