@@ -1,22 +1,26 @@
-use ryu_derive::ZExt;
+#[cfg(test)]
+use crate::ZWriter;
+#[cfg(test)]
+use rand::{Rng, thread_rng};
 
-use crate::ProtocolError;
+use crate::{ZCodecError, ZCodecResult, ZExt, zbail};
+
+pub mod declare;
+pub mod interest;
+pub mod push;
+pub mod request;
+pub mod response;
 
 #[derive(ZExt, Debug, PartialEq)]
 pub struct QoS {
-    inner: u64,
+    inner: u8,
 }
 
 impl QoS {
     #[cfg(test)]
-    pub(crate) fn rand() -> Self {
-        use rand::Rng;
-        let mut rng = rand::thread_rng();
-
-        let inner: u8 = rng.r#gen();
-        Self {
-            inner: inner as u64,
-        }
+    pub(crate) fn rand(_: &mut ZWriter) -> Self {
+        let inner: u8 = thread_rng().r#gen();
+        Self { inner }
     }
 }
 
@@ -27,10 +31,8 @@ pub struct NodeId {
 
 impl NodeId {
     #[cfg(test)]
-    pub(crate) fn rand() -> Self {
-        use rand::Rng;
-        let mut rng = rand::thread_rng();
-        let node_id: u16 = rng.r#gen();
+    pub(crate) fn rand(_: &mut ZWriter) -> Self {
+        let node_id: u16 = thread_rng().r#gen();
         Self { node_id }
     }
 }
@@ -54,9 +56,9 @@ impl Priority {
 }
 
 impl TryFrom<u8> for Priority {
-    type Error = ProtocolError;
+    type Error = ZCodecError;
 
-    fn try_from(v: u8) -> crate::result::Result<Self, ProtocolError> {
+    fn try_from(v: u8) -> ZCodecResult<Self> {
         match v {
             0 => Ok(Priority::Control),
             1 => Ok(Priority::RealTime),
@@ -66,7 +68,7 @@ impl TryFrom<u8> for Priority {
             5 => Ok(Priority::Data),
             6 => Ok(Priority::DataLow),
             7 => Ok(Priority::Background),
-            _ => crate::bail!(ProtocolError::CouldNotParse),
+            _ => zbail!(ZCodecError::CouldNotParse),
         }
     }
 }
@@ -120,7 +122,6 @@ impl TryFrom<u8> for Priority {
 pub enum CongestionControl {
     #[default]
     Drop = 0,
-
     Block = 1,
 }
 

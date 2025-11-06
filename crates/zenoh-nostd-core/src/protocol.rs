@@ -1,7 +1,7 @@
 pub mod core;
 pub use core::*;
 
-// pub mod network;
+pub mod network;
 // pub mod transport;
 pub mod zenoh;
 
