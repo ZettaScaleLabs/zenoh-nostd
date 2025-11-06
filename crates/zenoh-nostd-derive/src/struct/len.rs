@@ -30,12 +30,14 @@ pub fn parse(r#struct: &ZenohStruct) -> syn::Result<TokenStream> {
                     | ZenohType::U32
                     | ZenohType::U64
                     | ZenohType::USize
-                    | ZenohType::ByteArray => {
-                        len_parts.push(quote::quote! {
-                            < _ as crate::ZStructEncode>::z_len(&self. #access)
-                        });
-                    }
-                    ZenohType::ByteSlice | ZenohType::Str | ZenohType::ZStruct => {
+                    | ZenohType::ByteArray
+                    | ZenohType::ByteSlice
+                    | ZenohType::Str
+                    | ZenohType::ZStruct => {
+                        if matches!(attr.presence, PresenceAttribute::Prefixed) {
+                            len_parts.push(quote::quote! { 1usize });
+                        }
+
                         if matches!(attr.size, SizeAttribute::Prefixed) {
                             len_parts.push(quote::quote! {
                                 <usize as crate::ZStructEncode>::z_len(&< _ as crate::ZStructEncode>::z_len(&self. #access))

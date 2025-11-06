@@ -170,14 +170,14 @@ impl PresenceAttribute {
 pub enum HeaderAttribute {
     #[default]
     None,
-    Mask(TokenStream),
+    Slot(TokenStream),
 }
 
 impl HeaderAttribute {
     fn from_meta(meta: &ParseNestedMeta) -> syn::Result<Self> {
         if meta.path.is_ident("header") {
             let ident: Ident = meta.value()?.parse()?;
-            return Ok(HeaderAttribute::Mask(ident_to_header_path(&ident)));
+            return Ok(HeaderAttribute::Slot(ident_to_header_path(&ident)));
         }
 
         Ok(HeaderAttribute::None)

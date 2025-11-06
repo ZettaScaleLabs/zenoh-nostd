@@ -1,6 +1,6 @@
 use core::fmt::Debug;
 
-use crate::{ZReaderExt, ZStruct, ZStructDecode, ZStructEncode};
+use crate::{ZReaderExt, ZStruct, ZStructDecode, ZStructEncode, tests::r#struct::nested::Inner};
 
 #[derive(ZStruct, PartialEq, Debug)]
 struct ZBasic {
@@ -287,4 +287,26 @@ fn test_zheader() {
     };
 
     roundtrip!(ZHeader, header);
+}
+
+#[test]
+fn test_default_presence() {
+    const DEFAULT_INNER: nested::Inner = nested::Inner { a: 1, b: 2 };
+
+    #[derive(ZStruct, PartialEq, Debug)]
+    #[zenoh(header = "D|_:7")]
+    struct ZDefaultPresence {
+        #[zenoh(presence = prefixed, default = 42)]
+        pub maybe_u16: u16,
+
+        #[zenoh(presence = header(D), default = DEFAULT_INNER)]
+        pub maybe_u32: nested::Inner,
+    }
+
+    let s = ZDefaultPresence {
+        maybe_u16: 100,
+        maybe_u32: nested::Inner { a: 10, b: 20 },
+    };
+
+    roundtrip!(ZDefaultPresence, s);
 }

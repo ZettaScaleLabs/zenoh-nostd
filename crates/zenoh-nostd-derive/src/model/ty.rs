@@ -36,10 +36,16 @@ impl ZenohType {
 
         match self {
             ZenohType::U8 => {
-                if s || me || m || p || e || d {
+                if s || me || m || e {
                     return Err(syn::Error::new(
                         attr.span,
-                        "u8 type does not support size, maybe_empty, mandatory, presence, ext, or default attributes",
+                        "u8 type does not support size, maybe_empty, mandatory, presence or ext attributes",
+                    ));
+                }
+                if d && !p || p && !d {
+                    return Err(syn::Error::new(
+                        attr.span,
+                        "types with default attribute requires a presence attribute",
                     ));
                 }
                 Ok(())
@@ -49,19 +55,31 @@ impl ZenohType {
             | ZenohType::U64
             | ZenohType::USize
             | ZenohType::ByteArray => {
-                if s || me || m || p || h || e || d {
+                if s || me || m || h || e {
                     return Err(syn::Error::new(
                         attr.span,
-                        "u16, u32, u64, usize and [u8; N] types do not support size, maybe_empty, mandatory, presence, header, ext, or default attributes",
+                        "u16, u32, u64, usize and [u8; N] types do not support size, maybe_empty, mandatory, header, or ext attributes",
+                    ));
+                }
+                if d && !p || p && !d {
+                    return Err(syn::Error::new(
+                        attr.span,
+                        "types with default attribute requires a presence attribute",
                     ));
                 }
                 Ok(())
             }
             ZenohType::ByteSlice | ZenohType::Str => {
-                if m || p || h || e || d {
+                if m || h || e {
                     return Err(syn::Error::new(
                         attr.span,
-                        "string and byte slice types do not support mandatory, presence, header, ext, or default attributes",
+                        "string and byte slice types do not support mandatory, header, ext, or default attributes",
+                    ));
+                }
+                if d && !p || p && !d {
+                    return Err(syn::Error::new(
+                        attr.span,
+                        "types with default attribute requires a presence attribute",
                     ));
                 }
                 if !s {
@@ -73,13 +91,13 @@ impl ZenohType {
                 Ok(())
             }
             ZenohType::ZStruct => {
-                if p {
+                if p && !d || (d && !p && !e) {
                     return Err(syn::Error::new(
                         attr.span,
-                        "ZStruct type does not support presence attribute",
+                        "ZStruct types with default attribute requires a presence attribute",
                     ));
                 }
-                if d && !e {
+                if d && !e && !p {
                     return Err(syn::Error::new(
                         attr.span,
                         "structs with default attribute requires an ext attribute",
@@ -151,10 +169,11 @@ impl ZenohType {
                     if let syn::PathArguments::AngleBracketed(args) =
                         &type_path.path.segments[0].arguments
                         && args.args.len() == 1
-                            && let syn::GenericArgument::Type(inner_ty) = &args.args[0] {
-                                let zenoh_type = ZenohType::from_type(inner_ty)?;
-                                return Ok(ZenohType::Option(Box::new(zenoh_type)));
-                            }
+                        && let syn::GenericArgument::Type(inner_ty) = &args.args[0]
+                    {
+                        let zenoh_type = ZenohType::from_type(inner_ty)?;
+                        return Ok(ZenohType::Option(Box::new(zenoh_type)));
+                    }
                     return Err(syn::Error::new_spanned(
                         ty,
                         "Option must have exactly one type argument",
