@@ -44,119 +44,87 @@ pub fn parse(r#struct: &ZenohStruct) -> syn::Result<TokenStream> {
                     | ZenohType::ByteArray
                     | ZenohType::ByteSlice
                     | ZenohType::Str
-                    | ZenohType::ZStruct => match &attr.presence {
-                        PresenceAttribute::Prefixed => {
-                            let default = match &attr.default {
-                                DefaultAttribute::Expr(expr) => expr,
-                                _ => unreachable!(
-                                    "Fields with presence prefixed must have a default attribute, this should have been caught earlier"
-                                ),
-                            };
+                    | ZenohType::ZStruct => {
+                        let default = match &attr.default {
+                            DefaultAttribute::Expr(expr) => quote::quote! { #expr },
+                            _ => quote::quote! {},
+                        };
 
-                            body.push(quote::quote! {
-                                <u8 as crate::ZStructEncode>::z_encode(&((&self. #access  != &#default) as u8), w)?;
-                            });
-
-                            match &attr.size {
-                                SizeAttribute::Prefixed => {
-                                    body.push(quote::quote! {
-                                        if &self. #access  != &#default {
-                                            <usize as crate::ZStructEncode>::z_encode(&< _ as crate::ZStructEncode>::z_len(&self. #access), w)?;
-                                        }
-                                    });
-                                }
-                                SizeAttribute::Header(mask) => {
-                                    let e: u8 = (!attr.maybe_empty) as u8;
-                                    header.push(quote::quote! {
-                                        if &self. #access  != &#default {
-                                            header |= {
-                                                let shift = #mask .trailing_zeros();
-                                                let len = < _ as crate::ZStructEncode>::z_len(&self. #access) as u8;
-
-                                                ((len - #e) << shift) & #mask
-                                            };
-                                        }
-                                    });
-                                }
-                                _ => {}
-                            }
-
-                            body.push(quote::quote! {
-                                if &self. #access  != &#default {
-                                    < _ as crate::ZStructEncode>::z_encode(&self. #access, w)?;
-                                }
-                            });
-                        }
-                        PresenceAttribute::Header(mask) => {
-                            let default = match &attr.default {
-                                DefaultAttribute::Expr(expr) => expr,
-                                _ => unreachable!(
-                                    "Fields with presence in header must have a default attribute, this should have been caught earlier"
-                                ),
-                            };
-
-                            header.push(quote::quote! {
-                                if &self. #access  != &#default {
-                                    header |= #mask;
-                                }
-                            });
-
-                            match &attr.size {
-                                SizeAttribute::Prefixed => {
-                                    body.push(quote::quote! {
-                                        if &self. #access  != &#default {
-                                            <usize as crate::ZStructEncode>::z_encode(&< _ as crate::ZStructEncode>::z_len(&self. #access), w)?;
-                                        }
-                                    });
-                                }
-                                SizeAttribute::Header(mask) => {
-                                    let e: u8 = (!attr.maybe_empty) as u8;
-                                    header.push(quote::quote! {
-                                        if &self. #access  != &#default {
-                                            header |= {
-                                                let shift = #mask .trailing_zeros();
-                                                let len = < _ as crate::ZStructEncode>::z_len(&self. #access) as u8;
-
-                                                ((len - #e) << shift) & #mask
-                                            };
-                                        }
-                                    });
-                                }
-                                _ => {}
-                            }
-
-                            body.push(quote::quote! {
-                                if &self. #access  != &#default {
-                                    < _ as crate::ZStructEncode>::z_encode(&self. #access, w)?;
-                                }
-                            });
-                        }
-                        PresenceAttribute::None => {
-                            match &attr.size {
-                                SizeAttribute::Prefixed => {
-                                    body.push(quote::quote! {
-                                            <usize as crate::ZStructEncode>::z_encode(&< _ as crate::ZStructEncode>::z_len(&self. #access), w)?;
+                        let access_and_encode = match &attr.presence {
+                            PresenceAttribute::Prefixed | PresenceAttribute::Header(_) => {
+                                match &attr.presence {
+                                    PresenceAttribute::Prefixed => {
+                                        body.push(quote::quote! {
+                                            <u8 as crate::ZStructEncode>::z_encode(&((&self. #access  != &#default) as u8), w)?;
                                         });
-                                }
-                                SizeAttribute::Header(mask) => {
-                                    let e: u8 = (!attr.maybe_empty) as u8;
-                                    header.push(quote::quote! {
-                                            header |= {
-                                                let shift = #mask .trailing_zeros();
-                                                let len = < _ as crate::ZStructEncode>::z_len(&self. #access) as u8;
-
-                                                ((len - #e) << shift) & #mask
-                                            };
+                                    }
+                                    PresenceAttribute::Header(mask) => {
+                                        header.push(quote::quote! {
+                                            if &self. #access  != &#default {
+                                                header |= #mask;
+                                            }
                                         });
-                                }
-                                _ => {}
-                            }
+                                    }
+                                    _ => unreachable!(),
+                                };
 
-                            body.push(quote::quote! {
+                                |tk: &TokenStream, access: &TokenStream, default: &TokenStream| {
+                                    quote::quote! {
+                                        if &self. #access  != &#default {
+                                            #tk
+                                        }
+                                    }
+                                }
+                            }
+                            PresenceAttribute::None => {
+                                |tk: &TokenStream, _: &TokenStream, _: &TokenStream| {
+                                    quote::quote! { #tk }
+                                }
+                            }
+                        };
+
+                        match &attr.size {
+                            SizeAttribute::Prefixed => {
+                                let encode = access_and_encode(
+                                    &quote::quote! {
+                                        <usize as crate::ZStructEncode>::z_encode(&< _ as crate::ZStructEncode>::z_len(&self. #access), w)?;
+                                    },
+                                    access,
+                                    &default,
+                                );
+
+                                body.push(encode);
+                            }
+                            SizeAttribute::Header(mask) => {
+                                let e: u8 = (!attr.maybe_empty) as u8;
+                                let encode = access_and_encode(
+                                    &quote::quote! {
+                                        header |= {
+                                            let shift = #mask .trailing_zeros();
+                                            let len = < _ as crate::ZStructEncode>::z_len(&self. #access) as u8;
+
+                                            ((len - #e) << shift) & #mask
+                                        };
+                                    },
+                                    access,
+                                    &default,
+                                );
+
+                                header.push(encode);
+                            }
+                            _ => {}
+                        }
+
+                        let encode = access_and_encode(
+                            &quote::quote! {
                                 < _ as crate::ZStructEncode>::z_encode(&self. #access, w)?;
-                            });
-                        }
-                    },
+                            },
+                            access,
+                            &default,
+                        );
+
+                        body.push(encode);
+                    }
                     ZenohType::Option(_) => {
                         match &attr.presence {
                             PresenceAttribute::Prefixed => {

@@ -1,4 +1,4 @@
-use crate::network::{declare::*, interest::*, push::*, request::*, response::*, *};
+use crate::network::*;
 
 const NUM_ITER: usize = 100;
 const MAX_PAYLOAD_SIZE: usize = 512;

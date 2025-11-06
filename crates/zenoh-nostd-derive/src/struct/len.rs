@@ -38,15 +38,38 @@ pub fn parse(r#struct: &ZenohStruct) -> syn::Result<TokenStream> {
                             len_parts.push(quote::quote! { 1usize });
                         }
 
-                        if matches!(attr.size, SizeAttribute::Prefixed) {
-                            len_parts.push(quote::quote! {
-                                <usize as crate::ZStructEncode>::z_len(&< _ as crate::ZStructEncode>::z_len(&self. #access))
-                            });
-                        }
+                        match &attr.default {
+                            DefaultAttribute::Expr(expr) => {
+                                if matches!(attr.size, SizeAttribute::Prefixed) {
+                                    len_parts.push(quote::quote! {
+                                        if &self. #access  != &#expr {
+                                            <usize as crate::ZStructEncode>::z_len(&< _ as crate::ZStructEncode>::z_len(&self. #access))
+                                        } else {
+                                            0usize
+                                        }
+                                    });
+                                }
 
-                        len_parts.push(quote::quote! {
-                            < _ as crate::ZStructEncode>::z_len(&self. #access)
-                        });
+                                len_parts.push(quote::quote! {
+                                    if &self. #access  != &#expr {
+                                        < _ as crate::ZStructEncode>::z_len(&self. #access)
+                                    } else {
+                                        0usize
+                                    }
+                                });
+                            }
+                            DefaultAttribute::None => {
+                                if matches!(attr.size, SizeAttribute::Prefixed) {
+                                    len_parts.push(quote::quote! {
+                                        <usize as crate::ZStructEncode>::z_len(&< _ as crate::ZStructEncode>::z_len(&self. #access))
+                                    });
+                                }
+
+                                len_parts.push(quote::quote! {
+                                    < _ as crate::ZStructEncode>::z_len(&self. #access)
+                                });
+                            }
+                        }
                     }
                     ZenohType::Option(_) => {
                         if matches!(attr.presence, PresenceAttribute::Prefixed) {

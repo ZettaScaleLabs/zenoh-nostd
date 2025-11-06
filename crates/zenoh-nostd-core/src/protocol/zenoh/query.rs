@@ -58,10 +58,10 @@ impl<'a> ZStructDecode<'a> for ConsolidationMode {
 #[zenoh(header = "Z|P|C|ID:5=0x3")]
 pub struct Query<'a> {
     // --- Optional attributes ---
-    #[zenoh(presence = header(C))]
-    pub consolidation: Option<ConsolidationMode>,
-    #[zenoh(presence = header(P), size = prefixed)]
-    pub parameters: Option<&'a str>,
+    #[zenoh(presence = header(C), default = ConsolidationMode::default())]
+    pub consolidation: ConsolidationMode,
+    #[zenoh(presence = header(P), size = prefixed, default = "")]
+    pub parameters: &'a str,
 
     // --- Extension Block ---
     #[zenoh(ext = 0x1)]
@@ -78,15 +78,18 @@ impl<'a> Query<'a> {
         const MIN: usize = 1;
         const MAX: usize = 16;
 
-        let consolidation = thread_rng()
-            .gen_bool(0.5)
-            .then_some(ConsolidationMode::rand());
+        let consolidation = if thread_rng().gen_bool(0.5) {
+            ConsolidationMode::rand()
+        } else {
+            ConsolidationMode::default()
+        };
+
         let parameters = if thread_rng().gen_bool(0.5) {
             let len = thread_rng().gen_range(MIN..MAX);
             let proto = Alphanumeric.sample_string(&mut thread_rng(), len);
-            Some(w.write_str(proto.as_str()).unwrap())
+            w.write_str(proto.as_str()).unwrap()
         } else {
-            None
+            ""
         };
         let sinfo = thread_rng().gen_bool(0.5).then_some(SourceInfo::rand(w));
         let body = thread_rng().gen_bool(0.5).then_some(Value::rand(w));

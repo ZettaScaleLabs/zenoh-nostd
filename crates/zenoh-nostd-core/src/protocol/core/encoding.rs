@@ -16,6 +16,11 @@ pub struct Encoding<'a> {
 }
 
 impl<'a> Encoding<'a> {
+    pub const EMPTY: Self = Encoding {
+        id: 0,
+        schema: None,
+    };
+
     const FLAG_S: u8 = 0b0000_0001;
 
     pub const fn empty() -> Self {

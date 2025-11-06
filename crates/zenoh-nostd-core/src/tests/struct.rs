@@ -135,6 +135,18 @@ struct ZHeader<'a> {
     pub field2: Option<ZComplex<'a>>,
 }
 
+const DEFAULT_INNER: nested::Inner = nested::Inner { a: 1, b: 2 };
+
+#[derive(ZStruct, PartialEq, Debug)]
+#[zenoh(header = "D|_:7")]
+struct ZDefaultPresence {
+    #[zenoh(presence = prefixed, default = 42)]
+    pub maybe_u16: u16,
+
+    #[zenoh(presence = header(D), default = DEFAULT_INNER)]
+    pub maybe_u32: nested::Inner,
+}
+
 macro_rules! roundtrip {
     ($ty:ty, $value:expr) => {{
         let mut data = [0u8; 256];
@@ -291,21 +303,30 @@ fn test_zheader() {
 
 #[test]
 fn test_default_presence() {
-    const DEFAULT_INNER: nested::Inner = nested::Inner { a: 1, b: 2 };
+    let s = ZDefaultPresence {
+        maybe_u16: 42,
+        maybe_u32: DEFAULT_INNER,
+    };
 
-    #[derive(ZStruct, PartialEq, Debug)]
-    #[zenoh(header = "D|_:7")]
-    struct ZDefaultPresence {
-        #[zenoh(presence = prefixed, default = 42)]
-        pub maybe_u16: u16,
-
-        #[zenoh(presence = header(D), default = DEFAULT_INNER)]
-        pub maybe_u32: nested::Inner,
-    }
+    roundtrip!(ZDefaultPresence, s);
 
     let s = ZDefaultPresence {
         maybe_u16: 100,
-        maybe_u32: nested::Inner { a: 10, b: 20 },
+        maybe_u32: DEFAULT_INNER,
+    };
+
+    roundtrip!(ZDefaultPresence, s);
+
+    let s = ZDefaultPresence {
+        maybe_u16: 42,
+        maybe_u32: Inner { a: 10, b: 20 },
+    };
+
+    roundtrip!(ZDefaultPresence, s);
+
+    let s = ZDefaultPresence {
+        maybe_u16: 100,
+        maybe_u32: Inner { a: 10, b: 20 },
     };
 
     roundtrip!(ZDefaultPresence, s);

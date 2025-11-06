@@ -9,8 +9,8 @@ use crate::{ZStruct, encoding::Encoding, zenoh::SourceInfo};
 #[zenoh(header = "Z|E|_|ID:5=0x5")]
 pub struct Err<'a> {
     // --- Optional attributes ---
-    #[zenoh(presence = header(E))]
-    pub encoding: Option<Encoding<'a>>,
+    #[zenoh(presence = header(E), default = Encoding::EMPTY)]
+    pub encoding: Encoding<'a>,
 
     // --- Extension block ---
     #[zenoh(ext = 0x1)]
@@ -24,7 +24,12 @@ pub struct Err<'a> {
 impl<'a> Err<'a> {
     #[cfg(test)]
     pub(crate) fn rand(w: &mut ZWriter<'a>) -> Self {
-        let encoding = thread_rng().gen_bool(0.5).then_some(Encoding::rand(w));
+        let encoding = if thread_rng().gen_bool(0.5) {
+            Encoding::rand(w)
+        } else {
+            Encoding::EMPTY
+        };
+
         let sinfo = thread_rng().gen_bool(0.5).then_some(SourceInfo::rand(w));
         let payload = w
             .write_slot(thread_rng().gen_range(0..=64), |b: &mut [u8]| {

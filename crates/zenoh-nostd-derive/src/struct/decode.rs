@@ -49,7 +49,7 @@ pub fn parse(r#struct: &ZenohStruct) -> syn::Result<TokenStream> {
                     | ZenohType::ByteSlice
                     | ZenohType::Str
                     | ZenohType::ZStruct => match &attr.presence {
-                        PresenceAttribute::Prefixed => {
+                        PresenceAttribute::Prefixed | PresenceAttribute::Header(_) => {
                             let default = match &attr.default {
                                 DefaultAttribute::Expr(expr) => expr,
                                 _ => unreachable!(
@@ -57,9 +57,19 @@ pub fn parse(r#struct: &ZenohStruct) -> syn::Result<TokenStream> {
                                 ),
                             };
 
-                            body.push(quote::quote! {
-                                let #access: bool = <u8 as crate::ZStructDecode>::z_decode(r)? != 0;
-                            });
+                            match &attr.presence {
+                                PresenceAttribute::Prefixed => {
+                                    body.push(quote::quote! {
+                                        let #access: bool = <u8 as crate::ZStructDecode>::z_decode(r)? != 0;
+                                    });
+                                }
+                                PresenceAttribute::Header(mask) => {
+                                    body.push(quote::quote! {
+                                        let #access: bool = (header & #mask) != 0;
+                                    });
+                                }
+                                _ => unreachable!(),
+                            };
 
                             match &attr.size {
                                 SizeAttribute::Prefixed => {
@@ -95,65 +105,19 @@ pub fn parse(r#struct: &ZenohStruct) -> syn::Result<TokenStream> {
                                 }
                             }
                         }
-                        PresenceAttribute::Header(mask) => {
-                            let default = match &attr.default {
-                                DefaultAttribute::Expr(expr) => expr,
-                                _ => unreachable!(
-                                    "Fields with presence attribute must have a default attribute, this should have been caught earlier"
-                                ),
-                            };
-
-                            body.push(quote::quote! {
-                                let #access: bool = (header & #mask) != 0;
-                            });
-
-                            match &attr.size {
-                                SizeAttribute::Prefixed => {
-                                    body.push(quote::quote! {
-                                        let #access = if #access {
-                                            let #access = < usize as crate::ZStructDecode>::z_decode(r)?;
-                                            < _ as crate::ZStructDecode>::z_decode(&mut < crate::ZReader as crate::ZReaderExt>::sub(r, #access)?)?
-                                        } else {
-                                            #default
-                                        };
-                                    });
-                                }
-                                SizeAttribute::Header(size_mask) => {
-                                    let e: u8 = !(attr.maybe_empty) as u8;
-
-                                    body.push(quote::quote! {
-                                        let #access = if #access {
-                                            let #access = (((header & #size_mask) >> #size_mask.trailing_zeros()) + #e) as usize;
-                                            < _ as crate::ZStructDecode>::z_decode(&mut < crate::ZReader as crate::ZReaderExt>::sub(r, #access)?)?
-                                        } else {
-                                            #default
-                                        };
-                                    });
-                                }
-                                _ => {
-                                    body.push(quote::quote! {
-                                        let #access = if #access {
-                                            < _ as crate::ZStructDecode>::z_decode(r)?
-                                        } else {
-                                            #default
-                                        };
-                                    });
-                                }
-                            }
-                        }
                         PresenceAttribute::None => match &attr.size {
                             SizeAttribute::Prefixed => {
                                 body.push(quote::quote! {
-                                                let #access = < usize as crate::ZStructDecode>::z_decode(r)?;
-                                                let #access = < _ as crate::ZStructDecode>::z_decode(&mut < crate::ZReader as crate::ZReaderExt>::sub(r, #access)?)?;
-                                            });
+                                        let #access = < usize as crate::ZStructDecode>::z_decode(r)?;
+                                        let #access = < _ as crate::ZStructDecode>::z_decode(&mut < crate::ZReader as crate::ZReaderExt>::sub(r, #access)?)?;
+                                    });
                             }
                             SizeAttribute::Header(mask) => {
                                 let e: u8 = !(attr.maybe_empty) as u8;
                                 body.push(quote::quote! {
-                                                let #access = (((header & #mask) >> #mask.trailing_zeros()) + #e) as usize;
-                                                let #access = < _ as crate::ZStructDecode>::z_decode(&mut < crate::ZReader as crate::ZReaderExt>::sub(r, #access)?)?;
-                                            });
+                                        let #access = (((header & #mask) >> #mask.trailing_zeros()) + #e) as usize;
+                                        let #access = < _ as crate::ZStructDecode>::z_decode(&mut < crate::ZReader as crate::ZReaderExt>::sub(r, #access)?)?;
+                                    });
                             }
                             _ => {
                                 body.push(quote::quote! {

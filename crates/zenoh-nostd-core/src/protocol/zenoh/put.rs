@@ -17,8 +17,8 @@ pub struct Put<'a> {
     // --- Optional attributes ---
     #[zenoh(presence = header(T))]
     pub timestamp: Option<Timestamp>,
-    #[zenoh(presence = header(E))]
-    pub encoding: Option<Encoding<'a>>,
+    #[zenoh(presence = header(E), default = Encoding::EMPTY)]
+    pub encoding: Encoding<'a>,
 
     // --- Extension block ---
     #[zenoh(ext = 0x1)]
@@ -41,7 +41,13 @@ impl<'a> Put<'a> {
             let id = uhlc::ID::try_from(ZenohIdProto::default().as_le_bytes()).unwrap();
             Timestamp::new(time, id)
         });
-        let encoding = thread_rng().gen_bool(0.5).then_some(Encoding::rand(w));
+
+        let encoding = if thread_rng().gen_bool(0.5) {
+            Encoding::rand(w)
+        } else {
+            Encoding::EMPTY
+        };
+
         let sinfo = thread_rng().gen_bool(0.5).then_some(SourceInfo::rand(w));
         let attachment = thread_rng().gen_bool(0.5).then_some(Attachment::rand(w));
         let payload = w
