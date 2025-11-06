@@ -1,0 +1,19 @@
+[package]
+name = "zenoh-nostd-core"
+authors.workspace = true
+categories.workspace = true
+description.workspace = true
+edition.workspace = true
+homepage.workspace = true
+license.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+version.workspace = true
+
+[dependencies]
+zenoh-nostd-derive.workspace = true
+uhlc.workspace = true
+
+[dev-dependencies]
+rand.workspace = true
+paste.workspace = true

@@ -1,5 +1,5 @@
 [workspace]
-members = ["crates/ryu-core","crates/ryu-derive"]
+members = ["crates/zenoh-nostd-core","crates/zenoh-nostd-derive"]
 
 [workspace.package]
 authors = []
@@ -13,7 +13,7 @@ rust-version = "1.90.0"
 version = "0.1.0"
 
 [package]
-name = "ryu-z"
+name = "zenoh-nostd"
 authors.workspace = true
 categories.workspace = true
 description.workspace = true
@@ -25,13 +25,14 @@ rust-version.workspace = true
 version.workspace = true
 
 [workspace.dependencies]
-ryu-core = { version = "0.1.0", path = "crates/ryu-core" }
-ryu-derive = { version = "0.1.0", path = "crates/ryu-derive" }
+zenoh-nostd-core = { version = "0.1.0", path = "crates/zenoh-nostd-core" }
+zenoh-nostd-derive = { version = "0.1.0", path = "crates/zenoh-nostd-derive" }
 
 proc-macro2 = "1.0.103"
 quote = "1.0.41"
 syn = { version = "2.0.108", features = ["full"] }
 
 rand = "0.8.5"
+paste = "1.0.15"
 
 uhlc = { version = "0.8.1", git = "https://github.com/Hennzau/uhlc-rs", branch = "no-alloc", default-features = false }
