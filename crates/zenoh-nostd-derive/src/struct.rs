@@ -9,6 +9,8 @@ pub mod decode;
 pub mod encode;
 pub mod len;
 
+pub mod general_parse;
+
 pub fn derive_zstruct(input: DeriveInput) -> syn::Result<TokenStream> {
     let r#struct = ZenohStruct::from_derive_input(&input)?;
     let ident = &r#struct.ident;
@@ -18,8 +20,9 @@ pub fn derive_zstruct(input: DeriveInput) -> syn::Result<TokenStream> {
 
     let header = header::parse(&r#struct)?;
 
-    let len = len::parse(&r#struct)?;
-    let encode = encode::parse(&r#struct)?;
+    let (len, encode) = general_parse::parse(&r#struct)?;
+    // let len = len::parse(&r#struct)?;
+    // let encode = encode::parse(&r#struct)?;
     let decode = decode::parse(&r#struct)?;
 
     Ok(quote::quote! {

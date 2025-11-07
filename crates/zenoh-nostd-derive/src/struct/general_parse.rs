@@ -14,7 +14,7 @@ fn access_modifier(
     tk: &TokenStream,
     access: &TokenStream,
     default: &TokenStream,
-    append_for_len: bool,
+    append: bool,
 ) -> TokenStream {
     let (p, e, d) = (
         !matches!(attr.presence, PresenceAttribute::None),
@@ -31,7 +31,7 @@ fn access_modifier(
             }
         };
 
-        if append_for_len {
+        if append {
             quote::quote! { #res else { 0usize } }
         } else {
             res
@@ -43,7 +43,7 @@ fn access_modifier(
             }
         };
 
-        if append_for_len {
+        if append {
             quote::quote! { #res else { 0usize } }
         } else {
             res
@@ -53,12 +53,15 @@ fn access_modifier(
     }
 }
 
-pub fn parse(r#struct: &ZenohStruct) -> syn::Result<TokenStream> {
-    let mut enc = Vec::<TokenStream>::new();
-    let mut header = Vec::<TokenStream>::new();
+pub fn parse(r#struct: &ZenohStruct) -> syn::Result<(TokenStream, TokenStream)> {
+    let mut len = Vec::new();
+    let mut enc = Vec::new();
+    let mut header = Vec::new();
     let mut s = Vec::new();
 
     if r#struct.header.is_some() {
+        len.push(quote::quote! { 1usize });
+
         header.push(quote::quote! {
             let mut header: u8 = Self::HEADER_BASE;
         });
@@ -93,6 +96,7 @@ pub fn parse(r#struct: &ZenohStruct) -> syn::Result<TokenStream> {
 
                 match &attr.presence {
                     PresenceAttribute::Prefixed => {
+                        len.push(quote::quote! { 1usize });
                         enc.push(quote::quote! {
                             <u8 as crate::ZStructEncode>::z_encode(&((#check) as u8), w)?;
                         });
@@ -109,6 +113,16 @@ pub fn parse(r#struct: &ZenohStruct) -> syn::Result<TokenStream> {
 
                 match &attr.size {
                     SizeAttribute::Prefixed => {
+                        len.push(access_modifier(
+                            &attr,
+                            &quote::quote! {
+                                <usize as crate::ZStructEncode>::z_len(&< _ as crate::ZStructEncode>::z_len(#access))
+                            },
+                            access,
+                            &default,
+                            true
+                        ));
+
                         enc.push(access_modifier(
                             &attr,
                             &quote::quote! {
@@ -139,6 +153,15 @@ pub fn parse(r#struct: &ZenohStruct) -> syn::Result<TokenStream> {
                     _ => {}
                 }
 
+                len.push(access_modifier(
+                    &attr,
+                    &quote::quote! {
+                        < _ as crate::ZStructEncode>::z_len(#access)
+                    },
+                    access,
+                    &default,
+                    true,
+                ));
                 enc.push(access_modifier(
                     &attr,
                     &quote::quote! {
@@ -177,6 +200,16 @@ pub fn parse(r#struct: &ZenohStruct) -> syn::Result<TokenStream> {
                         DefaultAttribute::Expr(expr) => quote::quote! { #expr },
                         _ => quote::quote! {},
                     };
+
+                    len.push(access_modifier(
+                        &attr,
+                        &quote::quote! {
+                            crate::zext_len::<_>(#access)
+                        },
+                        access,
+                        &default,
+                        true,
+                    ));
 
                     header.push(access_modifier(
                         &attr,
@@ -220,21 +253,38 @@ pub fn parse(r#struct: &ZenohStruct) -> syn::Result<TokenStream> {
         });
     }
 
-    if s.is_empty() {
-        return Ok(quote::quote! {
-            #(#header)*
-            #(#enc)*
-        });
+    if len.is_empty() {
+        return Ok((quote::quote! { 0usize }, quote::quote! {}));
     }
 
-    Ok(quote::quote! {
-        let Self {
-            #(#s),*
-            , ..
-        } = self;
+    if s.is_empty() {
+        return Ok((
+            quote::quote! { #(#len)+* },
+            quote::quote! {
+                #(#header)*
+                #(#enc)*
+            },
+        ));
+    }
 
-        #(#header)*
+    Ok((
+        quote::quote! {
+            let Self {
+                #(#s),*
+                , ..
+            } = self;
 
-        #(#enc)*
-    })
+            #(#len)+*
+        },
+        quote::quote! {
+            let Self {
+                #(#s),*
+                , ..
+            } = self;
+
+            #(#header)*
+
+            #(#enc)*
+        },
+    ))
 }
