@@ -1,9 +1,11 @@
-#[cfg(test)]
-use crate::ZWriter;
+use core::time::Duration;
+
 #[cfg(test)]
 use rand::{Rng, thread_rng};
 
-use crate::{ZCodecError, ZCodecResult, ZExt, zbail};
+use crate::{
+    ZCodecError, ZCodecResult, ZExt, ZExtKind, ZReader, ZStructDecode, ZStructEncode, ZWriter,
+};
 
 pub mod declare;
 pub mod interest;
@@ -17,6 +19,27 @@ pub struct QoS {
 }
 
 impl QoS {
+    const D_FLAG: u8 = 0b00001000;
+    const E_FLAG: u8 = 0b00010000;
+
+    pub const DEFAULT: Self = Self::new(Priority::DEFAULT, CongestionControl::DEFAULT, false);
+
+    pub const fn new(
+        priority: Priority,
+        congestion_control: CongestionControl,
+        is_express: bool,
+    ) -> Self {
+        let mut inner = priority as u8;
+        match congestion_control {
+            CongestionControl::Block => inner |= Self::D_FLAG,
+            _ => {}
+        }
+        if is_express {
+            inner |= Self::E_FLAG;
+        }
+        Self { inner }
+    }
+
     #[cfg(test)]
     pub(crate) fn rand(_: &mut ZWriter) -> Self {
         let inner: u8 = thread_rng().r#gen();
@@ -30,6 +53,8 @@ pub struct NodeId {
 }
 
 impl NodeId {
+    pub const DEFAULT: Self = Self { node_id: 0 };
+
     #[cfg(test)]
     pub(crate) fn rand(_: &mut ZWriter) -> Self {
         let node_id: u16 = thread_rng().r#gen();
@@ -37,8 +62,148 @@ impl NodeId {
     }
 }
 
+// TODO: Use ZExt on repr(u8) enums
 #[repr(u8)]
-#[derive(Debug, Default, Copy, Clone, Eq, Hash, PartialEq, PartialOrd, Ord)]
+#[derive(Debug, Default, Clone, Copy, PartialEq)]
+pub enum QueryTarget {
+    #[default]
+    BestMatching = 0,
+    All = 1,
+    AllComplete = 2,
+}
+
+impl QueryTarget {
+    pub const DEFAULT: Self = Self::BestMatching;
+
+    #[cfg(test)]
+    pub fn rand(_: &mut ZWriter) -> Self {
+        use rand::prelude::*;
+        let mut rng = rand::thread_rng();
+
+        *[
+            QueryTarget::All,
+            QueryTarget::AllComplete,
+            QueryTarget::BestMatching,
+        ]
+        .choose(&mut rng)
+        .unwrap()
+    }
+}
+
+impl ZStructEncode for QueryTarget {
+    fn z_len(&self) -> usize {
+        <u64 as ZStructEncode>::z_len(&((*self as u8) as u64))
+    }
+
+    fn z_encode(&self, w: &mut ZWriter) -> ZCodecResult<()> {
+        <u64 as ZStructEncode>::z_encode(&((*self as u8) as u64), w)
+    }
+}
+
+impl<'a> ZStructDecode<'a> for QueryTarget {
+    fn z_decode(r: &mut ZReader<'a>) -> ZCodecResult<Self> {
+        let value = <u64 as ZStructDecode>::z_decode(r)?;
+        match value as u8 {
+            0 => Ok(QueryTarget::BestMatching),
+            1 => Ok(QueryTarget::All),
+            2 => Ok(QueryTarget::AllComplete),
+            _ => Err(ZCodecError::CouldNotParse),
+        }
+    }
+}
+
+impl<'a> ZExt<'a> for QueryTarget {
+    const KIND: ZExtKind = ZExtKind::U64;
+}
+
+#[derive(ZExt, Debug, PartialEq)]
+pub struct Budget {
+    pub budget: u32,
+}
+
+impl Budget {
+    #[cfg(test)]
+    pub(crate) fn rand(_: &mut ZWriter) -> Self {
+        let budget: u32 = thread_rng().r#gen();
+        Self { budget }
+    }
+}
+
+#[derive(Debug, PartialEq)]
+pub struct Timeout {
+    pub timeout: Duration,
+}
+
+impl ZStructEncode for Timeout {
+    fn z_len(&self) -> usize {
+        <u64 as ZStructEncode>::z_len(&(self.timeout.as_millis() as u64))
+    }
+
+    fn z_encode(&self, w: &mut ZWriter) -> ZCodecResult<()> {
+        <u64 as ZStructEncode>::z_encode(&(self.timeout.as_millis() as u64), w)
+    }
+}
+
+impl<'a> ZStructDecode<'a> for Timeout {
+    fn z_decode(r: &mut ZReader<'a>) -> ZCodecResult<Self> {
+        let value = <u64 as ZStructDecode>::z_decode(r)?;
+        Ok(Timeout {
+            timeout: Duration::from_millis(value as u64),
+        })
+    }
+}
+
+impl<'a> ZExt<'a> for Timeout {
+    const KIND: ZExtKind = ZExtKind::U64;
+}
+
+impl Timeout {
+    #[cfg(test)]
+    pub(crate) fn rand(_: &mut ZWriter) -> Self {
+        let timeout = Duration::from_millis(thread_rng().gen_range(0..10_000));
+        Self { timeout }
+    }
+}
+
+#[repr(u8)]
+#[derive(Debug, Default, PartialEq, Clone, Copy)]
+pub enum Mapping {
+    #[default]
+    Receiver = 0,
+    Sender = 1,
+}
+
+impl Into<u8> for Mapping {
+    fn into(self) -> u8 {
+        self as u8
+    }
+}
+
+impl TryFrom<u8> for Mapping {
+    type Error = ZCodecError;
+
+    fn try_from(value: u8) -> Result<Self, Self::Error> {
+        match value {
+            0 => Ok(Mapping::Receiver),
+            1 => Ok(Mapping::Sender),
+            _ => Err(ZCodecError::CouldNotParse),
+        }
+    }
+}
+
+impl Mapping {
+    #[cfg(test)]
+    pub(crate) fn rand() -> Self {
+        if thread_rng().gen_bool(0.5) {
+            Mapping::Receiver
+        } else {
+            Mapping::Sender
+        }
+    }
+}
+
+#[repr(u8)]
+#[derive(Debug, Default, PartialEq)]
 pub enum Priority {
     Control = 0,
     RealTime = 1,
@@ -53,71 +218,12 @@ pub enum Priority {
 
 impl Priority {
     pub const DEFAULT: Self = Self::Data;
+    pub const MIN: Self = Self::Background;
+    pub const MAX: Self = Self::Control;
+    pub const NUM: usize = 1 + Self::MIN as usize - Self::MAX as usize;
 }
 
-impl TryFrom<u8> for Priority {
-    type Error = ZCodecError;
-
-    fn try_from(v: u8) -> ZCodecResult<Self> {
-        match v {
-            0 => Ok(Priority::Control),
-            1 => Ok(Priority::RealTime),
-            2 => Ok(Priority::InteractiveHigh),
-            3 => Ok(Priority::InteractiveLow),
-            4 => Ok(Priority::DataHigh),
-            5 => Ok(Priority::Data),
-            6 => Ok(Priority::DataLow),
-            7 => Ok(Priority::Background),
-            _ => zbail!(ZCodecError::CouldNotParse),
-        }
-    }
-}
-
-// #[derive(Debug, Default, Copy, Clone, PartialEq, Eq, Hash)]
-// #[repr(u8)]
-// pub enum Reliability {
-//     BestEffort = 0,
-//     #[default]
-//     Reliable = 1,
-// }
-
-// impl Reliability {
-//     pub const DEFAULT: Self = Self::Reliable;
-
-//     #[cfg(test)]
-//     pub fn rand() -> Self {
-//         use rand::Rng;
-
-//         let mut rng = rand::thread_rng();
-
-//         if rng.gen_bool(0.5) {
-//             Reliability::Reliable
-//         } else {
-//             Reliability::BestEffort
-//         }
-//     }
-// }
-
-// impl From<bool> for Reliability {
-//     fn from(value: bool) -> Self {
-//         if value {
-//             Reliability::Reliable
-//         } else {
-//             Reliability::BestEffort
-//         }
-//     }
-// }
-
-// impl From<Reliability> for bool {
-//     fn from(value: Reliability) -> Self {
-//         match value {
-//             Reliability::BestEffort => false,
-//             Reliability::Reliable => true,
-//         }
-//     }
-// }
-
-#[derive(Debug, Default, Copy, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Default, PartialEq)]
 #[repr(u8)]
 pub enum CongestionControl {
     #[default]
@@ -127,5 +233,10 @@ pub enum CongestionControl {
 
 impl CongestionControl {
     pub const DEFAULT: Self = Self::Drop;
+
+    pub const DEFAULT_PUSH: Self = Self::Drop;
+    pub const DEFAULT_REQUEST: Self = Self::Block;
+    pub const DEFAULT_RESPONSE: Self = Self::Block;
     pub const DEFAULT_DECLARE: Self = Self::Block;
+    pub const DEFAULT_OAM: Self = Self::Block;
 }

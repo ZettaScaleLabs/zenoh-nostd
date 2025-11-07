@@ -6,10 +6,12 @@ const MAX_PAYLOAD_SIZE: usize = 512;
 crate::roundtrips!(ext, zenoh, EntityGlobalId, SourceInfo, Value, Attachment);
 crate::roundtrips!(
     zenoh,
+    // Message types
     Err,
     Put,
     Query,
     Reply,
+    // Body types
     PushBody,
     RequestBody,
     ResponseBody
