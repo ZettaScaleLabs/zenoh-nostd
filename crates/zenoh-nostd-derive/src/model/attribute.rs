@@ -5,6 +5,7 @@ use syn::{Expr, Ident, meta::ParseNestedMeta, parenthesized, spanned::Spanned};
 pub struct ZenohAttribute {
     pub span: Span,
 
+    pub flatten: bool,
     pub size: SizeAttribute,
     pub maybe_empty: bool,
     pub mandatory: bool,
@@ -18,6 +19,7 @@ impl Default for ZenohAttribute {
     fn default() -> Self {
         ZenohAttribute {
             span: Span::call_site(),
+            flatten: false,
             size: SizeAttribute::default(),
             maybe_empty: false,
             mandatory: false,
@@ -40,6 +42,7 @@ impl ZenohAttribute {
             if attr.path().is_ident("zenoh") {
                 attr.parse_nested_meta(|meta| {
                     let size = SizeAttribute::from_meta(&meta)?;
+                    let flatten = flatten_from_meta(&meta)?;
                     let maybe_empty = maybe_empty_from_meta(&meta)?;
                     let mandatory = mandatory_from_meta(&meta)?;
                     let presence = PresenceAttribute::from_meta(&meta)?;
@@ -49,6 +52,9 @@ impl ZenohAttribute {
 
                     if !matches!(size, SizeAttribute::None) {
                         zattr.size = size;
+                    }
+                    if flatten {
+                        zattr.flatten = true;
                     }
                     if maybe_empty {
                         zattr.maybe_empty = true;
@@ -76,6 +82,14 @@ impl ZenohAttribute {
 
         Ok(zattr)
     }
+}
+
+fn flatten_from_meta(meta: &ParseNestedMeta) -> syn::Result<bool> {
+    if meta.path.is_ident("flatten") {
+        return Ok(true);
+    }
+
+    Ok(false)
 }
 
 fn maybe_empty_from_meta(meta: &ParseNestedMeta) -> syn::Result<bool> {

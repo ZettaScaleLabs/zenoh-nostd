@@ -93,25 +93,44 @@ fn dec_modifier(
 
 pub fn parse(
     r#struct: &ZenohStruct,
-) -> syn::Result<(TokenStream, TokenStream, TokenStream, TokenStream)> {
+) -> syn::Result<(
+    TokenStream,
+    TokenStream,
+    TokenStream,
+    TokenStream,
+    TokenStream,
+)> {
     let mut len = Vec::new();
     let mut header = Vec::new();
     let mut enc = Vec::new();
     let mut dec = Vec::new();
+
+    let mut dech = quote::quote! {
+        <_ as crate::ZStructDecode>::z_decode_with_header(r, 0)
+    };
 
     let mut s = Vec::new();
     let mut d = Vec::new();
     let mut h = Vec::new();
 
     if r#struct.header.is_some() {
-        len.push(quote::quote! { 1usize });
+        len.push(quote::quote! { 0usize });
 
         header.push(quote::quote! {
             let mut header: u8 = Self::HEADER_BASE;
         });
 
         dec.push(quote::quote! {
+            let header: u8 = h;
+        });
+
+        dech = quote::quote! {
             let header: u8 = <u8 as crate::ZStructDecode>::z_decode(r)?;
+            <_ as crate::ZStructDecode>::z_decode_with_header(r, header)
+        };
+    } else {
+        dec.push(quote::quote! {
+            let _ = h;
         });
     }
 
@@ -184,7 +203,7 @@ pub fn parse(
                 match &attr.size {
                     SizeAttribute::Prefixed => {
                         len.push(enc_modifier(
-                            &attr,
+                            attr,
                             &quote::quote! {
                                 <usize as crate::ZStructEncode>::z_len(&< _ as crate::ZStructEncode>::z_len(#access))
                             },
@@ -194,7 +213,7 @@ pub fn parse(
                         ));
 
                         enc.push(enc_modifier(
-                            &attr,
+                            attr,
                             &quote::quote! {
                                 <usize as crate::ZStructEncode>::z_encode(&< _ as crate::ZStructEncode>::z_len( #access), w)?;
                             },
@@ -204,7 +223,7 @@ pub fn parse(
                         ));
 
                         dec.push(dec_modifier(
-                            &attr,
+                            attr,
                             &quote::quote! {
                                 let #access = < usize as crate::ZStructDecode>::z_decode(r)?;
                                 < _ as crate::ZStructDecode>::z_decode(&mut < crate::ZReader as crate::ZReaderExt>::sub(r, #access)?)?
@@ -216,7 +235,7 @@ pub fn parse(
                     SizeAttribute::Header(slot) => {
                         let e: u8 = (!attr.maybe_empty) as u8;
                         header.push(enc_modifier(
-                            &attr,
+                            attr,
                             &quote::quote! {
                                 header |= {
                                     let shift = #slot .trailing_zeros();
@@ -231,7 +250,7 @@ pub fn parse(
                         ));
 
                         dec.push(dec_modifier(
-                            &attr,
+                            attr,
                             &quote::quote! {
                                 let #access = (((header & #slot) >> #slot.trailing_zeros()) + #e) as usize;
                                 < _ as crate::ZStructDecode>::z_decode(&mut < crate::ZReader as crate::ZReaderExt>::sub(r, #access)?)?
@@ -242,7 +261,7 @@ pub fn parse(
                     }
                     _ => {
                         dec.push(dec_modifier(
-                            &attr,
+                            attr,
                             &quote::quote! {
                                 < _ as crate::ZStructDecode>::z_decode(r)?
                             },
@@ -253,7 +272,7 @@ pub fn parse(
                 }
 
                 len.push(enc_modifier(
-                    &attr,
+                    attr,
                     &quote::quote! {
                         < _ as crate::ZStructEncode>::z_len(#access)
                     },
@@ -262,7 +281,7 @@ pub fn parse(
                     true,
                 ));
                 enc.push(enc_modifier(
-                    &attr,
+                    attr,
                     &quote::quote! {
                         < _ as crate::ZStructEncode>::z_encode(#access, w)?;
                     },
@@ -313,7 +332,7 @@ pub fn parse(
                     };
 
                     len.push(enc_modifier(
-                        &attr,
+                        attr,
                         &quote::quote! {
                             crate::zext_len::<_>(#access)
                         },
@@ -323,7 +342,7 @@ pub fn parse(
                     ));
 
                     header.push(enc_modifier(
-                        &attr,
+                        attr,
                         &quote::quote! {
                             let _ = #access;
                             n_exts += 1;
@@ -334,7 +353,7 @@ pub fn parse(
                     ));
 
                     enc.push(enc_modifier(
-                        &attr,
+                        attr,
                         &quote::quote! {
                             let _ = #access;
                             n_exts += 1;
@@ -345,7 +364,7 @@ pub fn parse(
                     ));
 
                     enc_ext.push(enc_modifier(
-                        &attr,
+                        attr,
                         &quote::quote! {
                             n_exts -= 1;
                             crate::zext_encode::<_, #id, #mandatory>(#access, w, n_exts != 0)?;
@@ -432,6 +451,7 @@ pub fn parse(
             quote::quote! { #(#header)* },
             quote::quote! {},
             quote::quote! { Ok(Self {}) },
+            dech,
         ));
     }
 
@@ -447,6 +467,7 @@ pub fn parse(
 
                 Ok(Self { #(#d),* })
             },
+            dech,
         ));
     }
 
@@ -486,5 +507,6 @@ pub fn parse(
 
             Ok(Self { #(#d),* })
         },
+        dech,
     ))
 }

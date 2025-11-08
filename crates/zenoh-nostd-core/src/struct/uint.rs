@@ -1,7 +1,7 @@
 use crate::{ZCodecResult, ZReader, ZReaderExt, ZStructDecode, ZStructEncode, ZWriter, ZWriterExt};
 
 impl ZStructEncode for u8 {
-    fn z_len(&self) -> usize {
+    fn z_len_without_header(&self) -> usize {
         1
     }
 
@@ -11,8 +11,8 @@ impl ZStructEncode for u8 {
 }
 
 impl<'a> ZStructDecode<'a> for u8 {
-    fn z_decode(reader: &mut ZReader<'a>) -> ZCodecResult<Self> {
-        reader.read_u8()
+    fn z_decode_with_header(r: &mut ZReader<'a>, _: u8) -> ZCodecResult<Self> {
+        r.read_u8()
     }
 }
 
@@ -50,7 +50,7 @@ const fn vle_len(x: u64) -> usize {
 }
 
 impl ZStructEncode for u64 {
-    fn z_len(&self) -> usize {
+    fn z_len_without_header(&self) -> usize {
         vle_len(*self)
     }
 
@@ -84,7 +84,7 @@ impl ZStructEncode for u64 {
 }
 
 impl<'a> ZStructDecode<'a> for u64 {
-    fn z_decode(r: &mut ZReader<'a>) -> ZCodecResult<Self> {
+    fn z_decode_with_header(r: &mut ZReader<'a>, _: u8) -> ZCodecResult<Self> {
         let mut b = r.read_u8()?;
 
         let mut v = 0;
@@ -106,7 +106,7 @@ macro_rules! zint {
     ($($ty:ty),*) => {
         $(
             impl ZStructEncode for $ty {
-                fn z_len(&self) -> usize {
+                fn z_len_without_header(&self) -> usize {
                     vle_len(*self as u64)
                 }
 
@@ -117,7 +117,7 @@ macro_rules! zint {
             }
 
             impl<'a> ZStructDecode<'a> for $ty {
-                fn z_decode(r: &mut ZReader<'a>) -> ZCodecResult<Self> {
+                fn z_decode_with_header(r: &mut ZReader<'a>, _: u8) -> ZCodecResult<Self> {
                     let v = <u64 as ZStructDecode>::z_decode(r)?;
                     Ok(v as $ty)
                 }

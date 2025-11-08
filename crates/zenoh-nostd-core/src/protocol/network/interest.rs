@@ -52,7 +52,7 @@ impl Interest<'_> {
 }
 
 impl crate::ZStructEncode for Interest<'_> {
-    fn z_len(&self) -> usize {
+    fn z_len_without_header(&self) -> usize {
         1usize // header
             + <u32 as crate::ZStructEncode>::z_len(&self.id)
             + if self.mode != InterestMode::Final {
@@ -139,7 +139,7 @@ impl crate::ZStructEncode for Interest<'_> {
     }
 }
 impl<'a> crate::ZStructDecode<'a> for Interest<'a> {
-    fn z_decode(r: &mut crate::ZReader<'a>) -> crate::ZCodecResult<Self> {
+    fn z_decode_with_header(r: &mut crate::ZReader<'a>, _: u8) -> crate::ZCodecResult<Self> {
         let header: u8 = <u8 as crate::ZStructDecode>::z_decode(r)?;
 
         let id = <u32 as crate::ZStructDecode>::z_decode(r)?;

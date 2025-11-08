@@ -91,7 +91,7 @@ impl QueryTarget {
 }
 
 impl ZStructEncode for QueryTarget {
-    fn z_len(&self) -> usize {
+    fn z_len_without_header(&self) -> usize {
         <u64 as ZStructEncode>::z_len(&((*self as u8) as u64))
     }
 
@@ -101,7 +101,7 @@ impl ZStructEncode for QueryTarget {
 }
 
 impl<'a> ZStructDecode<'a> for QueryTarget {
-    fn z_decode(r: &mut ZReader<'a>) -> ZCodecResult<Self> {
+    fn z_decode_with_header(r: &mut ZReader<'a>, _: u8) -> ZCodecResult<Self> {
         let value = <u64 as ZStructDecode>::z_decode(r)?;
         match value as u8 {
             0 => Ok(QueryTarget::BestMatching),
@@ -135,7 +135,7 @@ pub struct Timeout {
 }
 
 impl ZStructEncode for Timeout {
-    fn z_len(&self) -> usize {
+    fn z_len_without_header(&self) -> usize {
         <u64 as ZStructEncode>::z_len(&(self.timeout.as_millis() as u64))
     }
 
@@ -145,7 +145,7 @@ impl ZStructEncode for Timeout {
 }
 
 impl<'a> ZStructDecode<'a> for Timeout {
-    fn z_decode(r: &mut ZReader<'a>) -> ZCodecResult<Self> {
+    fn z_decode_with_header(r: &mut ZReader<'a>, _: u8) -> ZCodecResult<Self> {
         let value = <u64 as ZStructDecode>::z_decode(r)?;
         Ok(Timeout {
             timeout: Duration::from_millis(value as u64),

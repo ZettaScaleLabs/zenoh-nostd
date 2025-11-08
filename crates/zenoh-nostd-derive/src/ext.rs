@@ -17,7 +17,7 @@ pub fn derive_zext(input: DeriveInput) -> syn::Result<TokenStream> {
     let (impl_generics, ty_generics, where_clause) = generics.split_for_impl();
 
     let kind = infer_kind(&r#struct)?;
-    let (header_const, header, len, encode, decode) = match &kind {
+    let (header_const, header, len, encode, decodewh, decode) = match &kind {
         InferredKind::U64 => {
             let (len, encode, decode) = r#u64::parse(&r#struct);
             (
@@ -26,12 +26,13 @@ pub fn derive_zext(input: DeriveInput) -> syn::Result<TokenStream> {
                 len,
                 encode,
                 decode,
+                quote::quote! { <_ as crate::ZStructDecode>::z_decode_with_header(r, 0) },
             )
         }
         _ => {
             let header_const = header::parse(&r#struct)?;
-            let (len, header, encode, decode) = r#struct::parse(&r#struct)?;
-            (header_const, header, len, encode, decode)
+            let (len, header, encode, decodewh, decode) = r#struct::parse(&r#struct)?;
+            (header_const, header, len, encode, decodewh, decode)
         }
     };
 
@@ -43,7 +44,7 @@ pub fn derive_zext(input: DeriveInput) -> syn::Result<TokenStream> {
         }
 
         impl #impl_generics crate::ZStructEncode for #ident #ty_generics #where_clause {
-            fn z_len(&self) -> usize {
+            fn z_len_without_header(&self) -> usize {
                 #len
             }
 
@@ -59,6 +60,10 @@ pub fn derive_zext(input: DeriveInput) -> syn::Result<TokenStream> {
         }
 
         impl<'a> crate::ZStructDecode<'a> for #ident #ty_generics #where_clause {
+            fn z_decode_with_header(r: &mut crate::ZReader<'a>, h: u8) -> crate::ZCodecResult<Self> {
+                #decodewh
+            }
+
             fn z_decode(r: &mut crate::ZReader<'a>) -> crate::ZCodecResult<Self> {
                 #decode
             }

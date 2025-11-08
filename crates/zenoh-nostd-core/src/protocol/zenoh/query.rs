@@ -33,7 +33,7 @@ impl ConsolidationMode {
 }
 
 impl ZStructEncode for ConsolidationMode {
-    fn z_len(&self) -> usize {
+    fn z_len_without_header(&self) -> usize {
         <u64 as ZStructEncode>::z_len(&((*self as u8) as u64))
     }
 
@@ -42,7 +42,7 @@ impl ZStructEncode for ConsolidationMode {
     }
 }
 impl<'a> ZStructDecode<'a> for ConsolidationMode {
-    fn z_decode(r: &mut ZReader<'a>) -> ZCodecResult<Self> {
+    fn z_decode_with_header(r: &mut ZReader<'a>, _: u8) -> ZCodecResult<Self> {
         let value = <u64 as ZStructDecode>::z_decode(r)?;
         match value as u8 {
             0 => Ok(ConsolidationMode::Auto),

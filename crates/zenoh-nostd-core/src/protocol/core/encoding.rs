@@ -59,7 +59,7 @@ impl<'a> Encoding<'a> {
 }
 
 impl ZStructEncode for Encoding<'_> {
-    fn z_len(&self) -> usize {
+    fn z_len_without_header(&self) -> usize {
         <u32 as ZStructEncode>::z_len(&((self.id as u32) << 1))
             + if let Some(schema) = self.schema.as_ref() {
                 let len: usize = <&[u8] as ZStructEncode>::z_len(schema);
@@ -89,7 +89,7 @@ impl ZStructEncode for Encoding<'_> {
 }
 
 impl<'a> ZStructDecode<'a> for Encoding<'a> {
-    fn z_decode(r: &mut ZReader<'a>) -> ZCodecResult<Self> {
+    fn z_decode_with_header(r: &mut ZReader<'a>, _: u8) -> ZCodecResult<Self> {
         let id = <u32 as ZStructDecode>::z_decode(r)?;
 
         let has_schema = (id as u8) & Self::FLAG_S != 0;

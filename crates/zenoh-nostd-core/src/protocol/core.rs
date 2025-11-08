@@ -61,7 +61,7 @@ impl TryFrom<&[u8]> for ZenohIdProto {
 }
 
 impl ZStructEncode for ZenohIdProto {
-    fn z_len(&self) -> usize {
+    fn z_len_without_header(&self) -> usize {
         self.size()
     }
 
@@ -72,14 +72,14 @@ impl ZStructEncode for ZenohIdProto {
 }
 
 impl<'a> ZStructDecode<'a> for ZenohIdProto {
-    fn z_decode(r: &mut ZReader<'a>) -> ZCodecResult<Self> {
+    fn z_decode_with_header(r: &mut ZReader<'a>, _: u8) -> ZCodecResult<Self> {
         let bytes = <&[u8] as ZStructDecode>::z_decode(r)?;
         ZenohIdProto::try_from(bytes)
     }
 }
 
 impl ZStructEncode for Timestamp {
-    fn z_len(&self) -> usize {
+    fn z_len_without_header(&self) -> usize {
         let bytes = &self.get_id().to_le_bytes()[..self.get_id().size()];
         let time = self.get_time().as_u64();
 
@@ -96,7 +96,7 @@ impl ZStructEncode for Timestamp {
     }
 }
 impl<'a> ZStructDecode<'a> for Timestamp {
-    fn z_decode(r: &mut ZReader<'a>) -> ZCodecResult<Self> {
+    fn z_decode_with_header(r: &mut ZReader<'a>, _: u8) -> ZCodecResult<Self> {
         let time = NTP64(<u64 as ZStructDecode>::z_decode(r)?);
         let id_len = <usize as ZStructDecode>::z_decode(r)?;
         let id_bytes = <&[u8] as ZStructDecode>::z_decode(&mut r.sub(id_len)?)?;

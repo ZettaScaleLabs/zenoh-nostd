@@ -24,7 +24,7 @@ macro_rules! __internal_zaggregate {
         }
 
         impl $crate::ZStructEncode for $name<'_> {
-            fn z_len(&self) -> usize {
+            fn z_len_without_header(&self) -> usize {
                 match self {
                     $(
                         Self::$variant(x) => <$variant as $crate::ZStructEncode>::z_len(x),
@@ -42,15 +42,20 @@ macro_rules! __internal_zaggregate {
         }
 
         impl<'a> $crate::ZStructDecode<'a> for $name<'a> {
-            fn z_decode(r: &mut $crate::ZReader<'a>) -> $crate::ZCodecResult<Self> {
-                let id = <$crate::ZReader as $crate::ZReaderExt>::peek_u8(r)? & 0b0001_1111;
+            fn z_decode_with_header(r: &mut $crate::ZReader<'a>, h: u8) -> $crate::ZCodecResult<Self> {
+                let id = h & 0b0001_1111;
 
                 match id {
                     $(
-                        <$variant>::ID => Ok(Self::$variant(<$variant as $crate::ZStructDecode>::z_decode(r)?)),
+                        <$variant>::ID => Ok(Self::$variant(<$variant as $crate::ZStructDecode>::z_decode_with_header(r, h)?)),
                     )*
                     _ => Err($crate::ZCodecError::CouldNotParse),
                 }
+            }
+
+            fn z_decode(r: &mut $crate::ZReader<'a>) -> $crate::ZCodecResult<Self> {
+                let header = <u8 as $crate::ZStructDecode>::z_decode(r)?;
+                <Self as $crate::ZStructDecode>::z_decode_with_header(r, header)
             }
         }
 
