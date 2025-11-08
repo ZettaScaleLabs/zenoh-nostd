@@ -1,7 +1,8 @@
 use proc_macro2::TokenStream;
 
 use crate::model::{ZenohField, ZenohStruct, ty::ZenohType};
-pub fn parse(r#struct: &ZenohStruct) -> TokenStream {
+
+pub fn parse(r#struct: &ZenohStruct) -> (TokenStream, TokenStream, TokenStream) {
     let field = r#struct
         .fields
         .first()
@@ -25,10 +26,18 @@ pub fn parse(r#struct: &ZenohStruct) -> TokenStream {
         _ => unreachable!(),
     };
 
-    quote::quote! {
-        let #access = < u64 as crate::ZStructDecode>::z_decode(r)? as #ty;
-        Ok(Self {
-            #access
-        })
-    }
+    (
+        quote::quote! {
+            < u64 as crate::ZStructEncode>::z_len(&(self. #access as u64))
+        },
+        quote::quote! {
+            < u64 as crate::ZStructEncode>::z_encode(&(self. #access as u64), w)?;
+        },
+        quote::quote! {
+            let #access = < u64 as crate::ZStructDecode>::z_decode(r)? as #ty;
+            Ok(Self {
+                #access
+            })
+        },
+    )
 }

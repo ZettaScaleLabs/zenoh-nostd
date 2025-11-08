@@ -4,12 +4,10 @@ use syn::DeriveInput;
 
 use crate::{
     model::{ZenohField, ZenohStruct, ty::ZenohType},
-    r#struct::{decode, encode, header, len},
+    r#struct::{header, r#struct},
 };
 
-mod u64_decode;
-mod u64_encode;
-mod u64_len;
+mod r#u64;
 
 pub fn derive_zext(input: DeriveInput) -> syn::Result<TokenStream> {
     let r#struct = ZenohStruct::from_derive_input(&input)?;
@@ -19,41 +17,17 @@ pub fn derive_zext(input: DeriveInput) -> syn::Result<TokenStream> {
     let (impl_generics, ty_generics, where_clause) = generics.split_for_impl();
 
     let kind = infer_kind(&r#struct)?;
-    if matches!(kind, InferredKind::U64) {
-        let len = u64_len::parse(&r#struct);
-        let encode = u64_encode::parse(&r#struct);
-        let decode = u64_decode::parse(&r#struct);
-
-        return Ok(quote::quote! {
-            impl<'a> crate::ZExt<'a> for #ident #ty_generics #where_clause {
-                const KIND: crate::ZExtKind = #kind;
-            }
-
-            impl #impl_generics crate::ZStructEncode for #ident #ty_generics #where_clause {
-                fn z_len(&self) -> usize {
-                    #len
-                }
-
-                fn z_encode(&self, w: &mut crate::ZWriter) -> crate::ZCodecResult<()> {
-                    #encode
-
-                    Ok(())
-                }
-            }
-
-            impl<'a> crate::ZStructDecode<'a> for #ident #ty_generics #where_clause {
-                fn z_decode(r: &mut crate::ZReader<'a>) -> crate::ZCodecResult<Self> {
-                    #decode
-                }
-            }
-        });
-    }
-
-    let header = header::parse(&r#struct)?;
-
-    let len = len::parse(&r#struct)?;
-    let encode = encode::parse(&r#struct)?;
-    let decode = decode::parse(&r#struct)?;
+    let (header, len, encode, decode) = match &kind {
+        InferredKind::U64 => {
+            let (len, encode, decode) = r#u64::parse(&r#struct);
+            (quote::quote! {}, len, encode, decode)
+        }
+        _ => {
+            let header = header::parse(&r#struct)?;
+            let (len, encode, decode) = r#struct::parse(&r#struct)?;
+            (header, len, encode, decode)
+        }
+    };
 
     Ok(quote::quote! {
         #header
