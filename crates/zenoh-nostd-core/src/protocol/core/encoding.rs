@@ -70,7 +70,7 @@ impl ZStructEncode for Encoding<'_> {
             }
     }
 
-    fn z_encode(&self, w: &mut ZWriter) -> ZCodecResult<()> {
+    fn z_encode_without_header(&self, w: &mut ZWriter) -> ZCodecResult<()> {
         let mut id = (self.id as u32) << 1;
 
         if self.schema.is_some() {

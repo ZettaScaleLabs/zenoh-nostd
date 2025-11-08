@@ -65,7 +65,7 @@ impl ZStructEncode for ZenohIdProto {
         self.size()
     }
 
-    fn z_encode(&self, w: &mut ZWriter) -> ZCodecResult<()> {
+    fn z_encode_without_header(&self, w: &mut ZWriter) -> ZCodecResult<()> {
         let bytes = &self.as_le_bytes()[..self.size()];
         <&[u8] as ZStructEncode>::z_encode(&bytes, w)
     }
@@ -88,7 +88,7 @@ impl ZStructEncode for Timestamp {
             + <&[u8] as ZStructEncode>::z_len(&bytes)
     }
 
-    fn z_encode(&self, w: &mut ZWriter) -> ZCodecResult<()> {
+    fn z_encode_without_header(&self, w: &mut ZWriter) -> ZCodecResult<()> {
         <u64 as ZStructEncode>::z_encode(&self.get_time().as_u64(), w)?;
         let bytes = &self.get_id().to_le_bytes()[..self.get_id().size()];
         <usize as ZStructEncode>::z_encode(&bytes.len(), w)?;

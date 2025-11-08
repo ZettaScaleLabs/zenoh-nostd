@@ -5,7 +5,7 @@ impl ZStructEncode for u8 {
         1
     }
 
-    fn z_encode(&self, w: &mut ZWriter) -> ZCodecResult<()> {
+    fn z_encode_without_header(&self, w: &mut ZWriter) -> ZCodecResult<()> {
         w.write_u8(*self)
     }
 }
@@ -54,7 +54,7 @@ impl ZStructEncode for u64 {
         vle_len(*self)
     }
 
-    fn z_encode(&self, w: &mut ZWriter) -> ZCodecResult<()> {
+    fn z_encode_without_header(&self, w: &mut ZWriter) -> ZCodecResult<()> {
         let mut x = *self;
 
         w.write_slot(VLE_LEN_MAX, |buffer: &mut [u8]| {
@@ -110,7 +110,7 @@ macro_rules! zint {
                     vle_len(*self as u64)
                 }
 
-                fn z_encode(&self, w: &mut ZWriter) -> ZCodecResult<()> {
+                fn z_encode_without_header(&self, w: &mut ZWriter) -> ZCodecResult<()> {
                     let v = *self as u64;
                     v.z_encode(w)
                 }

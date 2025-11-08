@@ -5,7 +5,7 @@ impl<const N: usize> ZStructEncode for [u8; N] {
         N
     }
 
-    fn z_encode(&self, w: &mut ZWriter) -> ZCodecResult<()> {
+    fn z_encode_without_header(&self, w: &mut ZWriter) -> ZCodecResult<()> {
         w.write_exact(self.as_slice())
     }
 }

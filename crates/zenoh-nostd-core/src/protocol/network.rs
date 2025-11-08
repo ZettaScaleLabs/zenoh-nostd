@@ -95,7 +95,7 @@ impl ZStructEncode for QueryTarget {
         <u64 as ZStructEncode>::z_len(&((*self as u8) as u64))
     }
 
-    fn z_encode(&self, w: &mut ZWriter) -> ZCodecResult<()> {
+    fn z_encode_without_header(&self, w: &mut ZWriter) -> ZCodecResult<()> {
         <u64 as ZStructEncode>::z_encode(&((*self as u8) as u64), w)
     }
 }
@@ -139,7 +139,7 @@ impl ZStructEncode for Timeout {
         <u64 as ZStructEncode>::z_len(&(self.timeout.as_millis() as u64))
     }
 
-    fn z_encode(&self, w: &mut ZWriter) -> ZCodecResult<()> {
+    fn z_encode_without_header(&self, w: &mut ZWriter) -> ZCodecResult<()> {
         <u64 as ZStructEncode>::z_encode(&(self.timeout.as_millis() as u64), w)
     }
 }

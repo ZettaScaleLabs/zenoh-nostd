@@ -87,7 +87,7 @@ impl crate::ZStructEncode for Interest<'_> {
                 0usize
             }
     }
-    fn z_encode(&self, w: &mut crate::ZWriter) -> crate::ZCodecResult<()> {
+    fn z_encode_without_header(&self, w: &mut crate::ZWriter) -> crate::ZCodecResult<()> {
         let mut header: u8 = Self::HEADER_BASE;
         let mut n_exts = 0;
         if &self.qos != &QoS::DEFAULT {

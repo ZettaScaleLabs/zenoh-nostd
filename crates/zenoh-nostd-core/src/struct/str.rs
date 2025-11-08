@@ -8,7 +8,7 @@ impl ZStructEncode for &'_ str {
         self.len()
     }
 
-    fn z_encode(&self, w: &mut ZWriter) -> ZCodecResult<()> {
+    fn z_encode_without_header(&self, w: &mut ZWriter) -> ZCodecResult<()> {
         w.write_exact(self.as_bytes())
     }
 }

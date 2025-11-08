@@ -17,20 +17,26 @@ pub fn derive_zext(input: DeriveInput) -> syn::Result<TokenStream> {
     let (impl_generics, ty_generics, where_clause) = generics.split_for_impl();
 
     let kind = infer_kind(&r#struct)?;
-    let (header, len, encode, decode) = match &kind {
+    let (header_const, header, len, encode, decode) = match &kind {
         InferredKind::U64 => {
             let (len, encode, decode) = r#u64::parse(&r#struct);
-            (quote::quote! {}, len, encode, decode)
+            (
+                quote::quote! {},
+                quote::quote! { None },
+                len,
+                encode,
+                decode,
+            )
         }
         _ => {
-            let header = header::parse(&r#struct)?;
-            let (len, encode, decode) = r#struct::parse(&r#struct)?;
-            (header, len, encode, decode)
+            let header_const = header::parse(&r#struct)?;
+            let (len, header, encode, decode) = r#struct::parse(&r#struct)?;
+            (header_const, header, len, encode, decode)
         }
     };
 
     Ok(quote::quote! {
-        #header
+        #header_const
 
         impl<'a> crate::ZExt<'a> for #ident #ty_generics #where_clause {
             const KIND: crate::ZExtKind = #kind;
@@ -41,7 +47,11 @@ pub fn derive_zext(input: DeriveInput) -> syn::Result<TokenStream> {
                 #len
             }
 
-            fn z_encode(&self, w: &mut crate::ZWriter) -> crate::ZCodecResult<()> {
+            fn z_header(&self) -> Option<u8> {
+                #header
+            }
+
+            fn z_encode_without_header(&self, w: &mut crate::ZWriter) -> crate::ZCodecResult<()> {
                 #encode
 
                 Ok(())

@@ -32,7 +32,7 @@ macro_rules! __internal_zaggregate {
                 }
             }
 
-            fn z_encode(&self, w: &mut $crate::ZWriter) -> $crate::ZCodecResult<()> {
+            fn z_encode_without_header(&self, w: &mut $crate::ZWriter) -> $crate::ZCodecResult<()> {
                 match self {
                     $(
                         Self::$variant(x) => <$variant as $crate::ZStructEncode>::z_encode(x, w),

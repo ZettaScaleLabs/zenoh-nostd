@@ -91,13 +91,17 @@ fn dec_modifier(
     }
 }
 
-pub fn parse(r#struct: &ZenohStruct) -> syn::Result<(TokenStream, TokenStream, TokenStream)> {
+pub fn parse(
+    r#struct: &ZenohStruct,
+) -> syn::Result<(TokenStream, TokenStream, TokenStream, TokenStream)> {
     let mut len = Vec::new();
+    let mut header = Vec::new();
     let mut enc = Vec::new();
     let mut dec = Vec::new();
-    let mut header = Vec::new();
+
     let mut s = Vec::new();
     let mut d = Vec::new();
+    let mut h = Vec::new();
 
     if r#struct.header.is_some() {
         len.push(quote::quote! { 1usize });
@@ -134,6 +138,12 @@ pub fn parse(r#struct: &ZenohStruct) -> syn::Result<(TokenStream, TokenStream, T
                         };
                     });
                     continue;
+                }
+
+                if matches!(attr.presence, PresenceAttribute::Header(_))
+                    || matches!(attr.size, SizeAttribute::Header(_))
+                {
+                    h.push(access.clone());
                 }
 
                 s.push(access.clone());
@@ -266,6 +276,10 @@ pub fn parse(r#struct: &ZenohStruct) -> syn::Result<(TokenStream, TokenStream, T
                     let mut n_exts = 0;
                 });
 
+                enc.push(quote::quote! {
+                    let mut n_exts = 0;
+                });
+
                 dec.push(quote::quote! {
                     let mut has_ext: bool = header & Self::HEADER_SLOT_Z != 0;
                 });
@@ -277,6 +291,7 @@ pub fn parse(r#struct: &ZenohStruct) -> syn::Result<(TokenStream, TokenStream, T
                     let access = &field.access;
                     s.push(access.clone());
                     d.push(access.clone());
+                    h.push(access.clone());
                     let ty = &field.ty;
                     let attr = &field.attr;
 
@@ -308,6 +323,17 @@ pub fn parse(r#struct: &ZenohStruct) -> syn::Result<(TokenStream, TokenStream, T
                     ));
 
                     header.push(enc_modifier(
+                        &attr,
+                        &quote::quote! {
+                            let _ = #access;
+                            n_exts += 1;
+                        },
+                        access,
+                        &default,
+                        false,
+                    ));
+
+                    enc.push(enc_modifier(
                         &attr,
                         &quote::quote! {
                             let _ = #access;
@@ -391,13 +417,19 @@ pub fn parse(r#struct: &ZenohStruct) -> syn::Result<(TokenStream, TokenStream, T
 
     if r#struct.header.is_some() {
         header.push(quote::quote! {
-            <u8 as crate::ZStructEncode>::z_encode(&header, w)?;
+            // <u8 as crate::ZStructEncode>::z_encode(&header, w)?;
+            Some(header)
+        });
+    } else {
+        header.push(quote::quote! {
+            None
         });
     }
 
     if len.is_empty() {
         return Ok((
             quote::quote! { 0usize },
+            quote::quote! { #(#header)* },
             quote::quote! {},
             quote::quote! { Ok(Self {}) },
         ));
@@ -406,8 +438,8 @@ pub fn parse(r#struct: &ZenohStruct) -> syn::Result<(TokenStream, TokenStream, T
     if s.is_empty() {
         return Ok((
             quote::quote! { #(#len)+* },
+            quote::quote! { #(#header)* },
             quote::quote! {
-                #(#header)*
                 #(#enc)*
             },
             quote::quote! {
@@ -418,6 +450,19 @@ pub fn parse(r#struct: &ZenohStruct) -> syn::Result<(TokenStream, TokenStream, T
         ));
     }
 
+    let header = if h.is_empty() {
+        quote::quote! { #(#header)* }
+    } else {
+        quote::quote! {
+            let Self {
+                #(#h),*
+                , ..
+            } = self;
+
+            #(#header)*
+        }
+    };
+
     Ok((
         quote::quote! {
             let Self {
@@ -427,13 +472,12 @@ pub fn parse(r#struct: &ZenohStruct) -> syn::Result<(TokenStream, TokenStream, T
 
             #(#len)+*
         },
+        header,
         quote::quote! {
             let Self {
                 #(#s),*
                 , ..
             } = self;
-
-            #(#header)*
 
             #(#enc)*
         },

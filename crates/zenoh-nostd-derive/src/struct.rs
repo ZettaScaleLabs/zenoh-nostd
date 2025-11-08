@@ -13,19 +13,22 @@ pub fn derive_zstruct(input: DeriveInput) -> syn::Result<TokenStream> {
     let generics = &r#struct.generics;
     let (impl_generics, ty_generics, where_clause) = generics.split_for_impl();
 
-    let header = header::parse(&r#struct)?;
-
-    let (len, encode, decode) = r#struct::parse(&r#struct)?;
+    let header_const = header::parse(&r#struct)?;
+    let (len, header, encode, decode) = r#struct::parse(&r#struct)?;
 
     Ok(quote::quote! {
-        #header
+        #header_const
 
         impl #impl_generics crate::ZStructEncode for #ident #ty_generics #where_clause {
             fn z_len(&self) -> usize {
                 #len
             }
 
-            fn z_encode(&self, w: &mut crate::ZWriter) -> crate::ZCodecResult<()> {
+            fn z_header(&self) -> Option<u8> {
+                #header
+            }
+
+            fn z_encode_without_header(&self, w: &mut crate::ZWriter) -> crate::ZCodecResult<()> {
                 #encode
 
                 Ok(())
