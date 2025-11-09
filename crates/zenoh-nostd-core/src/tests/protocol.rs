@@ -1,6 +1,6 @@
 mod core;
 
-// mod network;
+mod network;
 mod zenoh;
 
 #[macro_export]

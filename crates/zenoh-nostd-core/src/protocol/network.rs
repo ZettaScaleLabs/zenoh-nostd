@@ -4,11 +4,12 @@ use core::time::Duration;
 use rand::{Rng, thread_rng};
 
 use crate::{
-    ZCodecError, ZCodecResult, ZExt, ZExtKind, ZReader, ZStructDecode, ZStructEncode, ZWriter,
+    ZBodyDecode, ZBodyEncode, ZBodyLen, ZCodecError, ZCodecResult, ZDecode, ZEncode, ZExt,
+    ZExtKind, ZLen, ZReader, ZWriter,
 };
 
-pub mod declare;
-pub mod interest;
+// pub mod declare;
+// pub mod interest;
 pub mod push;
 pub mod request;
 pub mod response;
@@ -90,19 +91,24 @@ impl QueryTarget {
     }
 }
 
-impl ZStructEncode for QueryTarget {
-    fn z_len_without_header(&self) -> usize {
-        <u64 as ZStructEncode>::z_len(&((*self as u8) as u64))
-    }
-
-    fn z_encode_without_header(&self, w: &mut ZWriter) -> ZCodecResult<()> {
-        <u64 as ZStructEncode>::z_encode(&((*self as u8) as u64), w)
+impl ZBodyLen for QueryTarget {
+    fn z_body_len(&self) -> usize {
+        <u64 as ZLen>::z_len(&((*self as u8) as u64))
     }
 }
 
-impl<'a> ZStructDecode<'a> for QueryTarget {
-    fn z_decode_with_header(r: &mut ZReader<'a>, _: u8) -> ZCodecResult<Self> {
-        let value = <u64 as ZStructDecode>::z_decode(r)?;
+impl ZBodyEncode for QueryTarget {
+    fn z_body_encode(&self, w: &mut ZWriter) -> ZCodecResult<()> {
+        <u64 as ZEncode>::z_encode(&((*self as u8) as u64), w)
+    }
+}
+
+impl ZBodyDecode<'_> for QueryTarget {
+    type Ctx = ();
+
+    fn z_body_decode(r: &mut ZReader<'_>, _: ()) -> ZCodecResult<Self> {
+        let value = <u64 as ZDecode>::z_decode(r)?;
+
         match value as u8 {
             0 => Ok(QueryTarget::BestMatching),
             1 => Ok(QueryTarget::All),
@@ -111,6 +117,8 @@ impl<'a> ZStructDecode<'a> for QueryTarget {
         }
     }
 }
+
+crate::__internal_zstructimpl!(QueryTarget);
 
 impl<'a> ZExt<'a> for QueryTarget {
     const KIND: ZExtKind = ZExtKind::U64;
@@ -134,24 +142,30 @@ pub struct Timeout {
     pub timeout: Duration,
 }
 
-impl ZStructEncode for Timeout {
-    fn z_len_without_header(&self) -> usize {
-        <u64 as ZStructEncode>::z_len(&(self.timeout.as_millis() as u64))
-    }
-
-    fn z_encode_without_header(&self, w: &mut ZWriter) -> ZCodecResult<()> {
-        <u64 as ZStructEncode>::z_encode(&(self.timeout.as_millis() as u64), w)
+impl ZBodyLen for Timeout {
+    fn z_body_len(&self) -> usize {
+        <u64 as ZLen>::z_len(&(self.timeout.as_millis() as u64))
     }
 }
 
-impl<'a> ZStructDecode<'a> for Timeout {
-    fn z_decode_with_header(r: &mut ZReader<'a>, _: u8) -> ZCodecResult<Self> {
-        let value = <u64 as ZStructDecode>::z_decode(r)?;
+impl ZBodyEncode for Timeout {
+    fn z_body_encode(&self, w: &mut ZWriter) -> ZCodecResult<()> {
+        <u64 as ZEncode>::z_encode(&(self.timeout.as_millis() as u64), w)
+    }
+}
+
+impl<'a> ZBodyDecode<'a> for Timeout {
+    type Ctx = ();
+
+    fn z_body_decode(r: &mut ZReader<'a>, _: ()) -> ZCodecResult<Self> {
+        let value = <u64 as ZDecode>::z_decode(r)?;
         Ok(Timeout {
             timeout: Duration::from_millis(value as u64),
         })
     }
 }
+
+crate::__internal_zstructimpl!(Timeout);
 
 impl<'a> ZExt<'a> for Timeout {
     const KIND: ZExtKind = ZExtKind::U64;

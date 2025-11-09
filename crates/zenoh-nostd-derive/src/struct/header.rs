@@ -41,6 +41,7 @@ pub fn parse(r#struct: &ZenohStruct) -> syn::Result<(TokenStream, bool)> {
 
                 if matches!(attr.presence, PresenceAttribute::Header(_))
                     || matches!(attr.size, SizeAttribute::Header(_))
+                    || attr.flatten
                 {
                     s.push(access.clone());
                 }

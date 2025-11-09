@@ -1,17 +1,14 @@
 use uhlc::Timestamp;
 
 #[cfg(test)]
-use crate::{ZWriter, ZWriterExt};
+use crate::ZWriter;
 #[cfg(test)]
-use rand::{
-    Rng,
-    distributions::{Alphanumeric, DistString},
-    thread_rng,
-};
+use rand::{Rng, thread_rng};
 
 use crate::{
     ZStruct,
-    network::{Mapping, QoS},
+    network::QoS,
+    wire_expr::WireExpr,
     zenoh::{EntityGlobalId, ResponseBody},
 };
 
@@ -20,12 +17,8 @@ use crate::{
 pub struct Response<'a> {
     pub rid: u32,
 
-    // --- WireExpr TODO: flatten a WireExpr struct or make a ZStruct accepts args ---
-    pub scope: u16,
-    #[zenoh(header = M)]
-    pub mapping: Mapping,
-    #[zenoh(presence = header(N), default = "", size = prefixed)]
-    pub suffix: &'a str,
+    #[zenoh(flatten)]
+    pub wire_expr: WireExpr<'a>,
 
     // --- Extension block ---
     #[zenoh(ext = 0x1, default = QoS::DEFAULT)]
@@ -44,16 +37,7 @@ impl<'a> Response<'a> {
     #[cfg(test)]
     pub(crate) fn rand(w: &mut ZWriter<'a>) -> Self {
         let rid = thread_rng().r#gen();
-        let scope = thread_rng().r#gen();
-        let mapping = Mapping::rand();
-
-        let suffix = if thread_rng().gen_bool(0.5) {
-            let suffix =
-                Alphanumeric.sample_string(&mut thread_rng(), thread_rng().gen_range(1..16));
-            w.write_str(&suffix).unwrap()
-        } else {
-            ""
-        };
+        let wire_expr = WireExpr::rand(w);
 
         let qos = if thread_rng().gen_bool(0.5) {
             QoS::rand(w)
@@ -77,9 +61,7 @@ impl<'a> Response<'a> {
 
         Self {
             rid,
-            scope,
-            mapping,
-            suffix,
+            wire_expr,
             qos,
             timestamp,
             respid,

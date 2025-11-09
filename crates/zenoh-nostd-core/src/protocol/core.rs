@@ -15,6 +15,7 @@ pub use uhlc::Timestamp;
 pub mod encoding;
 pub mod resolution;
 pub mod whatami;
+pub mod wire_expr;
 
 #[derive(PartialEq)]
 #[repr(transparent)]
