@@ -1,58 +1,16 @@
 #[cfg(test)]
-use crate::ZWriterExt;
+use crate::{ZWriter, ZWriterExt};
 #[cfg(test)]
 use rand::{
     Rng,
     distributions::{Alphanumeric, DistString},
-    prelude::SliceRandom,
     thread_rng,
 };
 
 use crate::{
-    ZCodecError, ZCodecResult, ZReader, ZStruct, ZStructDecode, ZStructEncode, ZWriter,
-    zenoh::{Attachment, SourceInfo, Value},
+    ZStruct,
+    zenoh::{Attachment, ConsolidationMode, SourceInfo, Value},
 };
-
-#[repr(u8)]
-#[derive(Debug, Default, Clone, PartialEq, Copy)]
-pub enum ConsolidationMode {
-    #[default]
-    Auto = 0,
-    None = 1,
-    Monotonic = 2,
-    Latest = 3,
-}
-
-impl ConsolidationMode {
-    #[cfg(test)]
-    pub(crate) fn rand() -> Self {
-        *[Self::None, Self::Monotonic, Self::Latest, Self::Auto]
-            .choose(&mut thread_rng())
-            .unwrap()
-    }
-}
-
-impl ZStructEncode for ConsolidationMode {
-    fn z_len_without_header(&self) -> usize {
-        <u64 as ZStructEncode>::z_len(&((*self as u8) as u64))
-    }
-
-    fn z_encode_without_header(&self, w: &mut ZWriter) -> ZCodecResult<()> {
-        <u64 as ZStructEncode>::z_encode(&((*self as u8) as u64), w)
-    }
-}
-impl<'a> ZStructDecode<'a> for ConsolidationMode {
-    fn z_decode_with_header(r: &mut ZReader<'a>, _: u8) -> ZCodecResult<Self> {
-        let value = <u64 as ZStructDecode>::z_decode(r)?;
-        match value as u8 {
-            0 => Ok(ConsolidationMode::Auto),
-            1 => Ok(ConsolidationMode::None),
-            2 => Ok(ConsolidationMode::Monotonic),
-            3 => Ok(ConsolidationMode::Latest),
-            _ => Err(ZCodecError::CouldNotParse),
-        }
-    }
-}
 
 #[derive(ZStruct, Debug, PartialEq)]
 #[zenoh(header = "Z|P|C|ID:5=0x3")]

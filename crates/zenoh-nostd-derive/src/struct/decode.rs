@@ -46,6 +46,18 @@ pub fn parse(r#struct: &ZenohStruct) -> syn::Result<(TokenStream, TokenStream)> 
                     _ => quote::quote! {},
                 };
 
+                let (dec1, dec2) = if attr.flatten {
+                    (
+                        quote::quote! { < _ as crate::ZBodyDecode>::z_body_decode(&mut < crate::ZReader as crate::ZReaderExt>::sub(r, #access)?)?, header },
+                        quote::quote! { < _ as crate::ZBodyDecode>::z_body_decode(r, header)? },
+                    )
+                } else {
+                    (
+                        quote::quote! { < _ as crate::ZDecode>::z_decode(&mut < crate::ZReader as crate::ZReaderExt>::sub(r, #access)?)? },
+                        quote::quote! { < _ as crate::ZDecode>::z_decode(r)? },
+                    )
+                };
+
                 match &attr.presence {
                     PresenceAttribute::Prefixed => {
                         body.push(quote::quote! {
@@ -66,7 +78,7 @@ pub fn parse(r#struct: &ZenohStruct) -> syn::Result<(TokenStream, TokenStream)> 
                             attr,
                             &quote::quote! {
                                 let #access = < usize as crate::ZDecode>::z_decode(r)?;
-                                < _ as crate::ZDecode>::z_decode(&mut < crate::ZReader as crate::ZReaderExt>::sub(r, #access)?)?
+                                #dec1
                             },
                             access,
                             &default,
@@ -78,21 +90,14 @@ pub fn parse(r#struct: &ZenohStruct) -> syn::Result<(TokenStream, TokenStream)> 
                             attr,
                             &quote::quote! {
                                 let #access = (((header & #slot) >> #slot.trailing_zeros()) + #e) as usize;
-                                < _ as crate::ZDecode>::z_decode(&mut < crate::ZReader as crate::ZReaderExt>::sub(r, #access)?)?
+                                #dec1
                             },
                             access,
                             &default,
                         ));
                     }
                     _ => {
-                        body.push(dec_modifier(
-                            attr,
-                            &quote::quote! {
-                                < _ as crate::ZDecode>::z_decode(r)?
-                            },
-                            access,
-                            &default,
-                        ));
+                        body.push(dec_modifier(attr, &dec2, access, &default));
                     }
                 }
             }

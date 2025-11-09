@@ -34,6 +34,12 @@ pub fn parse(r#struct: &ZenohStruct) -> syn::Result<(TokenStream, TokenStream)> 
                     _ => quote::quote! {},
                 };
 
+                let len = if attr.flatten {
+                    quote::quote! { < _ as crate::ZBodyLen>::z_body_len(#access) }
+                } else {
+                    quote::quote! { < _ as crate::ZLen>::z_len(#access) }
+                };
+
                 match &attr.presence {
                     PresenceAttribute::Prefixed => {
                         body.push(quote::quote! { 1usize });
@@ -47,7 +53,7 @@ pub fn parse(r#struct: &ZenohStruct) -> syn::Result<(TokenStream, TokenStream)> 
                         body.push(enc_len_modifier(
                             attr,
                             &quote::quote! {
-                                <usize as crate::ZLen>::z_len(&< _ as crate::ZLen>::z_len(#access))
+                                <usize as crate::ZLen>::z_len(&#len)
                             },
                             access,
                             &default,
@@ -58,15 +64,7 @@ pub fn parse(r#struct: &ZenohStruct) -> syn::Result<(TokenStream, TokenStream)> 
                     _ => {}
                 }
 
-                body.push(enc_len_modifier(
-                    attr,
-                    &quote::quote! {
-                        < _ as crate::ZLen>::z_len(#access)
-                    },
-                    access,
-                    &default,
-                    true,
-                ));
+                body.push(enc_len_modifier(attr, &len, access, &default, true));
             }
             ZenohField::ExtBlock { exts } => {
                 for field in exts {

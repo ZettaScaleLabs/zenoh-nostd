@@ -20,7 +20,7 @@ bench:
     cargo test bench --profile=release -- --nocapture bench --
 
 tokei:
-    tokei crates/zenoh-nostd-derive --files
+    tokei crates/zenoh-nostd-derive crates/zenoh-nostd-core/src/{struct**,ext.rs} --files
 
 # Ping
 

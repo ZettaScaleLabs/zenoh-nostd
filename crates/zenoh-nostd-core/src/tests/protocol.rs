@@ -1,6 +1,6 @@
 mod core;
 
-mod network;
+// mod network;
 mod zenoh;
 
 #[macro_export]
@@ -13,10 +13,10 @@ macro_rules! roundtrip {
         for _ in 0..NUM_ITER {
             let mut writer = data.as_mut_slice();
             let value = <$ty>::rand(&mut rand_writer);
-            let len = <_ as $crate::ZStructEncode>::z_len(&value);
-            <_ as $crate::ZStructEncode>::z_encode(&value, &mut writer).unwrap();
+            let len = <_ as $crate::ZLen>::z_len(&value);
+            <_ as $crate::ZEncode>::z_encode(&value, &mut writer).unwrap();
             let mut reader = data.as_slice();
-            let ret = <$ty as $crate::ZStructDecode>::z_decode(
+            let ret = <$ty as $crate::ZDecode>::z_decode(
                 &mut <_ as $crate::ZReaderExt>::sub(&mut reader, len).unwrap(),
             )
             .unwrap();

@@ -47,6 +47,18 @@ pub fn parse(r#struct: &ZenohStruct) -> syn::Result<(TokenStream, TokenStream)> 
                     _ => quote::quote! { #access  != &#default },
                 };
 
+                let len = if attr.flatten {
+                    quote::quote! { < _ as crate::ZBodyLen>::z_body_len(#access) }
+                } else {
+                    quote::quote! { < _ as crate::ZLen>::z_len(#access) }
+                };
+
+                let enc = if attr.flatten {
+                    quote::quote! { < _ as crate::ZBodyEncode>::z_body_encode(#access, w)?; }
+                } else {
+                    quote::quote! { < _ as crate::ZEncode>::z_encode(#access, w)?; }
+                };
+
                 match &attr.presence {
                     PresenceAttribute::Prefixed => {
                         body.push(quote::quote! {
@@ -62,7 +74,7 @@ pub fn parse(r#struct: &ZenohStruct) -> syn::Result<(TokenStream, TokenStream)> 
                         body.push(enc_len_modifier(
                             attr,
                             &quote::quote! {
-                                <usize as crate::ZEncode>::z_encode(&< _ as crate::ZLen>::z_len( #access), w)?;
+                                <usize as crate::ZEncode>::z_encode(&#len, w)?;
                             },
                             access,
                             &default,
@@ -73,15 +85,7 @@ pub fn parse(r#struct: &ZenohStruct) -> syn::Result<(TokenStream, TokenStream)> 
                     _ => {}
                 }
 
-                body.push(enc_len_modifier(
-                    attr,
-                    &quote::quote! {
-                        < _ as crate::ZEncode>::z_encode(#access, w)?;
-                    },
-                    access,
-                    &default,
-                    false,
-                ));
+                body.push(enc_len_modifier(attr, &enc, access, &default, false));
             }
             ZenohField::ExtBlock { exts } => {
                 body.push(

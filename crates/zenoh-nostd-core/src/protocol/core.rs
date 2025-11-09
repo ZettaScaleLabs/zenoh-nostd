@@ -1,8 +1,8 @@
 use uhlc::NTP64;
 
 use crate::{
-    ZCodecError, ZCodecResult, ZExt, ZExtKind, ZReader, ZReaderExt, ZStructDecode, ZStructEncode,
-    ZWriter, zbail,
+    ZBodyDecode, ZBodyEncode, ZBodyLen, ZCodecError, ZCodecResult, ZDecode, ZEncode, ZExt,
+    ZExtKind, ZLen, ZReader, ZReaderExt, ZWriter, zbail,
 };
 
 use core::{
@@ -60,50 +60,63 @@ impl TryFrom<&[u8]> for ZenohIdProto {
     }
 }
 
-impl ZStructEncode for ZenohIdProto {
-    fn z_len_without_header(&self) -> usize {
+impl ZBodyLen for ZenohIdProto {
+    fn z_body_len(&self) -> usize {
         self.size()
-    }
-
-    fn z_encode_without_header(&self, w: &mut ZWriter) -> ZCodecResult<()> {
-        let bytes = &self.as_le_bytes()[..self.size()];
-        <&[u8] as ZStructEncode>::z_encode(&bytes, w)
     }
 }
 
-impl<'a> ZStructDecode<'a> for ZenohIdProto {
-    fn z_decode_with_header(r: &mut ZReader<'a>, _: u8) -> ZCodecResult<Self> {
-        let bytes = <&[u8] as ZStructDecode>::z_decode(r)?;
+impl ZBodyEncode for ZenohIdProto {
+    fn z_body_encode(&self, w: &mut ZWriter) -> ZCodecResult<()> {
+        let bytes = &self.as_le_bytes()[..self.size()];
+        <&[u8] as ZEncode>::z_encode(&bytes, w)
+    }
+}
+
+impl<'a> ZBodyDecode<'a> for ZenohIdProto {
+    type Ctx = ();
+
+    fn z_body_decode(r: &mut ZReader<'a>, _: ()) -> ZCodecResult<Self> {
+        let bytes = <&[u8] as ZDecode>::z_decode(r)?;
         ZenohIdProto::try_from(bytes)
     }
 }
 
-impl ZStructEncode for Timestamp {
-    fn z_len_without_header(&self) -> usize {
+crate::__internal_zstructimpl!(ZenohIdProto);
+
+impl ZBodyLen for Timestamp {
+    fn z_body_len(&self) -> usize {
         let bytes = &self.get_id().to_le_bytes()[..self.get_id().size()];
         let time = self.get_time().as_u64();
 
-        <u64 as ZStructEncode>::z_len(&time)
-            + <usize as ZStructEncode>::z_len(&bytes.len())
-            + <&[u8] as ZStructEncode>::z_len(&bytes)
-    }
-
-    fn z_encode_without_header(&self, w: &mut ZWriter) -> ZCodecResult<()> {
-        <u64 as ZStructEncode>::z_encode(&self.get_time().as_u64(), w)?;
-        let bytes = &self.get_id().to_le_bytes()[..self.get_id().size()];
-        <usize as ZStructEncode>::z_encode(&bytes.len(), w)?;
-        <&[u8] as ZStructEncode>::z_encode(&bytes, w)
+        <u64 as ZLen>::z_len(&time)
+            + <usize as ZLen>::z_len(&bytes.len())
+            + <&[u8] as ZLen>::z_len(&bytes)
     }
 }
-impl<'a> ZStructDecode<'a> for Timestamp {
-    fn z_decode_with_header(r: &mut ZReader<'a>, _: u8) -> ZCodecResult<Self> {
-        let time = NTP64(<u64 as ZStructDecode>::z_decode(r)?);
-        let id_len = <usize as ZStructDecode>::z_decode(r)?;
-        let id_bytes = <&[u8] as ZStructDecode>::z_decode(&mut r.sub(id_len)?)?;
+
+impl ZBodyEncode for Timestamp {
+    fn z_body_encode(&self, w: &mut ZWriter) -> ZCodecResult<()> {
+        <u64 as ZEncode>::z_encode(&self.get_time().as_u64(), w)?;
+        let bytes = &self.get_id().to_le_bytes()[..self.get_id().size()];
+        <usize as ZEncode>::z_encode(&bytes.len(), w)?;
+        <&[u8] as ZEncode>::z_encode(&bytes, w)
+    }
+}
+
+impl<'a> ZBodyDecode<'a> for Timestamp {
+    type Ctx = ();
+
+    fn z_body_decode(r: &mut ZReader<'a>, _: ()) -> ZCodecResult<Self> {
+        let time = NTP64(<u64 as ZDecode>::z_decode(r)?);
+        let id_len = <usize as ZDecode>::z_decode(r)?;
+        let id_bytes = <&[u8] as ZDecode>::z_decode(&mut r.sub(id_len)?)?;
         let id = uhlc::ID::try_from(id_bytes).map_err(|_| ZCodecError::CouldNotParse)?;
         Ok(Timestamp::new(time, id))
     }
 }
+
+crate::__internal_zstructimpl!(Timestamp);
 
 impl<'a> ZExt<'a> for Timestamp {
     const KIND: ZExtKind = ZExtKind::ZStruct;

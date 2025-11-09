@@ -5,7 +5,7 @@ use rand::{Rng, thread_rng};
 
 use crate::{
     ZStruct,
-    zenoh::{PushBody, query::ConsolidationMode},
+    zenoh::{ConsolidationMode, PushBody},
 };
 
 #[derive(ZStruct, Debug, PartialEq)]

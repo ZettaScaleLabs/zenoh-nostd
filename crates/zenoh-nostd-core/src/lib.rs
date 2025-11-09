@@ -15,7 +15,7 @@ pub use ext::*;
 #[cfg(test)]
 mod tests;
 
-// mod protocol;
-// pub use protocol::*;
+mod protocol;
+pub use protocol::*;
 
 pub use zenoh_nostd_derive::*;

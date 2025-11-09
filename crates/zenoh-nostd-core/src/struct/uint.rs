@@ -1,6 +1,5 @@
 use crate::{
-    ZBodyDecode, ZBodyEncode, ZBodyLen, ZCodecResult, ZDecode, ZEncode, ZLen, ZReader, ZReaderExt,
-    ZWriter, ZWriterExt,
+    ZBodyDecode, ZBodyEncode, ZBodyLen, ZCodecResult, ZReader, ZReaderExt, ZWriter, ZWriterExt,
 };
 
 impl ZBodyLen for u8 {
@@ -9,21 +8,9 @@ impl ZBodyLen for u8 {
     }
 }
 
-impl ZLen for u8 {
-    fn z_len(&self) -> usize {
-        <Self as ZBodyLen>::z_body_len(self)
-    }
-}
-
 impl ZBodyEncode for u8 {
     fn z_body_encode(&self, w: &mut ZWriter) -> ZCodecResult<()> {
         <ZWriter as ZWriterExt>::write_u8(w, *self)
-    }
-}
-
-impl ZEncode for u8 {
-    fn z_encode(&self, w: &mut ZWriter) -> ZCodecResult<()> {
-        <Self as ZBodyEncode>::z_body_encode(self, w)
     }
 }
 
@@ -35,27 +22,7 @@ impl<'a> ZBodyDecode<'a> for u8 {
     }
 }
 
-impl<'a> ZDecode<'a> for u8 {
-    fn z_decode(r: &mut ZReader<'a>) -> ZCodecResult<Self> {
-        <Self as ZBodyDecode>::z_body_decode(r, ())
-    }
-}
-
-// impl ZStructEncode for u8 {
-//     fn z_len_without_header(&self) -> usize {
-//         1
-//     }
-
-//     fn z_encode_without_header(&self, w: &mut ZWriter) -> ZCodecResult<()> {
-//         w.write_u8(*self)
-//     }
-// }
-
-// impl<'a> ZStructDecode<'a> for u8 {
-//     fn z_decode_with_header(r: &mut ZReader<'a>, _: u8) -> ZCodecResult<Self> {
-//         r.read_u8()
-//     }
-// }
+crate::__internal_zstructimpl!(u8);
 
 const VLE_LEN_MAX: usize = vle_len(u64::MAX);
 
@@ -96,12 +63,6 @@ impl ZBodyLen for u64 {
     }
 }
 
-impl ZLen for u64 {
-    fn z_len(&self) -> usize {
-        <Self as ZBodyLen>::z_body_len(self)
-    }
-}
-
 impl ZBodyEncode for u64 {
     fn z_body_encode(&self, w: &mut ZWriter) -> ZCodecResult<()> {
         let mut x = *self;
@@ -132,12 +93,6 @@ impl ZBodyEncode for u64 {
     }
 }
 
-impl ZEncode for u64 {
-    fn z_encode(&self, w: &mut ZWriter) -> ZCodecResult<()> {
-        <Self as ZBodyEncode>::z_body_encode(self, w)
-    }
-}
-
 impl<'a> ZBodyDecode<'a> for u64 {
     type Ctx = ();
 
@@ -159,64 +114,7 @@ impl<'a> ZBodyDecode<'a> for u64 {
     }
 }
 
-impl<'a> ZDecode<'a> for u64 {
-    fn z_decode(r: &mut ZReader<'a>) -> ZCodecResult<Self> {
-        <Self as ZBodyDecode>::z_body_decode(r, ())
-    }
-}
-
-// impl ZStructEncode for u64 {
-//     fn z_len_without_header(&self) -> usize {
-//         vle_len(*self)
-//     }
-
-//     fn z_encode_without_header(&self, w: &mut ZWriter) -> ZCodecResult<()> {
-//         let mut x = *self;
-
-//         w.write_slot(VLE_LEN_MAX, |buffer: &mut [u8]| {
-//             let mut len = 0;
-
-//             while (x & !0x7f_u64) != 0 {
-//                 unsafe {
-//                     *buffer.get_unchecked_mut(len) = (x as u8) | 0x80_u8;
-//                 }
-
-//                 len += 1;
-//                 x >>= 7;
-//             }
-
-//             if len != VLE_LEN_MAX {
-//                 unsafe {
-//                     *buffer.get_unchecked_mut(len) = x as u8;
-//                 }
-//                 len += 1;
-//             }
-
-//             len
-//         })?;
-
-//         Ok(())
-//     }
-// }
-
-// impl<'a> ZStructDecode<'a> for u64 {
-//     fn z_decode_with_header(r: &mut ZReader<'a>, _: u8) -> ZCodecResult<Self> {
-//         let mut b = r.read_u8()?;
-
-//         let mut v = 0;
-//         let mut i = 0;
-
-//         while (b & 0x80_u8) != 0 && i != 7 * (VLE_LEN_MAX - 1) {
-//             v |= ((b & 0x7f_u8) as u64) << i;
-//             b = r.read_u8()?;
-//             i += 7;
-//         }
-
-//         v |= (b as u64) << i;
-
-//         Ok(v)
-//     }
-// }
+crate::__internal_zstructimpl!(u64);
 
 macro_rules! zint {
     ($($ty:ty),*) => {
@@ -227,21 +125,9 @@ macro_rules! zint {
                 }
             }
 
-            impl ZLen for $ty {
-                fn z_len(&self) -> usize {
-                    <Self as ZBodyLen>::z_body_len(self)
-                }
-            }
-
             impl ZBodyEncode for $ty {
                 fn z_body_encode(&self, w: &mut ZWriter) -> ZCodecResult<()> {
                     <u64 as ZBodyEncode>::z_body_encode(&(*self as u64), w)
-                }
-            }
-
-            impl ZEncode for $ty {
-                fn z_encode(&self, w: &mut ZWriter) -> ZCodecResult<()> {
-                    <Self as ZBodyEncode>::z_body_encode(self, w)
                 }
             }
 
@@ -253,14 +139,9 @@ macro_rules! zint {
                     Ok(v as $ty)
                 }
             }
-
-            impl<'a> ZDecode<'a> for $ty {
-                fn z_decode(r: &mut ZReader<'a>) -> ZCodecResult<Self> {
-                    <Self as ZBodyDecode>::z_body_decode(r, ())
-                }
-            }
         )*
     };
 }
 
 zint!(u16, u32, usize);
+crate::__internal_zstructimpl!(u16, u32, usize);

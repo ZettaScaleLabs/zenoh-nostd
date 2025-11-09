@@ -1,6 +1,12 @@
 use core::fmt::Debug;
 
+use crate::ZBodyDecode;
+use crate::ZBodyEncode;
+use crate::ZBodyLen;
 use crate::ZCodecResult;
+use crate::ZDecode;
+use crate::ZEncode;
+use crate::ZLen;
 use crate::ZReader;
 use crate::ZReaderExt;
 use crate::ZWriter;
@@ -56,46 +62,50 @@ impl<'a> Encoding<'a> {
     }
 }
 
-impl ZStructEncode for Encoding<'_> {
-    fn z_len_without_header(&self) -> usize {
-        <u32 as ZStructEncode>::z_len(&((self.id as u32) << 1))
+impl ZBodyLen for Encoding<'_> {
+    fn z_body_len(&self) -> usize {
+        <u32 as ZLen>::z_len(&((self.id as u32) << 1))
             + if let Some(schema) = self.schema.as_ref() {
-                let len: usize = <&[u8] as ZStructEncode>::z_len(schema);
+                let len: usize = <&[u8] as ZLen>::z_len(schema);
 
-                <usize as ZStructEncode>::z_len(&len) + len
+                <usize as ZLen>::z_len(&len) + len
             } else {
                 0
             }
     }
+}
 
-    fn z_encode_without_header(&self, w: &mut ZWriter) -> ZCodecResult<()> {
+impl ZBodyEncode for Encoding<'_> {
+    fn z_body_encode(&self, w: &mut ZWriter) -> ZCodecResult<()> {
         let mut id = (self.id as u32) << 1;
 
         if self.schema.is_some() {
             id |= Self::FLAG_S as u32;
         }
 
-        <u32 as ZStructEncode>::z_encode(&id, w)?;
+        <u32 as ZEncode>::z_encode(&id, w)?;
 
         if let Some(schema) = &self.schema {
-            <usize as ZStructEncode>::z_encode(&schema.len(), w)?;
-            <&[u8] as ZStructEncode>::z_encode(schema, w)?;
+            <usize as ZEncode>::z_encode(&schema.len(), w)?;
+            <&[u8] as ZEncode>::z_encode(schema, w)?;
         }
 
         Ok(())
     }
 }
 
-impl<'a> ZStructDecode<'a> for Encoding<'a> {
-    fn z_decode_with_header(r: &mut ZReader<'a>, _: u8) -> ZCodecResult<Self> {
-        let id = <u32 as ZStructDecode>::z_decode(r)?;
+impl<'a> ZBodyDecode<'a> for Encoding<'a> {
+    type Ctx = ();
+
+    fn z_body_decode(r: &mut ZReader<'a>, _: ()) -> ZCodecResult<Self> {
+        let id = <u32 as ZDecode>::z_decode(r)?;
 
         let has_schema = (id as u8) & Self::FLAG_S != 0;
         let id = (id >> 1) as u16;
 
         let schema = if has_schema {
-            let len = <usize as ZStructDecode>::z_decode(r)?;
-            let schema: &[u8] = <&[u8] as ZStructDecode>::z_decode(&mut r.sub(len)?)?;
+            let len = <usize as ZDecode>::z_decode(r)?;
+            let schema: &[u8] = <&[u8] as ZDecode>::z_decode(&mut r.sub(len)?)?;
             Some(schema)
         } else {
             None
@@ -104,3 +114,54 @@ impl<'a> ZStructDecode<'a> for Encoding<'a> {
         Ok(Encoding { id, schema })
     }
 }
+
+crate::__internal_zstructimpl!(lt, Encoding<'a>);
+
+// impl ZStructEncode for Encoding<'_> {
+//     fn z_len_without_header(&self) -> usize {
+//         <u32 as ZStructEncode>::z_len(&((self.id as u32) << 1))
+//             + if let Some(schema) = self.schema.as_ref() {
+//                 let len: usize = <&[u8] as ZStructEncode>::z_len(schema);
+
+//                 <usize as ZStructEncode>::z_len(&len) + len
+//             } else {
+//                 0
+//             }
+//     }
+
+//     fn z_encode_without_header(&self, w: &mut ZWriter) -> ZCodecResult<()> {
+//         let mut id = (self.id as u32) << 1;
+
+//         if self.schema.is_some() {
+//             id |= Self::FLAG_S as u32;
+//         }
+
+//         <u32 as ZStructEncode>::z_encode(&id, w)?;
+
+//         if let Some(schema) = &self.schema {
+//             <usize as ZStructEncode>::z_encode(&schema.len(), w)?;
+//             <&[u8] as ZStructEncode>::z_encode(schema, w)?;
+//         }
+
+//         Ok(())
+//     }
+// }
+
+// impl<'a> ZStructDecode<'a> for Encoding<'a> {
+//     fn z_decode_with_header(r: &mut ZReader<'a>, _: u8) -> ZCodecResult<Self> {
+//         let id = <u32 as ZStructDecode>::z_decode(r)?;
+
+//         let has_schema = (id as u8) & Self::FLAG_S != 0;
+//         let id = (id >> 1) as u16;
+
+//         let schema = if has_schema {
+//             let len = <usize as ZStructDecode>::z_decode(r)?;
+//             let schema: &[u8] = <&[u8] as ZStructDecode>::z_decode(&mut r.sub(len)?)?;
+//             Some(schema)
+//         } else {
+//             None
+//         };
+
+//         Ok(Encoding { id, schema })
+//     }
+// }

@@ -158,12 +158,15 @@ const DEFAULT_INNER_WITH_HEADER: ZInnerWithHeader = ZInnerWithHeader { a: 0 };
 
 #[derive(ZStruct, PartialEq, Debug)]
 #[zenoh(header = "D|_|_:1=0x2|_|_:4=0x4")]
-struct ZFlattenHeader {
+struct ZFlattenHeader<'a> {
     #[zenoh(presence = prefixed, default = 42)]
     pub maybe_u16: u16,
 
     #[zenoh(flatten, presence = header(D), default = DEFAULT_INNER_WITH_HEADER)]
     pub maybe_inner: ZInnerWithHeader,
+
+    #[zenoh(size = remain)]
+    pub payload: &'a str,
 }
 
 macro_rules! roundtrip {
@@ -360,6 +363,7 @@ fn test_flatten_inner_with_header() {
     let s2 = ZFlattenHeader {
         maybe_u16: 100,
         maybe_inner: s1,
+        payload: "data",
     };
     roundtrip!(ZFlattenHeader, s2);
     let h2 = <ZFlattenHeader as crate::ZHeader>::z_header(&s2);

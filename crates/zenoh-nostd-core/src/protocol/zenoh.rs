@@ -1,10 +1,15 @@
 use crate::ZExt;
 use crate::core::{ZenohIdProto, encoding::Encoding};
 
+use crate::{
+    ZBodyDecode, ZBodyEncode, ZBodyLen, ZCodecError, ZCodecResult, ZDecode, ZEncode, ZLen, ZReader,
+    ZWriter,
+};
+
 #[cfg(test)]
-use crate::{ZWriter, ZWriterExt};
+use crate::ZWriterExt;
 #[cfg(test)]
-use rand::{Rng, thread_rng};
+use rand::{Rng, seq::SliceRandom, thread_rng};
 
 pub mod err;
 pub mod put;
@@ -115,3 +120,51 @@ impl<'a> Attachment<'a> {
         Self { buffer }
     }
 }
+
+#[repr(u8)]
+#[derive(Debug, Default, Clone, PartialEq, Copy)]
+pub enum ConsolidationMode {
+    #[default]
+    Auto = 0,
+    None = 1,
+    Monotonic = 2,
+    Latest = 3,
+}
+
+impl ConsolidationMode {
+    #[cfg(test)]
+    pub(crate) fn rand() -> Self {
+        *[Self::None, Self::Monotonic, Self::Latest, Self::Auto]
+            .choose(&mut thread_rng())
+            .unwrap()
+    }
+}
+
+impl ZBodyLen for ConsolidationMode {
+    fn z_body_len(&self) -> usize {
+        <u64 as ZLen>::z_len(&((*self as u8) as u64))
+    }
+}
+
+impl ZBodyEncode for ConsolidationMode {
+    fn z_body_encode(&self, w: &mut ZWriter) -> ZCodecResult<()> {
+        <u64 as ZEncode>::z_encode(&((*self as u8) as u64), w)
+    }
+}
+
+impl<'a> ZBodyDecode<'a> for ConsolidationMode {
+    type Ctx = ();
+
+    fn z_body_decode(r: &mut ZReader<'a>, _: ()) -> ZCodecResult<Self> {
+        let value = <u64 as ZDecode>::z_decode(r)?;
+        match value as u8 {
+            0 => Ok(ConsolidationMode::Auto),
+            1 => Ok(ConsolidationMode::None),
+            2 => Ok(ConsolidationMode::Monotonic),
+            3 => Ok(ConsolidationMode::Latest),
+            _ => Err(ZCodecError::CouldNotParse),
+        }
+    }
+}
+
+crate::__internal_zstructimpl!(ConsolidationMode);
