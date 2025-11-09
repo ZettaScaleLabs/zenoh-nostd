@@ -1,6 +1,4 @@
-use crate::{
-    ZCodecError, ZCodecResult, ZReader, ZReaderExt, ZStructDecode, ZStructEncode, ZWriter,
-};
+use crate::{ZCodecError, ZCodecResult, ZDecode, ZEncode, ZLen, ZReader, ZReaderExt, ZWriter};
 
 const KIND_MASK: u8 = 0b0110_0000;
 
@@ -31,7 +29,7 @@ impl TryFrom<u8> for ZExtKind {
     }
 }
 
-pub trait ZExt<'a>: ZStructEncode + ZStructDecode<'a> {
+pub trait ZExt<'a>: ZLen + ZEncode + ZDecode<'a> {
     const KIND: ZExtKind;
 }
 
@@ -41,11 +39,8 @@ const ID_MASK: u8 = 0b0000_1111;
 
 pub fn zext_len<'a, T: ZExt<'a>>(x: &T) -> usize {
     1 + match T::KIND {
-        ZExtKind::Unit | ZExtKind::U64 => <T as ZStructEncode>::z_len(x),
-        ZExtKind::ZStruct => {
-            <usize as ZStructEncode>::z_len(&<T as ZStructEncode>::z_len(x))
-                + <T as ZStructEncode>::z_len(x)
-        }
+        ZExtKind::Unit | ZExtKind::U64 => <T as ZLen>::z_len(x),
+        ZExtKind::ZStruct => <usize as ZLen>::z_len(&<T as ZLen>::z_len(x)) + <T as ZLen>::z_len(x),
     }
 }
 
@@ -58,36 +53,36 @@ pub fn zext_encode<'a, T: ZExt<'a>, const ID: u8, const MANDATORY: bool>(
         | if MANDATORY { FLAG_MANDATORY } else { 0 }
         | if more { FLAG_MORE } else { 0 };
 
-    <u8 as ZStructEncode>::z_encode(&header, w)?;
+    <u8 as ZEncode>::z_encode(&header, w)?;
 
     if T::KIND == ZExtKind::ZStruct {
-        <usize as ZStructEncode>::z_encode(&<T as ZStructEncode>::z_len(x), w)?;
+        <usize as ZEncode>::z_encode(&<T as ZLen>::z_len(x), w)?;
     }
 
-    <T as ZStructEncode>::z_encode(x, w)
+    <T as ZEncode>::z_encode(x, w)
 }
 
 pub fn zext_decode<'a, T: ZExt<'a>>(r: &mut ZReader<'a>) -> ZCodecResult<T> {
-    let _ = <u8 as ZStructDecode>::z_decode(r)?;
+    let _ = <u8 as ZDecode>::z_decode(r)?;
 
     if T::KIND == ZExtKind::ZStruct {
-        let len = <usize as ZStructDecode>::z_decode(r)?;
-        <T as ZStructDecode>::z_decode(&mut <ZReader as ZReaderExt>::sub(r, len)?)
+        let len = <usize as ZDecode>::z_decode(r)?;
+        <T as ZDecode>::z_decode(&mut <ZReader as ZReaderExt>::sub(r, len)?)
     } else {
-        <T as ZStructDecode>::z_decode(r)
+        <T as ZDecode>::z_decode(r)
     }
 }
 
 pub fn skip_ext(r: &mut ZReader, kind: ZExtKind) -> ZCodecResult<()> {
-    let _ = <u8 as ZStructDecode>::z_decode(r)?;
+    let _ = <u8 as ZDecode>::z_decode(r)?;
 
     match kind {
         ZExtKind::Unit => {}
         ZExtKind::U64 => {
-            let _ = <u64 as ZStructDecode>::z_decode(r)?;
+            let _ = <u64 as ZDecode>::z_decode(r)?;
         }
         ZExtKind::ZStruct => {
-            let len = <usize as ZStructDecode>::z_decode(r)?;
+            let len = <usize as ZDecode>::z_decode(r)?;
             let _ = <ZReader as ZReaderExt>::sub(r, len)?;
         }
     }

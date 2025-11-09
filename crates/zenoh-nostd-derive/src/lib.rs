@@ -7,7 +7,7 @@ pub(crate) mod r#struct;
 pub fn derive_zstruct(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     let input = syn::parse_macro_input!(input as syn::DeriveInput);
 
-    r#struct::derive_zstruct(input)
+    r#struct::derive_zstruct(&input)
         .unwrap_or_else(|err| err.to_compile_error())
         .into()
 }
@@ -16,7 +16,7 @@ pub fn derive_zstruct(input: proc_macro::TokenStream) -> proc_macro::TokenStream
 pub fn derive_zext(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     let input = syn::parse_macro_input!(input as syn::DeriveInput);
 
-    ext::derive_zext(input)
+    ext::derive_zext(&input)
         .unwrap_or_else(|err| err.to_compile_error())
         .into()
 }

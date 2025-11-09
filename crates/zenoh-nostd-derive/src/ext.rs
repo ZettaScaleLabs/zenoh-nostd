@@ -2,71 +2,28 @@ use proc_macro2::{Span, TokenStream};
 use quote::ToTokens;
 use syn::DeriveInput;
 
-use crate::{
-    model::{ZenohField, ZenohStruct, ty::ZenohType},
-    r#struct::{header, r#struct},
-};
+use crate::model::{ZenohField, ZenohStruct, ty::ZenohType};
 
 mod r#u64;
 
-pub fn derive_zext(input: DeriveInput) -> syn::Result<TokenStream> {
-    let r#struct = ZenohStruct::from_derive_input(&input)?;
+pub fn derive_zext(input: &DeriveInput) -> syn::Result<TokenStream> {
+    let r#struct = ZenohStruct::from_derive_input(input)?;
     let ident = &r#struct.ident;
 
     let generics = &r#struct.generics;
-    let (impl_generics, ty_generics, where_clause) = generics.split_for_impl();
+    let (_, ty_generics, where_clause) = generics.split_for_impl();
 
     let kind = infer_kind(&r#struct)?;
-    let (header_const, header, len, encode, decodewh, decode) = match &kind {
-        InferredKind::U64 => {
-            let (len, encode, decode) = r#u64::parse(&r#struct);
-            (
-                quote::quote! {},
-                quote::quote! { None },
-                len,
-                encode,
-                decode,
-                quote::quote! { <_ as crate::ZStructDecode>::z_decode_with_header(r, 0) },
-            )
-        }
-        _ => {
-            let header_const = header::parse(&r#struct)?;
-            let (len, header, encode, decodewh, decode) = r#struct::parse(&r#struct)?;
-            (header_const, header, len, encode, decodewh, decode)
-        }
+    let struct_impl = match kind {
+        InferredKind::U64 => r#u64::parse(&r#struct, ident),
+        _ => crate::r#struct::derive_zstruct(input)?,
     };
 
     Ok(quote::quote! {
-        #header_const
+        #struct_impl
 
         impl<'a> crate::ZExt<'a> for #ident #ty_generics #where_clause {
             const KIND: crate::ZExtKind = #kind;
-        }
-
-        impl #impl_generics crate::ZStructEncode for #ident #ty_generics #where_clause {
-            fn z_len_without_header(&self) -> usize {
-                #len
-            }
-
-            fn z_header(&self) -> Option<u8> {
-                #header
-            }
-
-            fn z_encode_without_header(&self, w: &mut crate::ZWriter) -> crate::ZCodecResult<()> {
-                #encode
-
-                Ok(())
-            }
-        }
-
-        impl<'a> crate::ZStructDecode<'a> for #ident #ty_generics #where_clause {
-            fn z_decode_with_header(r: &mut crate::ZReader<'a>, h: u8) -> crate::ZCodecResult<Self> {
-                #decodewh
-            }
-
-            fn z_decode(r: &mut crate::ZReader<'a>) -> crate::ZCodecResult<Self> {
-                #decode
-            }
         }
     })
 }

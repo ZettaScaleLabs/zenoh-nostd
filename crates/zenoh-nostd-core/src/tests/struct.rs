@@ -1,6 +1,6 @@
 use core::fmt::Debug;
 
-use crate::{ZReaderExt, ZStruct, ZStructDecode, ZStructEncode, tests::r#struct::nested::Inner};
+use crate::{ZReaderExt, ZStruct, tests::r#struct::nested::Inner};
 
 #[derive(ZStruct, PartialEq, Debug)]
 struct ZBasic {
@@ -147,16 +147,35 @@ struct ZDefaultPresence {
     pub maybe_u32: nested::Inner,
 }
 
+#[derive(ZStruct, PartialEq, Debug)]
+#[zenoh(header = "_|V|_|_:1=0x3|_:4")]
+struct ZInnerWithHeader {
+    #[zenoh(header = V)]
+    pub a: u8,
+}
+
+const DEFAULT_INNER_WITH_HEADER: ZInnerWithHeader = ZInnerWithHeader { a: 0 };
+
+#[derive(ZStruct, PartialEq, Debug)]
+#[zenoh(header = "D|_|_:1=0x2|_|_:4=0x4")]
+struct ZFlattenHeader {
+    #[zenoh(presence = prefixed, default = 42)]
+    pub maybe_u16: u16,
+
+    #[zenoh(flatten, presence = header(D), default = DEFAULT_INNER_WITH_HEADER)]
+    pub maybe_inner: ZInnerWithHeader,
+}
+
 macro_rules! roundtrip {
     ($ty:ty, $value:expr) => {{
         let mut data = [0u8; 256];
-        let mut writer = &mut data.as_mut_slice();
+        let mut w = &mut data.as_mut_slice();
 
-        let len = <_ as ZStructEncode>::z_len(&$value);
-        <_ as ZStructEncode>::z_encode(&$value, &mut writer).unwrap();
+        let len = <_ as $crate::ZLen>::z_len(&$value);
+        <_ as $crate::ZEncode>::z_encode(&$value, &mut w).unwrap();
 
-        let mut reader = data.as_slice();
-        let decoded = <$ty as ZStructDecode>::z_decode(&mut reader.sub(len).unwrap()).unwrap();
+        let mut r = data.as_slice();
+        let decoded = <$ty as $crate::ZDecode>::z_decode(&mut r.sub(len).unwrap()).unwrap();
 
         assert_eq!(decoded, $value);
     }};
@@ -330,4 +349,20 @@ fn test_default_presence() {
     };
 
     roundtrip!(ZDefaultPresence, s);
+}
+
+#[test]
+fn test_flatten_inner_with_header() {
+    let s1 = ZInnerWithHeader { a: 1 };
+    roundtrip!(ZInnerWithHeader, s1);
+    let h1 = <ZInnerWithHeader as crate::ZHeader>::z_header(&s1);
+
+    let s2 = ZFlattenHeader {
+        maybe_u16: 100,
+        maybe_inner: s1,
+    };
+    roundtrip!(ZFlattenHeader, s2);
+    let h2 = <ZFlattenHeader as crate::ZHeader>::z_header(&s2);
+
+    assert_eq!(h1 & h2, h1);
 }

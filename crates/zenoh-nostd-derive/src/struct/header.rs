@@ -1,164 +1,119 @@
-use proc_macro2::{Span, TokenStream};
-use syn::Ident;
+use proc_macro2::TokenStream;
 
-use crate::model::ZenohStruct;
+use crate::{
+    model::{
+        ZenohField, ZenohStruct,
+        attribute::{DefaultAttribute, HeaderAttribute, PresenceAttribute, SizeAttribute},
+        ty::ZenohType,
+    },
+    r#struct::enc_len_modifier,
+};
 
-pub fn parse(r#struct: &ZenohStruct) -> syn::Result<TokenStream> {
-    if let Some(header) = &r#struct.header {
-        let ident = &r#struct.ident;
-        let generics = &r#struct.generics;
-        let (impl_generics, ty_generics, where_clause) = generics.split_for_impl();
+pub fn parse(r#struct: &ZenohStruct) -> syn::Result<(TokenStream, bool)> {
+    let mut body = Vec::<TokenStream>::new();
+    let mut s = Vec::<TokenStream>::new();
 
-        let mut shift = 8u8;
-        let content = header.expr.value();
-        let mut const_defs = Vec::new();
-        let mut base_header = Vec::new();
+    if r#struct.header.is_some() {
+        body.push(quote::quote! {
+            let mut header: u8 = Self::HEADER_BASE;
+        });
+    }
 
-        for part in content.split('|') {
-            let part = part.trim();
-            if part.is_empty() {
-                continue;
+    for field in &r#struct.fields {
+        match field {
+            ZenohField::Regular { field } => {
+                let access = &field.access;
+                let ty = &field.ty;
+                let attr = &field.attr;
+
+                if let HeaderAttribute::Slot(slot) = &attr.header {
+                    s.push(access.clone());
+
+                    body.push(quote::quote! {
+                        header  |= {
+                            let v: u8 = (*#access).into();
+                            (v << (#slot .trailing_zeros())) & #slot
+                        };
+                    });
+
+                    continue;
+                }
+
+                if matches!(attr.presence, PresenceAttribute::Header(_))
+                    || matches!(attr.size, SizeAttribute::Header(_))
+                {
+                    s.push(access.clone());
+                }
+
+                let default = match &attr.default {
+                    DefaultAttribute::Expr(expr) => quote::quote! { #expr },
+                    _ => quote::quote! {},
+                };
+
+                let check = match ty {
+                    ZenohType::Option(_) => quote::quote! { #access.is_some() },
+                    _ => quote::quote! { #access  != &#default },
+                };
+
+                if let PresenceAttribute::Header(slot) = &attr.presence {
+                    body.push(quote::quote! {
+                        if #check {
+                            header |= #slot;
+                        }
+                    });
+                }
+
+                if let SizeAttribute::Header(slot) = &attr.size {
+                    let e: u8 = (!attr.maybe_empty) as u8;
+                    body.push(enc_len_modifier(
+                        attr,
+                        &quote::quote! {
+                            header |= {
+                                let shift = #slot .trailing_zeros();
+                                let len = < _ as crate::ZLen>::z_len(#access) as u8;
+
+                                ((len - #e) << shift) & #slot
+                            };
+                        },
+                        access,
+                        &default,
+                        false,
+                    ));
+                }
             }
-            const_defs.push(parse_part(
-                part,
-                &mut shift,
-                &mut base_header,
-                header.expr.span(),
-            )?);
-        }
-
-        let base_header = if base_header.is_empty() {
-            quote::quote! { 0u8 }
-        } else {
-            base_header
-                .into_iter()
-                .reduce(|acc, expr| {
-                    quote::quote! { (#acc) | (#expr) }
-                })
-                .unwrap()
-        };
-
-        if shift != 0 {
-            return Err(syn::Error::new(
-                header.expr.span(),
-                "Header declaration does not use all 8 bits",
-            ));
-        }
-
-        Ok(quote::quote! {
-            impl #impl_generics #ident #ty_generics #where_clause {
-                const HEADER_BASE: u8 = #base_header;
-
-                #(#const_defs)*
+            ZenohField::ExtBlock { .. } => {
+                body.push(quote::quote! {
+                    header |= if <_ as crate::ZExtCount>::z_ext_count(self) > 0 {
+                        Self::HEADER_SLOT_Z
+                    } else {
+                        0
+                    };
+                });
             }
-        })
+        }
+    }
+
+    let expand = if s.is_empty() {
+        quote::quote! { .. }
     } else {
-        Ok(quote::quote! {})
-    }
-}
+        quote::quote! { , .. }
+    };
 
-fn parse_part(
-    part: &str,
-    shift: &mut u8,
-    base_header: &mut Vec<TokenStream>,
-    span: Span,
-) -> syn::Result<TokenStream> {
-    if part == "_" {
-        *shift = shift.saturating_sub(1);
-        return Ok(quote::quote! {});
+    if body.is_empty() {
+        return Ok((quote::quote! {}, false));
     }
 
-    if part == "Z" && *shift != 8 {
-        return Err(syn::Error::new(
-            span,
-            "The special 'Z' placeholder must be the first part in header declaration",
-        ));
-    }
+    Ok((
+        quote::quote! {
+            let Self {
+                #(#s),*
+                #expand
+            } = self;
 
-    let mut split = part.split('=');
-    let left = split.next().unwrap();
-    let value_opt = split.next();
-    let mut left_split = left.split(':');
-    let name_str = left_split.next().unwrap();
-    let size_opt = left_split.next();
-    let name = Ident::new(name_str, proc_macro2::Span::call_site());
+            #(#body)*
 
-    if let Some(size_str) = size_opt {
-        let size: u8 = size_str.parse().map_err(|_| {
-            syn::Error::new(
-                span,
-                format!("Invalid size '{}' in header declaration", size_str),
-            )
-        })?;
-        if let Some(value_str) = value_opt {
-            let value: u8 = if let Some(stripped) = value_str.strip_prefix("0x") {
-                u8::from_str_radix(stripped, 16).map_err(|_| {
-                    syn::Error::new(
-                        span,
-                        format!("Invalid hex value '{}' in header declaration", value_str),
-                    )
-                })?
-            } else {
-                value_str.parse().map_err(|_| {
-                    syn::Error::new(
-                        span,
-                        format!("Invalid value '{}' in header declaration", value_str),
-                    )
-                })?
-            };
-
-            let x = syn::LitInt::new(&format!("0b{:b}", (1 << size) - 1), Span::call_site());
-            let y = *shift - size;
-
-            let slot = quote::quote! { #x << #y };
-            let shifted_value = quote::quote! { #value << #y };
-            let value = quote::quote! { #value };
-
-            *shift = shift.checked_sub(size).ok_or_else(|| {
-                syn::Error::new(span, "Not enough bits left in header declaration")
-            })?;
-
-            base_header.push(shifted_value);
-
-            if name == "_" {
-                return Ok(quote::quote! {});
-            }
-
-            let name_slot = Ident::new(&format!("HEADER_SLOT_{}", name_str), Span::call_site());
-            Ok(quote::quote! {
-                pub const #name: u8 = #value;
-                const #name_slot: u8 = #slot;
-            })
-        } else {
-            let x = syn::LitInt::new(&format!("0b{:b}", (1 << size) - 1), Span::call_site());
-            let y = *shift - size;
-
-            *shift = shift.checked_sub(size).ok_or_else(|| {
-                syn::Error::new(span, "Not enough bits left in header declaration")
-            })?;
-
-            if name == "_" {
-                return Ok(quote::quote! {});
-            }
-
-            let name = Ident::new(&format!("HEADER_SLOT_{}", name_str), Span::call_site());
-            Ok(quote::quote! {
-                const #name: u8 = #x << #y;
-            })
-        }
-    } else if value_opt.is_some() {
-        Err(syn::Error::new(
-            span,
-            "Affectation without size is not allowed in header declaration",
-        ))
-    } else {
-        *shift = shift
-            .checked_sub(1)
-            .ok_or_else(|| syn::Error::new(span, "Not enough bits left in header declaration"))?;
-
-        let name = Ident::new(&format!("HEADER_SLOT_{}", name_str), Span::call_site());
-        Ok(quote::quote! {
-            const #name: u8 = 0b1 << #shift;
-        })
-    }
+            header
+        },
+        true,
+    ))
 }

@@ -3,8 +3,6 @@ use core::fmt::Debug;
 use crate::ZCodecResult;
 use crate::ZReader;
 use crate::ZReaderExt;
-use crate::ZStructDecode;
-use crate::ZStructEncode;
 use crate::ZWriter;
 
 /// TODO: make the codec capable of handling this silly one.

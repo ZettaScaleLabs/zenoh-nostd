@@ -1,4 +1,4 @@
-use crate::{ZExt, ZExtKind, ZReaderExt, ZStruct, ZStructDecode, ZStructEncode};
+use crate::{ZExt, ZExtKind, ZReaderExt, ZStruct};
 
 #[derive(ZExt, PartialEq, Debug)]
 pub struct ZExtEmpty {}
@@ -117,11 +117,11 @@ macro_rules! roundtrip {
         let mut data = [0u8; 256];
         let mut writer = &mut data.as_mut_slice();
 
-        let len = <_ as ZStructEncode>::z_len(&$value);
-        <_ as ZStructEncode>::z_encode(&$value, &mut writer).unwrap();
+        let len = <_ as $crate::ZLen>::z_len(&$value);
+        <_ as $crate::ZEncode>::z_encode(&$value, &mut writer).unwrap();
 
         let mut reader = data.as_slice();
-        let decoded = <$ty as ZStructDecode>::z_decode(&mut reader.sub(len).unwrap()).unwrap();
+        let decoded = <$ty as $crate::ZDecode>::z_decode(&mut reader.sub(len).unwrap()).unwrap();
 
         assert_eq!(decoded, $value);
     }};

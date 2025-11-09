@@ -1,8 +1,9 @@
 use proc_macro2::TokenStream;
+use syn::Ident;
 
 use crate::model::{ZenohField, ZenohStruct, ty::ZenohType};
 
-pub fn parse(r#struct: &ZenohStruct) -> (TokenStream, TokenStream, TokenStream) {
+pub fn parse(r#struct: &ZenohStruct, ident: &Ident) -> TokenStream {
     let field = r#struct
         .fields
         .first()
@@ -26,18 +27,47 @@ pub fn parse(r#struct: &ZenohStruct) -> (TokenStream, TokenStream, TokenStream) 
         _ => unreachable!(),
     };
 
-    (
-        quote::quote! {
-            < u64 as crate::ZStructEncode>::z_len(&(self. #access as u64))
-        },
-        quote::quote! {
-            < u64 as crate::ZStructEncode>::z_encode(&(self. #access as u64), w)?;
-        },
-        quote::quote! {
-            let #access = < u64 as crate::ZStructDecode>::z_decode(r)? as #ty;
-            Ok(Self {
-                #access
-            })
-        },
-    )
+    quote::quote! {
+        impl crate::ZBodyLen for #ident {
+            fn z_body_len(&self) -> usize {
+                < _ as crate::ZLen>::z_len(&(self. #access as u64))
+            }
+        }
+
+        impl crate::ZLen for #ident  {
+            fn z_len(&self) -> usize {
+                < _ as crate::ZBodyLen>::z_body_len(self)
+            }
+        }
+
+        impl crate::ZBodyEncode for #ident {
+            fn z_body_encode(&self, w: &mut crate::ZWriter) -> crate::ZCodecResult<()> {
+                < _ as crate::ZEncode>::z_encode(&(self. #access as u64), w)
+            }
+        }
+
+        impl crate::ZEncode for #ident {
+            fn z_encode(&self, w: &mut crate::ZWriter) -> crate::ZCodecResult<()> {
+                < _ as crate::ZBodyEncode>::z_body_encode(self, w)
+            }
+        }
+
+        impl<'a> crate::ZBodyDecode<'a> for #ident  {
+            type Ctx = ();
+
+            fn z_body_decode(r: &mut crate::ZReader<'a>, _: ()) -> crate::ZCodecResult<Self> {
+                let #access = < u64 as crate::ZDecode>::z_decode(r)? as #ty;
+
+                Ok(Self {
+                    #access
+                })
+            }
+        }
+
+        impl<'a> crate::ZDecode<'a> for #ident {
+            fn z_decode(r: &mut crate::ZReader<'a>) -> crate::ZCodecResult<Self> {
+                < _ as crate::ZBodyDecode>::z_body_decode(r, ())
+            }
+        }
+    }
 }
