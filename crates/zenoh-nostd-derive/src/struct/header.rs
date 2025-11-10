@@ -55,7 +55,7 @@ pub fn parse(r#struct: &ZenohStruct) -> syn::Result<(TokenStream, bool)> {
                     let shift = attr.shift.unwrap_or(0);
 
                     body.push(enc_len_modifier(
-                        &attr,
+                        attr,
                         &quote::quote! {
                             header |= < _ as crate::ZHeader>::z_header(#access) << #shift;
                         },

@@ -8,7 +8,7 @@ use crate::{
     ZExtKind, ZLen, ZReader, ZWriter,
 };
 
-// pub mod declare;
+pub mod declare;
 pub mod interest;
 pub mod push;
 pub mod request;
@@ -31,9 +31,8 @@ impl QoS {
         is_express: bool,
     ) -> Self {
         let mut inner = priority as u8;
-        match congestion_control {
-            CongestionControl::Block => inner |= Self::D_FLAG,
-            _ => {}
+        if matches!(congestion_control, CongestionControl::Block) {
+            inner |= Self::D_FLAG;
         }
         if is_express {
             inner |= Self::E_FLAG;
@@ -160,7 +159,7 @@ impl<'a> ZBodyDecode<'a> for Timeout {
     fn z_body_decode(r: &mut ZReader<'a>, _: ()) -> ZCodecResult<Self> {
         let value = <u64 as ZDecode>::z_decode(r)?;
         Ok(Timeout {
-            timeout: Duration::from_millis(value as u64),
+            timeout: Duration::from_millis(value),
         })
     }
 }
@@ -179,6 +178,63 @@ impl Timeout {
     }
 }
 
+#[derive(Debug, PartialEq)]
+pub struct QueryableInfo {
+    pub complete: bool,
+    pub distance: u16,
+}
+
+impl ZBodyLen for QueryableInfo {
+    fn z_body_len(&self) -> usize {
+        <u64 as ZLen>::z_len(&self.as_u64())
+    }
+}
+
+impl ZBodyEncode for QueryableInfo {
+    fn z_body_encode(&self, w: &mut ZWriter) -> ZCodecResult<()> {
+        <u64 as ZEncode>::z_encode(&self.as_u64(), w)
+    }
+}
+
+impl ZBodyDecode<'_> for QueryableInfo {
+    type Ctx = ();
+
+    fn z_body_decode(r: &mut ZReader<'_>, _: ()) -> ZCodecResult<Self> {
+        let value = <u64 as ZDecode>::z_decode(r)?;
+        let complete = (value & 0b0000_0001) != 0;
+        let distance = ((value >> 8) & 0xFFFF) as u16;
+        Ok(QueryableInfo { complete, distance })
+    }
+}
+
+crate::__internal_zstructimpl!(QueryableInfo);
+
+impl<'a> ZExt<'a> for QueryableInfo {
+    const KIND: ZExtKind = ZExtKind::U64;
+}
+
+impl QueryableInfo {
+    pub const DEFAULT: Self = Self {
+        complete: false,
+        distance: 0,
+    };
+
+    fn as_u64(&self) -> u64 {
+        let mut flags: u8 = 0;
+        if self.complete {
+            flags |= 0b0000_0001;
+        }
+        (flags as u64) | ((self.distance as u64) << 8)
+    }
+
+    #[cfg(test)]
+    pub(crate) fn rand(_: &mut ZWriter) -> Self {
+        let complete = thread_rng().gen_bool(0.5);
+        let distance: u16 = thread_rng().r#gen();
+        Self { complete, distance }
+    }
+}
+
 #[repr(u8)]
 #[derive(Debug, Default, PartialEq, Clone, Copy)]
 pub enum Mapping {
@@ -187,9 +243,9 @@ pub enum Mapping {
     Sender = 1,
 }
 
-impl Into<u8> for Mapping {
-    fn into(self) -> u8 {
-        self as u8
+impl From<Mapping> for u8 {
+    fn from(val: Mapping) -> u8 {
+        val as u8
     }
 }
 

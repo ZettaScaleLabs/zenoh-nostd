@@ -58,7 +58,7 @@ pub struct Interest<'a> {
 }
 
 impl Interest<'_> {
-    const HEADER_BASE: u8 = 25u8 << 0u8;
+    const HEADER_BASE: u8 = 25u8;
     pub const ID: u8 = 25u8;
 }
 
