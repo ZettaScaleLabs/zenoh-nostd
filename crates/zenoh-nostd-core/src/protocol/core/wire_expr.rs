@@ -1,4 +1,4 @@
-use crate::{ZStruct, network::Mapping};
+use crate::{ZExt, network::Mapping};
 
 #[cfg(test)]
 use crate::ZWriterExt;
@@ -9,8 +9,8 @@ use rand::{
     thread_rng,
 };
 
-#[derive(ZStruct, Debug, PartialEq)]
-#[zenoh(header = "_|M|N|_:5")]
+#[derive(ZExt, Debug, PartialEq)]
+#[zenoh(header = "_:6|M|N|")]
 pub struct WireExpr<'a> {
     pub scope: u16,
 

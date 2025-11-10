@@ -26,6 +26,11 @@ pub fn parse(r#struct: &ZenohStruct) -> syn::Result<(TokenStream, bool)> {
                 let ty = &field.ty;
                 let attr = &field.attr;
 
+                let default = match &attr.default {
+                    DefaultAttribute::Expr(expr) => quote::quote! { #expr },
+                    _ => quote::quote! {},
+                };
+
                 if let HeaderAttribute::Slot(slot) = &attr.header {
                     s.push(access.clone());
 
@@ -47,18 +52,21 @@ pub fn parse(r#struct: &ZenohStruct) -> syn::Result<(TokenStream, bool)> {
                 }
 
                 let len = if attr.flatten {
-                    body.push(quote::quote! {
-                        header |= < _ as crate::ZHeader>::z_header(#access);
-                    });
+                    let shift = attr.shift.unwrap_or(0);
+
+                    body.push(enc_len_modifier(
+                        &attr,
+                        &quote::quote! {
+                            header |= < _ as crate::ZHeader>::z_header(#access) << #shift;
+                        },
+                        access,
+                        &default,
+                        false,
+                    ));
 
                     quote::quote! { < _ as crate::ZBodyLen>::z_body_len(#access) }
                 } else {
                     quote::quote! { < _ as crate::ZLen>::z_len(#access) }
-                };
-
-                let default = match &attr.default {
-                    DefaultAttribute::Expr(expr) => quote::quote! { #expr },
-                    _ => quote::quote! {},
                 };
 
                 let check = match ty {

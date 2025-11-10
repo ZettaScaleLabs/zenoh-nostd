@@ -17,7 +17,7 @@ use crate::{
 pub struct Response<'a> {
     pub rid: u32,
 
-    #[zenoh(flatten)]
+    #[zenoh(flatten, shift = 5)]
     pub wire_expr: WireExpr<'a>,
 
     // --- Extension block ---

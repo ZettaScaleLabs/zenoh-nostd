@@ -24,9 +24,10 @@ pub enum ZenohType {
 
 impl ZenohType {
     pub fn check_attribute(&self, attr: &ZenohAttribute) -> syn::Result<()> {
-        let (s, f, me, m, p, h, e, d) = (
+        let (s, f, sh, me, m, p, h, e, d) = (
             !matches!(attr.size, SizeAttribute::None),
             attr.flatten,
+            attr.shift.is_some(),
             attr.maybe_empty,
             attr.mandatory,
             !matches!(attr.presence, PresenceAttribute::None),
@@ -37,10 +38,10 @@ impl ZenohType {
 
         match self {
             ZenohType::U8 => {
-                if f || s || me || m || e {
+                if f || sh || s || me || m || e {
                     return Err(syn::Error::new(
                         attr.span,
-                        "u8 type does not support flatten, size, maybe_empty, mandatory, presence or ext attributes",
+                        "u8 type does not support flatten, shift, size, maybe_empty, mandatory, presence or ext attributes",
                     ));
                 }
                 if d && !p || p && !d {
@@ -56,10 +57,10 @@ impl ZenohType {
             | ZenohType::U64
             | ZenohType::USize
             | ZenohType::ByteArray => {
-                if f || s || me || m || h || e {
+                if f || sh || s || me || m || h || e {
                     return Err(syn::Error::new(
                         attr.span,
-                        "u16, u32, u64, usize and [u8; N] types do not support flatten, size, maybe_empty, mandatory, header, or ext attributes",
+                        "u16, u32, u64, usize and [u8; N] types do not support flatten, shift, size, maybe_empty, mandatory, header, or ext attributes",
                     ));
                 }
                 if d && !p || p && !d {
@@ -71,10 +72,10 @@ impl ZenohType {
                 Ok(())
             }
             ZenohType::ByteSlice | ZenohType::Str => {
-                if f || m || h || e {
+                if f || sh || m || h || e {
                     return Err(syn::Error::new(
                         attr.span,
-                        "string and byte slice types do not support flatten, mandatory, header, ext, or default attributes",
+                        "string and byte slice types do not support flatten, shift, mandatory, header, ext, or default attributes",
                     ));
                 }
                 if d && !p || p && !d {
@@ -122,6 +123,12 @@ impl ZenohType {
                         "ZStruct type with header attribute cannot be flattened",
                     ));
                 }
+                if sh && !f {
+                    return Err(syn::Error::new(
+                        attr.span,
+                        "ZStruct type with shift attribute must be flattened",
+                    ));
+                }
                 Ok(())
             }
             ZenohType::Option(inner_ty) => {
@@ -156,6 +163,7 @@ impl ZenohType {
                 let attr = ZenohAttribute {
                     size: attr.size.clone(),
                     flatten: attr.flatten,
+                    shift: attr.shift,
                     maybe_empty: attr.maybe_empty,
                     mandatory: attr.mandatory,
                     presence: PresenceAttribute::None,

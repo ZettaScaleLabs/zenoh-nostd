@@ -17,7 +17,7 @@ use crate::{
 pub struct Request<'a> {
     pub id: u32,
 
-    #[zenoh(flatten)]
+    #[zenoh(flatten, shift = 5)]
     pub wire_expr: WireExpr<'a>,
 
     // --- Extension block ---

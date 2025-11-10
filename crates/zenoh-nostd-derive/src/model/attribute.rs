@@ -6,6 +6,7 @@ pub struct ZenohAttribute {
     pub span: Span,
 
     pub flatten: bool,
+    pub shift: Option<usize>,
     pub size: SizeAttribute,
     pub maybe_empty: bool,
     pub mandatory: bool,
@@ -20,6 +21,7 @@ impl Default for ZenohAttribute {
         ZenohAttribute {
             span: Span::call_site(),
             flatten: false,
+            shift: None,
             size: SizeAttribute::default(),
             maybe_empty: false,
             mandatory: false,
@@ -43,6 +45,7 @@ impl ZenohAttribute {
                 attr.parse_nested_meta(|meta| {
                     let size = SizeAttribute::from_meta(&meta)?;
                     let flatten = flatten_from_meta(&meta)?;
+                    let shift = shift_from_meta(&meta)?;
                     let maybe_empty = maybe_empty_from_meta(&meta)?;
                     let mandatory = mandatory_from_meta(&meta)?;
                     let presence = PresenceAttribute::from_meta(&meta)?;
@@ -55,6 +58,9 @@ impl ZenohAttribute {
                     }
                     if flatten {
                         zattr.flatten = true;
+                    }
+                    if let Some(shift) = shift {
+                        zattr.shift = Some(shift);
                     }
                     if maybe_empty {
                         zattr.maybe_empty = true;
@@ -90,6 +96,16 @@ fn flatten_from_meta(meta: &ParseNestedMeta) -> syn::Result<bool> {
     }
 
     Ok(false)
+}
+
+fn shift_from_meta(meta: &ParseNestedMeta) -> syn::Result<Option<usize>> {
+    if meta.path.is_ident("shift") {
+        let value = meta.value()?;
+        let shift: syn::LitInt = value.parse()?;
+        return Ok(Some(shift.base10_parse()?));
+    }
+
+    Ok(None)
 }
 
 fn maybe_empty_from_meta(meta: &ParseNestedMeta) -> syn::Result<bool> {

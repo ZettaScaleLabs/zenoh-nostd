@@ -15,7 +15,7 @@ use crate::{
 #[derive(ZStruct, Debug, PartialEq)]
 #[zenoh(header = "Z|M|N|ID:5=0x1d")]
 pub struct Push<'a> {
-    #[zenoh(flatten)]
+    #[zenoh(flatten, shift = 5)]
     pub wire_expr: WireExpr<'a>,
 
     // --- Extension block ---
