@@ -21,26 +21,16 @@ pub mod push;
 pub mod request;
 pub mod response;
 
-// crate::__internal_zaggregate! {
-//     #[derive(Debug, PartialEq)]
-//     pub enum NetworkBody<'a> {
-//         Push<'a>,
-//         Request<'a>,
-//         Response<'a>,
-//         ResponseFinal,
-//         Interest<'a>,
-//         Declare<'a>,
-//     }
-// }
-
-#[derive(Debug, PartialEq)]
-pub enum NetworkBody<'a> {
-    Push(Push<'a>),
-    Request(Request<'a>),
-    Response(Response<'a>),
-    ResponseFinal(ResponseFinal),
-    Interest(Interest<'a>),
-    Declare(Declare<'a>),
+crate::__internal_zaggregate_stream! {
+    #[derive(Debug, PartialEq)]
+    pub enum NetworkBody<'a> {
+        Push<'a>,
+        Request<'a>,
+        Response<'a>,
+        ResponseFinal,
+        Interest<'a>,
+        Declare<'a>,
+    }
 }
 
 #[derive(Debug, PartialEq)]

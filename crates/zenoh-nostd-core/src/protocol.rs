@@ -13,9 +13,8 @@ pub trait ZPrivateDecode<'a>: Sized {
     fn z_decode(r: &mut ZReader<'a>, ctx: Self::Ctx) -> ZCodecResult<Self>;
 }
 
-/// Macro to define an aggregate ZStruct enum
 #[macro_export]
-macro_rules! __internal_zaggregate {
+macro_rules! __internal_enum {
     (
         $(#[$meta:meta])*
         $vis:vis enum $name:ident <'a> {
@@ -31,6 +30,39 @@ macro_rules! __internal_zaggregate {
             )*
         }
 
+
+        impl<'a> $name<'a> {
+            #[cfg(test)]
+            pub(crate) fn rand(zbuf: &mut $crate::ZWriter<'a>) -> $name<'a> {
+                use rand::seq::SliceRandom;
+
+                let mut rng = rand::thread_rng();
+                let choices = [
+                    $(
+                        $variant::ID,
+                    )*
+                ];
+                match *choices.choose(&mut rng).unwrap() {
+                    $(
+                        <$variant>::ID => Self::$variant(<$variant>::rand(zbuf)),
+                    )*
+                    _ => unreachable!(),
+                }
+            }
+        }
+    };
+}
+
+#[macro_export]
+macro_rules! __internal_len {
+    (
+        $(#[$meta:meta])*
+        $vis:vis enum $name:ident <'a> {
+            $(
+                $variant:ident $(<$lt:lifetime>)?
+            ),* $(,)?
+        }
+    ) => {
         impl $crate::ZBodyLen for $name<'_> {
             fn z_body_len(&self) -> usize {
                 match self {
@@ -46,7 +78,19 @@ macro_rules! __internal_zaggregate {
                 1 + <Self as $crate::ZBodyLen>::z_body_len(self)
             }
         }
+    };
+}
 
+#[macro_export]
+macro_rules! __internal_encode {
+    (
+        $(#[$meta:meta])*
+        $vis:vis enum $name:ident <'a> {
+            $(
+                $variant:ident $(<$lt:lifetime>)?
+            ),* $(,)?
+        }
+    ) => {
         impl $crate::ZBodyEncode for $name<'_> {
             fn z_body_encode(&self, w: &mut $crate::ZWriter) -> $crate::ZCodecResult<()> {
                 match self {
@@ -64,6 +108,28 @@ macro_rules! __internal_zaggregate {
                         Self::$variant(x) => <$variant as $crate::ZEncode>::z_encode(x, w),
                     )*
                 }
+            }
+        }
+    };
+}
+
+/// Macro to define an aggregate ZStruct enum
+#[macro_export]
+macro_rules! __internal_zaggregate {
+    (
+        $(#[$meta:meta])*
+        $vis:vis enum $name:ident <'a> {
+            $(
+                $variant:ident $(<$lt:lifetime>)?
+            ),* $(,)?
+        }
+    ) => {
+        $crate::__internal_zaggregate_stream! {
+            $(#[$meta])*
+            $vis enum $name<'a> {
+                $(
+                    $variant $(<$lt>)?,
+                )*
             }
         }
 
@@ -88,24 +154,44 @@ macro_rules! __internal_zaggregate {
                 <Self as $crate::ZBodyDecode>::z_body_decode(r, header)
             }
         }
+    };
+}
 
-        impl<'a> $name<'a> {
-            #[cfg(test)]
-            pub(crate) fn rand(zbuf: &mut $crate::ZWriter<'a>) -> $name<'a> {
-                use rand::seq::SliceRandom;
+/// Macro to define an aggregate ZStruct enum
+#[macro_export]
+macro_rules! __internal_zaggregate_stream {
+    (
+        $(#[$meta:meta])*
+        $vis:vis enum $name:ident <'a> {
+            $(
+                $variant:ident $(<$lt:lifetime>)?
+            ),* $(,)?
+        }
+    ) => {
+        $crate::__internal_enum! {
+            $(#[$meta])*
+            $vis enum $name<'a> {
+                $(
+                    $variant $(<$lt>)?,
+                )*
+            }
+        }
 
-                let mut rng = rand::thread_rng();
-                let choices = [
-                    $(
-                        $variant::ID,
-                    )*
-                ];
-                match *choices.choose(&mut rng).unwrap() {
-                    $(
-                        <$variant>::ID => Self::$variant(<$variant>::rand(zbuf)),
-                    )*
-                    _ => unreachable!(),
-                }
+        $crate::__internal_len! {
+            $(#[$meta])*
+            $vis enum $name<'a> {
+                $(
+                    $variant $(<$lt>)?,
+                )*
+            }
+        }
+
+        $crate::__internal_encode! {
+            $(#[$meta])*
+            $vis enum $name<'a> {
+                $(
+                    $variant $(<$lt>)?,
+                )*
             }
         }
     };

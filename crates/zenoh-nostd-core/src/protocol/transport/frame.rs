@@ -23,7 +23,7 @@ pub struct Frame<'a, 'b> {
 
 impl Drop for Frame<'_, '_> {
     fn drop(&mut self) {
-        while let Some(_) = self.iter.next() {}
+        for _ in self.iter.by_ref() {}
     }
 }
 

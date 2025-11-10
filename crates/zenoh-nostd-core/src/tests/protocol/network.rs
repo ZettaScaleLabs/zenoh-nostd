@@ -60,20 +60,8 @@ fn network_stream() {
 
     let mut messages = {
         let mut msgs = VecDeque::new();
-        let mut rng = thread_rng();
-        for _ in 1..16 {
-            let choice = rng.gen_range(0..6);
-            match choice {
-                0 => msgs.push_back(NetworkBody::Push(Push::rand(&mut rand_writer))),
-                1 => msgs.push_back(NetworkBody::Request(Request::rand(&mut rand_writer))),
-                2 => msgs.push_back(NetworkBody::Response(Response::rand(&mut rand_writer))),
-                3 => msgs.push_back(NetworkBody::ResponseFinal(ResponseFinal::rand(
-                    &mut rand_writer,
-                ))),
-                4 => msgs.push_back(NetworkBody::Interest(Interest::rand(&mut rand_writer))),
-                5 => msgs.push_back(NetworkBody::Declare(Declare::rand(&mut rand_writer))),
-                _ => unreachable!(),
-            }
+        for _ in 1..thread_rng().gen_range(1..16) {
+            msgs.push_back(NetworkBody::rand(&mut rand_writer));
         }
         msgs
     };
@@ -82,14 +70,7 @@ fn network_stream() {
     let mut writer = data.as_mut_slice();
     let start = writer.len();
     for msg in &messages {
-        match msg {
-            NetworkBody::Push(m) => <_ as ZEncode>::z_encode(m, &mut writer).unwrap(),
-            NetworkBody::Request(m) => <_ as ZEncode>::z_encode(m, &mut writer).unwrap(),
-            NetworkBody::Response(m) => <_ as ZEncode>::z_encode(m, &mut writer).unwrap(),
-            NetworkBody::ResponseFinal(m) => <_ as ZEncode>::z_encode(m, &mut writer).unwrap(),
-            NetworkBody::Interest(m) => <_ as ZEncode>::z_encode(m, &mut writer).unwrap(),
-            NetworkBody::Declare(m) => <_ as ZEncode>::z_encode(m, &mut writer).unwrap(),
-        }
+        <_ as ZEncode>::z_encode(msg, &mut writer).unwrap();
     }
     let len = start - writer.len();
 
