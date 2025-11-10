@@ -37,6 +37,18 @@ const FLAG_MANDATORY: u8 = 1 << 4;
 const FLAG_MORE: u8 = 1 << 7;
 const ID_MASK: u8 = 0b0000_1111;
 
+pub const fn zext_enc_id<'a, const ID: u8, T: ZExt<'a>>() -> u8 {
+    ID | T::KIND as u8
+}
+
+pub const fn zext_eheader<'a, const ID: u8, const MANDATORY: bool, T: ZExt<'a>>() -> u8 {
+    zext_enc_id::<ID, T>() | if MANDATORY { FLAG_MANDATORY } else { 0 }
+}
+
+pub const fn zext_header<'a, const ID: u8, const MANDATORY: bool, T: ZExt<'a>>(more: bool) -> u8 {
+    zext_eheader::<ID, MANDATORY, T>() | if more { FLAG_MORE } else { 0 }
+}
+
 pub fn zext_len<'a, T: ZExt<'a>>(x: &T) -> usize {
     1 + match T::KIND {
         ZExtKind::Unit | ZExtKind::U64 => <T as ZLen>::z_len(x),
@@ -49,9 +61,7 @@ pub fn zext_encode<'a, T: ZExt<'a>, const ID: u8, const MANDATORY: bool>(
     w: &mut ZWriter,
     more: bool,
 ) -> ZCodecResult<()> {
-    let header: u8 = (ID | T::KIND as u8)
-        | if MANDATORY { FLAG_MANDATORY } else { 0 }
-        | if more { FLAG_MORE } else { 0 };
+    let header: u8 = zext_header::<ID, MANDATORY, T>(more);
 
     <u8 as ZEncode>::z_encode(&header, w)?;
 

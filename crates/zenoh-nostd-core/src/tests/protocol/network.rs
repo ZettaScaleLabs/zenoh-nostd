@@ -1,4 +1,11 @@
-use crate::network::{declare::*, interest::*, push::*, request::*, response::*, *};
+use core::time::Duration;
+
+use rand::{Rng, thread_rng};
+
+use crate::{
+    ZWriter,
+    network::{declare::*, interest::*, push::*, request::*, response::*, *},
+};
 
 const NUM_ITER: usize = 100;
 const MAX_PAYLOAD_SIZE: usize = 512;
@@ -10,7 +17,7 @@ crate::roundtrips!(
     NodeId,
     QueryTarget,
     Budget,
-    Timeout,
+    Duration,
     QueryableInfo
 );
 crate::roundtrips!(
@@ -32,3 +39,13 @@ crate::roundtrips!(
     Response,
     ResponseFinal
 );
+
+trait RandDuration {
+    fn rand(w: &mut ZWriter) -> Self;
+}
+
+impl RandDuration for Duration {
+    fn rand(_: &mut ZWriter) -> Self {
+        Duration::from_millis(thread_rng().gen_range(0..10_000))
+    }
+}

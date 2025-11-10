@@ -150,46 +150,31 @@ impl Budget {
     }
 }
 
-#[derive(Debug, PartialEq)]
-pub struct Timeout {
-    pub timeout: Duration,
-}
-
-impl ZBodyLen for Timeout {
+impl ZBodyLen for Duration {
     fn z_body_len(&self) -> usize {
-        <u64 as ZLen>::z_len(&(self.timeout.as_millis() as u64))
+        <u64 as ZLen>::z_len(&(self.as_millis() as u64))
     }
 }
 
-impl ZBodyEncode for Timeout {
+impl ZBodyEncode for Duration {
     fn z_body_encode(&self, w: &mut ZWriter) -> ZCodecResult<()> {
-        <u64 as ZEncode>::z_encode(&(self.timeout.as_millis() as u64), w)
+        <u64 as ZEncode>::z_encode(&(self.as_millis() as u64), w)
     }
 }
 
-impl<'a> ZBodyDecode<'a> for Timeout {
+impl<'a> ZBodyDecode<'a> for Duration {
     type Ctx = ();
 
     fn z_body_decode(r: &mut ZReader<'a>, _: ()) -> ZCodecResult<Self> {
         let value = <u64 as ZDecode>::z_decode(r)?;
-        Ok(Timeout {
-            timeout: Duration::from_millis(value),
-        })
+        Ok(Duration::from_millis(value))
     }
 }
 
-crate::__internal_zstructimpl!(Timeout);
+crate::__internal_zstructimpl!(Duration);
 
-impl<'a> ZExt<'a> for Timeout {
+impl<'a> ZExt<'a> for Duration {
     const KIND: ZExtKind = ZExtKind::U64;
-}
-
-impl Timeout {
-    #[cfg(test)]
-    pub(crate) fn rand(_: &mut ZWriter) -> Self {
-        let timeout = Duration::from_millis(thread_rng().gen_range(0..10_000));
-        Self { timeout }
-    }
 }
 
 #[derive(Debug, PartialEq)]

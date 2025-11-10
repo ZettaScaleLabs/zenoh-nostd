@@ -1,6 +1,8 @@
 use crate::ZExt;
 
 #[cfg(test)]
+use crate::{ZWriter, ZWriterExt};
+#[cfg(test)]
 use rand::{Rng, thread_rng};
 
 pub mod close;
@@ -17,16 +19,53 @@ pub struct QoSLink {
     pub v: u64,
 }
 
+impl QoSLink {
+    #[cfg(test)]
+    pub(crate) fn rand(_: &mut ZWriter) -> Self {
+        Self {
+            v: thread_rng().r#gen(),
+        }
+    }
+}
+
 #[derive(ZExt, Debug, PartialEq)]
 pub struct Auth<'a> {
     #[zenoh(size = remain)]
     pub payload: &'a [u8],
 }
 
+impl<'a> Auth<'a> {
+    #[cfg(test)]
+    pub(crate) fn rand(w: &mut crate::ZWriter<'a>) -> Self {
+        let payload = w
+            .write_slot(thread_rng().gen_range(0..=64), |b: &mut [u8]| {
+                thread_rng().fill(b);
+                b.len()
+            })
+            .unwrap();
+
+        Self { payload }
+    }
+}
+
 #[derive(ZExt, Debug, PartialEq)]
 pub struct MultiLink<'a> {
     #[zenoh(size = remain)]
     pub payload: &'a [u8],
+}
+
+impl<'a> MultiLink<'a> {
+    #[cfg(test)]
+    pub(crate) fn rand(w: &mut crate::ZWriter<'a>) -> Self {
+        let payload = w
+            .write_slot(thread_rng().gen_range(0..=64), |b: &mut [u8]| {
+                thread_rng().fill(b);
+                b.len()
+            })
+            .unwrap();
+
+        Self { payload }
+    }
 }
 
 #[derive(ZExt, Debug, PartialEq)]
@@ -57,7 +96,7 @@ impl PatchType {
     }
 
     #[cfg(test)]
-    pub fn rand() -> Self {
+    pub(crate) fn rand(_: &mut ZWriter) -> Self {
         Self {
             int: thread_rng().r#gen(),
         }

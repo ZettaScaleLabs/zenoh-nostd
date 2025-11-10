@@ -1,3 +1,5 @@
+use core::time::Duration;
+
 use uhlc::Timestamp;
 
 #[cfg(test)]
@@ -7,7 +9,7 @@ use rand::{Rng, thread_rng};
 
 use crate::{
     ZStruct,
-    network::{Budget, NodeId, QoS, QueryTarget, Timeout},
+    network::{Budget, NodeId, QoS, QueryTarget},
     wire_expr::WireExpr,
     zenoh::RequestBody,
 };
@@ -32,7 +34,7 @@ pub struct Request<'a> {
     #[zenoh(ext = 0x5)]
     pub budget: Option<Budget>,
     #[zenoh(ext = 0x6)]
-    pub timeout: Option<Timeout>,
+    pub timeout: Option<Duration>,
 
     // --- Body ---
     #[zenoh(size = remain)]
@@ -71,8 +73,18 @@ impl<'a> Request<'a> {
             QueryTarget::DEFAULT
         };
 
+        trait RandDuration {
+            fn rand(w: &mut ZWriter) -> Self;
+        }
+
+        impl RandDuration for Duration {
+            fn rand(_: &mut ZWriter) -> Self {
+                Duration::from_millis(thread_rng().gen_range(0..10_000))
+            }
+        }
+
         let budget = thread_rng().gen_bool(0.5).then_some(Budget::rand(w));
-        let timeout = thread_rng().gen_bool(0.5).then_some(Timeout::rand(w));
+        let timeout = thread_rng().gen_bool(0.5).then_some(Duration::rand(w));
 
         let payload = RequestBody::rand(w);
 

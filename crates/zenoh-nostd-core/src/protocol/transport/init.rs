@@ -1,9 +1,10 @@
-use core::u16;
+#[cfg(test)]
+use rand::Rng;
 
 use crate::{
     ZBodyDecode, ZBodyEncode, ZBodyLen, ZReaderExt, ZStruct, ZWriter, ZWriterExt, ZenohIdProto,
     resolution::Resolution,
-    transport::{Auth, HasCompression, HasLowLatency, HasQoS, MultiLink, PatchType, QoSLink},
+    transport::{Auth, HasCompression, HasLowLatency, HasQoS, MultiLink, PatchType},
     whatami::WhatAmI,
 };
 
@@ -14,6 +15,182 @@ pub struct InitIdentifier {
     pub whatami: WhatAmI,
     #[zenoh(size = header(ZID))]
     pub zid: ZenohIdProto,
+}
+
+#[derive(ZStruct, Debug, PartialEq)]
+pub struct InitResolution {
+    pub resolution: Resolution,
+    pub batch_size: BatchSize,
+}
+
+#[derive(ZStruct, Debug, PartialEq)]
+#[zenoh(header = "Z|_:7")]
+pub struct InitExt<'a> {
+    #[zenoh(ext = 0x1)]
+    pub qos: Option<HasQoS>,
+    // TODO: support this extension WITH A DIFFERENT ID
+    // #[zenoh(ext = 0x1)]
+    // pub qos_link: Option<QoSLink>,
+    #[zenoh(ext = 0x3)]
+    pub auth: Option<Auth<'a>>,
+    #[zenoh(ext = 0x4)]
+    pub mlink: Option<MultiLink<'a>>,
+    #[zenoh(ext = 0x5)]
+    pub lowlatency: Option<HasLowLatency>,
+    #[zenoh(ext = 0x6)]
+    pub compression: Option<HasCompression>,
+    #[zenoh(ext = 0x7, default = PatchType::NONE)]
+    pub patch: PatchType,
+}
+
+#[derive(ZStruct, Debug, PartialEq)]
+#[zenoh(header = "Z|S|A:1=0|ID:5=0x01")]
+pub struct InitSyn<'a> {
+    pub version: u8,
+    pub identifier: InitIdentifier,
+
+    #[zenoh(presence = header(S), default = InitResolution::DEFAULT)]
+    pub resolution: InitResolution,
+
+    #[zenoh(flatten)]
+    pub ext: InitExt<'a>,
+}
+
+#[derive(ZStruct, Debug, PartialEq)]
+#[zenoh(header = "Z|S|A:1=1|ID:5=0x01")]
+pub struct InitAck<'a> {
+    pub version: u8,
+    pub identifier: InitIdentifier,
+
+    #[zenoh(presence = header(S), default = InitResolution::DEFAULT)]
+    pub resolution: InitResolution,
+
+    #[zenoh(size = prefixed)]
+    pub cookie: &'a [u8],
+
+    #[zenoh(flatten)]
+    pub ext: InitExt<'a>,
+}
+
+impl InitIdentifier {
+    #[cfg(test)]
+    pub(crate) fn rand(w: &mut ZWriter) -> Self {
+        let whatami = WhatAmI::rand();
+        let zid = ZenohIdProto::rand(w);
+        Self { whatami, zid }
+    }
+}
+
+impl InitResolution {
+    pub const DEFAULT: Self = Self {
+        resolution: Resolution::DEFAULT,
+        batch_size: BatchSize(u16::MAX),
+    };
+
+    #[cfg(test)]
+    pub(crate) fn rand(_: &mut ZWriter) -> Self {
+        let resolution = Resolution::rand();
+        let batch_size = BatchSize(rand::thread_rng().r#gen());
+        Self {
+            resolution,
+            batch_size,
+        }
+    }
+}
+
+impl<'a> InitExt<'a> {
+    #[cfg(test)]
+    pub(crate) fn rand(w: &mut ZWriter<'a>) -> Self {
+        let qos = if rand::thread_rng().gen_bool(0.5) {
+            Some(HasQoS {})
+        } else {
+            None
+        };
+        let auth = if rand::thread_rng().gen_bool(0.5) {
+            Some(Auth::rand(w))
+        } else {
+            None
+        };
+        let mlink = if rand::thread_rng().gen_bool(0.5) {
+            Some(MultiLink::rand(w))
+        } else {
+            None
+        };
+        let lowlatency = if rand::thread_rng().gen_bool(0.5) {
+            Some(HasLowLatency {})
+        } else {
+            None
+        };
+        let compression = if rand::thread_rng().gen_bool(0.5) {
+            Some(HasCompression {})
+        } else {
+            None
+        };
+        let patch = if rand::thread_rng().gen_bool(0.5) {
+            PatchType::rand(w)
+        } else {
+            PatchType::NONE
+        };
+
+        Self {
+            qos,
+            auth,
+            mlink,
+            lowlatency,
+            compression,
+            patch,
+        }
+    }
+}
+
+impl<'a> InitSyn<'a> {
+    #[cfg(test)]
+    pub(crate) fn rand(w: &mut ZWriter<'a>) -> Self {
+        let version = rand::thread_rng().r#gen();
+        let identifier = InitIdentifier::rand(w);
+        let resolution = if rand::thread_rng().gen_bool(0.5) {
+            InitResolution::rand(w)
+        } else {
+            InitResolution::DEFAULT
+        };
+        let ext = InitExt::rand(w);
+
+        Self {
+            version,
+            identifier,
+            resolution,
+            ext,
+        }
+    }
+}
+
+impl<'a> InitAck<'a> {
+    #[cfg(test)]
+    pub(crate) fn rand(w: &mut ZWriter<'a>) -> Self {
+        let version = rand::thread_rng().r#gen();
+        let identifier = InitIdentifier::rand(w);
+        let resolution = if rand::thread_rng().gen_bool(0.5) {
+            InitResolution::rand(w)
+        } else {
+            InitResolution::DEFAULT
+        };
+        let cookie_len = rand::thread_rng().gen_range(0..16);
+        let cookie = w
+            .write_slot(cookie_len, |b: &mut [u8]| {
+                rand::thread_rng().fill(b);
+                b.len()
+            })
+            .unwrap();
+        let ext = InitExt::rand(w);
+
+        Self {
+            version,
+            identifier,
+            resolution,
+            cookie,
+            ext,
+        }
+    }
 }
 
 #[derive(Debug, PartialEq)]
@@ -43,59 +220,3 @@ impl<'a> ZBodyDecode<'a> for BatchSize {
 }
 
 crate::__internal_zstructimpl!(BatchSize);
-
-#[derive(ZStruct, Debug, PartialEq)]
-pub struct InitResolution {
-    pub resolution: Resolution,
-    pub batch_size: BatchSize,
-}
-
-impl InitResolution {
-    pub const DEFAULT: Self = Self {
-        resolution: Resolution::DEFAULT,
-        batch_size: BatchSize(u16::MAX),
-    };
-}
-
-#[derive(ZStruct, Debug, PartialEq)]
-#[zenoh(header = "Z|S|A|ID:5=0x01")]
-pub struct InitSyn<'a> {
-    pub version: u8,
-    pub identifier: InitIdentifier,
-
-    #[zenoh(presence = header(S), default = InitResolution::DEFAULT)]
-    pub resolution: InitResolution,
-
-    #[zenoh(ext = 0x1)]
-    pub qos: Option<HasQoS>,
-    #[zenoh(ext = 0x1)]
-    pub qos_link: Option<QoSLink>,
-    #[zenoh(ext = 0x2)]
-    pub auth: Option<Auth<'a>>,
-    #[zenoh(ext = 0x3)]
-    pub mlink: Option<MultiLink<'a>>,
-    #[zenoh(ext = 0x4)]
-    pub lowlatency: Option<HasLowLatency>,
-    #[zenoh(ext = 0x5)]
-    pub compression: Option<HasCompression>,
-    #[zenoh(ext = 0x6, default = PatchType::NONE)]
-    pub patch: PatchType,
-}
-
-// #[derive(ZStruct, Debug, PartialEq)]
-// pub struct InitSyn {
-//     pub version: u8,
-//     pub whatami: WhatAmI,
-//     pub zid: ZenohIdProto,
-//     pub resolution: Resolution,
-//     pub batch_size: BatchSize,
-//     pub ext_qos: Option<ext::QoS>,
-//     pub ext_qos_link: Option<ext::QoSLink>,
-//     #[cfg(feature = "shared-memory")]
-//     pub ext_shm: Option<ext::Shm>,
-//     pub ext_auth: Option<ext::Auth>,
-//     pub ext_mlink: Option<ext::MultiLink>,
-//     pub ext_lowlatency: Option<ext::LowLatency>,
-//     pub ext_compression: Option<ext::Compression>,
-//     pub ext_patch: ext::PatchType,
-// }

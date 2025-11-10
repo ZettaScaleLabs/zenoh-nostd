@@ -1,3 +1,5 @@
+#[cfg(test)]
+use crate::ZWriter;
 use crate::{ZCodecError, ZCodecResult, ZStruct};
 
 #[derive(ZStruct, Debug, PartialEq)]
@@ -32,5 +34,20 @@ impl TryFrom<u8> for CloseBehaviour {
             1 => Ok(CloseBehaviour::Session),
             _ => Err(ZCodecError::CouldNotParse),
         }
+    }
+}
+
+impl Close {
+    #[cfg(test)]
+    pub(crate) fn rand(_: &mut ZWriter) -> Self {
+        use rand::Rng;
+        let mut rng = rand::thread_rng();
+        let reason: u8 = rng.r#gen();
+        let behaviour = if rng.gen_bool(0.5) {
+            CloseBehaviour::Link
+        } else {
+            CloseBehaviour::Session
+        };
+        Self { reason, behaviour }
     }
 }
