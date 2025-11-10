@@ -9,7 +9,7 @@ use crate::{
 };
 
 // pub mod declare;
-// pub mod interest;
+pub mod interest;
 pub mod push;
 pub mod request;
 pub mod response;

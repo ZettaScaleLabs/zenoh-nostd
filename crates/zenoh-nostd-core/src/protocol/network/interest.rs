@@ -1,4 +1,5 @@
 use uhlc::Timestamp;
+use zenoh_nostd_derive::ZStruct;
 
 #[cfg(test)]
 use crate::{ZWriter, ZWriterExt};
@@ -12,43 +13,47 @@ use rand::{
 use crate::{
     ZReaderExt,
     network::{Mapping, NodeId, QoS},
+    wire_expr::WireExpr,
     zbail,
 };
 
-// TODO: make it compatible with ZStruct!!! (at least it should be possible to put options and wireexpr in an inner struct)
+impl InterestInner<'_> {
+    const HEADER_SLOT_FULL: u8 = 0b1111_1111;
+}
+
+#[derive(ZStruct, Debug, PartialEq)]
+#[zenoh(header = "A|M|N|R|T|Q|S|K")]
+pub struct InterestInner<'a> {
+    #[zenoh(header = FULL)]
+    pub options: u8,
+
+    #[zenoh(presence = header(R), flatten)]
+    pub wire_expr: Option<WireExpr<'a>>,
+}
+
+#[derive(ZStruct, Debug, PartialEq)]
+#[zenoh(header = "Z|_:7")]
+pub struct InterestExt {
+    #[zenoh(ext = 0x1, default = QoS::DEFAULT)]
+    pub qos: QoS,
+    #[zenoh(ext = 0x2)]
+    pub timestamp: Option<Timestamp>,
+    #[zenoh(ext = 0x3, default = NodeId::DEFAULT, mandatory)]
+    pub nodeid: NodeId,
+}
+
 #[derive(Debug, PartialEq)]
 pub struct Interest<'a> {
     pub id: u32,
     pub mode: InterestMode,
-    pub options: InterestOptions,
 
-    pub scope: Option<u16>,
-    pub mapping: Option<Mapping>,
-    pub suffix: Option<&'a str>,
-
-    pub qos: QoS,
-    pub timestamp: Option<Timestamp>,
-    pub nodeid: NodeId,
+    pub inner: InterestInner<'a>,
+    pub ext: InterestExt,
 }
 
 impl Interest<'_> {
     const HEADER_BASE: u8 = 25u8 << 0u8;
-    const HEADER_SLOT_Z: u8 = 0b1 << 7u8;
     pub const ID: u8 = 25u8;
-
-    pub fn options(&self) -> u8 {
-        let mut interest = self.options;
-        if let Some(suffix) = self.suffix.as_ref() {
-            interest.options |= InterestOptions::RESTRICTED.options;
-            if !suffix.is_empty() {
-                interest.options |= InterestOptions::NAMED.options;
-            }
-            if let Mapping::Sender = self.mapping.unwrap() {
-                interest.options |= InterestOptions::MAPPING.options;
-            }
-        }
-        interest.options
-    }
 }
 
 impl crate::ZStructEncode for Interest<'_> {
