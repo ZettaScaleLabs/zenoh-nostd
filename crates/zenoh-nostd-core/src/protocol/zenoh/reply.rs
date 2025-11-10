@@ -16,7 +16,6 @@ pub struct Reply<'a> {
     pub consolidation: ConsolidationMode,
 
     // --- Body ---
-    #[zenoh(size = remain)]
     pub payload: PushBody<'a>,
 }
 

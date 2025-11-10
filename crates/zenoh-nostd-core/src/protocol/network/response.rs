@@ -29,7 +29,6 @@ pub struct Response<'a> {
     pub respid: Option<EntityGlobalId>,
 
     // --- Body ---
-    #[zenoh(size = remain)]
     pub payload: ResponseBody<'a>,
 }
 

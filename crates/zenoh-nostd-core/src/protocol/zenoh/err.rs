@@ -17,7 +17,7 @@ pub struct Err<'a> {
     pub sinfo: Option<SourceInfo>,
 
     // --- Body ---
-    #[zenoh(size = remain)]
+    #[zenoh(size = prefixed)]
     pub payload: &'a [u8],
 }
 

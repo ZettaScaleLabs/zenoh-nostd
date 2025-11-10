@@ -1,5 +1,8 @@
 use uhlc::NTP64;
 
+#[cfg(test)]
+use rand::{Rng, thread_rng};
+
 use crate::{
     ZBodyDecode, ZBodyEncode, ZBodyLen, ZCodecError, ZCodecResult, ZDecode, ZEncode, ZExt,
     ZExtKind, ZLen, ZReader, ZReaderExt, ZWriter, zbail,
@@ -122,3 +125,52 @@ crate::__internal_zstructimpl!(Timestamp);
 impl<'a> ZExt<'a> for Timestamp {
     const KIND: ZExtKind = ZExtKind::ZStruct;
 }
+
+#[derive(Debug, Default, Copy, Clone, PartialEq, Eq, Hash)]
+#[repr(u8)]
+pub enum Reliability {
+    BestEffort = 0,
+    #[default]
+    Reliable = 1,
+}
+
+impl Reliability {
+    pub const DEFAULT: Self = Self::Reliable;
+
+    #[cfg(test)]
+    pub fn rand(_: &mut ZWriter) -> Self {
+        if thread_rng().gen_bool(0.5) {
+            Reliability::Reliable
+        } else {
+            Reliability::BestEffort
+        }
+    }
+}
+
+impl ZBodyLen for Reliability {
+    fn z_body_len(&self) -> usize {
+        <u64 as ZLen>::z_len(&((*self as u8) as u64))
+    }
+}
+
+impl ZBodyEncode for Reliability {
+    fn z_body_encode(&self, w: &mut ZWriter) -> ZCodecResult<()> {
+        <u64 as ZEncode>::z_encode(&((*self as u8) as u64), w)
+    }
+}
+
+impl<'a> ZBodyDecode<'a> for Reliability {
+    type Ctx = ();
+
+    fn z_body_decode(r: &mut ZReader<'a>, _: ()) -> ZCodecResult<Self> {
+        let value = <u64 as ZDecode>::z_decode(r)?;
+
+        match value as u8 {
+            0 => Ok(Reliability::BestEffort),
+            1 => Ok(Reliability::Reliable),
+            _ => Err(ZCodecError::CouldNotParse),
+        }
+    }
+}
+
+crate::__internal_zstructimpl!(Reliability);

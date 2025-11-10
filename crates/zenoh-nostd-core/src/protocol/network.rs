@@ -5,7 +5,14 @@ use rand::{Rng, thread_rng};
 
 use crate::{
     ZBodyDecode, ZBodyEncode, ZBodyLen, ZCodecError, ZCodecResult, ZDecode, ZEncode, ZExt,
-    ZExtKind, ZLen, ZReader, ZWriter,
+    ZExtKind, ZLen, ZReader, ZReaderExt, ZWriter,
+    network::{
+        declare::Declare,
+        interest::Interest,
+        push::Push,
+        request::Request,
+        response::{Response, ResponseFinal},
+    },
 };
 
 pub mod declare;
@@ -13,6 +20,77 @@ pub mod interest;
 pub mod push;
 pub mod request;
 pub mod response;
+
+// crate::__internal_zaggregate! {
+//     #[derive(Debug, PartialEq)]
+//     pub enum NetworkBody<'a> {
+//         Push<'a>,
+//         Request<'a>,
+//         Response<'a>,
+//         ResponseFinal,
+//         Interest<'a>,
+//         Declare<'a>,
+//     }
+// }
+
+#[derive(Debug, PartialEq)]
+pub enum NetworkBody<'a> {
+    Push(Push<'a>),
+    Request(Request<'a>),
+    Response(Response<'a>),
+    ResponseFinal(ResponseFinal),
+    Interest(Interest<'a>),
+    Declare(Declare<'a>),
+}
+
+#[derive(Debug, PartialEq)]
+pub struct NetworkBodyIter<'a, 'b> {
+    reader: &'b mut ZReader<'a>,
+}
+
+impl<'a, 'b> NetworkBodyIter<'a, 'b> {
+    pub fn new(reader: &'b mut ZReader<'a>) -> Self {
+        Self { reader }
+    }
+}
+
+impl<'a, 'b> core::iter::Iterator for NetworkBodyIter<'a, 'b> {
+    type Item = NetworkBody<'a>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        if !self.reader.can_read() {
+            return None;
+        }
+
+        let mark = self.reader.mark();
+        let header = self
+            .reader
+            .read_u8()
+            .expect("reader should not be empty at this stage");
+
+        macro_rules! decode {
+            ($ty:ty) => {{
+                match <$ty as ZBodyDecode>::z_body_decode(self.reader, header) {
+                    Ok(msg) => msg,
+                    Err(_) => {
+                        self.reader.rewind(mark);
+                        return None;
+                    }
+                }
+            }};
+        }
+
+        Some(match header & 0b0001_1111 {
+            Push::ID => NetworkBody::Push(decode!(Push)),
+            Request::ID => NetworkBody::Request(decode!(Request)),
+            Response::ID => NetworkBody::Response(decode!(Response)),
+            ResponseFinal::ID => NetworkBody::ResponseFinal(decode!(ResponseFinal)),
+            Interest::ID => NetworkBody::Interest(decode!(Interest)),
+            Declare::ID => NetworkBody::Declare(decode!(Declare)),
+            _ => unreachable!(),
+        })
+    }
+}
 
 #[derive(ZExt, Debug, PartialEq)]
 pub struct QoS {

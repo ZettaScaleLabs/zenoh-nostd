@@ -1,9 +1,17 @@
 pub mod core;
 pub use core::*;
 
+use crate::{ZCodecResult, ZReader};
+
 pub mod network;
 pub mod transport;
 pub mod zenoh;
+
+pub trait ZPrivateDecode<'a>: Sized {
+    type Ctx;
+
+    fn z_decode(r: &mut ZReader<'a>, ctx: Self::Ctx) -> ZCodecResult<Self>;
+}
 
 /// Macro to define an aggregate ZStruct enum
 #[macro_export]

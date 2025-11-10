@@ -27,7 +27,6 @@ pub struct Push<'a> {
     pub nodeid: NodeId,
 
     // --- Body ---
-    #[zenoh(size = remain)]
     pub payload: PushBody<'a>,
 }
 

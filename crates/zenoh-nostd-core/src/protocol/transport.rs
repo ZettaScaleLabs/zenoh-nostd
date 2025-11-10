@@ -1,4 +1,13 @@
-use crate::ZExt;
+use crate::{
+    ZExt, ZReader, ZReaderExt,
+    transport::{
+        close::Close,
+        frame::Frame,
+        init::{InitAck, InitSyn},
+        keepalive::KeepAlive,
+        open::{OpenAck, OpenSyn},
+    },
+};
 
 #[cfg(test)]
 use crate::{ZWriter, ZWriterExt};
@@ -10,6 +19,39 @@ pub mod frame;
 pub mod init;
 pub mod keepalive;
 pub mod open;
+
+#[derive(Debug, PartialEq)]
+pub enum TransportBody<'a, 'b> {
+    InitSyn(InitSyn<'a>),
+    InitAck(InitAck<'a>),
+    OpenSyn(OpenSyn<'a>),
+    OpenAck(OpenAck<'a>),
+    Close(Close),
+    KeepAlive(KeepAlive),
+    Frame(Frame<'a, 'b>),
+}
+
+pub struct TransportBodyIter<'a, 'b> {
+    reader: &'b mut ZReader<'a>,
+}
+
+impl<'a, 'b> core::iter::Iterator for TransportBodyIter<'a, 'b> {
+    type Item = TransportBody<'a, 'b>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        if !self.reader.can_read() {
+            return None;
+        }
+
+        // let mark = self.reader.mark();
+        // let header = self
+        //     .reader
+        //     .read_u8()
+        //     .expect("reader should not be empty at this stage");
+
+        None
+    }
+}
 
 #[derive(ZExt, Debug, PartialEq)]
 pub struct HasQoS {}

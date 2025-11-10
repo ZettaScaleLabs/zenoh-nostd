@@ -9,7 +9,7 @@ const NUM_ITER: usize = 100;
 const MAX_PAYLOAD_SIZE: usize = 512;
 
 crate::roundtrips!(ext, core, Timestamp);
-crate::roundtrips!(core, ZenohIdProto, Timestamp, Encoding);
+crate::roundtrips!(core, ZenohIdProto, Timestamp, Reliability, Encoding);
 
 trait RandTimestamp {
     fn rand(w: &mut ZWriter) -> Self;

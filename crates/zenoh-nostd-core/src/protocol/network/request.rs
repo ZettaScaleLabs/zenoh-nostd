@@ -37,7 +37,6 @@ pub struct Request<'a> {
     pub timeout: Option<Duration>,
 
     // --- Body ---
-    #[zenoh(size = remain)]
     pub payload: RequestBody<'a>,
 }
 

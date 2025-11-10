@@ -27,7 +27,7 @@ pub struct Put<'a> {
     pub attachment: Option<Attachment<'a>>,
 
     // --- Body ---
-    #[zenoh(size = remain)]
+    #[zenoh(size = prefixed)]
     pub payload: &'a [u8],
 }
 

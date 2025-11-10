@@ -22,7 +22,6 @@ pub struct Declare<'a> {
     #[zenoh(ext = 0x3, default = NodeId::DEFAULT, mandatory)]
     pub nodeid: NodeId,
 
-    #[zenoh(size = remain)]
     pub body: DeclareBody<'a>,
 }
 
