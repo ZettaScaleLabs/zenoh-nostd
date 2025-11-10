@@ -2,7 +2,7 @@ pub mod core;
 pub use core::*;
 
 pub mod network;
-// pub mod transport;
+pub mod transport;
 pub mod zenoh;
 
 /// Macro to define an aggregate ZStruct enum

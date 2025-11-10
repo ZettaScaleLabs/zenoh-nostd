@@ -97,7 +97,6 @@ pub enum ZError {
 impl core::fmt::Display for ZError {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         match self {
-            // I/O errors
             ZError::CouldNotRead => f.write_str("could not read"),
             ZError::CouldNotWrite => f.write_str("could not write"),
             ZError::CouldNotParse => f.write_str("could not parse"),
@@ -115,10 +114,8 @@ impl core::fmt::Display for ZError {
                 f.write_str("unsupported mandatory extension encountered")
             }
 
-            // Argument errors
             ZError::InvalidArgument => f.write_str("invalid argument"),
 
-            // Expression parsing errors
             ZError::LoneDollarStar => f.write_str("lone '$*' in expression"),
             ZError::SingleStarAfterDoubleStar => f.write_str("single '*' after '**' in expression"),
             ZError::DoubleStarAfterDoubleStar => {
@@ -131,7 +128,6 @@ impl core::fmt::Display for ZError {
             ZError::UnboundDollar => f.write_str("unbound '$n' in expression"),
             ZError::WildChunk => f.write_str("wildcard chunk not allowed"),
 
-            // Endpoint errors
             ZError::NoProtocolSeparator => f.write_str("missing protocol separator in endpoint"),
             ZError::MetadataNotSupported => f.write_str("metadata not supported in endpoint"),
             ZError::ConfigNotSupported => f.write_str("configuration not supported in endpoint"),

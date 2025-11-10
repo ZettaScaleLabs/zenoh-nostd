@@ -40,6 +40,20 @@ impl QoS {
         Self { inner }
     }
 
+    pub const fn priority(&self) -> Priority {
+        match self.inner & 0b0000_0111 {
+            0 => Priority::Control,
+            1 => Priority::RealTime,
+            2 => Priority::InteractiveHigh,
+            3 => Priority::InteractiveLow,
+            4 => Priority::DataHigh,
+            5 => Priority::Data,
+            6 => Priority::DataLow,
+            7 => Priority::Background,
+            _ => unreachable!(),
+        }
+    }
+
     #[cfg(test)]
     pub(crate) fn rand(_: &mut ZWriter) -> Self {
         let inner: u8 = thread_rng().r#gen();

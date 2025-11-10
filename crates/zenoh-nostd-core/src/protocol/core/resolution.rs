@@ -1,3 +1,5 @@
+use crate::{ZBodyDecode, ZBodyEncode, ZBodyLen};
+
 #[repr(u8)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub enum Bits {
@@ -19,6 +21,12 @@ pub enum Field {
 pub struct Resolution(u8);
 
 impl Resolution {
+    pub const DEFAULT: Self = {
+        let frame_sn = Bits::U32 as u8;
+        let request_id = (Bits::U32 as u8) << 2;
+        Self(frame_sn | request_id)
+    };
+
     pub const fn as_u8(&self) -> u8 {
         self.0
     }
@@ -52,9 +60,7 @@ impl Resolution {
 
 impl Default for Resolution {
     fn default() -> Self {
-        let frame_sn = Bits::U32 as u8;
-        let request_id = (Bits::U32 as u8) << 2;
-        Self(frame_sn | request_id)
+        Self::DEFAULT
     }
 }
 
@@ -63,3 +69,26 @@ impl From<u8> for Resolution {
         Self(v)
     }
 }
+
+impl ZBodyLen for Resolution {
+    fn z_body_len(&self) -> usize {
+        <u8 as ZBodyLen>::z_body_len(&self.0)
+    }
+}
+
+impl ZBodyEncode for Resolution {
+    fn z_body_encode(&self, w: &mut crate::ZWriter) -> crate::ZCodecResult<()> {
+        <u8 as ZBodyEncode>::z_body_encode(&self.0, w)
+    }
+}
+
+impl<'a> ZBodyDecode<'a> for Resolution {
+    type Ctx = ();
+
+    fn z_body_decode(r: &mut crate::ZReader<'_>, _: ()) -> crate::ZCodecResult<Self> {
+        let value = <u8 as crate::ZDecode>::z_decode(r)?;
+        Ok(Self(value))
+    }
+}
+
+crate::__internal_zstructimpl!(Resolution);

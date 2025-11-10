@@ -15,7 +15,6 @@ crate::roundtrips!(
 );
 crate::roundtrips!(
     network,
-    // --- Declare ---
     DeclareKeyExpr,
     UndeclareKeyExpr,
     DeclareSubscriber,
@@ -27,7 +26,6 @@ crate::roundtrips!(
     DeclareFinal,
     DeclareBody,
     Declare,
-    // --- ----
     Interest,
     Push,
     Request,

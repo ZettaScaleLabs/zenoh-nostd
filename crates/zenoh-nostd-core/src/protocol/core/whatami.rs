@@ -12,9 +12,9 @@ pub enum WhatAmI {
 }
 
 impl WhatAmI {
-    const U8_R: u8 = 0b0000_0001;
-    const U8_P: u8 = 0b0000_0010;
-    const U8_C: u8 = 0b0000_0100;
+    const U8_R: u8 = 0b0000_0000;
+    const U8_P: u8 = 0b0000_0001;
+    const U8_C: u8 = 0b0000_0010;
 
     #[cfg(test)]
     pub fn rand() -> Self {
