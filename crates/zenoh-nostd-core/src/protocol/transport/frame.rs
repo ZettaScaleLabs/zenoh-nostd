@@ -21,13 +21,13 @@ impl Frame<'_, '_> {
 
 #[derive(Debug, PartialEq)]
 pub struct Frame<'a, 'b> {
-    pub frame: FrameHeader,
-    pub iter: NetworkBodyIter<'a, 'b>,
+    pub header: FrameHeader,
+    pub msgs: NetworkBodyIter<'a, 'b>,
 }
 
 impl Drop for Frame<'_, '_> {
     fn drop(&mut self) {
-        for _ in self.iter.by_ref() {}
+        for _ in self.msgs.by_ref() {}
     }
 }
 

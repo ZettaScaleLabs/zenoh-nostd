@@ -21,6 +21,8 @@ pub mod init;
 pub mod keepalive;
 pub mod open;
 
+pub mod batch;
+
 #[derive(Debug, PartialEq)]
 pub enum TransportBody<'a, 'b> {
     InitSyn(InitSyn<'a>),
@@ -41,6 +43,7 @@ impl<'a, 'b> TransportBodyIter<'a, 'b> {
         TransportBodyIter { reader }
     }
 
+    #[allow(clippy::should_implement_trait)]
     pub fn next(&mut self) -> Option<TransportBody<'a, '_>> {
         if !self.reader.can_read() {
             return None;
@@ -75,9 +78,15 @@ impl<'a, 'b> TransportBodyIter<'a, 'b> {
             Frame::ID => {
                 let frame = decode!(FrameHeader);
                 let iter = NetworkBodyIter::new(self.reader);
-                TransportBody::Frame(Frame { frame, iter })
+                TransportBody::Frame(Frame {
+                    header: frame,
+                    msgs: iter,
+                })
             }
-            _ => unreachable!(),
+            _ => {
+                self.reader.rewind(mark);
+                return None;
+            }
         })
     }
 }

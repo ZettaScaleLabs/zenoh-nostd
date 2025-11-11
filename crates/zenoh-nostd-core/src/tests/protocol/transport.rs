@@ -1,9 +1,11 @@
+use core::panic;
+
 use rand::{Rng, thread_rng};
 
 use crate::{
-    ZEncode,
-    network::NetworkBody,
-    transport::{close::*, frame::*, init::*, keepalive::*, open::*, *},
+    Reliability,
+    network::{NetworkBody, QoS},
+    transport::{batch::Batch, close::*, frame::*, init::*, keepalive::*, open::*, *},
 };
 
 const NUM_ITER: usize = 100;
@@ -32,29 +34,31 @@ fn transport_stream() {
     let mut messages = {
         let mut msgs = VecDeque::new();
         for _ in 1..thread_rng().gen_range(1..16) {
-            msgs.push_back(NetworkBody::rand(&mut rand_writer));
+            msgs.push_back((
+                Reliability::rand(&mut rand_writer),
+                NetworkBody::rand(&mut rand_writer),
+            ));
         }
         msgs
     };
 
     let mut data = [0u8; MAX_PAYLOAD_SIZE * NUM_ITER];
-    let mut writer = data.as_mut_slice();
-    let start = writer.len();
-    <_ as ZEncode>::z_encode(&FrameHeader::rand(&mut rand_writer), &mut writer).unwrap();
+    let mut batch = Batch::new(&mut data, 0);
 
-    for msg in &messages {
-        <_ as ZEncode>::z_encode(msg, &mut writer).unwrap();
+    for (r, msg) in &messages {
+        batch = batch.with_msg(&msg, *r, QoS::DEFAULT).unwrap();
     }
-    let len = start - writer.len();
 
+    let len = batch.len();
     let mut reader = &data[..len];
     let mut iter = TransportBodyIter::new(&mut reader);
 
     while let Some(expected) = iter.next() {
         match expected {
             TransportBody::Frame(mut frame) => {
-                while let Some(msg) = frame.iter.next() {
-                    let actual = messages.pop_front().unwrap();
+                for msg in frame.msgs.by_ref() {
+                    let (r, actual) = messages.pop_front().unwrap();
+                    assert_eq!(r, frame.header.reliability);
                     assert_eq!(actual, msg);
                 }
             }

@@ -35,7 +35,7 @@ crate::__internal_zaggregate_stream! {
 
 #[derive(Debug, PartialEq)]
 pub struct NetworkBodyIter<'a, 'b> {
-    reader: &'b mut ZReader<'a>,
+    pub reader: &'b mut ZReader<'a>,
 }
 
 impl<'a, 'b> NetworkBodyIter<'a, 'b> {
@@ -77,7 +77,10 @@ impl<'a, 'b> core::iter::Iterator for NetworkBodyIter<'a, 'b> {
             ResponseFinal::ID => NetworkBody::ResponseFinal(decode!(ResponseFinal)),
             Interest::ID => NetworkBody::Interest(decode!(Interest)),
             Declare::ID => NetworkBody::Declare(decode!(Declare)),
-            _ => unreachable!(),
+            _ => {
+                self.reader.rewind(mark);
+                return None;
+            }
         })
     }
 }
