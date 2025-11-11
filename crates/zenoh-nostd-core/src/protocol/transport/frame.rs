@@ -15,6 +15,10 @@ pub struct FrameHeader {
     pub qos: QoS,
 }
 
+impl Frame<'_, '_> {
+    pub const ID: u8 = FrameHeader::ID;
+}
+
 #[derive(Debug, PartialEq)]
 pub struct Frame<'a, 'b> {
     pub frame: FrameHeader,

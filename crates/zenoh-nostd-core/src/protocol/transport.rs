@@ -1,8 +1,9 @@
 use crate::{
     ZExt, ZReader, ZReaderExt,
+    network::NetworkBodyIter,
     transport::{
         close::Close,
-        frame::Frame,
+        frame::{Frame, FrameHeader},
         init::{InitAck, InitSyn},
         keepalive::KeepAlive,
         open::{OpenAck, OpenSyn},
@@ -35,21 +36,49 @@ pub struct TransportBodyIter<'a, 'b> {
     reader: &'b mut ZReader<'a>,
 }
 
-impl<'a, 'b> core::iter::Iterator for TransportBodyIter<'a, 'b> {
-    type Item = TransportBody<'a, 'b>;
+impl<'a, 'b> TransportBodyIter<'a, 'b> {
+    pub fn new(reader: &'b mut ZReader<'a>) -> TransportBodyIter<'a, 'b> {
+        TransportBodyIter { reader }
+    }
 
-    fn next(&mut self) -> Option<Self::Item> {
+    pub fn next(&mut self) -> Option<TransportBody<'a, '_>> {
         if !self.reader.can_read() {
             return None;
         }
 
-        // let mark = self.reader.mark();
-        // let header = self
-        //     .reader
-        //     .read_u8()
-        //     .expect("reader should not be empty at this stage");
+        let mark = self.reader.mark();
+        let header = self
+            .reader
+            .read_u8()
+            .expect("reader should not be empty at this stage");
 
-        None
+        macro_rules! decode {
+            ($ty:ty) => {{
+                match <$ty as $crate::ZBodyDecode>::z_body_decode(self.reader, header) {
+                    Ok(msg) => msg,
+                    Err(_) => {
+                        self.reader.rewind(mark);
+                        return None;
+                    }
+                }
+            }};
+        }
+
+        let ack = header & 0b0010_0000 != 0;
+        Some(match header & 0b0001_1111 {
+            InitAck::ID if ack => TransportBody::InitAck(decode!(InitAck)),
+            InitSyn::ID => TransportBody::InitSyn(decode!(InitSyn)),
+            OpenAck::ID if ack => TransportBody::OpenAck(decode!(OpenAck)),
+            OpenSyn::ID => TransportBody::OpenSyn(decode!(OpenSyn)),
+            Close::ID => TransportBody::Close(decode!(Close)),
+            KeepAlive::ID => TransportBody::KeepAlive(decode!(KeepAlive)),
+            Frame::ID => {
+                let frame = decode!(FrameHeader);
+                let iter = NetworkBodyIter::new(self.reader);
+                TransportBody::Frame(Frame { frame, iter })
+            }
+            _ => unreachable!(),
+        })
     }
 }
 

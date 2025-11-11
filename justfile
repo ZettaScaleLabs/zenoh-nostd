@@ -22,7 +22,13 @@ bench:
 tokei:
     tokei --files \
         crates/zenoh-nostd-derive \
-        crates/zenoh-nostd-core/src/{codec**,struct**,ext**,protocol**}
+        crates/zenoh-nostd-core/src/codec.rs \
+        crates/zenoh-nostd-core/src/ext.rs \
+        crates/zenoh-nostd-core/src/struct.rs \
+        crates/zenoh-nostd-core/src/struct \
+        crates/zenoh-nostd-core/src/protocol.rs \
+        crates/zenoh-nostd-core/src/protocol \
+
 
 # Ping
 

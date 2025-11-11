@@ -23,7 +23,7 @@ pub struct OpenExt<'a> {
 }
 
 #[derive(ZStruct, Debug, PartialEq)]
-#[zenoh(header = "Z|S|A:1=0|ID:5=0x01")]
+#[zenoh(header = "Z|S|A:1=0|ID:5=0x02")]
 pub struct OpenSyn<'a> {
     pub lease: Duration,
     pub sn: u32,
@@ -36,7 +36,7 @@ pub struct OpenSyn<'a> {
 }
 
 #[derive(ZStruct, Debug, PartialEq)]
-#[zenoh(header = "Z|S|A:1=1|ID:5=0x01")]
+#[zenoh(header = "Z|S|A:1=1|ID:5=0x02")]
 pub struct OpenAck<'a> {
     pub lease: Duration,
     pub sn: u32,
