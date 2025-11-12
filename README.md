@@ -205,4 +205,4 @@ cargo doc --no-deps --no-default-features --open
 
 Licensed under:
 
-* Apache License, Version 2.0 ([LICENSE-APACHE](./LICENSE-APACHE) or [http://www.apache.org/licenses/LICENSE-2.0](http://www.apache.org/licenses/LICENSE-2.0))
+* ZettaScale Commercial License Agreement ([LICENSE](./LICENSE)
