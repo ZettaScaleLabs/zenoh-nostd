@@ -24,7 +24,7 @@ crate::__internal_zerr! {
     #[err = "session error"]
     enum ZSessionError {
         InvalidArgument,
-        ConnectionClosed
+        PeerKeepAliveTimedOut
     }
 }
 
@@ -59,7 +59,6 @@ pub enum Session {
         resolution: Resolution,
         batch_size: u16,
 
-        last_time: Duration,
         next_recv_keepalive: Duration,
         next_send_keepalive: Duration,
     },
@@ -98,17 +97,17 @@ impl Session {
     /// (For example, processing an InitAck may result in an OpenSyn event etc...)
     pub fn read<'a>(
         &mut self,
-        mut v: &'a [u8],
         time: Duration,
+        mut v: &'a [u8],
     ) -> ZResult<Event<'a>, ZSessionError> {
+        let mut keepalive = false;
+
         if let Session::Connected {
             next_recv_keepalive,
-            last_time,
+            next_send_keepalive,
             ..
         } = self
         {
-            *last_time = time;
-
             if v.is_empty() && time >= *next_recv_keepalive {
                 *self = Session::Disconnected {
                     zid: ZenohIdProto::default(),
@@ -116,9 +115,13 @@ impl Session {
                     batch_size: u16::MAX,
                     lease: Duration::from_secs(10),
                 };
-                extern crate std;
-                std::println!("Connection closed due to KeepAlive timeout at {:?}", time);
-                return Err(ZSessionError::ConnectionClosed);
+
+                return Err(ZSessionError::PeerKeepAliveTimedOut);
+            }
+
+            if time >= *next_send_keepalive {
+                *next_send_keepalive = time + Duration::from_secs(10) / 3;
+                keepalive = true;
             }
         }
 
@@ -126,6 +129,16 @@ impl Session {
 
         while let Some(msg) = batch.next() {
             match msg {
+                TransportBody::Close(_) => {
+                    *self = Session::Disconnected {
+                        zid: ZenohIdProto::default(),
+                        resolution: Resolution::DEFAULT,
+                        batch_size: u16::MAX,
+                        lease: Duration::from_secs(10),
+                    };
+
+                    return Ok(Event::None);
+                }
                 TransportBody::InitAck(ack) => {
                     if let Session::Disconnected {
                         zid: mine_zid,
@@ -143,8 +156,6 @@ impl Session {
                         )?;
 
                         let sn = establish::negotiate_sn(&mine_zid, &other_zid, &resolution);
-                        extern crate std;
-                        std::println!("Sequence Number negotiated: {}", sn);
 
                         let batch_size = establish::negotiate_batch_size(
                             *mine_batch_size,
@@ -182,16 +193,6 @@ impl Session {
                         let other_lease = ack.lease;
                         let other_sn = ack.sn;
 
-                        extern crate std;
-                        std::println!("Session established at {:?}", time);
-                        std::println!(
-                            "  Mine ZID: {:?}\n  Other ZID: {:?}\n  Lease: {:?}\n  SN: {}",
-                            mine_zid,
-                            other_zid,
-                            other_lease,
-                            other_sn
-                        );
-
                         *self = Session::Connected {
                             mine_zid: mine_zid.clone(),
                             other_zid: other_zid.clone(),
@@ -205,12 +206,9 @@ impl Session {
                             resolution: resolution.clone(),
                             batch_size: *batch_size,
 
-                            last_time: time,
                             next_recv_keepalive: time + other_lease,
                             next_send_keepalive: time + *mine_lease / 3,
                         };
-
-                        return Ok(Event::None);
                     }
                 }
                 TransportBody::KeepAlive(_) => {
@@ -220,8 +218,6 @@ impl Session {
                         ..
                     } = self
                     {
-                        extern crate std;
-                        std::println!("Received KeepAlive at {:?}", time);
                         *next_recv_keepalive = time + *other_lease;
                     }
                 }
@@ -229,7 +225,10 @@ impl Session {
             }
         }
 
-        Ok(Event::None)
+        match keepalive {
+            true => Ok(Event::KeepAlive),
+            false => Ok(Event::None),
+        }
     }
 
     pub fn dispatch<const N: usize>(
@@ -247,31 +246,39 @@ impl Session {
             },
         );
 
-        // let mut empty = true;
+        let mut keepalive = false;
 
         for event in events {
             match event {
                 Event::InitSyn(syn) => {
                     batch.write_init_syn(&syn)?;
-                    // empty = false;
+                    keepalive = false;
                 }
                 Event::OpenSyn(syn) => {
                     batch.write_open_syn(&syn)?;
-                    // empty = false;
+                    keepalive = false;
                 }
-                // Event::KeepAlive => {
-                //     batch.write_keepalive()?;
-                //     empty = false;
-                // }
+                Event::KeepAlive => {
+                    keepalive = true;
+                }
                 Event::Push(push) => {
+                    if !self.connected() {
+                        continue;
+                    }
+
                     batch.write_msg(
                         &NetworkBody::Push(push),
                         Reliability::Reliable,
                         QoS::DEFAULT,
                     )?;
+                    keepalive = false;
                 }
                 _ => {}
             }
+        }
+
+        if keepalive {
+            batch.write_keepalive()?;
         }
 
         // if empty {
@@ -309,6 +316,10 @@ impl Session {
         matches!(self, Session::Connected { .. })
     }
 
+    pub fn disconnected(&self) -> bool {
+        matches!(self, Session::Disconnected { .. })
+    }
+
     pub fn lease(&self) -> Duration {
         match self {
             Session::Connected {
@@ -319,12 +330,8 @@ impl Session {
         }
     }
 
-    pub fn put<'a>(&self, ke: &'a keyexpr, payload: &'a [u8]) -> ZResult<Event<'a>> {
-        if !self.connected() {
-            return Ok(Event::None);
-        }
-
-        Ok(Event::Push(Push {
+    pub fn put<'a>(&self, ke: &'a keyexpr, payload: &'a [u8]) -> Event<'a> {
+        Event::Push(Push {
             wire_expr: WireExpr::from(ke),
             qos: QoS::DEFAULT,
             timestamp: None,
@@ -336,7 +343,7 @@ impl Session {
                 attachment: None,
                 payload,
             }),
-        }))
+        })
     }
 }
 

@@ -44,6 +44,9 @@ pub enum ZError {
     /// An unsupported mandatory extension was encountered.
     UnsupportedMandatoryExtension = 20,
 
+    /// Peer keep-alive timed out.
+    PeerKeepAliveTimedOut = 21,
+
     // Reserve: 21–29
 
     // ──────────────── Argument/validation errors (30–39) ────────────────
@@ -113,6 +116,7 @@ impl core::fmt::Display for ZError {
             ZError::UnsupportedMandatoryExtension => {
                 f.write_str("unsupported mandatory extension encountered")
             }
+            ZError::PeerKeepAliveTimedOut => f.write_str("peer keep-alive timed out"),
 
             ZError::InvalidArgument => f.write_str("invalid argument"),
 
