@@ -4,6 +4,8 @@ mod network;
 mod transport;
 mod zenoh;
 
+mod ke;
+
 #[macro_export]
 macro_rules! roundtrip {
     ($ty:ty) => {{

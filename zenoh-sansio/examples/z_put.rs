@@ -1,0 +1,22 @@
+// use std::net::UdpSocket;
+
+fn main() {
+    // let (mut session, connect) = zenoh_sansio::open();
+    // let mut rx = [0u8; 1024];
+    // let mut tx = [0u8; 1024];
+
+    // let udp = UdpSocket::bind("127.0.0.1:0").unwrap();
+
+    // let len = session.write(&mut tx, &[&connect]).unwrap();
+    // udp.send_to(&tx[..len], "127.0.0.1:7447").unwrap();
+
+    // loop {
+    //     let len = udp.recv(&mut rx).unwrap();
+    //     let events = session.read(&rx[..len]);
+
+    //     let put = session.put("demo/example", b"Hello, Zenoh!");
+
+    //     let len = session.write(&mut tx, &[&events, &put]).unwrap();
+    //     udp.send_to(&tx[..len], "127.0.0.1:7447").unwrap();
+    // }
+}

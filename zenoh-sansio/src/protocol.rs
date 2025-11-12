@@ -7,6 +7,8 @@ pub mod network;
 pub mod transport;
 pub mod zenoh;
 
+pub mod ke;
+
 pub trait ZPrivateDecode<'a>: Sized {
     type Ctx;
 

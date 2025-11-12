@@ -1,5 +1,3 @@
-use core::u64;
-
 use criterion::Criterion;
 
 use crate::{
