@@ -6,7 +6,7 @@ test:
     cargo test --all
 
 bench:
-    cargo test bench --profile=release -- --nocapture bench --
+    cargo test bench --profile=release -- --nocapture --ignored
 
 tokei:
     tokei --files --type Rust \

@@ -1,7 +1,5 @@
 [workspace]
-members = ["zenoh-sansio"
-# "crates/zenoh-nostd-core","crates/zenoh-nostd-derive"
-, "zenoh-sansio-codec",]
+members = ["zenoh-sansio", "zenoh-sansio-codec"]
 resolver = "3"
 
 [workspace.package]
@@ -19,11 +17,22 @@ version = "0.1.0"
 zenoh-sansio = { version = "0.1.0", path = "zenoh-sansio" }
 zenoh-sansio-codec = { version = "0.1.0", path = "zenoh-sansio-codec" }
 
+uhlc = { version = "0.8.1", git = "https://github.com/Hennzau/uhlc-rs", branch = "no-alloc", default-features = false }
+
 proc-macro2 = "1.0.103"
 quote = "1.0.41"
 syn = { version = "2.0.108", features = ["full"] }
 
 rand = "0.8.5"
 paste = "1.0.15"
+criterion = "0.7.0"
 
-uhlc = { version = "0.8.1", git = "https://github.com/Hennzau/uhlc-rs", branch = "no-alloc", default-features = false }
+[profile.release]
+opt-level = 3           # Maximum optimization
+lto = "fat"             # Full Link Time Optimization across all crates
+codegen-units = 1       # Compile in a single unit for better optimization
+panic = "abort"         # Removes stack unwinding code; smaller & faster binaries
+strip = true            # Remove symbol/debug info from final binary
+incremental = false     # Disable incremental compilation for fully optimized builds
+debug = false           # Don’t include debug symbols
+overflow-checks = false # Skip integer overflow checks

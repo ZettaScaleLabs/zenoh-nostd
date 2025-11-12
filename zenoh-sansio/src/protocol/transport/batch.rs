@@ -1,13 +1,7 @@
 use crate::{
     Reliability, ZCodecResult, ZEncode, ZWriter,
     network::{NetworkBody, QoS},
-    transport::{
-        close::Close,
-        frame::FrameHeader,
-        init::{InitAck, InitSyn},
-        keepalive::KeepAlive,
-        open::{OpenAck, OpenSyn},
-    },
+    transport::frame::FrameHeader,
 };
 
 pub struct Batch<'a> {
@@ -28,36 +22,6 @@ impl<'a> Batch<'a> {
             frame: None,
             sn,
         }
-    }
-
-    pub fn with_init_syn(mut self, x: &InitSyn) -> ZCodecResult<Self> {
-        <_ as ZEncode>::z_encode(x, &mut self.writer)?;
-        Ok(self)
-    }
-
-    pub fn with_init_ack(mut self, x: &InitAck) -> ZCodecResult<Self> {
-        <_ as ZEncode>::z_encode(x, &mut self.writer)?;
-        Ok(self)
-    }
-
-    pub fn with_open_syn(mut self, x: &OpenSyn) -> ZCodecResult<Self> {
-        <_ as ZEncode>::z_encode(x, &mut self.writer)?;
-        Ok(self)
-    }
-
-    pub fn with_open_ack(mut self, x: &OpenAck) -> ZCodecResult<Self> {
-        <_ as ZEncode>::z_encode(x, &mut self.writer)?;
-        Ok(self)
-    }
-
-    pub fn with_close(mut self, x: &Close) -> ZCodecResult<Self> {
-        <_ as ZEncode>::z_encode(x, &mut self.writer)?;
-        Ok(self)
-    }
-
-    pub fn with_keepalive(mut self, x: &KeepAlive) -> ZCodecResult<Self> {
-        <_ as ZEncode>::z_encode(x, &mut self.writer)?;
-        Ok(self)
     }
 
     pub fn with_msg(mut self, x: &NetworkBody, r: Reliability, qos: QoS) -> ZCodecResult<Self> {

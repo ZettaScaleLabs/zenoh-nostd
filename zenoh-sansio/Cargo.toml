@@ -17,3 +17,4 @@ uhlc.workspace = true
 [dev-dependencies]
 rand.workspace = true
 paste.workspace = true
+criterion.workspace = true
