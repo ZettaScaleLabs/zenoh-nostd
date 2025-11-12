@@ -1,5 +1,5 @@
 [package]
-name = "zenoh-nostd-derive"
+name = "zenoh-sansio-codec"
 authors.workspace = true
 categories.workspace = true
 description.workspace = true

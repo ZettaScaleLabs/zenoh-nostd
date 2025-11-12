@@ -11,7 +11,6 @@ use crate::ZReader;
 use crate::ZReaderExt;
 use crate::ZWriter;
 
-/// TODO: make the codec capable of handling this silly one.
 #[derive(Debug, PartialEq)]
 pub struct Encoding<'a> {
     pub id: u16,

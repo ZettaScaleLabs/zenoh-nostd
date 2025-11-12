@@ -20,7 +20,7 @@ pub struct Batch<'a> {
 
 impl<'a> Batch<'a> {
     pub fn new(data: &'a mut [u8], sn: u32) -> Self {
-        let writer = data.as_mut();
+        let writer = data;
         Self {
             initial_length: writer.len(),
 
@@ -80,7 +80,7 @@ impl<'a> Batch<'a> {
         Ok(self)
     }
 
-    pub fn len(&self) -> usize {
-        self.initial_length - self.writer.len()
+    pub fn finalize(self) -> (u32, usize) {
+        (self.sn, self.initial_length - self.writer.len())
     }
 }

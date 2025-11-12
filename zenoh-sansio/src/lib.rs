@@ -18,4 +18,4 @@ mod tests;
 mod protocol;
 pub use protocol::*;
 
-pub use zenoh_nostd_derive::*;
+pub use zenoh_sansio_codec::*;

@@ -1,7 +1,6 @@
 use uhlc::Timestamp;
-use zenoh_nostd_derive::ZStruct;
 
-use crate::{ZBodyDecode, ZDecode, ZEncode, ZWriter};
+use crate::{ZBodyDecode, ZDecode, ZEncode, ZStruct, ZWriter};
 #[cfg(test)]
 use rand::{Rng, thread_rng};
 

@@ -113,7 +113,6 @@ macro_rules! __internal_encode {
     };
 }
 
-/// Macro to define an aggregate ZStruct enum
 #[macro_export]
 macro_rules! __internal_zaggregate {
     (
@@ -157,7 +156,6 @@ macro_rules! __internal_zaggregate {
     };
 }
 
-/// Macro to define an aggregate ZStruct enum
 #[macro_export]
 macro_rules! __internal_zaggregate_stream {
     (

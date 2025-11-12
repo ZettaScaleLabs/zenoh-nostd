@@ -1,17 +1,6 @@
-# Project
-
 clippy:
-    cargo clippy --fix --lib --allow-dirty --allow-staged --tests -p zenoh-nostd-core
-    cargo clippy --fix --lib --allow-dirty --allow-staged --tests -p zenoh-nostd-derive
-
-    # cargo clippy --fix --lib --allow-dirty --allow-staged
-    # cargo clippy --features=platform-std --fix --lib --allow-dirty --allow-staged
-    # cargo clippy --features=log --fix --lib --allow-dirty --allow-staged
-    # cargo clippy --features=defmt --fix --lib --allow-dirty --allow-staged
-    # cargo clippy --features=web_console --fix --lib --allow-dirty --allow-staged
-
-    # cargo clippy --examples --features=platform-std, --fix --lib --allow-dirty --allow-staged
-    # cargo clippy --examples --features=platform-std,log --fix --lib --allow-dirty --allow-staged
+    cargo clippy --fix --lib --allow-dirty --allow-staged --tests -p zenoh-sansio
+    cargo clippy --fix --lib --allow-dirty --allow-staged --tests -p zenoh-sansio-codec
 
 test:
     cargo test --all
@@ -20,28 +9,9 @@ bench:
     cargo test bench --profile=release -- --nocapture bench --
 
 tokei:
-    tokei --files \
-        crates/zenoh-nostd-derive \
-        crates/zenoh-nostd-core/src/codec.rs \
-        crates/zenoh-nostd-core/src/ext.rs \
-        crates/zenoh-nostd-core/src/struct.rs \
-        crates/zenoh-nostd-core/src/struct \
-        crates/zenoh-nostd-core/src/protocol.rs \
-        crates/zenoh-nostd-core/src/protocol \
-
-
-# Ping
-
-ping:
-    RUST_LOG=info cargo run --example z_ping --features=platform-std,log --release
-
-pong:
-    RUST_LOG=info cargo run --example z_pong --features=platform-std,log --release
-
-# Examples
-
-std example *args:
-    RUST_LOG=trace cargo run --example {{example}} --features=platform-std,log -- {{args}}
-
-esp32s3 example *args:
-    cd platforms/zenoh-nostd-embassy && just esp32s3 {{example}} {{args}}
+    tokei --files --type Rust \
+        zenoh-sansio-codec/src \
+        zenoh-sansio/src/codec.rs \
+        zenoh-sansio/src/ext.rs \
+        zenoh-sansio/src/struct* \
+        zenoh-sansio/src/protocol*

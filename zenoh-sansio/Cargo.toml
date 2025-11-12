@@ -1,5 +1,5 @@
 [package]
-name = "zenoh-nostd-core"
+name = "zenoh-sansio"
 authors.workspace = true
 categories.workspace = true
 description.workspace = true
@@ -11,7 +11,7 @@ rust-version.workspace = true
 version.workspace = true
 
 [dependencies]
-zenoh-nostd-derive.workspace = true
+zenoh-sansio-codec.workspace = true
 uhlc.workspace = true
 
 [dev-dependencies]

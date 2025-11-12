@@ -158,21 +158,17 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ccf3ec651a847eb01de73ccad15eb7d99f80485de043efb2f370cd654f4ea44b"
 
 [[package]]
-name = "zenoh-nostd"
-version = "0.1.0"
-
-[[package]]
-name = "zenoh-nostd-core"
+name = "zenoh-sansio"
 version = "0.1.0"
 dependencies = [
  "paste",
  "rand",
  "uhlc",
- "zenoh-nostd-derive",
+ "zenoh-sansio-codec",
 ]
 
 [[package]]
-name = "zenoh-nostd-derive"
+name = "zenoh-sansio-codec"
 version = "0.1.0"
 dependencies = [
  "proc-macro2",

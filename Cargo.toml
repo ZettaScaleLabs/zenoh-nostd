@@ -1,5 +1,8 @@
 [workspace]
-members = ["crates/zenoh-nostd-core","crates/zenoh-nostd-derive"]
+members = ["zenoh-sansio"
+# "crates/zenoh-nostd-core","crates/zenoh-nostd-derive"
+, "zenoh-sansio-codec",]
+resolver = "3"
 
 [workspace.package]
 authors = []
@@ -12,21 +15,9 @@ repository = "https://github.com/ZettaScaleLabs/zenoh-nostd"
 rust-version = "1.90.0"
 version = "0.1.0"
 
-[package]
-name = "zenoh-nostd"
-authors.workspace = true
-categories.workspace = true
-description.workspace = true
-edition.workspace = true
-homepage.workspace = true
-license.workspace = true
-repository.workspace = true
-rust-version.workspace = true
-version.workspace = true
-
 [workspace.dependencies]
-zenoh-nostd-core = { version = "0.1.0", path = "crates/zenoh-nostd-core" }
-zenoh-nostd-derive = { version = "0.1.0", path = "crates/zenoh-nostd-derive" }
+zenoh-sansio = { version = "0.1.0", path = "zenoh-sansio" }
+zenoh-sansio-codec = { version = "0.1.0", path = "zenoh-sansio-codec" }
 
 proc-macro2 = "1.0.103"
 quote = "1.0.41"
