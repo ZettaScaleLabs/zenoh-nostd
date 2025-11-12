@@ -20,7 +20,7 @@ pub mod resolution;
 pub mod whatami;
 pub mod wire_expr;
 
-#[derive(PartialEq)]
+#[derive(PartialEq, Clone)]
 #[repr(transparent)]
 pub struct ZenohIdProto(uhlc::ID);
 
@@ -134,6 +134,24 @@ pub enum Reliability {
     Reliable = 1,
 }
 
+impl From<Reliability> for u8 {
+    fn from(value: Reliability) -> Self {
+        value as u8
+    }
+}
+
+impl TryFrom<u8> for Reliability {
+    type Error = ZCodecError;
+
+    fn try_from(value: u8) -> Result<Self, Self::Error> {
+        match value {
+            0 => Ok(Reliability::BestEffort),
+            1 => Ok(Reliability::Reliable),
+            _ => Err(ZCodecError::CouldNotParse),
+        }
+    }
+}
+
 impl Reliability {
     pub const DEFAULT: Self = Self::Reliable;
 
@@ -147,30 +165,30 @@ impl Reliability {
     }
 }
 
-impl ZBodyLen for Reliability {
-    fn z_body_len(&self) -> usize {
-        <u64 as ZLen>::z_len(&((*self as u8) as u64))
-    }
-}
+// impl ZBodyLen for Reliability {
+//     fn z_body_len(&self) -> usize {
+//         <u64 as ZLen>::z_len(&((*self as u8) as u64))
+//     }
+// }
 
-impl ZBodyEncode for Reliability {
-    fn z_body_encode(&self, w: &mut ZWriter) -> ZCodecResult<()> {
-        <u64 as ZEncode>::z_encode(&((*self as u8) as u64), w)
-    }
-}
+// impl ZBodyEncode for Reliability {
+//     fn z_body_encode(&self, w: &mut ZWriter) -> ZCodecResult<()> {
+//         <u64 as ZEncode>::z_encode(&((*self as u8) as u64), w)
+//     }
+// }
 
-impl<'a> ZBodyDecode<'a> for Reliability {
-    type Ctx = ();
+// impl<'a> ZBodyDecode<'a> for Reliability {
+//     type Ctx = ();
 
-    fn z_body_decode(r: &mut ZReader<'a>, _: ()) -> ZCodecResult<Self> {
-        let value = <u64 as ZDecode>::z_decode(r)?;
+//     fn z_body_decode(r: &mut ZReader<'a>, _: ()) -> ZCodecResult<Self> {
+//         let value = <u64 as ZDecode>::z_decode(r)?;
 
-        match value as u8 {
-            0 => Ok(Reliability::BestEffort),
-            1 => Ok(Reliability::Reliable),
-            _ => Err(ZCodecError::CouldNotParse),
-        }
-    }
-}
+//         match value as u8 {
+//             0 => Ok(Reliability::BestEffort),
+//             1 => Ok(Reliability::Reliable),
+//             _ => Err(ZCodecError::CouldNotParse),
+//         }
+//     }
+// }
 
-crate::__internal_zstructimpl!(Reliability);
+// crate::__internal_zstructimpl!(Reliability);

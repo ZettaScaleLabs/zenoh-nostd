@@ -46,12 +46,12 @@ fn transport_stream() {
     let mut batch = Batch::new(&mut data, 0);
 
     for (r, msg) in &messages {
-        batch = batch.with_msg(msg, *r, QoS::DEFAULT).unwrap();
+        batch.write_msg(msg, *r, QoS::DEFAULT).unwrap();
     }
 
     let (_, len) = batch.finalize();
     let mut reader = &data[..len];
-    let mut iter = TransportBodyIter::new(&mut reader);
+    let mut iter = TransportBatch::new(&mut reader);
 
     while let Some(expected) = iter.next() {
         match expected {

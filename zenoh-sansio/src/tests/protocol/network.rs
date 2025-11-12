@@ -75,7 +75,7 @@ fn network_stream() {
     let len = start - writer.len();
 
     let mut reader = &data[..len];
-    let iter = NetworkBodyIter::new(&mut reader);
+    let iter = NetworkBatch::new(&mut reader);
 
     for expected in iter {
         let actual = messages.pop_front().unwrap();

@@ -1,6 +1,6 @@
 use crate::{
     ZExt, ZReader, ZReaderExt,
-    network::NetworkBodyIter,
+    network::NetworkBatch,
     transport::{
         close::Close,
         frame::{Frame, FrameHeader},
@@ -34,13 +34,13 @@ pub enum TransportBody<'a, 'b> {
     Frame(Frame<'a, 'b>),
 }
 
-pub struct TransportBodyIter<'a, 'b> {
+pub struct TransportBatch<'a, 'b> {
     reader: &'b mut ZReader<'a>,
 }
 
-impl<'a, 'b> TransportBodyIter<'a, 'b> {
-    pub fn new(reader: &'b mut ZReader<'a>) -> TransportBodyIter<'a, 'b> {
-        TransportBodyIter { reader }
+impl<'a, 'b> TransportBatch<'a, 'b> {
+    pub fn new(reader: &'b mut ZReader<'a>) -> TransportBatch<'a, 'b> {
+        TransportBatch { reader }
     }
 
     #[allow(clippy::should_implement_trait)]
@@ -77,7 +77,7 @@ impl<'a, 'b> TransportBodyIter<'a, 'b> {
             KeepAlive::ID => TransportBody::KeepAlive(decode!(KeepAlive)),
             Frame::ID => {
                 let frame = decode!(FrameHeader);
-                let iter = NetworkBodyIter::new(self.reader);
+                let iter = NetworkBatch::new(self.reader);
                 TransportBody::Frame(Frame {
                     header: frame,
                     msgs: iter,

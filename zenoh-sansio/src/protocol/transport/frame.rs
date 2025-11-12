@@ -1,17 +1,19 @@
 use crate::{
     Reliability, ZStruct,
-    network::{NetworkBodyIter, QoS},
+    network::{NetworkBatch, QoS},
 };
 
 #[cfg(test)]
 use rand::Rng;
 
 #[derive(ZStruct, Debug, PartialEq)]
-#[zenoh(header = "Z|_:2|ID:5=0x05")]
+#[zenoh(header = "Z|_|R|ID:5=0x05")]
 pub struct FrameHeader {
+    #[zenoh(header = R)]
     pub reliability: Reliability,
     pub sn: u32,
 
+    #[zenoh(ext = 0x1, default = QoS::DEFAULT)]
     pub qos: QoS,
 }
 
@@ -22,7 +24,7 @@ impl Frame<'_, '_> {
 #[derive(Debug, PartialEq)]
 pub struct Frame<'a, 'b> {
     pub header: FrameHeader,
-    pub msgs: NetworkBodyIter<'a, 'b>,
+    pub msgs: NetworkBatch<'a, 'b>,
 }
 
 impl Drop for Frame<'_, '_> {

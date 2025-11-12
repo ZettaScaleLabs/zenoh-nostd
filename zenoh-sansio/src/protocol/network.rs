@@ -5,7 +5,7 @@ use rand::{Rng, thread_rng};
 
 use crate::{
     ZBodyDecode, ZBodyEncode, ZBodyLen, ZCodecError, ZCodecResult, ZDecode, ZEncode, ZExt,
-    ZExtKind, ZLen, ZReader, ZReaderExt, ZWriter,
+    ZExtKind, ZHeader, ZLen, ZReader, ZReaderExt, ZWriter,
     network::{
         declare::Declare,
         interest::Interest,
@@ -34,17 +34,17 @@ crate::__internal_zaggregate_stream! {
 }
 
 #[derive(Debug, PartialEq)]
-pub struct NetworkBodyIter<'a, 'b> {
+pub struct NetworkBatch<'a, 'b> {
     pub reader: &'b mut ZReader<'a>,
 }
 
-impl<'a, 'b> NetworkBodyIter<'a, 'b> {
+impl<'a, 'b> NetworkBatch<'a, 'b> {
     pub fn new(reader: &'b mut ZReader<'a>) -> Self {
         Self { reader }
     }
 }
 
-impl<'a, 'b> core::iter::Iterator for NetworkBodyIter<'a, 'b> {
+impl<'a, 'b> core::iter::Iterator for NetworkBatch<'a, 'b> {
     type Item = NetworkBody<'a>;
 
     fn next(&mut self) -> Option<Self::Item> {
@@ -221,28 +221,72 @@ impl Budget {
     }
 }
 
+impl ZHeader for Duration {
+    fn z_header(&self) -> u8 {
+        let header = 0u8;
+        match self.as_millis() % 1_000 {
+            0 => header | 0b0000_0001,
+            _ => header | 0b0000_0000,
+        }
+    }
+}
+
 impl ZBodyLen for Duration {
     fn z_body_len(&self) -> usize {
+        let v = match self.as_millis() % 1_000 {
+            0 => self.as_millis() / 1_000,
+            _ => self.as_millis(),
+        } as u64;
+
+        <u64 as ZLen>::z_len(&v)
+    }
+}
+
+impl ZLen for Duration {
+    fn z_len(&self) -> usize {
         <u64 as ZLen>::z_len(&(self.as_millis() as u64))
     }
 }
 
 impl ZBodyEncode for Duration {
     fn z_body_encode(&self, w: &mut ZWriter) -> ZCodecResult<()> {
+        let v = match self.as_millis() % 1_000 {
+            0 => self.as_millis() / 1_000,
+            _ => self.as_millis(),
+        } as u64;
+
+        <u64 as ZEncode>::z_encode(&v, w)
+    }
+}
+
+impl ZEncode for Duration {
+    fn z_encode(&self, w: &mut ZWriter) -> ZCodecResult<()> {
         <u64 as ZEncode>::z_encode(&(self.as_millis() as u64), w)
     }
 }
 
 impl<'a> ZBodyDecode<'a> for Duration {
-    type Ctx = ();
+    type Ctx = u8;
 
-    fn z_body_decode(r: &mut ZReader<'a>, _: ()) -> ZCodecResult<Self> {
+    fn z_body_decode(r: &mut ZReader<'a>, h: u8) -> ZCodecResult<Self> {
+        let is_seconds = (h & 0b0000_0001) != 0;
+        let value = <u64 as ZDecode>::z_decode(r)?;
+        if is_seconds {
+            Ok(Duration::from_secs(value))
+        } else {
+            Ok(Duration::from_millis(value))
+        }
+    }
+}
+
+impl<'a> ZDecode<'a> for Duration {
+    fn z_decode(r: &mut ZReader<'a>) -> ZCodecResult<Self> {
         let value = <u64 as ZDecode>::z_decode(r)?;
         Ok(Duration::from_millis(value))
     }
 }
 
-crate::__internal_zstructimpl!(Duration);
+// crate::__internal_zstructimpl!(Duration);
 
 impl<'a> ZExt<'a> for Duration {
     const KIND: ZExtKind = ZExtKind::U64;

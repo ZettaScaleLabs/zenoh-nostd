@@ -3,8 +3,9 @@ use criterion::Criterion;
 use crate::{
     Reliability, ZDecode, ZEncode, ZLen,
     encoding::Encoding,
-    network::{Mapping, NodeId, QoS, push::Push},
-    transport::{TransportBodyIter, frame::FrameHeader},
+    ke::keyexpr,
+    network::{NodeId, QoS, push::Push},
+    transport::{TransportBatch, frame::FrameHeader},
     wire_expr::WireExpr,
     zenoh::{PushBody, put::Put},
 };
@@ -43,11 +44,7 @@ fn bench_codec() {
     };
 
     let msg = Push {
-        wire_expr: WireExpr {
-            scope: 0,
-            mapping: Mapping::Receiver,
-            suffix: "demo/example",
-        },
+        wire_expr: WireExpr::from(keyexpr::new("demo/example").unwrap()),
         qos: QoS::DEFAULT,
         timestamp: None,
         nodeid: NodeId::DEFAULT,
@@ -75,7 +72,7 @@ fn bench_codec() {
     c.bench_function("decode_batch", |b| {
         b.iter(|| {
             let mut r = &data[..len];
-            let mut iter = TransportBodyIter::new(&mut r);
+            let mut iter = TransportBatch::new(&mut r);
             while iter.next().is_some() {}
         })
     });

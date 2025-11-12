@@ -23,8 +23,9 @@ pub struct OpenExt<'a> {
 }
 
 #[derive(ZStruct, Debug, PartialEq)]
-#[zenoh(header = "Z|S|A:1=0|ID:5=0x02")]
+#[zenoh(header = "Z|T|A:1=0|ID:5=0x02")]
 pub struct OpenSyn<'a> {
+    #[zenoh(flatten, shift = 6)]
     pub lease: Duration,
     pub sn: u32,
 
@@ -36,8 +37,9 @@ pub struct OpenSyn<'a> {
 }
 
 #[derive(ZStruct, Debug, PartialEq)]
-#[zenoh(header = "Z|S|A:1=1|ID:5=0x02")]
+#[zenoh(header = "Z|T|A:1=1|ID:5=0x02")]
 pub struct OpenAck<'a> {
+    #[zenoh(flatten, shift = 6)]
     pub lease: Duration,
     pub sn: u32,
 
@@ -46,6 +48,13 @@ pub struct OpenAck<'a> {
 }
 
 impl<'a> OpenExt<'a> {
+    pub const DEFAULT: Self = Self {
+        qos: None,
+        auth: None,
+        lowlatency: None,
+        compression: None,
+    };
+
     #[cfg(test)]
     pub(crate) fn rand(w: &mut crate::ZWriter<'a>) -> Self {
         let qos = if rand::thread_rng().gen_bool(0.5) {

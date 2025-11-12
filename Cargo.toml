@@ -18,6 +18,7 @@ zenoh-sansio = { version = "0.1.0", path = "zenoh-sansio" }
 zenoh-sansio-codec = { version = "0.1.0", path = "zenoh-sansio-codec" }
 
 uhlc = { version = "0.8.1", git = "https://github.com/Hennzau/uhlc-rs", branch = "no-alloc", default-features = false }
+sha3 = { version = "0.10.8", default-features = false }
 
 proc-macro2 = "1.0.103"
 quote = "1.0.41"

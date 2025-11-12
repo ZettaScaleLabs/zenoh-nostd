@@ -20,10 +20,12 @@ fn main() {
 
     // Session is now connected
 
+    // udp.set_read_timeout(Some(session.keepalive())).unwrap();
+
     // let sub = session.subscribe("demo/example");
 
     // loop {
-    //     let len = udp.recv(&mut rx).unwrap();
+    //     let len = udp.recv(&mut rx).unwrap_or_default();
     //     let events = session.read(&rx[..len]);
 
     //     let len = session.write(&mut tx, &[&events, &sub]).unwrap();

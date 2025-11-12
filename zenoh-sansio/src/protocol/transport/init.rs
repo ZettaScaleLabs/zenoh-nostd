@@ -99,6 +99,15 @@ impl InitResolution {
 }
 
 impl<'a> InitExt<'a> {
+    pub const DEFAULT: Self = Self {
+        qos: None,
+        auth: None,
+        mlink: None,
+        lowlatency: None,
+        compression: None,
+        patch: PatchType::NONE,
+    };
+
     #[cfg(test)]
     pub(crate) fn rand(w: &mut ZWriter<'a>) -> Self {
         let qos = if rand::thread_rng().gen_bool(0.5) {

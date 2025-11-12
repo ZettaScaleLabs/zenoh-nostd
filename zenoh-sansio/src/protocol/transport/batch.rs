@@ -1,7 +1,7 @@
 use crate::{
     Reliability, ZCodecResult, ZEncode, ZWriter,
     network::{NetworkBody, QoS},
-    transport::frame::FrameHeader,
+    transport::{frame::FrameHeader, init::InitSyn, keepalive::KeepAlive, open::OpenSyn},
 };
 
 pub struct Batch<'a> {
@@ -24,7 +24,19 @@ impl<'a> Batch<'a> {
         }
     }
 
-    pub fn with_msg(mut self, x: &NetworkBody, r: Reliability, qos: QoS) -> ZCodecResult<Self> {
+    pub fn write_init_syn(&mut self, x: &InitSyn) -> ZCodecResult<()> {
+        <_ as ZEncode>::z_encode(x, &mut self.writer)
+    }
+
+    pub fn write_open_syn(&mut self, x: &OpenSyn) -> ZCodecResult<()> {
+        <_ as ZEncode>::z_encode(x, &mut self.writer)
+    }
+
+    pub fn write_keepalive(&mut self) -> ZCodecResult<()> {
+        <_ as ZEncode>::z_encode(&KeepAlive {}, &mut self.writer)
+    }
+
+    pub fn write_msg(&mut self, x: &NetworkBody, r: Reliability, qos: QoS) -> ZCodecResult<()> {
         if self.frame != Some(r) {
             <_ as ZEncode>::z_encode(
                 &FrameHeader {
@@ -41,7 +53,7 @@ impl<'a> Batch<'a> {
 
         <_ as ZEncode>::z_encode(x, &mut self.writer)?;
 
-        Ok(self)
+        Ok(())
     }
 
     pub fn finalize(self) -> (u32, usize) {

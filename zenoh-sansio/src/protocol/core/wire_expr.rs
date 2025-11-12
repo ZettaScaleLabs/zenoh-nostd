@@ -1,4 +1,4 @@
-use crate::{ZExt, network::Mapping};
+use crate::{ZExt, ke::keyexpr, network::Mapping};
 
 #[cfg(test)]
 use crate::ZWriterExt;
@@ -19,6 +19,16 @@ pub struct WireExpr<'a> {
 
     #[zenoh(presence = header(N), default = "", size = prefixed)]
     pub suffix: &'a str,
+}
+
+impl<'a> From<&'a keyexpr> for WireExpr<'a> {
+    fn from(ke: &'a keyexpr) -> Self {
+        Self {
+            scope: 0,
+            mapping: Mapping::Sender,
+            suffix: ke.as_str(),
+        }
+    }
 }
 
 impl<'a> WireExpr<'a> {
