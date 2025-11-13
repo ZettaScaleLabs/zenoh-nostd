@@ -1,5 +1,11 @@
+<p align="center">  
+  <img src="https://zenoh.io/img/zenoh-dragon-small.png" height="121">
+</p>
+
 <h1 align="center">zenoh-nostd</h1>
-<p align="center"><strong>Zero Network Overhead. No std. No alloc. Pure Rust.</strong></p>
+<p align="center">
+  <strong>Zero Network Overhead. No std. No alloc. Pure Rust.</strong>
+</p>
 <p align="center">
   <code>bare-metal</code> • <code>no_std</code> • <code>zenoh</code>
 </p>
@@ -10,7 +16,8 @@
 
 ⚠️ This project is in early development.
 
-**zenoh-nostd** is a Rust-native, `#![no_std]`, `no_alloc` library that provides a **zero-overhead network abstraction layer** for ultra-constrained and bare-metal environments.
+**zenoh-nostd** is a Rust-native, `#![no_std]`, `no_alloc` library that provides a **zero-overhead network abstraction layer** for 
+ultra-constrained and bare-metal environments. In other terms you can run this *bare metal* on your favourite microcontroller.
 
 > ⚡ Built on the <a href="https://github.com/eclipse-zenoh/zenoh">Zenoh protocol</a>, but stripped to the bone for minimalism and raw performance.
 
