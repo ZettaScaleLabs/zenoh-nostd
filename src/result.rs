@@ -86,6 +86,9 @@ pub enum ZError {
     /// Configuration is not supported in endpoint.
     ConfigNotSupported = 62,
     // Reserve: 63–69
+
+    // ──────────────── Protocol errors (70–255) ────────────────
+    MissingMandatoryExtension = 70,
 }
 
 impl core::fmt::Display for ZError {
@@ -125,6 +128,9 @@ impl core::fmt::Display for ZError {
             ZError::NoProtocolSeparator => f.write_str("missing protocol separator in endpoint"),
             ZError::MetadataNotSupported => f.write_str("metadata not supported in endpoint"),
             ZError::ConfigNotSupported => f.write_str("configuration not supported in endpoint"),
+
+            // Protocol errors
+            ZError::MissingMandatoryExtension => f.write_str("missing mandatory extension"),
         }
     }
 }

@@ -1,187 +1,166 @@
-use core::{
-    fmt::{self, Debug},
-    ops::{Add, AddAssign, Sub, SubAssign},
-};
+use uhlc::Timestamp;
+
+use crate::{ZBodyDecode, ZDecode, ZEncode, ZStruct, ZWriter};
+#[cfg(test)]
+use rand::{Rng, thread_rng};
 
 use crate::{
-    protocol::{
-        ZCodecError,
-        common::{
-            extension::{self, iext},
-            imsg::{self, HEADER_BITS},
-        },
-        core::wire_expr::WireExpr,
-        network::{Mapping, declare, id, interest},
-        zcodec::{decode_u8, decode_u32, encode_u8, encode_u32},
-    },
-    result::ZResult,
+    ZBodyEncode, ZBodyLen, ZHeader, ZLen,
+    network::{NodeId, QoS},
+    wire_expr::WireExpr,
     zbail,
-    zbuf::{ZBufReader, ZBufWriter},
 };
 
-pub(crate) type InterestId = u32;
-
-pub(crate) mod flag {
-    pub(crate) const Z: u8 = 1 << 7;
+impl InterestInner<'_> {
+    const HEADER_SLOT_FULL: u8 = 0b1111_1111;
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub(crate) struct Interest<'a> {
-    pub(crate) id: InterestId,
-    pub(crate) mode: InterestMode,
-    pub(crate) options: InterestOptions,
-    pub(crate) wire_expr: Option<WireExpr<'a>>,
-    pub(crate) ext_qos: ext::QoSType,
-    pub(crate) ext_tstamp: Option<ext::TimestampType>,
-    pub(crate) ext_nodeid: ext::NodeIdType,
+#[derive(ZStruct, Debug)]
+#[zenoh(header = "A|M|N|R|T|Q|S|K")]
+pub struct InterestInner<'a> {
+    #[zenoh(header = FULL)]
+    pub options: u8,
+
+    #[zenoh(presence = header(R), flatten, shift = 5)]
+    pub wire_expr: Option<WireExpr<'a>>,
 }
 
-impl<'a> Interest<'a> {
-    pub(crate) fn encode(&self, writer: &mut ZBufWriter<'_>) -> ZResult<(), ZCodecError> {
-        let mut header = id::INTEREST;
+impl PartialEq for InterestInner<'_> {
+    fn eq(&self, other: &Self) -> bool {
+        let options = InterestOptions::options(self.options);
+        let other_options = InterestOptions::options(other.options);
+
+        options == other_options && self.wire_expr == other.wire_expr
+    }
+}
+
+#[derive(ZStruct, Debug, PartialEq)]
+#[zenoh(header = "Z|_:7")]
+pub struct InterestExt {
+    #[zenoh(ext = 0x1, default = QoS::DEFAULT)]
+    pub qos: QoS,
+    #[zenoh(ext = 0x2)]
+    pub timestamp: Option<Timestamp>,
+    #[zenoh(ext = 0x3, default = NodeId::DEFAULT, mandatory)]
+    pub nodeid: NodeId,
+}
+
+#[derive(Debug, PartialEq)]
+// #[zenoh(header = "Z|MODE|_:5=0x19")]
+pub struct Interest<'a> {
+    pub id: u32,
+    pub mode: InterestMode,
+
+    pub inner: InterestInner<'a>,
+    // #[zenoh(flatten)]
+    pub ext: InterestExt,
+}
+
+impl Interest<'_> {
+    const HEADER_BASE: u8 = 25u8;
+    pub const ID: u8 = 25u8;
+}
+
+impl ZHeader for Interest<'_> {
+    fn z_header(&self) -> u8 {
+        let mut header: u8 = Self::HEADER_BASE;
+
         header |= match self.mode {
             InterestMode::Final => 0b00,
             InterestMode::Current => 0b01,
             InterestMode::Future => 0b10,
             InterestMode::CurrentFuture => 0b11,
-        } << HEADER_BITS;
+        } << 5;
 
-        let mut n_exts = ((self.ext_qos != declare::ext::QoSType::DEFAULT) as u8)
-            + (self.ext_tstamp.is_some() as u8)
-            + ((self.ext_nodeid != declare::ext::NodeIdType::DEFAULT) as u8);
+        header |= <_ as ZHeader>::z_header(&self.ext);
 
-        if n_exts != 0 {
-            header |= interest::flag::Z;
-        }
+        header
+    }
+}
 
-        encode_u8(writer, header)?;
-        encode_u32(writer, self.id)?;
+impl ZBodyLen for Interest<'_> {
+    fn z_body_len(&self) -> usize {
+        <u32 as ZLen>::z_len(&self.id)
+            + if self.mode != InterestMode::Final {
+                <_ as ZLen>::z_len(&self.inner)
+            } else {
+                0usize
+            }
+            + self.ext.z_body_len()
+    }
+}
+
+impl ZBodyEncode for Interest<'_> {
+    fn z_body_encode(&self, w: &mut ZWriter) -> crate::ZCodecResult<()> {
+        <u32 as ZBodyEncode>::z_body_encode(&self.id, w)?;
 
         if self.mode != InterestMode::Final {
-            encode_u8(writer, self.options())?;
-            if let Some(we) = self.wire_expr.as_ref() {
-                we.encode(writer)?;
-            }
+            <_ as ZEncode>::z_encode(&self.inner, w)?;
         }
 
-        if self.ext_qos != declare::ext::QoSType::DEFAULT {
-            n_exts -= 1;
-            self.ext_qos.encode(writer, n_exts != 0)?;
-        }
-        if let Some(ts) = self.ext_tstamp.as_ref() {
-            n_exts -= 1;
-            ts.encode(writer, n_exts != 0)?;
-        }
-        if self.ext_nodeid != declare::ext::NodeIdType::DEFAULT {
-            n_exts -= 1;
-            self.ext_nodeid.encode(writer, n_exts != 0)?;
-        }
+        <_ as ZBodyEncode>::z_body_encode(&self.ext, w)?;
 
         Ok(())
     }
+}
 
-    pub(crate) fn decode(reader: &mut ZBufReader<'a>, header: u8) -> ZResult<Self, ZCodecError> {
-        if imsg::mid(header) != id::INTEREST {
-            zbail!(ZCodecError::CouldNotRead);
-        }
+impl<'a> ZBodyDecode<'a> for Interest<'a> {
+    type Ctx = u8;
 
-        let id = decode_u32(reader)?;
-        let mode = match (header >> HEADER_BITS) & 0b11 {
+    fn z_body_decode(r: &mut crate::ZReader<'a>, header: u8) -> crate::ZCodecResult<Self> {
+        let id = <u32 as ZDecode>::z_decode(r)?;
+
+        let mode = match (header >> 5) & 0b11 {
             0b00 => InterestMode::Final,
             0b01 => InterestMode::Current,
             0b10 => InterestMode::Future,
             0b11 => InterestMode::CurrentFuture,
-            _ => zbail!(ZCodecError::CouldNotRead),
+            _ => zbail!(crate::ZCodecError::CouldNotParse),
         };
 
-        let mut options = InterestOptions::empty();
-        let mut wire_expr = None;
-        if mode != InterestMode::Final {
-            let options_byte = decode_u8(reader)?;
-            options = InterestOptions::from(options_byte);
-            if options.restricted() {
-                let mut we: WireExpr<'_> = WireExpr::decode(options.named(), reader)?;
-                we.mapping = if options.mapping() {
-                    Mapping::Sender
-                } else {
-                    Mapping::Receiver
-                };
-                wire_expr = Some(we);
-            }
-        }
-
-        let mut ext_qos = declare::ext::QoSType::DEFAULT;
-        let mut ext_tstamp = None;
-        let mut ext_nodeid = declare::ext::NodeIdType::DEFAULT;
-
-        let mut has_ext = imsg::has_flag(header, interest::flag::Z);
-        while has_ext {
-            let ext = decode_u8(reader)?;
-            match iext::eheader(ext) {
-                declare::ext::QoS::ID => {
-                    let (q, ext) = interest::ext::QoSType::decode(reader, ext)?;
-
-                    ext_qos = q;
-                    has_ext = ext;
-                }
-                declare::ext::Timestamp::ID => {
-                    let (t, ext) = interest::ext::TimestampType::decode(reader, ext)?;
-                    ext_tstamp = Some(t);
-                    has_ext = ext;
-                }
-                declare::ext::NodeId::ID => {
-                    let (nid, ext) = interest::ext::NodeIdType::decode(reader, ext)?;
-                    ext_nodeid = nid;
-                    has_ext = ext;
-                }
-                _ => {
-                    has_ext = extension::skip("Declare", reader, ext)?;
-                }
-            }
-        }
-
-        Ok(Interest {
-            id,
-            mode,
-            options,
-            wire_expr,
-            ext_qos,
-            ext_tstamp,
-            ext_nodeid,
-        })
-    }
-
-    #[cfg(test)]
-    pub(crate) fn rand(zbuf: &mut ZBufWriter<'a>) -> Self {
-        use rand::Rng;
-        let mut rng = rand::thread_rng();
-
-        let id = rng.r#gen::<InterestId>();
-        let mode = InterestMode::rand();
-        let options = if mode == InterestMode::Final {
-            InterestOptions::empty()
+        let inner = if mode != InterestMode::Final {
+            <_ as ZDecode>::z_decode(r)?
         } else {
-            InterestOptions::rand()
+            InterestInner {
+                options: 0,
+                wire_expr: None,
+            }
         };
-        let wire_expr = options.restricted().then_some(WireExpr::rand(zbuf));
-        let ext_qos = ext::QoSType::rand();
-        let ext_tstamp = rng.gen_bool(0.5).then(ext::TimestampType::rand);
-        let ext_nodeid = ext::NodeIdType::rand();
 
-        Self {
+        let ext = <_ as ZBodyDecode>::z_body_decode(r, header)?;
+
+        Ok(Self {
             id,
             mode,
-            wire_expr,
-            options,
-            ext_qos,
-            ext_tstamp,
-            ext_nodeid,
-        }
+            inner,
+            ext,
+        })
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(crate) enum InterestMode {
+impl ZLen for Interest<'_> {
+    fn z_len(&self) -> usize {
+        1usize + <Self as ZBodyLen>::z_body_len(self)
+    }
+}
+
+impl ZEncode for Interest<'_> {
+    fn z_encode(&self, w: &mut ZWriter) -> crate::ZCodecResult<()> {
+        let header = <Self as ZHeader>::z_header(self);
+        <u8 as ZEncode>::z_encode(&header, w)?;
+        <Self as ZBodyEncode>::z_body_encode(self, w)
+    }
+}
+
+impl<'a> ZDecode<'a> for Interest<'a> {
+    fn z_decode(r: &mut crate::ZReader<'a>) -> crate::ZCodecResult<Self> {
+        let header = <u8 as ZDecode>::z_decode(r)?;
+        <Self as ZBodyDecode>::z_body_decode(r, header)
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum InterestMode {
     Final,
     Current,
     Future,
@@ -190,12 +169,8 @@ pub(crate) enum InterestMode {
 
 impl InterestMode {
     #[cfg(test)]
-    pub(crate) fn rand() -> Self {
-        use rand::Rng;
-
-        let mut rng = rand::thread_rng();
-
-        match rng.gen_range(0..4) {
+    pub fn rand(_: &mut ZWriter) -> Self {
+        match thread_rng().gen_range(0..4) {
             0 => InterestMode::Final,
             1 => InterestMode::Current,
             2 => InterestMode::Future,
@@ -205,109 +180,10 @@ impl InterestMode {
     }
 }
 
-pub(crate) mod ext {
-    pub(crate) type QoS = crate::zextz64!(0x1, false);
-    pub(crate) type QoSType = crate::protocol::network::ext::QoSType<{ QoS::ID }>;
-
-    pub(crate) type Timestamp<'a> = crate::zextzbuf!('a, 0x2, false);
-    pub(crate) type TimestampType = crate::protocol::network::ext::TimestampType<{ Timestamp::ID }>;
-
-    pub(crate) type NodeId = crate::zextz64!(0x3, true);
-    pub(crate) type NodeIdType = crate::protocol::network::ext::NodeIdType<{ NodeId::ID }>;
-}
-
-impl Interest<'_> {
-    pub(crate) fn options(&self) -> u8 {
-        let mut interest = self.options;
-        if let Some(we) = self.wire_expr.as_ref() {
-            interest += InterestOptions::RESTRICTED;
-            if we.has_suffix() {
-                interest += InterestOptions::NAMED;
-            }
-            if let Mapping::Sender = we.mapping {
-                interest += InterestOptions::MAPPING;
-            }
-        }
-        interest.options
-    }
-}
-
 #[repr(transparent)]
-#[derive(Clone, Copy)]
-pub(crate) struct InterestOptions {
+#[derive(Clone, Copy, Debug)]
+pub struct InterestOptions {
     options: u8,
-}
-
-impl InterestOptions {
-    pub(crate) const KEYEXPRS: InterestOptions = InterestOptions::options(1);
-    pub(crate) const SUBSCRIBERS: InterestOptions = InterestOptions::options(1 << 1);
-    pub(crate) const QUERYABLES: InterestOptions = InterestOptions::options(1 << 2);
-    pub(crate) const TOKENS: InterestOptions = InterestOptions::options(1 << 3);
-    const RESTRICTED: InterestOptions = InterestOptions::options(1 << 4);
-    const NAMED: InterestOptions = InterestOptions::options(1 << 5);
-    const MAPPING: InterestOptions = InterestOptions::options(1 << 6);
-    pub(crate) const AGGREGATE: InterestOptions = InterestOptions::options(1 << 7);
-
-    const fn options(options: u8) -> Self {
-        Self { options }
-    }
-
-    pub(crate) const fn empty() -> Self {
-        Self { options: 0 }
-    }
-
-    pub(crate) const fn keyexprs(&self) -> bool {
-        imsg::has_flag(self.options, Self::KEYEXPRS.options)
-    }
-
-    pub(crate) const fn subscribers(&self) -> bool {
-        imsg::has_flag(self.options, Self::SUBSCRIBERS.options)
-    }
-
-    pub(crate) const fn queryables(&self) -> bool {
-        imsg::has_flag(self.options, Self::QUERYABLES.options)
-    }
-
-    pub(crate) const fn tokens(&self) -> bool {
-        imsg::has_flag(self.options, Self::TOKENS.options)
-    }
-
-    pub(crate) const fn restricted(&self) -> bool {
-        imsg::has_flag(self.options, Self::RESTRICTED.options)
-    }
-
-    pub(crate) const fn named(&self) -> bool {
-        imsg::has_flag(self.options, Self::NAMED.options)
-    }
-
-    pub(crate) const fn mapping(&self) -> bool {
-        imsg::has_flag(self.options, Self::MAPPING.options)
-    }
-
-    pub(crate) const fn aggregate(&self) -> bool {
-        imsg::has_flag(self.options, Self::AGGREGATE.options)
-    }
-
-    #[cfg(test)]
-    pub(crate) fn rand() -> Self {
-        use rand::Rng;
-        let mut rng = rand::thread_rng();
-
-        let mut s = Self::empty();
-        if rng.gen_bool(0.5) {
-            s += InterestOptions::KEYEXPRS;
-        }
-        if rng.gen_bool(0.5) {
-            s += InterestOptions::SUBSCRIBERS;
-        }
-        if rng.gen_bool(0.5) {
-            s += InterestOptions::TOKENS;
-        }
-        if rng.gen_bool(0.5) {
-            s += InterestOptions::AGGREGATE;
-        }
-        s
-    }
 }
 
 impl PartialEq for InterestOptions {
@@ -320,77 +196,126 @@ impl PartialEq for InterestOptions {
     }
 }
 
-impl Debug for InterestOptions {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "Interest {{ ")?;
-        if self.keyexprs() {
-            write!(f, "K:Y, ")?;
-        } else {
-            write!(f, "K:N, ")?;
-        }
-        if self.subscribers() {
-            write!(f, "S:Y, ")?;
-        } else {
-            write!(f, "S:N, ")?;
-        }
-        if self.queryables() {
-            write!(f, "Q:Y, ")?;
-        } else {
-            write!(f, "Q:N, ")?;
-        }
-        if self.tokens() {
-            write!(f, "T:Y, ")?;
-        } else {
-            write!(f, "T:N, ")?;
-        }
-        if self.aggregate() {
-            write!(f, "A:Y")?;
-        } else {
-            write!(f, "A:N")?;
-        }
-        write!(f, " }}")?;
-        Ok(())
-    }
-}
+impl InterestOptions {
+    pub const KEYEXPRS: InterestOptions = InterestOptions::options(1);
+    pub const SUBSCRIBERS: InterestOptions = InterestOptions::options(1 << 1);
+    pub const QUERYABLES: InterestOptions = InterestOptions::options(1 << 2);
+    pub const TOKENS: InterestOptions = InterestOptions::options(1 << 3);
 
-impl Eq for InterestOptions {}
+    pub const AGGREGATE: InterestOptions = InterestOptions::options(1 << 7);
 
-impl Add for InterestOptions {
-    type Output = Self;
-
-    #[allow(clippy::suspicious_arithmetic_impl)]
-    fn add(self, rhs: Self) -> Self::Output {
-        Self {
-            options: self.options | rhs.options,
-        }
-    }
-}
-
-impl AddAssign for InterestOptions {
-    #[allow(clippy::suspicious_op_assign_impl)]
-    fn add_assign(&mut self, rhs: Self) {
-        self.options |= rhs.options;
-    }
-}
-
-impl Sub for InterestOptions {
-    type Output = Self;
-
-    fn sub(self, rhs: Self) -> Self::Output {
-        Self {
-            options: self.options & !rhs.options,
-        }
-    }
-}
-
-impl SubAssign for InterestOptions {
-    fn sub_assign(&mut self, rhs: Self) {
-        self.options &= !rhs.options;
-    }
-}
-
-impl From<u8> for InterestOptions {
-    fn from(options: u8) -> Self {
+    const fn options(options: u8) -> Self {
         Self { options }
+    }
+
+    pub const fn keyexprs(&self) -> bool {
+        self.options & Self::KEYEXPRS.options != 0
+    }
+
+    pub const fn subscribers(&self) -> bool {
+        self.options & Self::SUBSCRIBERS.options != 0
+    }
+
+    pub const fn queryables(&self) -> bool {
+        self.options & Self::QUERYABLES.options != 0
+    }
+
+    pub const fn tokens(&self) -> bool {
+        self.options & Self::TOKENS.options != 0
+    }
+
+    pub const fn aggregate(&self) -> bool {
+        self.options & Self::AGGREGATE.options != 0
+    }
+}
+
+impl InterestOptions {
+    #[cfg(test)]
+    pub fn rand() -> Self {
+        let mut s = Self { options: 0 };
+        if thread_rng().gen_bool(0.5) {
+            s.options |= Self::KEYEXPRS.options;
+        }
+        if thread_rng().gen_bool(0.5) {
+            s.options |= Self::SUBSCRIBERS.options;
+        }
+        if thread_rng().gen_bool(0.5) {
+            s.options |= Self::TOKENS.options;
+        }
+        if thread_rng().gen_bool(0.5) {
+            s.options |= Self::AGGREGATE.options;
+        }
+        s
+    }
+}
+
+impl<'a> InterestInner<'a> {
+    #[cfg(test)]
+    pub(crate) fn rand(w: &mut ZWriter<'a>) -> Self {
+        let options = InterestOptions::rand().options;
+        let wire_expr = if thread_rng().gen_bool(0.5) {
+            Some(WireExpr::rand(w))
+        } else {
+            None
+        };
+
+        Self { options, wire_expr }
+    }
+}
+
+impl InterestExt {
+    #[cfg(test)]
+    pub(crate) fn rand(w: &mut ZWriter) -> Self {
+        let qos = if thread_rng().gen_bool(0.5) {
+            QoS::rand(w)
+        } else {
+            QoS::DEFAULT
+        };
+
+        let timestamp = thread_rng().gen_bool(0.5).then_some({
+            use crate::protocol::core::ZenohIdProto;
+
+            let time = uhlc::NTP64(thread_rng().r#gen());
+            let id = uhlc::ID::try_from(ZenohIdProto::default().as_le_bytes()).unwrap();
+            Timestamp::new(time, id)
+        });
+
+        let nodeid = if thread_rng().gen_bool(0.5) {
+            NodeId::rand(w)
+        } else {
+            NodeId::DEFAULT
+        };
+
+        Self {
+            qos,
+            timestamp,
+            nodeid,
+        }
+    }
+}
+
+impl<'a> Interest<'a> {
+    #[cfg(test)]
+    pub(crate) fn rand(w: &mut ZWriter<'a>) -> Self {
+        let id = thread_rng().r#gen();
+        let mode = InterestMode::rand(w);
+
+        let inner = if mode != InterestMode::Final {
+            InterestInner::rand(w)
+        } else {
+            InterestInner {
+                options: 0,
+                wire_expr: None,
+            }
+        };
+
+        let ext = InterestExt::rand(w);
+
+        Self {
+            id,
+            mode,
+            inner,
+            ext,
+        }
     }
 }

@@ -1,4 +1,6 @@
 pub(crate) mod borrowed;
+pub use borrowed::*;
+
 pub(crate) mod intersect;
 
 pub(crate) const DELIMITER: u8 = b'/';

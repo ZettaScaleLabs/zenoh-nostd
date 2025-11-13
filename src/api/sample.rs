@@ -3,18 +3,17 @@ use core::str::FromStr;
 use heapless::{String, Vec};
 
 use crate::{
-    protocol::keyexpr::borrowed::keyexpr,
+    ke::keyexpr,
     result::{ZError, ZResult},
-    zbuf::ZBuf,
 };
 
 pub struct ZSample<'a> {
     keyexpr: &'a keyexpr,
-    payload: ZBuf<'a>,
+    payload: &'a [u8],
 }
 
 impl<'a> ZSample<'a> {
-    pub(crate) fn new(keyexpr: &'a keyexpr, payload: ZBuf<'a>) -> ZSample<'a> {
+    pub(crate) fn new(keyexpr: &'a keyexpr, payload: &'a [u8]) -> ZSample<'a> {
         ZSample { keyexpr, payload }
     }
 
@@ -22,7 +21,7 @@ impl<'a> ZSample<'a> {
         self.keyexpr
     }
 
-    pub fn payload(&self) -> ZBuf<'a> {
+    pub fn payload(&self) -> &'a [u8] {
         self.payload
     }
 
@@ -54,7 +53,7 @@ impl<const MAX_KEYEXPR: usize, const MAX_PAYLOAD: usize> ZOwnedSample<MAX_KEYEXP
         keyexpr::from_str_unchecked(self.keyexpr.as_str())
     }
 
-    pub fn payload(&self) -> ZBuf<'_> {
+    pub fn payload(&self) -> &'_ [u8] {
         &self.payload
     }
 }

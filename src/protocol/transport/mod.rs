@@ -1,441 +1,156 @@
+use crate::{
+    ZExt, ZReader, ZReaderExt,
+    network::NetworkBatch,
+    transport::{
+        close::Close,
+        frame::{Frame, FrameHeader},
+        init::{InitAck, InitSyn},
+        keepalive::KeepAlive,
+        open::{OpenAck, OpenSyn},
+    },
+};
+
+#[cfg(test)]
+use crate::{ZWriter, ZWriterExt};
+#[cfg(test)]
+use rand::{Rng, thread_rng};
+
+pub(crate) mod close;
 pub(crate) mod frame;
 pub(crate) mod init;
 pub(crate) mod keepalive;
 pub(crate) mod open;
 
-use core::fmt;
-
-use crate::{
-    protocol::{
-        ZCodecError,
-        common::imsg,
-        network::NetworkMessage,
-        transport::{
-            self,
-            frame::{Frame, FrameHeader},
-            init::{InitAck, InitSyn},
-            keepalive::KeepAlive,
-            open::{OpenAck, OpenSyn},
-        },
-        zcodec::decode_u8,
-    },
-    result::ZResult,
-    zbuf::{BufReaderExt, ZBufReader, ZBufWriter},
-};
-
-pub(crate) type BatchSize = u16;
-
-pub(crate) mod batch_size {
-    use super::BatchSize;
-
-    pub(crate) const UNICAST: BatchSize = BatchSize::MAX;
-}
-
-pub(crate) mod id {
-    pub(crate) const INIT: u8 = 0x01;
-    pub(crate) const OPEN: u8 = 0x02;
-    pub(crate) const KEEP_ALIVE: u8 = 0x04;
-    pub(crate) const FRAME: u8 = 0x05;
-}
-
-pub(crate) type TransportSn = u32;
-
-#[derive(Debug, PartialEq, Eq)]
-pub(crate) enum TransportBody<'a, 'b> {
+#[derive(Debug, PartialEq)]
+pub enum TransportBody<'a, 'b> {
     InitSyn(InitSyn<'a>),
-    #[allow(dead_code)]
     InitAck(InitAck<'a>),
     OpenSyn(OpenSyn<'a>),
-    #[allow(dead_code)]
     OpenAck(OpenAck<'a>),
+    Close(Close),
     KeepAlive(KeepAlive),
     Frame(Frame<'a, 'b>),
 }
 
-#[derive(Debug, PartialEq, Eq)]
-pub(crate) struct TransportMessage<'a, 'b> {
-    pub(crate) body: TransportBody<'a, 'b>,
+pub struct TransportBatch<'a, 'b> {
+    reader: &'b mut ZReader<'a>,
 }
 
-impl<'a, 'b> TransportMessage<'a, 'b> {
-    pub(crate) fn encode(&self, writer: &mut ZBufWriter<'_>) -> ZResult<(), ZCodecError> {
-        match &self.body {
-            TransportBody::InitSyn(m) => m.encode(writer),
-            TransportBody::InitAck(m) => m.encode(writer),
-            TransportBody::OpenSyn(m) => m.encode(writer),
-            TransportBody::OpenAck(m) => m.encode(writer),
-            TransportBody::KeepAlive(m) => m.encode(writer),
-            TransportBody::Frame(m) => m.encode(writer),
-        }
+impl<'a, 'b> TransportBatch<'a, 'b> {
+    pub fn new(reader: &'b mut ZReader<'a>) -> TransportBatch<'a, 'b> {
+        TransportBatch { reader }
     }
 
-    fn handle_frame_callback(
-        reader: &mut ZBufReader<'a>,
-        header: u8,
-        on_network_msg: &mut Option<impl FnMut(&FrameHeader, NetworkMessage<'a>)>,
-    ) -> ZResult<(), ZCodecError> {
-        let header: FrameHeader = FrameHeader::decode(reader, header)?;
-
-        while reader.can_read() {
-            let mark = reader.mark();
-            let msg = NetworkMessage::decode(reader, header.reliability);
-
-            match msg {
-                Ok(msg) => {
-                    if let Some(on_network_msg) = on_network_msg {
-                        on_network_msg(&header, msg);
-                    }
-                }
-                Err(_) => {
-                    reader.rewind(mark);
-                    break;
-                }
-            }
+    #[allow(clippy::should_implement_trait)]
+    pub fn next(&mut self) -> Option<TransportBody<'a, '_>> {
+        if !self.reader.can_read() {
+            return None;
         }
 
-        Ok(())
-    }
+        let mark = self.reader.mark();
+        let header = self
+            .reader
+            .read_u8()
+            .expect("reader should not be empty at this stage");
 
-    pub(crate) fn decode_single(
-        reader: &mut ZBufReader<'a>,
-        mut on_init_syn: Option<impl FnMut(InitSyn<'a>)>,
-        mut on_init_ack: Option<impl FnMut(InitAck<'a>)>,
-        mut on_open_syn: Option<impl FnMut(OpenSyn<'a>)>,
-        mut on_open_ack: Option<impl FnMut(OpenAck<'a>)>,
-        mut on_keepalive: Option<impl FnMut()>,
-        mut on_network_msg: Option<impl FnMut(&FrameHeader, NetworkMessage<'a>)>,
-    ) -> ZResult<bool, ZCodecError> {
-        let Ok(header): ZResult<u8, ZCodecError> = decode_u8(reader) else {
-            return Ok(false);
-        };
+        macro_rules! decode {
+            ($ty:ty) => {{
+                match <$ty as $crate::ZBodyDecode>::z_body_decode(self.reader, header) {
+                    Ok(msg) => msg,
+                    Err(_) => {
+                        self.reader.rewind(mark);
+                        return None;
+                    }
+                }
+            }};
+        }
 
-        match imsg::mid(header) {
-            id::FRAME => {
-                Self::handle_frame_callback(reader, header, &mut on_network_msg)?;
-            }
-            id::KEEP_ALIVE => {
-                let _ = KeepAlive::decode(reader, header)?;
-                if let Some(on_keepalive) = &mut on_keepalive {
-                    on_keepalive();
-                }
-            }
-            id::INIT => {
-                if !imsg::has_flag(header, transport::init::flag::A) {
-                    let init_syn = InitSyn::decode(reader, header)?;
-                    if let Some(on_init_syn) = &mut on_init_syn {
-                        on_init_syn(init_syn);
-                    }
-                } else {
-                    let init_ack = InitAck::decode(reader, header)?;
-                    if let Some(on_init_ack) = &mut on_init_ack {
-                        on_init_ack(init_ack);
-                    }
-                }
-            }
-            id::OPEN => {
-                if !imsg::has_flag(header, transport::open::flag::A) {
-                    let open_syn = OpenSyn::decode(reader, header)?;
-                    if let Some(on_open_syn) = &mut on_open_syn {
-                        on_open_syn(open_syn);
-                    }
-                } else {
-                    let open_ack = OpenAck::decode(reader, header)?;
-                    if let Some(on_open_ack) = &mut on_open_ack {
-                        on_open_ack(open_ack);
-                    }
-                }
+        let ack = header & 0b0010_0000 != 0;
+        Some(match header & 0b0001_1111 {
+            InitAck::ID if ack => TransportBody::InitAck(decode!(InitAck)),
+            InitSyn::ID => TransportBody::InitSyn(decode!(InitSyn)),
+            OpenAck::ID if ack => TransportBody::OpenAck(decode!(OpenAck)),
+            OpenSyn::ID => TransportBody::OpenSyn(decode!(OpenSyn)),
+            Close::ID => TransportBody::Close(decode!(Close)),
+            KeepAlive::ID => TransportBody::KeepAlive(decode!(KeepAlive)),
+            Frame::ID => {
+                let frame = decode!(FrameHeader);
+                let iter = NetworkBatch::new(self.reader);
+                TransportBody::Frame(Frame {
+                    header: frame,
+                    msgs: iter,
+                })
             }
             _ => {
-                return Ok(false);
+                self.reader.rewind(mark);
+                return None;
             }
-        }
-
-        Ok(true)
-    }
-
-    pub(crate) fn decode_batch(
-        reader: &mut ZBufReader<'a>,
-        mut on_init_syn: Option<impl FnMut(InitSyn<'a>)>,
-        mut on_init_ack: Option<impl FnMut(InitAck<'a>)>,
-        mut on_open_syn: Option<impl FnMut(OpenSyn<'a>)>,
-        mut on_open_ack: Option<impl FnMut(OpenAck<'a>)>,
-        mut on_keepalive: Option<impl FnMut()>,
-        mut on_network_msg: Option<impl FnMut(&FrameHeader, NetworkMessage<'a>)>,
-    ) -> ZResult<(), ZCodecError> {
-        while reader.can_read() {
-            let cont = Self::decode_single(
-                reader,
-                on_init_syn.as_mut(),
-                on_init_ack.as_mut(),
-                on_open_syn.as_mut(),
-                on_open_ack.as_mut(),
-                on_keepalive.as_mut(),
-                on_network_msg.as_mut(),
-            )?;
-
-            if !cont {
-                break;
-            }
-        }
-
-        Ok(())
-    }
-
-    async fn handle_frame_callback_async(
-        reader: &mut ZBufReader<'a>,
-        header: u8,
-        on_network_msg: &mut Option<
-            impl AsyncFnMut(&FrameHeader, NetworkMessage<'a>) -> ZResult<()>,
-        >,
-    ) -> ZResult<(), ZCodecError> {
-        let header: FrameHeader = FrameHeader::decode(reader, header)?;
-
-        while reader.can_read() {
-            let mark = reader.mark();
-            let msg = NetworkMessage::decode(reader, header.reliability);
-
-            match msg {
-                Ok(msg) => {
-                    if let Some(on_network_msg) = on_network_msg
-                        && let Err(e) = on_network_msg(&header, msg).await
-                    {
-                        crate::error!("Error when handling network_msg callback: {}", e);
-                    }
-                }
-                Err(_) => {
-                    reader.rewind(mark);
-                    break;
-                }
-            }
-        }
-
-        Ok(())
-    }
-
-    pub(crate) async fn decode_single_async(
-        reader: &mut ZBufReader<'a>,
-        mut on_init_syn: Option<impl FnMut(InitSyn<'a>) -> ZResult<()>>,
-        mut on_init_ack: Option<impl FnMut(InitAck<'a>) -> ZResult<()>>,
-        mut on_open_syn: Option<impl FnMut(OpenSyn<'a>) -> ZResult<()>>,
-        mut on_open_ack: Option<impl FnMut(OpenAck<'a>) -> ZResult<()>>,
-        mut on_keepalive: Option<impl FnMut() -> ZResult<()>>,
-        mut on_network_msg: Option<
-            impl AsyncFnMut(&FrameHeader, NetworkMessage<'a>) -> ZResult<()>,
-        >,
-    ) -> ZResult<bool, ZCodecError> {
-        let Ok(header): ZResult<u8, ZCodecError> = decode_u8(reader) else {
-            return Ok(false);
-        };
-
-        match imsg::mid(header) {
-            id::FRAME => {
-                Self::handle_frame_callback_async(reader, header, &mut on_network_msg).await?;
-            }
-            id::KEEP_ALIVE => {
-                let _ = KeepAlive::decode(reader, header)?;
-                if let Some(on_keepalive) = &mut on_keepalive
-                    && let Err(e) = on_keepalive()
-                {
-                    crate::error!("Error when handling keepalive callback: {}", e);
-                }
-            }
-            id::INIT => {
-                if !imsg::has_flag(header, transport::init::flag::A) {
-                    let init_syn = InitSyn::decode(reader, header)?;
-                    if let Some(on_init_syn) = &mut on_init_syn
-                        && let Err(e) = on_init_syn(init_syn)
-                    {
-                        crate::error!("Error when handling init_syn callback: {}", e);
-                    }
-                } else {
-                    let init_ack = InitAck::decode(reader, header)?;
-                    if let Some(on_init_ack) = &mut on_init_ack
-                        && let Err(e) = on_init_ack(init_ack)
-                    {
-                        crate::error!("Error when handling init_ack callback: {}", e);
-                    }
-                }
-            }
-            id::OPEN => {
-                if !imsg::has_flag(header, transport::open::flag::A) {
-                    let open_syn = OpenSyn::decode(reader, header)?;
-                    if let Some(on_open_syn) = &mut on_open_syn
-                        && let Err(e) = on_open_syn(open_syn)
-                    {
-                        crate::error!("Error when handling open_syn callback: {}", e);
-                    }
-                } else {
-                    let open_ack = OpenAck::decode(reader, header)?;
-                    if let Some(on_open_ack) = &mut on_open_ack
-                        && let Err(e) = on_open_ack(open_ack)
-                    {
-                        crate::error!("Error when handling open_ack callback: {}", e);
-                    }
-                }
-            }
-            _ => {
-                return Ok(false);
-            }
-        }
-
-        Ok(true)
-    }
-
-    pub(crate) async fn decode_batch_async(
-        reader: &mut ZBufReader<'a>,
-        mut on_init_syn: Option<impl FnMut(InitSyn<'a>) -> ZResult<()>>,
-        mut on_init_ack: Option<impl FnMut(InitAck<'a>) -> ZResult<()>>,
-        mut on_open_syn: Option<impl FnMut(OpenSyn<'a>) -> ZResult<()>>,
-        mut on_open_ack: Option<impl FnMut(OpenAck<'a>) -> ZResult<()>>,
-        mut on_keepalive: Option<impl FnMut() -> ZResult<()>>,
-        mut on_network_msg: Option<
-            impl AsyncFnMut(&FrameHeader, NetworkMessage<'a>) -> ZResult<()>,
-        >,
-    ) -> ZResult<(), ZCodecError> {
-        while reader.can_read() {
-            let cont = Self::decode_single_async(
-                reader,
-                on_init_syn.as_mut(),
-                on_init_ack.as_mut(),
-                on_open_syn.as_mut(),
-                on_open_ack.as_mut(),
-                on_keepalive.as_mut(),
-                on_network_msg.as_mut(),
-            )
-            .await?;
-
-            if !cont {
-                break;
-            }
-        }
-
-        Ok(())
+        })
     }
 }
 
-impl fmt::Display for TransportMessage<'_, '_> {
-    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
-        use TransportBody::*;
-        match &self.body {
-            InitSyn(_) => write!(f, "InitSyn"),
-            InitAck(_) => write!(f, "InitAck"),
-            OpenSyn(_) => write!(f, "OpenSyn"),
-            OpenAck(_) => write!(f, "OpenAck"),
-            KeepAlive(_) => write!(f, "KeepAlive"),
-            Frame(m) => write!(f, "Frame({:?})", m.payload),
-        }
+#[derive(ZExt, Debug, PartialEq)]
+pub struct HasQoS {}
+
+#[derive(ZExt, Debug, PartialEq)]
+pub struct Auth<'a> {
+    #[zenoh(size = remain)]
+    pub payload: &'a [u8],
+}
+
+impl<'a> Auth<'a> {
+    #[cfg(test)]
+    pub(crate) fn rand(w: &mut crate::ZWriter<'a>) -> Self {
+        let payload = w
+            .write_slot(thread_rng().gen_range(0..=64), |b: &mut [u8]| {
+                thread_rng().fill(b);
+                b.len()
+            })
+            .unwrap();
+
+        Self { payload }
     }
 }
 
-pub(crate) mod ext {
-    use crate::{
-        protocol::{ZCodecError, common::extension::ZExtZ64, core::Priority},
-        result::ZResult,
-        zbuf::{ZBufReader, ZBufWriter},
-    };
+#[derive(ZExt, Debug, PartialEq)]
+pub struct MultiLink<'a> {
+    #[zenoh(size = remain)]
+    pub payload: &'a [u8],
+}
 
-    #[repr(transparent)]
-    #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-    pub(crate) struct QoSType<const ID: u8> {
-        inner: u8,
+impl<'a> MultiLink<'a> {
+    #[cfg(test)]
+    pub(crate) fn rand(w: &mut crate::ZWriter<'a>) -> Self {
+        let payload = w
+            .write_slot(thread_rng().gen_range(0..=64), |b: &mut [u8]| {
+                thread_rng().fill(b);
+                b.len()
+            })
+            .unwrap();
+
+        Self { payload }
     }
+}
 
-    impl<const ID: u8> QoSType<ID> {
-        pub(crate) const DEFAULT: Self = Self::new(Priority::DEFAULT);
+#[derive(ZExt, Debug, PartialEq)]
+pub struct HasLowLatency {}
 
-        pub(crate) const fn new(priority: Priority) -> Self {
-            Self {
-                inner: priority as u8,
-            }
-        }
+#[derive(ZExt, Debug, PartialEq)]
+pub struct HasCompression {}
 
-        pub(crate) fn encode(
-            &self,
-            writer: &mut ZBufWriter<'_>,
-            more: bool,
-        ) -> ZResult<(), ZCodecError> {
-            let ext: ZExtZ64<ID> = (*self).into();
-            ext.encode(writer, more)
-        }
+#[derive(ZExt, Debug, PartialEq)]
+pub struct Patch {
+    pub int: u8,
+}
 
-        pub(crate) fn decode(
-            reader: &mut ZBufReader<'_>,
-            header: u8,
-        ) -> ZResult<(Self, bool), ZCodecError> {
-            let (ext, more) = ZExtZ64::<ID>::decode(reader, header)?;
-            Ok((ext.into(), more))
-        }
+impl Patch {
+    pub const NONE: Self = Self { int: 0 };
+    pub const CURRENT: Self = Self { int: 1 };
 
-        #[cfg(test)]
-        pub(crate) fn rand() -> Self {
-            use rand::Rng;
-            let mut rng = rand::thread_rng();
-
-            let inner: u8 = rng.r#gen();
-            Self { inner }
-        }
-    }
-
-    impl<const ID: u8> Default for QoSType<ID> {
-        fn default() -> Self {
-            Self::DEFAULT
-        }
-    }
-
-    impl<const ID: u8> From<ZExtZ64<ID>> for QoSType<ID> {
-        fn from(ext: ZExtZ64<ID>) -> Self {
-            Self {
-                inner: ext.value as u8,
-            }
-        }
-    }
-
-    impl<const ID: u8> From<QoSType<ID>> for ZExtZ64<ID> {
-        fn from(ext: QoSType<ID>) -> Self {
-            ZExtZ64::new(ext.inner as u64)
-        }
-    }
-
-    #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
-    pub(crate) struct PatchType<const ID: u8>(u8);
-
-    impl<const ID: u8> PatchType<ID> {
-        pub(crate) const NONE: Self = Self(0);
-        pub(crate) const CURRENT: Self = Self(1);
-
-        pub(crate) fn encode(
-            &self,
-            writer: &mut ZBufWriter<'_>,
-            more: bool,
-        ) -> ZResult<(), ZCodecError> {
-            let ext: ZExtZ64<ID> = (*self).into();
-            ext.encode(writer, more)
-        }
-
-        pub(crate) fn decode(
-            reader: &mut ZBufReader<'_>,
-            header: u8,
-        ) -> ZResult<(Self, bool), ZCodecError> {
-            let (ext, more) = ZExtZ64::<ID>::decode(reader, header)?;
-            Ok((ext.into(), more))
-        }
-
-        #[cfg(test)]
-        pub(crate) fn rand() -> Self {
-            use rand::Rng;
-            Self(rand::thread_rng().r#gen())
-        }
-    }
-
-    impl<const ID: u8> From<ZExtZ64<ID>> for PatchType<ID> {
-        fn from(ext: ZExtZ64<ID>) -> Self {
-            Self(ext.value as u8)
-        }
-    }
-
-    impl<const ID: u8> From<PatchType<ID>> for ZExtZ64<ID> {
-        fn from(ext: PatchType<ID>) -> Self {
-            ZExtZ64::new(ext.0 as u64)
+    #[cfg(test)]
+    pub(crate) fn rand(_: &mut ZWriter) -> Self {
+        Self {
+            int: thread_rng().r#gen(),
         }
     }
 }

@@ -11,10 +11,10 @@ clippy:
     cargo clippy --examples --features=platform-std,log --fix --lib --allow-dirty --allow-staged
 
 test:
-    cargo test codec
+    cargo test
 
 bench:
-    cargo test bench --profile=release -- --nocapture bench --
+    cargo test bench --profile=release -- --nocapture --ignored
 
 # Ping
 
