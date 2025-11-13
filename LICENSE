@@ -1,201 +1,156 @@
-                                 Apache License
-                           Version 2.0, January 2004
-                        http://www.apache.org/licenses/
+             ZettaScale Source-Available (ZSA) License
+                        v1.0 November 2025
+            Copyright © 2025 ZettaScale Technology SARL.
+                       All rights reserved.
 
-   TERMS AND CONDITIONS FOR USE, REPRODUCTION, AND DISTRIBUTION
+This License governs your use of the software made available under it (the “Software”). By using, copying, modifying, or distributing the Software, you agree to be bound by this License. If you do not agree to the terms of this License, do not use, copy, modify, or distribute the Software.
 
-   1. Definitions.
+1.  Definitions
 
-      "License" shall mean the terms and conditions for use, reproduction,
-      and distribution as defined by Sections 1 through 9 of this document.
+    “ZettaScale” means ZettaScale Technology SARL.
 
-      "Licensor" shall mean the copyright owner or entity authorized by
-      the copyright owner that is granting the License.
+    “Software” means the software provided by ZettaScale under this
+    License, including any updates or modifications made available
+    by ZettaScale, but excluding any third-party components that are
+    provided under separate licenses.
 
-      "Legal Entity" shall mean the union of the acting entity and all
-      other entities that control, are controlled by, or are under common
-      control with that entity. For the purposes of this definition,
-      "control" means (i) the power, direct or indirect, to cause the
-      direction or management of such entity, whether by contract or
-      otherwise, or (ii) ownership of fifty percent (50%) or more of the
-      outstanding shares, or (iii) beneficial ownership of such entity.
+    “Non-Commercial Use” means any use of the Software that is not
+    a Commercial Deployment. Non-Commercial Use includes,
+    without limitation:
 
-      "You" (or "Your") shall mean an individual or Legal Entity
-      exercising permissions granted by this License.
+         - academic or scientific research;
 
-      "Source" form shall mean the preferred form for making modifications,
-      including but not limited to software source code, documentation
-      source, and configuration files.
+         - internal research and development activities (including by
+        for-profit entities), excluding production use;
 
-      "Object" form shall mean any form resulting from mechanical
-      transformation or translation of a Source form, including but
-      not limited to compiled object code, generated documentation,
-      and conversions to other media types.
+         - evaluation, prototyping, and testing in non-production environments;
 
-      "Work" shall mean the work of authorship, whether in Source or
-      Object form, made available under the License, as indicated by a
-      copyright notice that is included in or attached to the work
-      (an example is provided in the Appendix below).
+         - use by individuals for personal or educational purposes;
 
-      "Derivative Works" shall mean any work, whether in Source or Object
-      form, that is based on (or derived from) the Work and for which the
-      editorial revisions, annotations, elaborations, or other modifications
-      represent, as a whole, an original work of authorship. For the purposes
-      of this License, Derivative Works shall not include works that remain
-      separable from, or merely link (or bind by name) to the interfaces of,
-      the Work and Derivative Works thereof.
+         - use by non-profit organizations; and
 
-      "Contribution" shall mean any work of authorship, including
-      the original version of the Work and any modifications or additions
-      to that Work or Derivative Works thereof, that is intentionally
-      submitted to Licensor for inclusion in the Work by the copyright owner
-      or by an individual or Legal Entity authorized to submit on behalf of
-      the copyright owner. For the purposes of this definition, "submitted"
-      means any form of electronic, verbal, or written communication sent
-      to the Licensor or its representatives, including but not limited to
-      communication on electronic mailing lists, source code control systems,
-      and issue tracking systems that are managed by, or on behalf of, the
-      Licensor for the purpose of discussing and improving the Work, but
-      excluding communication that is conspicuously marked or otherwise
-      designated in writing by the copyright owner as "Not a Contribution."
+         - use in open source projects that are themselves non-commercial community
+         or research projects, provided that those projects do not use the Software
+         in Commercial Deployment and clearly pass through the terms of this License
+         for the Software.
 
-      "Contributor" shall mean Licensor and any individual or Legal Entity
-      on behalf of whom a Contribution has been received by Licensor and
-      subsequently incorporated within the Work.
+    “Commercial Deployment” means any use of the Software, directly or indirectly,
+    in or for the benefit of for-profit business operations, including, without
+    limitation:
 
-   2. Grant of Copyright License. Subject to the terms and conditions of
-      this License, each Contributor hereby grants to You a perpetual,
-      worldwide, non-exclusive, no-charge, royalty-free, irrevocable
-      copyright license to reproduce, prepare Derivative Works of,
-      publicly display, publicly perform, sublicense, and distribute the
-      Work and such Derivative Works in Source or Object form.
+         - using the Software in production environments, whether internal
+         or external, that support or enable revenue-generating or commercial
+         business activities;
 
-   3. Grant of Patent License. Subject to the terms and conditions of
-      this License, each Contributor hereby grants to You a perpetual,
-      worldwide, non-exclusive, no-charge, royalty-free, irrevocable
-      (except as stated in this section) patent license to make, have made,
-      use, offer to sell, sell, import, and otherwise transfer the Work,
-      where such license applies only to those patent claims licensable
-      by such Contributor that are necessarily infringed by their
-      Contribution(s) alone or by combination of their Contribution(s)
-      with the Work to which such Contribution(s) was submitted. If You
-      institute patent litigation against any entity (including a
-      cross-claim or counterclaim in a lawsuit) alleging that the Work
-      or a Contribution incorporated within the Work constitutes direct
-      or contributory patent infringement, then any patent licenses
-      granted to You under this License for that Work shall terminate
-      as of the date such litigation is filed.
+         - offering the Software, or functionality substantially powered by
+         the Software, as part of a product, solution, application, or
+         hosted / managed / cloud / SaaS service;
 
-   4. Redistribution. You may reproduce and distribute copies of the
-      Work or Derivative Works thereof in any medium, with or without
-      modifications, and in Source or Object form, provided that You
-      meet the following conditions:
+         - integrating the Software into commercial hardware or software
+         products or platforms that are offered, licensed, or sold to
+         third parties;
 
-      (a) You must give any other recipients of the Work or
-          Derivative Works a copy of this License; and
+         - using the Software as a core component in the provision of
+         consulting, support, integration, or professional services
+         to third parties, where the Software is used in their production
+         environments.
 
-      (b) You must cause any modified files to carry prominent notices
-          stating that You changed the files; and
+        For clarity, Non-Commercial Use expressly includes development, staging, and test environments that are not used to provide live services to third parties and do not support live business operations.
 
-      (c) You must retain, in the Source form of any Derivative Works
-          that You distribute, all copyright, patent, trademark, and
-          attribution notices from the Source form of the Work,
-          excluding those notices that do not pertain to any part of
-          the Derivative Works; and
+    “Derivative Work” means any work that is based on or derived from the Software, in whole or in part, and in which the Software is modified, translated, adapted, or otherwise altered.
 
-      (d) If the Work includes a "NOTICE" text file as part of its
-          distribution, then any Derivative Works that You distribute must
-          include a readable copy of the attribution notices contained
-          within such NOTICE file, excluding those notices that do not
-          pertain to any part of the Derivative Works, in at least one
-          of the following places: within a NOTICE text file distributed
-          as part of the Derivative Works; within the Source form or
-          documentation, if provided along with the Derivative Works; or,
-          within a display generated by the Derivative Works, if and
-          wherever such third-party notices normally appear. The contents
-          of the NOTICE file are for informational purposes only and
-          do not modify the License. You may add Your own attribution
-          notices within Derivative Works that You distribute, alongside
-          or as an addendum to the NOTICE text from the Work, provided
-          that such additional attribution notices cannot be construed
-          as modifying the License.
+    “Larger Work” means a work that combines or aggregates the Software (or a Derivative Work) with other separate and independent works, such as by static or dynamic linking, inter-process communication, or distribution as part of a larger system.
 
-      You may add Your own copyright statement to Your modifications and
-      may provide additional or different license terms and conditions
-      for use, reproduction, or distribution of Your modifications, or
-      for any such Derivative Works as a whole, provided Your use,
-      reproduction, and distribution of the Work otherwise complies with
-      the conditions stated in this License.
+2.  Grant of Rights for Non-Commercial Use
 
-   5. Submission of Contributions. Unless You explicitly state otherwise,
-      any Contribution intentionally submitted for inclusion in the Work
-      by You to the Licensor shall be under the terms and conditions of
-      this License, without any additional terms or conditions.
-      Notwithstanding the above, nothing herein shall supersede or modify
-      the terms of any separate license agreement you may have executed
-      with Licensor regarding such Contributions.
+Subject to your compliance with this License, ZettaScale grants you a
+non-exclusive, non-transferable, worldwide, royalty-free license, for
+Non-Commercial Use only, to:
 
-   6. Trademarks. This License does not grant permission to use the trade
-      names, trademarks, service marks, or product names of the Licensor,
-      except as required for reasonable and customary use in describing the
-      origin of the Work and reproducing the content of the NOTICE file.
+    a. use and run the Software;
+    b. reproduce the Software;
+    c. modify the Software and create Derivative Works; and
+    d. distribute the Software, Derivative Works, and Larger Works in source or object form.
 
-   7. Disclaimer of Warranty. Unless required by applicable law or
-      agreed to in writing, Licensor provides the Work (and each
-      Contributor provides its Contributions) on an "AS IS" BASIS,
-      WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or
-      implied, including, without limitation, any warranties or conditions
-      of TITLE, NON-INFRINGEMENT, MERCHANTABILITY, or FITNESS FOR A
-      PARTICULAR PURPOSE. You are solely responsible for determining the
-      appropriateness of using or redistributing the Work and assume any
-      risks associated with Your exercise of permissions under this License.
+Any such distribution must:
 
-   8. Limitation of Liability. In no event and under no legal theory,
-      whether in tort (including negligence), contract, or otherwise,
-      unless required by applicable law (such as deliberate and grossly
-      negligent acts) or agreed to in writing, shall any Contributor be
-      liable to You for damages, including any direct, indirect, special,
-      incidental, or consequential damages of any character arising as a
-      result of this License or out of the use or inability to use the
-      Work (including but not limited to damages for loss of goodwill,
-      work stoppage, computer failure or malfunction, or any and all
-      other commercial damages or losses), even if such Contributor
-      has been advised of the possibility of such damages.
+    - include a copy of this License and all relevant copyright and license notices;
+    - clearly identify any modifications you have made; and
+    - make clear that the Software (and any parts derived from it) is licensed under this ZettaScale Source-Available (ZSA) License and may not be used for Commercial Deployment without a separate commercial license from ZettaScale.
 
-   9. Accepting Warranty or Additional Liability. While redistributing
-      the Work or Derivative Works thereof, You may choose to offer,
-      and charge a fee for, acceptance of support, warranty, indemnity,
-      or other liability obligations and/or rights consistent with this
-      License. However, in accepting such obligations, You may act only
-      on Your own behalf and on Your sole responsibility, not on behalf
-      of any other Contributor, and only if You agree to indemnify,
-      defend, and hold each Contributor harmless for any liability
-      incurred by, or claims asserted against, such Contributor by reason
-      of your accepting any such warranty or additional liability.
+You may contribute modifications or Derivative Works back to ZettaScale’s project under this License or under another license acceptable to ZettaScale. ZettaScale may require you to sign a separate contributor license agreement for such contributions.
 
-   END OF TERMS AND CONDITIONS
+3. Commercial Deployment Requires Separate License
 
-   APPENDIX: How to apply the Apache License to your work.
+You may not use the Software, any Derivative Work, or any Larger Work that includes the Software or a Derivative Work, for Commercial Deployment without entering into a separate, explicit commercial license agreement with ZettaScale.
+If you wish to use the Software in a Commercial Deployment, please contact ZettaScale at: [contact at zettascale.tech].
+ZettaScale may, at its discretion, offer the Software under multiple license models, including one or more commercial agreements.
 
-      To apply the Apache License to your work, attach the following
-      boilerplate notice, with the fields enclosed by brackets "[]"
-      replaced with your own identifying information. (Don't include
-      the brackets!)  The text should be enclosed in the appropriate
-      comment syntax for the file format. We also recommend that a
-      file or class name and description of purpose be included on the
-      same "printed page" as the copyright notice for easier
-      identification within third-party archives.
+4. Restrictions
 
-   Copyright [yyyy] [name of copyright owner]
+Except as expressly permitted by this License or by applicable law notwithstanding these terms, you may not:
 
-   Licensed under the Apache License, Version 2.0 (the "License");
-   you may not use this file except in compliance with the License.
-   You may obtain a copy of the License at
+    - relicense, sublicense, or distribute the Software or any Derivative Work under terms that purport to permit Commercial Deployment without ZettaScale’s prior written consent;
 
-       http://www.apache.org/licenses/LICENSE-2.0
+    - remove, alter, or obscure any copyright, trademark, or other proprietary notices in or on the Software;
 
-   Unless required by applicable law or agreed to in writing, software
-   distributed under the License is distributed on an "AS IS" BASIS,
-   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-   See the License for the specific language governing permissions and
-   limitations under the License.
+    - misrepresent the origin of the Software; or
+
+    - use ZettaScale’s trademarks, trade names, or logos in a way that suggests endorsement or affiliation, except as permitted by applicable law.
+
+For avoidance of doubt, you may license your own independent code in a Larger Work under terms of your choice, provided that such terms do not purport to alter or weaken the restrictions of this License as they apply to the Software.
+
+5. Patent
+
+5.1 Patent Grant.
+
+Subject to your compliance with this License, ZettaScale hereby grants you a non-exclusive, worldwide, royalty-free, irrevocable (except as provided below) patent license, for Non-Commercial Use only, to make, have made, use, offer to sell, sell, import, and otherwise practice any inventions covered by patent claims owned or controlled by ZettaScale that would be infringed by your use of the Software as distributed by ZettaScale.
+
+This patent license applies only to the Software as provided by ZettaScale, and to Derivative Works you create that are based on the Software, but only to the extent that the derivative portion would itself infringe ZettaScale’s patent claims.
+
+5.2 No Patent Rights for Commercial Deployment.
+
+This patent license does not grant any rights to use the Software or any Derivative Work in Commercial Deployment.
+Any patent rights needed for Commercial Deployment must be obtained under a separate commercial agreement with ZettaScale.
+
+5.3 Patent Retaliation.
+
+If you or your affiliates initiate or participate in a patent infringement claim against ZettaScale or any entity that uses, modifies, or distributes the Software (excluding claims defending yourself against a patent claim), alleging that the Software infringes your patent rights, then all rights granted to you under this License, including the patent license above, will automatically terminate as of the date such claim is filed.
+
+5.4 No Other Patent Grants.
+
+Except for the limited Non-Commercial Use patent license explicitly granted above, no other patent rights are granted by this License, whether by implication, estoppel, exhaustion, or otherwise.
+
+6. Term and Termination
+
+This License is effective from the date you first use, copy, modify, or distribute the Software and continues until terminated.
+Your rights under this License will terminate automatically, without notice from ZettaScale, if you fail to comply with any term of this License. Upon termination, you must immediately cease all use of the Software and destroy all copies of the Software in your possession or control.
+Termination of your rights does not limit any other rights or remedies that ZettaScale may have.
+
+7. No Warranty
+
+THE SOFTWARE IS PROVIDED “AS IS” AND “AS AVAILABLE”, WITHOUT WARRANTY OF ANY KIND. TO THE MAXIMUM EXTENT PERMITTED BY LAW, ZETTASCALE AND ITS LICENSORS DISCLAIM ALL WARRANTIES, WHETHER EXPRESS, IMPLIED, STATUTORY, OR OTHERWISE, INCLUDING, WITHOUT LIMITATION, ANY IMPLIED WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE, TITLE, AND NON-INFRINGEMENT, AS WELL AS ANY WARRANTIES ARISING OUT OF COURSE OF DEALING OR USAGE OF TRADE.
+
+8. Limitation of Liability
+
+TO THE MAXIMUM EXTENT PERMITTED BY LAW, IN NO EVENT WILL ZETTASCALE OR ITS LICENSORS BE LIABLE FOR ANY INDIRECT, INCIDENTAL, SPECIAL, CONSEQUENTIAL, OR PUNITIVE DAMAGES, OR FOR ANY LOSS OF PROFITS, REVENUE, DATA, OR GOODWILL, ARISING OUT OF OR IN CONNECTION WITH THIS LICENSE OR THE USE OR INABILITY TO USE THE SOFTWARE, WHETHER BASED ON CONTRACT, TORT (INCLUDING NEGLIGENCE), STRICT LIABILITY, OR ANY OTHER THEORY, EVEN IF ZETTASCALE HAS BEEN ADVISED OF THE POSSIBILITY OF SUCH DAMAGES.
+TO THE MAXIMUM EXTENT PERMITTED BY LAW, ZETTASCALE’S TOTAL CUMULATIVE LIABILITY ARISING OUT OF OR RELATING TO THIS LICENSE OR THE SOFTWARE WILL NOT EXCEED ONE HUNDRED (100) GBP.
+Some jurisdictions do not allow the exclusion or limitation of certain damages or warranties, so the above limitations may not apply to you in their entirety.
+
+9. Governing Law and Jurisdiction
+
+This License and any dispute arising out of or in connection with it or the Software will be governed by and construed in accordance with the laws of France, without regard to its conflict-of-laws principles.
+The courts of France will have exclusive jurisdiction over any dispute arising out of or in connection with this License or the Software, and you consent to the personal jurisdiction of those courts.
+
+10. Severability
+
+If any provision of this License is held to be invalid, illegal, or unenforceable, the remaining provisions will remain in full force and effect, and the invalid, illegal, or unenforceable provision will be deemed modified so as to be valid and enforceable to the maximum extent permitted by law, consistent with the intent of the parties.
+
+11. Third-Party Components
+
+The Software may include or be distributed with third-party software components that are subject to separate open source or other license terms. Those terms will govern such components, and nothing in this License is intended to limit your rights under those third-party terms.
+
+12. Notice
+
+This Software is not “open source” as defined by the Open Source Initiative (OSI). It is source-available with restrictions on commercial use and deployment.
+To obtain a commercial license for Commercial Deployment of the Software, please contact: [contact at zettascale.tech].
