@@ -1,5 +1,7 @@
-[package]
-name = "zenoh-nostd"
+[workspace]
+members = ["zenoh-nostd-codec"]
+
+[workspace.package]
 authors = []
 categories = ["network-programming"]
 description = "Zenoh: The Zero Overhead Pub/Sub/Query Protocol."
@@ -8,7 +10,50 @@ homepage = "http://zenoh.io"
 license = "EPL-2.0 OR Apache-2.0"
 repository = "https://github.com/ZettaScaleLabs/zenoh-nostd"
 rust-version = "1.89.0"
-version = "1.5.1"
+version = "0.1.0"
+
+[workspace.dependencies]
+zenoh-nostd-codec = { version = "0.1.0", path = "zenoh-nostd-codec" }
+
+uhlc = { version = "0.8.1", git = "https://github.com/Hennzau/uhlc-rs", branch = "no-alloc", default-features = false }
+sha3 = { version = "0.10.8", default-features = false }
+
+# Proc-macro dependencies
+proc-macro2 = "1.0.103"
+quote = "1.0.41"
+syn = { version = "2.0.108", features = ["full"] }
+
+# Logging
+defmt = { version = "1.0.1" }
+log = { version = "0.4.28" }
+web-sys = { version = "0.3.81", features = ["console"] }
+
+# Embassy (for async/await support)
+embassy-sync = "0.7.2"
+embassy-futures = "0.1.2"
+embassy-time = "0.5.0"
+embassy-executor = "0.9.1"
+
+# Heapless / static
+heapless = "0.9.1"
+static_cell = "2.1.1"
+
+# Built-in std support (disabled by default)
+async-net = { version = "2.0.0" }
+socket2 = { version = "0.6.0", features = ["all"] }
+futures-lite = { version = "2.6.1" }
+
+[package]
+name = "zenoh-nostd"
+authors.workspace = true
+categories.workspace = true
+description.workspace = true
+edition.workspace = true
+homepage.workspace = true
+license.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+version.workspace = true
 
 [features]
 log = ["dep:log"] # Use `log` crate for logging
@@ -22,36 +67,38 @@ platform-std = [
 ] # Use built-in std support (disabled by default)
 
 [dependencies]
+# Zenoh
+zenoh-nostd-codec.workspace = true
+
 # Logging
-defmt = { version = "1.0.1", optional = true }
-log = { version = "0.4.28", optional = true }
-web-sys = { version = "0.3.81", features = ["console"], optional = true }
+defmt = { workspace = true, optional = true }
+log = { workspace = true, optional = true }
+web-sys = { workspace = true, optional = true }
 
 # Embassy (for async/await support)
-embassy-sync = "0.7.2"
-embassy-futures = "0.1.2"
-embassy-time = "0.5.0"
-embassy-executor = "0.9.1"
+embassy-sync.workspace = true
+embassy-futures.workspace = true
+embassy-time.workspace = true
+embassy-executor.workspace = true
 
 # Heapless / static
-heapless = { version = "0.9.1" }
-static_cell = "2.1.1"
+heapless.workspace = true
+static_cell.workspace = true
 
 # Other
-uhlc = { version = "0.8.1", git = "https://github.com/Hennzau/uhlc-rs", branch = "no-alloc", default-features = false }
-const_format = "0.2.34"
-sha3 = { version = "0.10.8", default-features = false }
+uhlc.workspace = true
+sha3.workspace = true
 
 # Built-in std support (disabled by default)
-async-net = { version = "2.0.0", optional = true }
-socket2 = { version = "0.6.0", optional = true, features = ["all"] }
-futures-lite = { version = "2.6.1", optional = true }
+async-net = { workspace = true, optional = true }
+socket2 = { workspace = true, optional = true, features = ["all"] }
+futures-lite = { workspace = true, optional = true }
 
 [dev-dependencies]
 rand = "0.8.5"
-env_logger = "0.10.0"
-criterion = { version = "0.7.0" }
 paste = "1.0.15"
+criterion = { version = "0.7.0" }
+env_logger = "0.10.0"
 embassy-executor = { version = "0.9.1", features = ["arch-std", "executor-thread"] }
 embassy-time = { version = "0.5.0", features = ["std"] }
 critical-section = { version = "1.2.0", features = ["std"] }
@@ -77,13 +124,21 @@ name = "z_pong"
 required-features = ["platform-std"]
 
 [profile.dev]
-debug = true
 opt-level = 0
+lto = false
+codegen-units = 16
 panic = "abort"
+strip = false
+incremental = true
+debug = true
+overflow-checks = true
 
 [profile.release]
-codegen-units = 1
-debug = false
-lto = "fat"
-opt-level = 3
-panic = "abort"
+opt-level = 3           # Maximum optimization
+lto = "fat"             # Full Link Time Optimization across all crates
+codegen-units = 1       # Compile in a single unit for better optimization
+panic = "abort"         # Removes stack unwinding code; smaller & faster binaries
+strip = true            # Remove symbol/debug info from final binary
+incremental = false     # Disable incremental compilation for fully optimized builds
+debug = false           # Don’t include debug symbols
+overflow-checks = false # Skip integer overflow checks
