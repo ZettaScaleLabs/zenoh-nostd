@@ -1,4 +1,4 @@
-use core::{time::Duration, u16};
+use core::time::Duration;
 
 use crate::{
     Reliability, ZResult, ZenohIdProto,
@@ -28,67 +28,76 @@ crate::__internal_zerr! {
     }
 }
 
-pub enum Session {
+enum SessionState {
     Disconnected {
-        zid: ZenohIdProto,
-        resolution: Resolution,
-        batch_size: u16,
-
-        lease: Duration,
+        mine: MineConfig,
     },
     Connecting {
-        mine_zid: ZenohIdProto,
+        mine: MineConfig,
+        negotiated: NegotiatedConfig,
+
         other_zid: ZenohIdProto,
-
-        lease: Duration,
-
-        sn: u32,
-        resolution: Resolution,
-        batch_size: u16,
     },
     Connected {
-        mine_zid: ZenohIdProto,
-        other_zid: ZenohIdProto,
-
-        mine_lease: Duration,
-        other_lease: Duration,
-
-        mine_sn: u32,
-        other_sn: u32,
-
-        resolution: Resolution,
-        batch_size: u16,
+        mine: MineConfig,
+        other: OtherConfig,
+        negotiated: NegotiatedConfig,
 
         next_recv_keepalive: Duration,
         next_send_keepalive: Duration,
     },
 }
 
+struct MineConfig {
+    mine_zid: ZenohIdProto,
+    mine_resolution: Resolution,
+    mine_batch_size: u16,
+
+    mine_lease: Duration,
+}
+
+struct OtherConfig {
+    other_zid: ZenohIdProto,
+    other_sn: u32,
+    other_lease: Duration,
+}
+
+struct NegotiatedConfig {
+    negotiated_sn: u32,
+    negotiated_resolution: Resolution,
+    negotiated_batch_size: u16,
+}
+
+pub struct Session {
+    state: SessionState,
+}
+
 pub fn open() -> (Session, Event<'static>) {
-    let zid = ZenohIdProto::default();
-    let resolution = Resolution::DEFAULT;
-    let batch_size = u16::MAX;
-    let lease = Duration::from_secs(10);
+    let mine = MineConfig {
+        mine_zid: ZenohIdProto::default(),
+        mine_resolution: Resolution::DEFAULT,
+        mine_batch_size: u16::MAX,
+        mine_lease: Duration::from_secs(10),
+    };
+
+    let event = Event::InitSyn(InitSyn {
+        version: 9,
+        identifier: InitIdentifier {
+            whatami: WhatAmI::Client,
+            zid: mine.mine_zid.clone(),
+        },
+        resolution: InitResolution {
+            resolution: mine.mine_resolution.clone(),
+            batch_size: BatchSize(mine.mine_batch_size),
+        },
+        ext: InitExt::DEFAULT,
+    });
 
     (
-        Session::Disconnected {
-            zid: zid.clone(),
-            resolution: resolution.clone(),
-            batch_size: batch_size.clone(),
-            lease: lease.clone(),
+        Session {
+            state: SessionState::Disconnected { mine },
         },
-        Event::InitSyn(InitSyn {
-            version: 9,
-            identifier: InitIdentifier {
-                whatami: WhatAmI::Client,
-                zid: zid,
-            },
-            resolution: InitResolution {
-                resolution,
-                batch_size: BatchSize(batch_size),
-            },
-            ext: InitExt::DEFAULT,
-        }),
+        event,
     )
 }
 
@@ -147,7 +156,7 @@ impl Session {
                         lease,
                     } = self
                     {
-                        let mine_lease = lease.clone();
+                        let mine_lease = *lease;
                         let other_zid = ack.identifier.zid.clone();
 
                         let resolution = establish::negotiate_resolution(
@@ -155,7 +164,7 @@ impl Session {
                             &ack.resolution.resolution,
                         )?;
 
-                        let sn = establish::negotiate_sn(&mine_zid, &other_zid, &resolution);
+                        let sn = establish::negotiate_sn(mine_zid, &other_zid, &resolution);
 
                         let batch_size = establish::negotiate_batch_size(
                             *mine_batch_size,
@@ -165,7 +174,7 @@ impl Session {
                         *self = Session::Connecting {
                             mine_zid: mine_zid.clone(),
                             other_zid: ack.identifier.zid.clone(),
-                            lease: mine_lease.clone(),
+                            lease: mine_lease,
 
                             sn,
                             resolution,
@@ -203,7 +212,7 @@ impl Session {
                             mine_sn: *mine_sn,
                             other_sn,
 
-                            resolution: resolution.clone(),
+                            resolution: *resolution,
                             batch_size: *batch_size,
 
                             next_recv_keepalive: time + other_lease,
@@ -252,11 +261,9 @@ impl Session {
             match event {
                 Event::InitSyn(syn) => {
                     batch.write_init_syn(&syn)?;
-                    keepalive = false;
                 }
                 Event::OpenSyn(syn) => {
                     batch.write_open_syn(&syn)?;
-                    keepalive = false;
                 }
                 Event::KeepAlive => {
                     keepalive = true;
@@ -271,32 +278,14 @@ impl Session {
                         Reliability::Reliable,
                         QoS::DEFAULT,
                     )?;
-                    keepalive = false;
                 }
                 _ => {}
             }
         }
 
-        if keepalive {
+        if keepalive && !batch.has_written() {
             batch.write_keepalive()?;
         }
-
-        // if empty {
-        //     if let Session::Connected {
-        //         next_send_keepalive,
-        //         mine_lease,
-        //         last_time,
-        //         ..
-        //     } = self
-        //     {
-        //         if *last_time >= *next_send_keepalive {
-        //             *next_send_keepalive = *last_time + *mine_lease / 3;
-        //             extern crate std;
-        //             std::println!("Sending KeepAlive at {:?}", *last_time);
-        //             batch.write_keepalive()?;
-        //         }
-        //     }
-        // }
 
         let (sn, len) = batch.finalize();
         if len == 0 {

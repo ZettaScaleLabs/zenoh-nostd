@@ -15,7 +15,7 @@ pub fn negotiate_sn(
 ) -> u32 {
     const RES_U8: u32 = (u8::MAX >> 1) as u32; // 1 byte max when encoded
     const RES_U16: u32 = (u16::MAX >> 2) as u32; // 2 bytes max when encoded
-    const RES_U32: u32 = (u32::MAX >> 4) as u32; // 4 bytes max when encoded
+    const RES_U32: u32 = u32::MAX >> 4; // 4 bytes max when encoded
     const RES_U64: u32 = (u64::MAX >> 1) as u32; // 9 bytes max when encoded
 
     fn get_mask(resolution: Bits) -> u32 {
@@ -30,7 +30,7 @@ pub fn negotiate_sn(
     let mut hasher = Shake128::default();
     hasher.update(&mine_zid.as_le_bytes()[..mine_zid.size()]);
     hasher.update(&other_zid.as_le_bytes()[..other_zid.size()]);
-    let mut array = (0 as u32).to_le_bytes();
+    let mut array = 0_u32.to_le_bytes();
     hasher.finalize_xof().read(&mut array);
     u32::from_le_bytes(array) & get_mask(resolution.get(Field::FrameSN))
 }

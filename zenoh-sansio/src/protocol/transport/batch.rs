@@ -56,6 +56,18 @@ impl<'a> Batch<'a> {
         Ok(())
     }
 
+    pub fn len(&self) -> usize {
+        self.initial_length - self.writer.len()
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.len() == 0
+    }
+
+    pub fn has_written(&self) -> bool {
+        !self.is_empty()
+    }
+
     pub fn finalize(self) -> (u32, usize) {
         (self.sn, self.initial_length - self.writer.len())
     }

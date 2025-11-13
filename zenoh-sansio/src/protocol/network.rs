@@ -226,7 +226,7 @@ impl ZHeader for Duration {
         let header = 0u8;
         match self.as_millis() % 1_000 {
             0 => header | 0b0000_0001,
-            _ => header | 0b0000_0000,
+            _ => header,
         }
     }
 }

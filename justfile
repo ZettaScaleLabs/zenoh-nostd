@@ -11,7 +11,5 @@ bench:
 tokei:
     tokei --files --type Rust \
         zenoh-sansio-codec/src \
-        zenoh-sansio/src/codec.rs \
-        zenoh-sansio/src/ext.rs \
-        zenoh-sansio/src/struct* \
+        zenoh-sansio/src/codec* \
         zenoh-sansio/src/protocol*
