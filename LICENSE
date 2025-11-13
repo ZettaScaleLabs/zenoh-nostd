@@ -1,77 +1,156 @@
-# ZettaScale Commercial License Agreement (ZCLA)
+             ZettaScale Source-Available (ZSA) License
+                        v1.0 November 2025
+            Copyright © 2025 ZettaScale Technology SARL.
+                       All rights reserved.
 
-*Version 1.0 — May 2025*
+This License governs your use of the software made available under it (the “Software”). By using, copying, modifying, or distributing the Software, you agree to be bound by this License. If you do not agree to the terms of this License, do not use, copy, modify, or distribute the Software.
 
-This ZettaScale Commercial License Agreement (“Agreement”) is a legal agreement between ZettaScale Technology Ltd., ("Licensor"), and you ("Licensee"), governing your use of the ZettaScale Commercial Version of Zenoh, including proprietary extensions, components, and services provided under this Agreement (collectively, the “Software”).
+1.  Definitions
 
-## 1. Definitions
-- **Open Source Zenoh:** The core Zenoh protocol implementation licensed under the Apache License, Version 2.0.
+    “ZettaScale” means ZettaScale Technology SARL.
 
-- **Commercial Version:** Any version of Zenoh, Zenoh-derived tools, SDKs, plugins, cloud services, or enhancements not released under the Apache License but instead distributed under this Agreement.
+    “Software” means the software provided by ZettaScale under this
+    License, including any updates or modifications made available
+    by ZettaScale, but excluding any third-party components that are
+    provided under separate licenses.
 
-- **Licensee:** Any individual or legal entity obtaining the Commercial Version from ZettaScale under this Agreement.
-Deployment: Use of the Software in any commercial product, service, infrastructure, or production environment.
+    “Non-Commercial Use” means any use of the Software that is not
+    a Commercial Deployment. Non-Commercial Use includes,
+    without limitation:
 
-## 2. License Grant
-Subject to the terms of this Agreement and payment of applicable fees, Licensor hereby grants Licensee a limited, non-exclusive, non-transferable, worldwide license to:
+         - academic or scientific research;
 
-- Install and use the Commercial Version internally, for the purpose and scope described in the applicable order or subscription;
+         - internal research and development activities (including by
+        for-profit entities), excluding production use;
 
-- Deploy the Software as part of Licensee’s commercial systems or services;
+         - evaluation, prototyping, and testing in non-production environments;
 
-- Integrate the Software into Licensee’s products or infrastructure, in accordance with the permitted use cases.
+         - use by individuals for personal or educational purposes;
 
+         - use by non-profit organizations; and
 
-## 3. Restrictions
-Licensee shall not, directly or indirectly:
+         - use in open source projects that are themselves non-commercial community
+         or research projects, provided that those projects do not use the Software
+         in Commercial Deployment and clearly pass through the terms of this License
+         for the Software.
 
-- Redistribute, sublicense, lease, or sell the Software, in whole or in part, unless explicitly permitted;
+    “Commercial Deployment” means any use of the Software, directly or indirectly,
+    in or for the benefit of for-profit business operations, including, without
+    limitation:
 
-- Use the Software to create derivative works or interoperable alternatives intended to replace or replicate the Commercial Version;
+         - using the Software in production environments, whether internal
+         or external, that support or enable revenue-generating or commercial
+         business activities;
 
-- Reverse engineer, decompile, or disassemble the Software, except to the extent expressly permitted by law;
+         - offering the Software, or functionality substantially powered by
+         the Software, as part of a product, solution, application, or
+         hosted / managed / cloud / SaaS service;
 
-- Use the Software in any way that violates export control laws or applicable regulations.
+         - integrating the Software into commercial hardware or software
+         products or platforms that are offered, licensed, or sold to
+         third parties;
 
-- Use of Open Source Zenoh under Apache 2.0 remains unaffected.
+         - using the Software as a core component in the provision of
+         consulting, support, integration, or professional services
+         to third parties, where the Software is used in their production
+         environments.
 
-## 4. Term & Termination
-This license is effective upon delivery and remains in force until:
+        For clarity, Non-Commercial Use expressly includes development, staging, and test environments that are not used to provide live services to third parties and do not support live business operations.
 
-- Terminated by either party with 30 days written notice (for convenience), or
+    “Derivative Work” means any work that is based on or derived from the Software, in whole or in part, and in which the Software is modified, translated, adapted, or otherwise altered.
 
-- Terminated immediately for material breach, including non-payment or license misuse.
+    “Larger Work” means a work that combines or aggregates the Software (or a Derivative Work) with other separate and independent works, such as by static or dynamic linking, inter-process communication, or distribution as part of a larger system.
 
-Upon termination, Licensee must cease use and delete all copies of the Commercial Version.
+2.  Grant of Rights for Non-Commercial Use
 
-## 5. Support & Updates
-If the Licensee has purchased a support plan:
+Subject to your compliance with this License, ZettaScale grants you a
+non-exclusive, non-transferable, worldwide, royalty-free license, for
+Non-Commercial Use only, to:
 
-- Licensor will provide technical support, updates, and patches as specified;
+    a. use and run the Software;
+    b. reproduce the Software;
+    c. modify the Software and create Derivative Works; and
+    d. distribute the Software, Derivative Works, and Larger Works in source or object form.
 
-- Support is limited to the Commercial Version and may exclude core Zenoh (unless bundled).
+Any such distribution must:
 
-- No support is provided for modified or misused versions.
+    - include a copy of this License and all relevant copyright and license notices;
+    - clearly identify any modifications you have made; and
+    - make clear that the Software (and any parts derived from it) is licensed under this ZettaScale Source-Available (ZSA) License and may not be used for Commercial Deployment without a separate commercial license from ZettaScale.
 
-## 6. Fees and Audit Rights
-Use of the Software is subject to license fees as agreed in a separate commercial agreement or purchase order.
+You may contribute modifications or Derivative Works back to ZettaScale’s project under this License or under another license acceptable to ZettaScale. ZettaScale may require you to sign a separate contributor license agreement for such contributions.
 
-Licensor reserves the right to audit Licensee’s use to verify compliance, with reasonable notice and during business hours.
+3. Commercial Deployment Requires Separate License
 
-## 7. Confidentiality
-The Commercial Version and related documentation are ZettaScale confidential information. Licensee agrees to maintain their confidentiality and not disclose them to third parties without written permission.
+You may not use the Software, any Derivative Work, or any Larger Work that includes the Software or a Derivative Work, for Commercial Deployment without entering into a separate, explicit commercial license agreement with ZettaScale.
+If you wish to use the Software in a Commercial Deployment, please contact ZettaScale at: [contact at zettascale.tech].
+ZettaScale may, at its discretion, offer the Software under multiple license models, including one or more commercial agreements.
 
-## 8. Intellectual Property
-ZettaScale retains all rights, title, and interest in the Software. No rights are granted except as expressly set forth herein.
+4. Restrictions
 
-Use of the Zenoh name, logo, and branding is subject to separate trademark terms.
+Except as expressly permitted by this License or by applicable law notwithstanding these terms, you may not:
 
-## 9. Limited Warranty and Disclaimer
-The Software is provided “AS IS”. ZettaScale disclaims all warranties not expressly stated, including any implied warranties of merchantability or fitness for a particular purpose.
+    - relicense, sublicense, or distribute the Software or any Derivative Work under terms that purport to permit Commercial Deployment without ZettaScale’s prior written consent;
 
-## 10. Limitation of Liability
-ZettaScale's total liability under this Agreement shall not exceed the amount paid by Licensee in the past 12 months. In no event shall ZettaScale be liable for indirect, incidental, or consequential damages.
+    - remove, alter, or obscure any copyright, trademark, or other proprietary notices in or on the Software;
 
-## 11. Governing Law
-This Agreement shall be governed by the laws of England and Wales, without regard to conflict of laws. Any disputes shall be subject to the exclusive jurisdiction of the courts of London, UK.
+    - misrepresent the origin of the Software; or
 
+    - use ZettaScale’s trademarks, trade names, or logos in a way that suggests endorsement or affiliation, except as permitted by applicable law.
+
+For avoidance of doubt, you may license your own independent code in a Larger Work under terms of your choice, provided that such terms do not purport to alter or weaken the restrictions of this License as they apply to the Software.
+
+5. Patent
+
+5.1 Patent Grant.
+
+Subject to your compliance with this License, ZettaScale hereby grants you a non-exclusive, worldwide, royalty-free, irrevocable (except as provided below) patent license, for Non-Commercial Use only, to make, have made, use, offer to sell, sell, import, and otherwise practice any inventions covered by patent claims owned or controlled by ZettaScale that would be infringed by your use of the Software as distributed by ZettaScale.
+
+This patent license applies only to the Software as provided by ZettaScale, and to Derivative Works you create that are based on the Software, but only to the extent that the derivative portion would itself infringe ZettaScale’s patent claims.
+
+5.2 No Patent Rights for Commercial Deployment.
+
+This patent license does not grant any rights to use the Software or any Derivative Work in Commercial Deployment.
+Any patent rights needed for Commercial Deployment must be obtained under a separate commercial agreement with ZettaScale.
+
+5.3 Patent Retaliation.
+
+If you or your affiliates initiate or participate in a patent infringement claim against ZettaScale or any entity that uses, modifies, or distributes the Software (excluding claims defending yourself against a patent claim), alleging that the Software infringes your patent rights, then all rights granted to you under this License, including the patent license above, will automatically terminate as of the date such claim is filed.
+
+5.4 No Other Patent Grants.
+
+Except for the limited Non-Commercial Use patent license explicitly granted above, no other patent rights are granted by this License, whether by implication, estoppel, exhaustion, or otherwise.
+
+6. Term and Termination
+
+This License is effective from the date you first use, copy, modify, or distribute the Software and continues until terminated.
+Your rights under this License will terminate automatically, without notice from ZettaScale, if you fail to comply with any term of this License. Upon termination, you must immediately cease all use of the Software and destroy all copies of the Software in your possession or control.
+Termination of your rights does not limit any other rights or remedies that ZettaScale may have.
+
+7. No Warranty
+
+THE SOFTWARE IS PROVIDED “AS IS” AND “AS AVAILABLE”, WITHOUT WARRANTY OF ANY KIND. TO THE MAXIMUM EXTENT PERMITTED BY LAW, ZETTASCALE AND ITS LICENSORS DISCLAIM ALL WARRANTIES, WHETHER EXPRESS, IMPLIED, STATUTORY, OR OTHERWISE, INCLUDING, WITHOUT LIMITATION, ANY IMPLIED WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE, TITLE, AND NON-INFRINGEMENT, AS WELL AS ANY WARRANTIES ARISING OUT OF COURSE OF DEALING OR USAGE OF TRADE.
+
+8. Limitation of Liability
+
+TO THE MAXIMUM EXTENT PERMITTED BY LAW, IN NO EVENT WILL ZETTASCALE OR ITS LICENSORS BE LIABLE FOR ANY INDIRECT, INCIDENTAL, SPECIAL, CONSEQUENTIAL, OR PUNITIVE DAMAGES, OR FOR ANY LOSS OF PROFITS, REVENUE, DATA, OR GOODWILL, ARISING OUT OF OR IN CONNECTION WITH THIS LICENSE OR THE USE OR INABILITY TO USE THE SOFTWARE, WHETHER BASED ON CONTRACT, TORT (INCLUDING NEGLIGENCE), STRICT LIABILITY, OR ANY OTHER THEORY, EVEN IF ZETTASCALE HAS BEEN ADVISED OF THE POSSIBILITY OF SUCH DAMAGES.
+TO THE MAXIMUM EXTENT PERMITTED BY LAW, ZETTASCALE’S TOTAL CUMULATIVE LIABILITY ARISING OUT OF OR RELATING TO THIS LICENSE OR THE SOFTWARE WILL NOT EXCEED ONE HUNDRED (100) GBP.
+Some jurisdictions do not allow the exclusion or limitation of certain damages or warranties, so the above limitations may not apply to you in their entirety.
+
+9. Governing Law and Jurisdiction
+
+This License and any dispute arising out of or in connection with it or the Software will be governed by and construed in accordance with the laws of France, without regard to its conflict-of-laws principles.
+The courts of France will have exclusive jurisdiction over any dispute arising out of or in connection with this License or the Software, and you consent to the personal jurisdiction of those courts.
+
+10. Severability
+
+If any provision of this License is held to be invalid, illegal, or unenforceable, the remaining provisions will remain in full force and effect, and the invalid, illegal, or unenforceable provision will be deemed modified so as to be valid and enforceable to the maximum extent permitted by law, consistent with the intent of the parties.
+
+11. Third-Party Components
+
+The Software may include or be distributed with third-party software components that are subject to separate open source or other license terms. Those terms will govern such components, and nothing in this License is intended to limit your rights under those third-party terms.
+
+12. Notice
+
+This Software is not “open source” as defined by the Open Source Initiative (OSI). It is source-available with restrictions on commercial use and deployment.
+To obtain a commercial license for Commercial Deployment of the Software, please contact: [contact at zettascale.tech].
