@@ -173,4 +173,4 @@ cargo doc --no-deps --no-default-features --open
 
 Licensed under:
 
-* ZettaScale Commercial License Agreement ([LICENSE](./LICENSE)
+* ZettaScale Source-Available [LICENSE](./LICENSE)
