@@ -166,7 +166,7 @@ pub fn parse(r#struct: &ZenohStruct) -> syn::Result<(TokenStream, TokenStream)> 
                             #(#body_ext,)*
                             _ => {
                                 if mandatory {
-                                    return Err(crate::ZCodecError::UnsupportedMandatoryExtension);
+                                    return Err(crate::ZCodecError::MissingMandatoryExtension);
                                 }
 
                                 crate::skip_ext(r, ext_kind)?;

@@ -6,10 +6,14 @@
 pub mod logging;
 pub mod result;
 
-pub(crate) mod zbuf;
+pub(crate) use zenoh_nostd_codec::*;
 
-pub(crate) mod protocol;
-pub use protocol::{core::endpoint::EndPoint, keyexpr::borrowed::keyexpr};
+mod codec;
+pub(crate) use codec::*;
+
+mod protocol;
+pub(crate) use protocol::*;
+pub use protocol::{endpoint::EndPoint, ke::keyexpr};
 
 pub(crate) mod platform;
 #[cfg(feature = "platform-std")]

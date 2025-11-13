@@ -1,168 +1,190 @@
-#[cfg(test)]
-use heapless::Vec;
-
 use crate::{
-    protocol::{
-        ZCodecError,
-        common::{
-            extension::{self, iext},
-            imsg,
-        },
-        core::Reliability,
-        network::NetworkMessage,
-        transport::{TransportSn, id},
-        zcodec::{decode_u8, decode_u32, encode_u8, encode_u32},
-    },
-    result::ZResult,
-    zbail,
-    zbuf::{ZBufReader, ZBufWriter},
+    Reliability, ZStruct,
+    network::{NetworkBatch, QoS},
 };
 
-pub(crate) mod flag {
-    pub(crate) const R: u8 = 1 << 5;
+#[cfg(test)]
+use rand::Rng;
 
-    pub(crate) const Z: u8 = 1 << 7;
+#[derive(ZStruct, Debug, PartialEq)]
+#[zenoh(header = "Z|_|R|ID:5=0x05")]
+pub struct FrameHeader {
+    #[zenoh(header = R)]
+    pub reliability: Reliability,
+    pub sn: u32,
+
+    #[zenoh(ext = 0x1, default = QoS::DEFAULT)]
+    pub qos: QoS,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub(crate) struct Frame<'a, 'b> {
-    pub(crate) reliability: Reliability,
-    pub(crate) sn: TransportSn,
-    pub(crate) ext_qos: ext::QoSType,
-    pub(crate) payload: &'b [NetworkMessage<'a>],
+impl Frame<'_, '_> {
+    pub const ID: u8 = FrameHeader::ID;
 }
 
-impl<'a, 'b> Frame<'a, 'b> {
-    pub(crate) fn encode(&self, writer: &mut ZBufWriter<'_>) -> ZResult<(), ZCodecError> {
-        let header = FrameHeader {
-            reliability: self.reliability,
-            sn: self.sn,
-            ext_qos: self.ext_qos,
-        };
+#[derive(Debug, PartialEq)]
+pub struct Frame<'a, 'b> {
+    pub header: FrameHeader,
+    pub msgs: NetworkBatch<'a, 'b>,
+}
 
-        header.encode(writer)?;
-
-        for msg in self.payload {
-            msg.encode(writer)?;
-        }
-
-        Ok(())
+impl Drop for Frame<'_, '_> {
+    fn drop(&mut self) {
+        for _ in self.msgs.by_ref() {}
     }
-
-    #[cfg(test)]
-    pub(crate) fn rand(
-        zbuf: &mut ZBufWriter<'a>,
-        vec: &'b mut Vec<NetworkMessage<'a>, 16>,
-    ) -> Self {
-        use rand::Rng;
-
-        let mut rng = rand::thread_rng();
-
-        let reliability = Reliability::DEFAULT;
-        let sn: TransportSn = rng.r#gen();
-        let ext_qos = ext::QoSType::rand();
-
-        vec.clear();
-        let len = rng.gen_range(1..16);
-        let payload = {
-            for _ in 0..len {
-                vec.push(NetworkMessage::rand(zbuf)).unwrap();
-            }
-            vec.as_slice()
-        };
-
-        Frame {
-            reliability,
-            sn,
-            ext_qos,
-            payload,
-        }
-    }
-}
-
-pub(crate) mod ext {
-    pub(crate) type QoS = crate::zextz64!(0x1, true);
-    pub(crate) type QoSType = crate::protocol::transport::ext::QoSType<{ QoS::ID }>;
-}
-
-#[derive(Debug, Copy, Clone, PartialEq, Eq)]
-pub(crate) struct FrameHeader {
-    pub(crate) reliability: Reliability,
-    pub(crate) sn: TransportSn,
-    pub(crate) ext_qos: ext::QoSType,
 }
 
 impl FrameHeader {
-    pub(crate) fn encode(&self, writer: &mut ZBufWriter<'_>) -> ZResult<(), ZCodecError> {
-        let mut header = id::FRAME;
-
-        if let Reliability::Reliable = self.reliability {
-            header |= flag::R;
-        }
-
-        if self.ext_qos != ext::QoSType::DEFAULT {
-            header |= flag::Z;
-        }
-
-        encode_u8(writer, header)?;
-        encode_u32(writer, self.sn)?;
-
-        if self.ext_qos != ext::QoSType::DEFAULT {
-            self.ext_qos.encode(writer, false)?;
-        }
-
-        Ok(())
-    }
-
-    pub(crate) fn decode(reader: &mut ZBufReader<'_>, header: u8) -> ZResult<Self, ZCodecError> {
-        if imsg::mid(header) != id::FRAME {
-            zbail!(ZCodecError::CouldNotRead)
-        }
-
-        let reliability = match imsg::has_flag(header, flag::R) {
-            true => Reliability::Reliable,
-            false => Reliability::BestEffort,
-        };
-        let sn: TransportSn = decode_u32(reader)?;
-
-        let mut ext_qos = ext::QoSType::DEFAULT;
-
-        let mut has_ext = imsg::has_flag(header, flag::Z);
-        while has_ext {
-            let ext: u8 = decode_u8(reader)?;
-            match iext::eheader(ext) {
-                ext::QoS::ID => {
-                    let (q, ext) = ext::QoSType::decode(reader, ext)?;
-                    ext_qos = q;
-                    has_ext = ext;
-                }
-                _ => {
-                    has_ext = extension::skip("Frame", reader, ext)?;
-                }
-            }
-        }
-
-        Ok(FrameHeader {
-            reliability,
-            sn,
-            ext_qos,
-        })
-    }
-
     #[cfg(test)]
-    pub(crate) fn rand(_: &mut ZBufWriter<'_>) -> Self {
-        use rand::Rng;
-
-        let mut rng = rand::thread_rng();
-
-        let reliability = Reliability::rand();
-        let sn: TransportSn = rng.r#gen();
-        let ext_qos = ext::QoSType::rand();
-
-        FrameHeader {
+    pub(crate) fn rand(w: &mut crate::ZWriter) -> Self {
+        let reliability = Reliability::rand(w);
+        let sn = rand::thread_rng().r#gen();
+        let qos = QoS::rand(w);
+        Self {
             reliability,
             sn,
-            ext_qos,
+            qos,
         }
     }
 }
+
+// #[derive(ZEncode, Debug, PartialEq)]
+// #[zenoh(header = "Z|_:2|ID:5=0x05")]
+// pub struct Frame<'a> {
+//     #[zenoh(flatten)]
+//     pub frame: FrameHeader,
+
+//     #[zenoh(size = remain)]
+//     pub payload: &'a [u8],
+// }
+
+// impl<'a, 'b> Frame<'a, 'b> {
+//     const HEADER_BASE: u8 = 5u8 << 0u8;
+//     const HEADER_SLOT_Z: u8 = 0b1 << 7u8;
+
+//     pub const ID: u8 = 5u8;
+// }
+
+// impl crate::ZHeader for Frame<'_, '_> {
+//     fn z_header(&self) -> u8 {
+//         let Self { .. } = self;
+//         let mut header: u8 = Self::HEADER_BASE;
+//         header |= if <_ as crate::ZExtCount>::z_ext_count(self) > 0 {
+//             Self::HEADER_SLOT_Z
+//         } else {
+//             0
+//         };
+//         header
+//     }
+// }
+
+// impl crate::ZExtCount for Frame<'_, '_> {
+//     fn z_ext_count(&self) -> usize {
+//         let mut n_exts = 0;
+//         let Self { qos, .. } = self;
+//         if qos != &QoS::DEFAULT {
+//             let _ = qos;
+//             n_exts += 1;
+//         }
+//         n_exts
+//     }
+// }
+
+// impl crate::ZBodyLen for Frame<'_, '_> {
+//     fn z_body_len(&self) -> usize {
+//         let Self {
+//             reliability,
+//             sn,
+//             qos,
+//             ..
+//         } = self;
+//         let mut l = 0
+//             + <_ as crate::ZLen>::z_len(reliability)
+//             + <_ as crate::ZLen>::z_len(sn)
+//             + if qos != &QoS::DEFAULT {
+//                 crate::zext_len::<_>(qos)
+//             } else {
+//                 0usize
+//             };
+
+//         for payload in self.payload.iter() {
+//             l += <_ as crate::ZLen>::z_len(payload);
+//         }
+
+//         l
+//     }
+// }
+
+// impl crate::ZLen for Frame<'_, '_> {
+//     fn z_len(&self) -> usize {
+//         1 + <_ as crate::ZBodyLen>::z_body_len(self)
+//     }
+// }
+
+// impl crate::ZBodyEncode for Frame<'_, '_> {
+//     fn z_body_encode(&self, w: &mut crate::ZWriter) -> crate::ZCodecResult<()> {
+//         let Self {
+//             reliability,
+//             sn,
+//             qos,
+//             ..
+//         } = self;
+//         <_ as crate::ZEncode>::z_encode(reliability, w)?;
+//         <_ as crate::ZEncode>::z_encode(sn, w)?;
+//         let mut n_exts = <_ as crate::ZExtCount>::z_ext_count(self);
+//         if qos != &QoS::DEFAULT {
+//             n_exts -= 1;
+//             crate::zext_encode::<_, 0x1, true>(qos, w, n_exts != 0)?;
+//         }
+//         for payload in self.payload.iter() {
+//             <_ as crate::ZEncode>::z_encode(payload, w)?;
+//         }
+//         Ok(())
+//     }
+// }
+
+// impl crate::ZEncode for Frame<'_, '_> {
+//     fn z_encode(&self, w: &mut crate::ZWriter) -> crate::ZCodecResult<()> {
+//         let h = <Self as crate::ZHeader>::z_header(self);
+//         <u8 as crate::ZEncode>::z_encode(&h, w)?;
+//         <_ as crate::ZBodyEncode>::z_body_encode(self, w)?;
+//         Ok(())
+//     }
+// }
+
+// impl<'a, 'b> crate::ZBodyDecode<'a> for Frame<'a, 'b> {
+//     type Ctx = u8;
+
+//     fn z_body_decode(r: &mut crate::ZReader<'a>, header: u8) -> crate::ZCodecResult<Self> {
+//         let reliability = { <_ as crate::ZDecode>::z_decode(r)? };
+//         let sn = { <_ as crate::ZDecode>::z_decode(r)? };
+//         let mut has_ext: bool = header & Self::HEADER_SLOT_Z != 0;
+//         let mut qos = QoS::DEFAULT;
+//         while has_ext {
+//             let (ext_id, ext_kind, mandatory, more) = crate::decode_ext_header(r)?;
+//             has_ext = more;
+//             match ext_id {
+//                 0x1 => {
+//                     qos = crate::zext_decode::<_>(r)?;
+//                 }
+//                 _ => {
+//                     if mandatory {
+//                         return Err(crate::ZCodecError::UnsupportedMandatoryExtension);
+//                     }
+//                     crate::skip_ext(r, ext_kind)?;
+//                 }
+//             }
+//         }
+
+//         Ok(Self {
+//             reliability,
+//             sn,
+//             qos,
+//         })
+//     }
+// }
+// impl<'a, 'b> crate::ZDecode<'a> for Frame<'a, 'b> {
+//     fn z_decode(r: &mut crate::ZReader<'a>) -> crate::ZCodecResult<Self> {
+//         let h = <u8 as crate::ZDecode>::z_decode(r)?;
+//         <_ as crate::ZBodyDecode>::z_body_decode(r, h)
+//     }
+// }

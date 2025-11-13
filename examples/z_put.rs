@@ -20,7 +20,7 @@ async fn main(spawner: embassy_executor::Spawner) {
     )
     .unwrap();
 
-    let ke: &'static keyexpr = "demo/example".try_into().unwrap();
+    let ke = keyexpr::new("demo/example").unwrap();
     let payload = b"Hello, from std!";
 
     loop {
