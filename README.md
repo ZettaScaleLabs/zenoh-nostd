@@ -147,16 +147,20 @@ just std z_sub
 
 ```text
 src/
-├── keyexpr/       # Lightweight key expression parsing
-├── protocol/      # Protocol definitions, encoding/decoding
-├── platform/      # Platform abstraction (e.g., std support)
-├── logging.rs     # Logging facade
-├── result.rs      # Result and error types
-├── zbuf.rs        # Byte buffer extension traits
-└── lib.rs         # Library entry point
+├── api/           # Public API (sessions, publishers, subscribers)
+├── codec/         # Zenoh protocol codec (encoding/decoding traits
+├── io/            # I/O abstractions (traits for transport/link layers)
+├── platform/      # Platform abstractions (traits for platform-specific features)
+├── protocol/      # Zenoh protocol definitions (messages, types)
+├── tests/         # Unit and integration tests
+├── lib.rs         # Library entry point
+├── logging.rs     # Logging abstractions
+└── result.rs      # Result and error types
 
 platforms/
 └── zenoh-embassy  # Integration with Embassy-based devices
+
+zenoh-nostd-codec/ # Codec proc-macro
 ```
 
 ---
