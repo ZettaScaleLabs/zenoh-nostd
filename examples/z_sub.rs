@@ -21,8 +21,7 @@ async fn callback_2(subscriber: ZSubscriber<32, 128>) {
     }
 }
 
-#[embassy_executor::main]
-async fn main(spawner: embassy_executor::Spawner) {
+async fn entry(spawner: embassy_executor::Spawner) -> zenoh_nostd::result::ZResult<()> {
     #[cfg(feature = "log")]
     env_logger::init();
 
@@ -36,8 +35,7 @@ async fn main(spawner: embassy_executor::Spawner) {
                 MAX_SUBSCRIBERS: 2
         ),
         EndPoint::try_from(CONNECT.unwrap_or("tcp/127.0.0.1:7447")).unwrap()
-    )
-    .unwrap();
+    );
 
     let ke = keyexpr::new("demo/example/**").unwrap();
 
@@ -58,5 +56,12 @@ async fn main(spawner: embassy_executor::Spawner) {
 
     loop {
         embassy_time::Timer::after(embassy_time::Duration::from_secs(1)).await;
+    }
+}
+
+#[embassy_executor::main]
+async fn main(spawner: embassy_executor::Spawner) {
+    if let Err(e) = entry(spawner).await {
+        zenoh_nostd::error!("Error in main: {:?}", e);
     }
 }

@@ -37,13 +37,15 @@ macro_rules! open {
         let task = $zconfig.task.clone();
         let driver_cell = $zconfig.driver.clone();
 
-        let (mut session, driver) = $crate::Session::new($zconfig, $endpoint).await.unwrap();
+        let (mut session, driver) = $crate::Session::new($zconfig, $endpoint).await?;
 
         let driver = driver_cell.init(driver);
         session.set_driver(driver);
 
-        spawner.spawn((task)(driver)).unwrap();
+        spawner
+            .spawn((task)(driver))
+            .map_err(|_| $crate::result::ZError::CouldNotSpawnTask)?;
 
-        Ok::<_, $crate::result::ZError>(session)
+        session
     }};
 }

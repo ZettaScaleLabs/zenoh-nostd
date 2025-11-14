@@ -38,6 +38,9 @@ pub enum ZError {
     /// The connection was closed.
     ConnectionClosed = 18,
 
+    /// Could not spawn a task.
+    CouldNotSpawnTask = 19,
+
     // Reserve: 19–29
 
     // ──────────────── Argument/validation errors (30–39) ────────────────
@@ -107,6 +110,7 @@ impl core::fmt::Display for ZError {
             ZError::CouldNotRecvFromSubscriber => f.write_str("could not receive from subscriber"),
             ZError::SubscriberCallbackAlreadySet => f.write_str("subscriber callback already set"),
             ZError::ConnectionClosed => f.write_str("connection closed"),
+            ZError::CouldNotSpawnTask => f.write_str("could not spawn task"),
 
             // Argument errors
             ZError::InvalidArgument => f.write_str("invalid argument"),

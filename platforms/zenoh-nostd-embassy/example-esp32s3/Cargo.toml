@@ -4,8 +4,8 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
-zenoh-nostd = { version = "1.5.1", path = "../../.." }
-zenoh-nostd-embassy  = { version = "1.5.1", path = ".." }
+zenoh-nostd = { version = "0.1.0", path = "../../.." }
+zenoh-nostd-embassy  = { version = "0.1.0", path = ".." }
 
 getrandom = { version = "0.2.16", features = ["custom"] }
 
