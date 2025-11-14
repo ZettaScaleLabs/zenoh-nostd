@@ -38,6 +38,9 @@ pub enum ZError {
     /// The connection was closed.
     ConnectionClosed = 18,
 
+    /// Could not spawn a task.
+    CouldNotSpawnTask = 19,
+
     // Reserve: 19–29
 
     // ──────────────── Argument/validation errors (30–39) ────────────────
@@ -86,6 +89,9 @@ pub enum ZError {
     /// Configuration is not supported in endpoint.
     ConfigNotSupported = 62,
     // Reserve: 63–69
+
+    // ──────────────── Protocol errors (70–255) ────────────────
+    MissingMandatoryExtension = 70,
 }
 
 impl core::fmt::Display for ZError {
@@ -104,6 +110,7 @@ impl core::fmt::Display for ZError {
             ZError::CouldNotRecvFromSubscriber => f.write_str("could not receive from subscriber"),
             ZError::SubscriberCallbackAlreadySet => f.write_str("subscriber callback already set"),
             ZError::ConnectionClosed => f.write_str("connection closed"),
+            ZError::CouldNotSpawnTask => f.write_str("could not spawn task"),
 
             // Argument errors
             ZError::InvalidArgument => f.write_str("invalid argument"),
@@ -125,6 +132,9 @@ impl core::fmt::Display for ZError {
             ZError::NoProtocolSeparator => f.write_str("missing protocol separator in endpoint"),
             ZError::MetadataNotSupported => f.write_str("metadata not supported in endpoint"),
             ZError::ConfigNotSupported => f.write_str("configuration not supported in endpoint"),
+
+            // Protocol errors
+            ZError::MissingMandatoryExtension => f.write_str("missing mandatory extension"),
         }
     }
 }

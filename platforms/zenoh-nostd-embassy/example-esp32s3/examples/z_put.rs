@@ -38,8 +38,7 @@ const SSID: &str = env!("WIFI_SSID");
 const PASSWORD: &str = env!("WIFI_PASSWORD");
 const CONNECT: Option<&str> = option_env!("CONNECT");
 
-#[esp_rtos::main]
-async fn main(spawner: Spawner) {
+async fn entry(spawner: Spawner) -> zenoh_nostd::result::ZResult<()> {
     zenoh_nostd::info!("zenoh-nostd z_put example");
 
     let net_stack = init_esp32(spawner).await;
@@ -52,10 +51,9 @@ async fn main(spawner: Spawner) {
                 MAX_SUBSCRIBERS: 2
         ),
         EndPoint::try_from(CONNECT.unwrap_or("tcp/192.168.21.90:7447")).unwrap()
-    )
-    .unwrap();
+    );
 
-    let ke: &'static keyexpr = "demo/example".try_into().unwrap();
+    let ke = keyexpr::new("demo/example").unwrap();
     let payload = b"Hello, from esp32s3!";
 
     loop {
@@ -68,6 +66,14 @@ async fn main(spawner: Spawner) {
         );
 
         embassy_time::Timer::after(embassy_time::Duration::from_secs(1)).await;
+    }
+}
+
+#[esp_rtos::main]
+async fn main(spawner: Spawner) {
+    if let Err(e) = entry(spawner).await {
+        zenoh_nostd::error!("Error in main: {}", e);
+        defmt::error!("Error in zenoh-nostd example");
     }
 }
 

@@ -1,69 +1,60 @@
 use core::ops::DerefMut;
 
 use crate::{
+    ZReader,
     api::{driver::SessionDriver, sample::ZSample},
+    ke::keyexpr,
     platform::Platform,
-    protocol::keyexpr::borrowed::keyexpr,
-    protocol::{
-        network::{NetworkBody, NetworkMessage},
-        transport::{
-            TransportMessage,
-            frame::FrameHeader,
-            init::{InitAck, InitSyn},
-            open::{OpenAck, OpenSyn},
-        },
-        zenoh::PushBody,
-    },
+    protocol::{network::NetworkBody, zenoh::PushBody},
     result::ZResult,
-    zbuf::{ZBuf, ZBufReader},
+    transport::{TransportBatch, TransportBody},
 };
 
 impl<T: Platform> SessionDriver<T> {
-    pub(crate) async fn internal_update<'a>(&self, mut reader: ZBufReader<'a>) -> ZResult<()> {
-        TransportMessage::decode_batch_async(
-            &mut reader,
-            None::<fn(InitSyn) -> ZResult<()>>,
-            None::<fn(InitAck) -> ZResult<()>>,
-            None::<fn(OpenSyn) -> ZResult<()>>,
-            None::<fn(OpenAck) -> ZResult<()>>,
-            Some(|| {
-                crate::trace!("Received KeepAlive");
+    pub(crate) async fn internal_update<'a>(&self, mut reader: ZReader<'a>) -> ZResult<()> {
+        let mut batch = TransportBatch::new(&mut reader);
 
-                Ok(())
-            }),
-            Some(async |_: &FrameHeader, msg: NetworkMessage<'a>| {
-                if let NetworkBody::Push(push) = msg.body {
-                    match push.payload {
-                        PushBody::Put(put) => {
-                            let zbuf: ZBuf<'a> = put.payload;
+        while let Some(msg) = batch.next() {
+            match msg {
+                TransportBody::KeepAlive(_) => {
+                    crate::trace!("Received KeepAlive");
+                }
 
-                            let wke: &'a str = push.wire_expr.suffix;
-                            let wke: &'a keyexpr = wke.try_into().unwrap();
+                TransportBody::Frame(mut frame) => {
+                    for msg in frame.msgs.by_ref() {
+                        if let NetworkBody::Push(push) = msg {
+                            match push.payload {
+                                PushBody::Put(put) => {
+                                    let zbuf: &'a [u8] = put.payload;
 
-                            let mut cb_guard = self.subscribers.lock().await;
-                            let cb = cb_guard.deref_mut();
+                                    let wke: &'a str = push.wire_expr.suffix;
+                                    let wke: &'a keyexpr = keyexpr::new(wke)?;
 
-                            let matching_callbacks = cb.callbacks.iter().filter_map(|(k, v)| {
-                                if cb.callbacks.intersects(k, wke) {
-                                    Some(v)
-                                } else {
-                                    None
+                                    let mut cb_guard = self.subscribers.lock().await;
+                                    let cb = cb_guard.deref_mut();
+
+                                    let matching_callbacks =
+                                        cb.callbacks.iter().filter_map(|(k, v)| {
+                                            if cb.callbacks.intersects(k, wke) {
+                                                Some(v)
+                                            } else {
+                                                None
+                                            }
+                                        });
+
+                                    for callback in matching_callbacks {
+                                        let sample: ZSample<'a> = ZSample::new(wke, zbuf);
+
+                                        callback.call(sample).await?;
+                                    }
                                 }
-                            });
-
-                            for callback in matching_callbacks {
-                                let sample: ZSample<'a> = ZSample::new(wke, zbuf);
-
-                                callback.call(sample).await?;
                             }
                         }
                     }
                 }
-
-                Ok(())
-            }),
-        )
-        .await?;
+                _ => {}
+            }
+        }
 
         Ok(())
     }

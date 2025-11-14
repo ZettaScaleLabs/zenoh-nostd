@@ -1,4 +1,4 @@
-<p align="center">  
+<p align="center">
   <img src="https://zenoh.io/img/zenoh-dragon-small.png" height="121">
 </p>
 
@@ -16,7 +16,7 @@
 
 ⚠️ This project is in early development.
 
-**zenoh-nostd** is a Rust-native, `#![no_std]`, `no_alloc` library that provides a **zero-overhead network abstraction layer** for 
+**zenoh-nostd** is a Rust-native, `#![no_std]`, `no_alloc` library that provides a **zero-overhead network abstraction layer** for
 ultra-constrained and bare-metal environments. In other terms you can run this *bare metal* on your favourite microcontroller.
 
 > ⚡ Built on the <a href="https://github.com/eclipse-zenoh/zenoh">Zenoh protocol</a>, but stripped to the bone for minimalism and raw performance.
@@ -63,23 +63,21 @@ zenoh-nostd = { git = "https://github.com/ZettaScaleLabs/zenoh-nostd" }
 Here’s a simple example of sending a payload with `zenoh-nostd`:
 
 ```rust
-#[embassy_executor::main]
-async fn main(spawner: Spawner) {
+async fn entry(spawner: embassy_executor::Spawner) -> zenoh_nostd::result::ZResult<()> {
     let mut session = zenoh_nostd::open!(
         zenoh_nostd::zconfig!(
                 PlatformStd: (spawner, PlatformStd {}),
                 TX: 512,
                 RX: 512,
-                SUBSCRIBERS: 2
+                MAX_SUBSCRIBERS: 2
         ),
-        EndPoint::try_from(CONNECT.unwrap_or("tcp/127.0.0.1:7447")).unwrap()
-    )
-    .unwrap();
+        EndPoint::try_from(CONNECT.unwrap_or("tcp/127.0.0.1:7447"))?
+    );
 
-    let ke: &'static keyexpr = "demo/example".try_into().unwrap();
+    let ke = keyexpr::new("demo/example")?;
     let payload = b"Hello, from std!";
 
-    session.put(ke, payload).await.unwrap();
+    session.put(ke, payload).await?;
 }
 ```
 
@@ -148,16 +146,20 @@ just std z_sub
 
 ```text
 src/
-├── keyexpr/       # Lightweight key expression parsing
-├── protocol/      # Protocol definitions, encoding/decoding
-├── platform/      # Platform abstraction (e.g., std support)
-├── logging.rs     # Logging facade
-├── result.rs      # Result and error types
-├── zbuf.rs        # Byte buffer extension traits
-└── lib.rs         # Library entry point
+├── api/           # Public API (sessions, publishers, subscribers)
+├── codec/         # Zenoh protocol codec (encoding/decoding traits
+├── io/            # I/O abstractions (traits for transport/link layers)
+├── platform/      # Platform abstractions (traits for platform-specific features)
+├── protocol/      # Zenoh protocol definitions (messages, types)
+├── tests/         # Unit and integration tests
+├── lib.rs         # Library entry point
+├── logging.rs     # Logging abstractions
+└── result.rs      # Result and error types
 
 platforms/
 └── zenoh-embassy  # Integration with Embassy-based devices
+
+zenoh-nostd-codec/ # Codec proc-macro
 ```
 
 ---

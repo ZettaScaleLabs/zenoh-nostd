@@ -5,19 +5,19 @@ use crate::{
         ZConfig, callback::ZCallback, driver::SessionDriver, sample::ZOwnedSample,
         subscriber::ZSubscriber,
     },
+    endpoint::EndPoint,
     io::{
         link::Link,
         transport::{Transport, TransportMineConfig},
     },
+    ke::keyexpr,
+    network::{NodeId, QoS, declare::DeclareSubscriber},
     platform::Platform,
-    protocol::keyexpr::borrowed::keyexpr,
     protocol::{
-        core::{
-            Reliability, ZenohIdProto, encoding::Encoding, endpoint::EndPoint, wire_expr::WireExpr,
-        },
+        core::{ZenohIdProto, encoding::Encoding, wire_expr::WireExpr},
         network::{
-            self, NetworkBody, NetworkMessage,
-            declare::{Declare, DeclareBody, subscriber::DeclareSubscriber},
+            NetworkBody,
+            declare::{Declare, DeclareBody},
             push::Push,
         },
         zenoh::{PushBody, put::Put},
@@ -68,22 +68,19 @@ impl<T: Platform + 'static> Session<T> {
     }
 
     pub async fn put(&mut self, ke: &'static keyexpr, bytes: &[u8]) -> ZResult<()> {
-        let msg = NetworkMessage {
-            reliability: Reliability::DEFAULT,
-            body: NetworkBody::Push(Push {
-                wire_expr: WireExpr::from(ke),
-                ext_qos: network::ext::QoSType::DEFAULT,
-                ext_tstamp: None,
-                ext_nodeid: network::push::ext::NodeIdType::DEFAULT,
-                payload: PushBody::Put(Put {
-                    timestamp: None,
-                    encoding: Encoding::empty(),
-                    ext_sinfo: None,
-                    ext_attachment: None,
-                    payload: bytes,
-                }),
+        let msg = NetworkBody::Push(Push {
+            wire_expr: WireExpr::from(ke),
+            qos: QoS::DEFAULT,
+            timestamp: None,
+            nodeid: NodeId::DEFAULT,
+            payload: PushBody::Put(Put {
+                timestamp: None,
+                encoding: Encoding::empty(),
+                sinfo: None,
+                attachment: None,
+                payload: bytes,
             }),
-        };
+        });
 
         self.driver.as_ref().unwrap().send(msg).await?;
 
@@ -103,16 +100,13 @@ impl<T: Platform + 'static> Session<T> {
         let id = self.next_id;
         self.next_id += 1;
 
-        let msg = NetworkMessage {
-            reliability: Reliability::Reliable,
-            body: NetworkBody::Declare(Declare {
-                interest_id: None,
-                ext_qos: network::declare::ext::QoSType::DECLARE,
-                ext_tstamp: None,
-                ext_nodeid: network::declare::ext::NodeIdType::DEFAULT,
-                body: DeclareBody::DeclareSubscriber(DeclareSubscriber { id, wire_expr: wke }),
-            }),
-        };
+        let msg = NetworkBody::Declare(Declare {
+            id: None,
+            qos: QoS::DECLARE,
+            timestamp: None,
+            nodeid: NodeId::DEFAULT,
+            body: DeclareBody::DeclareSubscriber(DeclareSubscriber { id, wire_expr: wke }),
+        });
 
         self.driver.as_ref().unwrap().send(msg).await?;
 

@@ -1,81 +1,40 @@
 use core::fmt::Debug;
 
-use crate::{
-    protocol::{
-        ZCodecError,
-        common::imsg,
-        zcodec::{
-            decode_u32, decode_zbuf, encode_u32, encode_zbuf, encoded_len_u32, encoded_len_zbuf,
-        },
-    },
-    result::ZResult,
-    zbuf::{ZBuf, ZBufReader, ZBufWriter},
-};
+use crate::ZBodyDecode;
+use crate::ZBodyEncode;
+use crate::ZBodyLen;
+use crate::ZCodecResult;
+use crate::ZDecode;
+use crate::ZEncode;
+use crate::ZLen;
+use crate::ZReader;
+use crate::ZReaderExt;
+use crate::ZWriter;
 
-pub(crate) type EncodingId = u16;
+#[derive(Debug, PartialEq)]
+pub struct Encoding<'a> {
+    pub id: u16,
 
-#[derive(Clone, Debug, PartialEq, Eq, Hash)]
-pub(crate) struct Encoding<'a> {
-    pub(crate) id: EncodingId,
-    pub(crate) schema: Option<ZBuf<'a>>,
-}
-
-pub(crate) mod flag {
-    pub(crate) const S: u32 = 1;
+    pub schema: Option<&'a [u8]>,
 }
 
 impl<'a> Encoding<'a> {
-    pub(crate) const fn empty() -> Self {
+    pub const EMPTY: Self = Encoding {
+        id: 0,
+        schema: None,
+    };
+
+    const FLAG_S: u8 = 0b0000_0001;
+
+    pub const fn empty() -> Self {
         Self {
             id: 0,
             schema: None,
         }
     }
 
-    pub(crate) fn encoded_len(&self) -> usize {
-        let mut len = encoded_len_u32((self.id as u32) << 1);
-
-        if let Some(schema) = &self.schema {
-            len += encoded_len_zbuf(true, schema);
-        }
-
-        len
-    }
-
-    pub(crate) fn encode(&self, writer: &mut ZBufWriter<'_>) -> ZResult<(), ZCodecError> {
-        let mut id = (self.id as u32) << 1;
-
-        if self.schema.is_some() {
-            id |= flag::S;
-        }
-
-        encode_u32(writer, id)?;
-
-        if let Some(schema) = &self.schema {
-            encode_zbuf(writer, schema, true)?;
-        }
-
-        Ok(())
-    }
-
-    pub(crate) fn decode(reader: &mut ZBufReader<'a>) -> ZResult<Self, ZCodecError> {
-        let id = decode_u32(reader)?;
-
-        let has_schema = imsg::has_flag(id as u8, flag::S as u8);
-        let id = (id >> 1) as EncodingId;
-
-        let schema = if has_schema {
-            let schema: ZBuf<'a> = decode_zbuf(reader, None)?;
-            Some(schema)
-        } else {
-            None
-        };
-
-        Ok(Encoding { id, schema })
-    }
-
     #[cfg(test)]
-    pub(crate) fn rand(zbuf: &mut ZBufWriter<'a>) -> Self {
+    pub fn rand(w: &mut ZWriter<'a>) -> Self {
         use rand::Rng;
 
         let mut rng = rand::thread_rng();
@@ -83,13 +42,12 @@ impl<'a> Encoding<'a> {
         const MIN: usize = 0;
         const MAX: usize = 16;
 
-        let id: EncodingId = rng.r#gen();
-        let schema = rng.gen_bool(0.5);
-        let schema = if schema {
-            use crate::zbuf::BufWriterExt;
+        let id: u16 = rng.r#gen();
+        let schema = if rng.gen_bool(0.5) {
+            use crate::ZWriterExt;
 
             Some(
-                zbuf.write_slot_return(rng.gen_range(MIN..MAX), |b: &mut [u8]| {
+                w.write_slot(rng.gen_range(MIN..MAX), |b: &mut [u8]| {
                     rng.fill(b);
                     b.len()
                 })
@@ -103,8 +61,57 @@ impl<'a> Encoding<'a> {
     }
 }
 
-impl Default for Encoding<'_> {
-    fn default() -> Self {
-        Self::empty()
+impl ZBodyLen for Encoding<'_> {
+    fn z_body_len(&self) -> usize {
+        <u32 as ZLen>::z_len(&((self.id as u32) << 1))
+            + if let Some(schema) = self.schema.as_ref() {
+                let len: usize = <&[u8] as ZLen>::z_len(schema);
+
+                <usize as ZLen>::z_len(&len) + len
+            } else {
+                0
+            }
     }
 }
+
+impl ZBodyEncode for Encoding<'_> {
+    fn z_body_encode(&self, w: &mut ZWriter) -> ZCodecResult<()> {
+        let mut id = (self.id as u32) << 1;
+
+        if self.schema.is_some() {
+            id |= Self::FLAG_S as u32;
+        }
+
+        <u32 as ZEncode>::z_encode(&id, w)?;
+
+        if let Some(schema) = &self.schema {
+            <usize as ZEncode>::z_encode(&schema.len(), w)?;
+            <&[u8] as ZEncode>::z_encode(schema, w)?;
+        }
+
+        Ok(())
+    }
+}
+
+impl<'a> ZBodyDecode<'a> for Encoding<'a> {
+    type Ctx = ();
+
+    fn z_body_decode(r: &mut ZReader<'a>, _: ()) -> ZCodecResult<Self> {
+        let id = <u32 as ZDecode>::z_decode(r)?;
+
+        let has_schema = (id as u8) & Self::FLAG_S != 0;
+        let id = (id >> 1) as u16;
+
+        let schema = if has_schema {
+            let len = <usize as ZDecode>::z_decode(r)?;
+            let schema: &[u8] = <&[u8] as ZDecode>::z_decode(&mut r.sub(len)?)?;
+            Some(schema)
+        } else {
+            None
+        };
+
+        Ok(Encoding { id, schema })
+    }
+}
+
+crate::__internal_zstructimpl!(lt, Encoding<'a>);

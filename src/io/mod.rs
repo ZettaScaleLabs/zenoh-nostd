@@ -1,4 +1,4 @@
-use crate::{platform::ZConnectionError, protocol::ZCodecError};
+use crate::{codec::ZCodecError, platform::ZConnectionError};
 
 pub(crate) mod link;
 pub(crate) mod transport;
@@ -58,6 +58,7 @@ impl From<ZCodecError> for ZTransportError {
             ZCodecError::CouldNotRead => ZTransportError::InvalidRx,
             ZCodecError::CouldNotWrite => ZTransportError::TxError,
             ZCodecError::CouldNotParse => ZTransportError::InvalidRx,
+            ZCodecError::MissingMandatoryExtension => ZTransportError::InvalidRx,
         }
     }
 }

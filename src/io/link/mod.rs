@@ -6,7 +6,7 @@ use crate::{
         link::tcp::{LinkTcp, LinkTcpRx, LinkTcpTx},
     },
     platform::Platform,
-    protocol::core::endpoint::EndPoint,
+    protocol::endpoint::EndPoint,
     result::ZResult,
 };
 

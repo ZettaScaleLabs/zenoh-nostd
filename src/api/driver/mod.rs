@@ -10,16 +10,15 @@ use embassy_time::Instant;
 use crate::{
     api::{callback::ZCallback, subscriber::ZSubscriberCallbacks},
     io::transport::{TransportConfig, TransportRx, TransportTx},
+    ke::keyexpr,
     platform::Platform,
-    protocol::keyexpr::borrowed::keyexpr,
-    protocol::transport::TransportSn,
     result::ZResult,
 };
 
 pub struct TxState<T: Platform + 'static> {
     tx_zbuf: &'static mut [u8],
     tx: TransportTx<'static, T>,
-    sn: TransportSn,
+    sn: u32,
 
     next_keepalive: Instant,
 }

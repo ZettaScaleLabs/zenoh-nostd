@@ -1,117 +1,62 @@
-use core::{fmt, str::FromStr};
-
-use crate::protocol::{ZProtocolError, network::request::RequestId, transport::TransportSn};
+use crate::{ZBodyDecode, ZBodyEncode, ZBodyLen};
 
 #[repr(u8)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
-pub(crate) enum Bits {
-    U8 = 0b00,
-    U16 = 0b01,
-    U32 = 0b10,
-    U64 = 0b11,
-}
-
-impl Bits {
-    const S8: &'static str = "8bit";
-    const S16: &'static str = "16bit";
-    const S32: &'static str = "32bit";
-    const S64: &'static str = "64bit";
-
-    pub(crate) const fn to_str(self) -> &'static str {
-        match self {
-            Bits::U8 => Self::S8,
-            Bits::U16 => Self::S16,
-            Bits::U32 => Self::S32,
-            Bits::U64 => Self::S64,
-        }
-    }
-}
-
-impl From<u8> for Bits {
-    fn from(_: u8) -> Self {
-        Self::U8
-    }
-}
-
-impl From<u16> for Bits {
-    fn from(_: u16) -> Self {
-        Self::U16
-    }
-}
-
-impl From<u32> for Bits {
-    fn from(_: u32) -> Self {
-        Self::U32
-    }
-}
-
-impl From<u64> for Bits {
-    fn from(_: u64) -> Self {
-        Self::U64
-    }
-}
-
-impl FromStr for Bits {
-    type Err = ZProtocolError;
-
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        match s {
-            Bits::S8 => Ok(Bits::U8),
-            Bits::S16 => Ok(Bits::U16),
-            Bits::S32 => Ok(Bits::U32),
-            Bits::S64 => Ok(Bits::U64),
-            _ => crate::zbail!(ZProtocolError::CouldNotParse),
-        }
-    }
-}
-
-impl fmt::Display for Bits {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.write_str(self.to_str())
-    }
+pub enum Bits {
+    U8 = 0b0000_0000,
+    U16 = 0b0000_0001,
+    U32 = 0b0000_0010,
+    U64 = 0b0000_0011,
 }
 
 #[repr(u8)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(crate) enum Field {
+pub enum Field {
     FrameSN = 0,
     RequestID = 2,
 }
 
 #[repr(transparent)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
-pub(crate) struct Resolution(u8);
+pub struct Resolution(u8);
 
 impl Resolution {
-    pub(crate) const fn as_u8(&self) -> u8 {
-        self.0
-    }
+    pub const DEFAULT: Self = {
+        let frame_sn = Bits::U32 as u8;
+        let request_id = (Bits::U32 as u8) << 2;
+        Self(frame_sn | request_id)
+    };
 
-    pub(crate) const fn get(&self, field: Field) -> Bits {
+    pub const fn get(&self, field: Field) -> Bits {
         let value = (self.0 >> (field as u8)) & 0b11;
-        unsafe { core::mem::transmute(value) }
+
+        match value {
+            0b00 => Bits::U8,
+            0b01 => Bits::U16,
+            0b10 => Bits::U32,
+            0b11 => Bits::U64,
+            _ => unreachable!(),
+        }
     }
 
-    pub(crate) fn set(&mut self, field: Field, bits: Bits) {
+    pub fn set(&mut self, field: Field, bits: Bits) {
         self.0 &= !(0b11 << field as u8);
         self.0 |= (bits as u8) << (field as u8);
     }
 
     #[cfg(test)]
-    pub(crate) fn rand() -> Self {
+    pub fn rand() -> Self {
         use rand::Rng;
 
         let mut rng = rand::thread_rng();
         let v: u8 = rng.r#gen();
-        Self(v & 0b00001111)
+        Self(v & 0b0000_1111)
     }
 }
 
 impl Default for Resolution {
     fn default() -> Self {
-        let frame_sn = Bits::from(TransportSn::MAX) as u8;
-        let request_id = (Bits::from(RequestId::MAX) as u8) << 2;
-        Self(frame_sn | request_id)
+        Self::DEFAULT
     }
 }
 
@@ -120,3 +65,26 @@ impl From<u8> for Resolution {
         Self(v)
     }
 }
+
+impl ZBodyLen for Resolution {
+    fn z_body_len(&self) -> usize {
+        <u8 as ZBodyLen>::z_body_len(&self.0)
+    }
+}
+
+impl ZBodyEncode for Resolution {
+    fn z_body_encode(&self, w: &mut crate::ZWriter) -> crate::ZCodecResult<()> {
+        <u8 as ZBodyEncode>::z_body_encode(&self.0, w)
+    }
+}
+
+impl<'a> ZBodyDecode<'a> for Resolution {
+    type Ctx = ();
+
+    fn z_body_decode(r: &mut crate::ZReader<'_>, _: ()) -> crate::ZCodecResult<Self> {
+        let value = <u8 as crate::ZDecode>::z_decode(r)?;
+        Ok(Self(value))
+    }
+}
+
+crate::__internal_zstructimpl!(Resolution);

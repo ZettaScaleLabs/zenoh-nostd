@@ -11,28 +11,24 @@ use crate::{
     },
     platform::Platform,
     protocol::{
-        VERSION,
         core::{
             ZenohIdProto,
             resolution::{Field, Resolution},
             whatami::WhatAmI,
         },
-        network::NetworkMessage,
-        transport::{
-            BatchSize, TransportBody, TransportMessage, TransportSn,
-            ext::PatchType,
-            frame::FrameHeader,
-            init::{InitAck, InitSyn},
-            open::{OpenAck, OpenSyn},
-        },
+        transport::TransportBody,
     },
     result::ZResult,
+    transport::{
+        TransportBatch,
+        init::{InitExt, InitIdentifier, InitResolution, InitSyn},
+        open::{OpenExt, OpenSyn},
+    },
     zbail,
-    zbuf::{ZBuf, ZBufMut},
 };
 
 pub(crate) struct StateTransport {
-    pub(crate) batch_size: BatchSize,
+    pub(crate) batch_size: u16,
     pub(crate) resolution: Resolution,
 }
 
@@ -45,66 +41,55 @@ pub(crate) struct SendInitSynIn {
 impl SendInitSynIn {
     pub(crate) async fn send<T: Platform>(
         &self,
-        tx_zbuf: ZBufMut<'_>,
+        tx: &mut [u8],
         transport: &mut Transport<T>,
         state: &StateTransport,
     ) -> ZResult<(), ZTransportError> {
-        let msg = TransportMessage {
-            body: TransportBody::InitSyn(InitSyn {
-                version: self.mine_version,
+        let msg = InitSyn {
+            version: self.mine_version,
+            identifier: InitIdentifier {
                 whatami: self.mine_whatami,
-                zid: self.mine_zid,
-                batch_size: state.batch_size,
+                zid: self.mine_zid.clone(),
+            },
+            resolution: InitResolution {
                 resolution: state.resolution,
-                ext_qos: None,
-                ext_qos_link: None,
-                ext_auth: None,
-                ext_mlink: None,
-                ext_lowlatency: None,
-                ext_compression: None,
-                ext_patch: PatchType::CURRENT,
-            }),
+                batch_size: crate::transport::init::BatchSize(state.batch_size),
+            },
+            ext: InitExt::DEFAULT,
         };
 
-        transport.send(tx_zbuf, &msg).await
+        transport
+            .send(tx, &mut 0, |batch| batch.write_init_syn(&msg))
+            .await
     }
 }
 
 pub(crate) struct RecvInitAckOut<'a> {
     pub(crate) other_zid: ZenohIdProto,
     pub(crate) other_whatami: WhatAmI,
-    pub(crate) other_cookie: ZBuf<'a>,
+    pub(crate) other_cookie: &'a [u8],
 }
 
 impl<'a> RecvInitAckOut<'a> {
     pub(crate) async fn recv<T: Platform>(
-        rx_zbuf: ZBufMut<'a>,
+        rx: &'a mut [u8],
         transport: &mut Transport<T>,
         state: &mut StateTransport,
     ) -> ZResult<Self, ZTransportError> {
-        let mut reader = transport.recv(rx_zbuf).await?;
-
-        let mut init_ack = Option::<InitAck<'a>>::None;
-        TransportMessage::decode_batch(
-            &mut reader,
-            None::<fn(InitSyn)>,
-            Some(|i: InitAck<'a>| {
-                init_ack = Some(i);
-            }),
-            None::<fn(OpenSyn)>,
-            None::<fn(OpenAck)>,
-            None::<fn()>,
-            None::<fn(&FrameHeader, NetworkMessage)>,
-        )?;
-
-        let Some(init_ack) = init_ack else {
-            zbail!(ZTransportError::InvalidRx);
+        let mut reader = transport.recv(rx).await?;
+        let mut batch = TransportBatch::new(&mut reader);
+        let init_ack = loop {
+            match batch.next() {
+                Some(TransportBody::InitAck(i)) => break i,
+                Some(_) => continue,
+                None => zbail!(ZTransportError::InvalidRx),
+            }
         };
 
         state.resolution = {
             let mut res = Resolution::default();
 
-            let i_fsn_res = init_ack.resolution.get(Field::FrameSN);
+            let i_fsn_res = init_ack.resolution.resolution.get(Field::FrameSN);
             let m_fsn_res = state.resolution.get(Field::FrameSN);
 
             if i_fsn_res > m_fsn_res {
@@ -113,22 +98,23 @@ impl<'a> RecvInitAckOut<'a> {
 
             res.set(Field::FrameSN, i_fsn_res);
 
-            let i_rid_res = init_ack.resolution.get(Field::RequestID);
+            let i_rid_res = init_ack.resolution.resolution.get(Field::RequestID);
             let m_rid_res = state.resolution.get(Field::RequestID);
 
             if i_rid_res > m_rid_res {
                 zbail!(ZTransportError::InvalidRx);
             }
+
             res.set(Field::RequestID, i_rid_res);
 
             res
         };
 
-        state.batch_size = state.batch_size.min(init_ack.batch_size);
+        state.batch_size = state.batch_size.min(init_ack.resolution.batch_size.0);
 
         let output = RecvInitAckOut {
-            other_zid: init_ack.zid,
-            other_whatami: init_ack.whatami,
+            other_zid: init_ack.identifier.zid,
+            other_whatami: init_ack.identifier.whatami,
             other_cookie: init_ack.cookie,
         };
 
@@ -140,75 +126,64 @@ pub(crate) struct SendOpenSynIn<'a> {
     pub(crate) mine_zid: ZenohIdProto,
     pub(crate) mine_lease: Duration,
     pub(crate) other_zid: ZenohIdProto,
-    pub(crate) other_cookie: ZBuf<'a>,
+    pub(crate) other_cookie: &'a [u8],
 }
 
 impl<'a> SendOpenSynIn<'a> {
     pub(crate) async fn send<T: Platform>(
         &self,
-        tx_zbuf: ZBufMut<'_>,
+        tx: &mut [u8],
         transport: &mut Transport<T>,
         state: &StateTransport,
     ) -> ZResult<SendOpenSynOut, ZTransportError> {
-        let mine_initial_sn = compute_sn(self.mine_zid, self.other_zid, state.resolution);
+        let mine_initial_sn = compute_sn(&self.mine_zid, &self.other_zid, state.resolution);
 
-        let msg = TransportMessage {
-            body: TransportBody::OpenSyn(OpenSyn {
-                lease: self.mine_lease,
-                initial_sn: mine_initial_sn,
-                cookie: self.other_cookie,
-                ext_qos: None,
-                ext_auth: None,
-                ext_mlink: None,
-                ext_lowlatency: None,
-                ext_compression: None,
-            }),
+        let msg = OpenSyn {
+            lease: self.mine_lease,
+            sn: mine_initial_sn,
+            cookie: self.other_cookie,
+            ext: OpenExt::DEFAULT,
         };
 
-        transport.send(tx_zbuf, &msg).await?;
+        transport
+            .send(tx, &mut 0, |batch| batch.write_open_syn(&msg))
+            .await?;
 
-        let output = SendOpenSynOut { mine_initial_sn };
+        let output = SendOpenSynOut {
+            mine_sn: mine_initial_sn,
+        };
 
         Ok(output)
     }
 }
 
 pub(crate) struct SendOpenSynOut {
-    pub(crate) mine_initial_sn: TransportSn,
+    pub(crate) mine_sn: u32,
 }
 
 pub(crate) struct RecvOpenAckOut {
     pub(crate) other_lease: Duration,
     #[allow(dead_code)]
-    pub(crate) other_initial_sn: TransportSn,
+    pub(crate) other_sn: u32,
 }
 
 impl RecvOpenAckOut {
-    pub(crate) async fn recv<'a, T: Platform>(
-        rx_zbuf: ZBufMut<'a>,
+    pub(crate) async fn recv<T: Platform>(
+        rx: &mut [u8],
         transport: &mut Transport<T>,
     ) -> ZResult<Self, ZTransportError> {
-        let mut reader = transport.recv(rx_zbuf).await?;
-
-        let mut msg = Option::<OpenAck<'a>>::None;
-        TransportMessage::decode_batch(
-            &mut reader,
-            None::<fn(InitSyn)>,
-            None::<fn(InitAck)>,
-            None::<fn(OpenSyn)>,
-            Some(|o: OpenAck<'a>| {
-                msg = Some(o);
-            }),
-            None::<fn()>,
-            None::<fn(&FrameHeader, NetworkMessage)>,
-        )?;
-
-        let Some(open_ack) = msg else {
-            zbail!(ZTransportError::InvalidRx);
+        let mut reader = transport.recv(rx).await?;
+        let mut batch = TransportBatch::new(&mut reader);
+        let open_ack = loop {
+            match batch.next() {
+                Some(TransportBody::OpenAck(o)) => break o,
+                Some(_) => continue,
+                None => zbail!(ZTransportError::InvalidRx),
+            }
         };
 
         let output = RecvOpenAckOut {
-            other_initial_sn: open_ack.initial_sn,
+            other_sn: open_ack.sn,
             other_lease: open_ack.lease,
         };
 
@@ -219,8 +194,8 @@ impl RecvOpenAckOut {
 pub(crate) async fn open_link<T: Platform>(
     link: Link<T>,
     config: TransportMineConfig,
-    tx_zbuf: ZBufMut<'_>,
-    rx_zbuf: ZBufMut<'_>,
+    tx: &mut [u8],
+    rx: &mut [u8],
 ) -> ZResult<(Transport<T>, TransportConfig), ZTransportError> {
     let batch_size = link.mtu();
 
@@ -232,26 +207,26 @@ pub(crate) async fn open_link<T: Platform>(
     };
 
     let isyn_in = SendInitSynIn {
-        mine_version: VERSION,
-        mine_zid: config.mine_zid,
+        mine_version: 9,
+        mine_zid: config.mine_zid.clone(),
         mine_whatami: WhatAmI::Client,
     };
 
-    isyn_in.send::<_>(tx_zbuf, &mut transport, &state).await?;
-    let iack_out = RecvInitAckOut::recv::<_>(rx_zbuf, &mut transport, &mut state).await?;
+    isyn_in.send::<_>(tx, &mut transport, &state).await?;
+    let iack_out = RecvInitAckOut::recv::<_>(rx, &mut transport, &mut state).await?;
 
-    let other_zid = iack_out.other_zid;
+    let other_zid = iack_out.other_zid.clone();
     let other_whatami = iack_out.other_whatami;
 
     let osyn_in = SendOpenSynIn {
-        mine_zid: config.mine_zid,
+        mine_zid: config.mine_zid.clone(),
         other_zid: iack_out.other_zid,
         mine_lease: config.mine_lease,
         other_cookie: iack_out.other_cookie,
     };
 
-    let osyn_out = osyn_in.send::<_>(tx_zbuf, &mut transport, &state).await?;
-    let oack_out = RecvOpenAckOut::recv::<_>(rx_zbuf, &mut transport).await?;
+    let osyn_out = osyn_in.send::<_>(tx, &mut transport, &state).await?;
+    let oack_out = RecvOpenAckOut::recv::<_>(rx, &mut transport).await?;
 
     Ok((
         transport,
@@ -260,11 +235,11 @@ pub(crate) async fn open_link<T: Platform>(
             other_config: TransportOtherConfig {
                 other_zid,
                 other_whatami,
-                other_sn: osyn_out.mine_initial_sn,
+                other_sn: osyn_out.mine_sn,
                 other_lease: oack_out.other_lease,
             },
             negociated_config: TransportNegociatedConfig {
-                mine_sn: osyn_out.mine_initial_sn,
+                mine_sn: osyn_out.mine_sn,
                 batch_size: state.batch_size,
                 resolution: state.resolution,
             },

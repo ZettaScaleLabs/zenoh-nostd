@@ -1,3 +1,66 @@
+use crate::ke::{DELIMITER, keyexpr};
+
+pub(crate) trait MayHaveVerbatim {
+    fn has_verbatim(&self) -> bool;
+    fn has_direct_verbatim(&self) -> bool;
+    unsafe fn has_direct_verbatim_non_empty(&self) -> bool {
+        self.has_direct_verbatim()
+    }
+}
+
+impl MayHaveVerbatim for [u8] {
+    fn has_direct_verbatim(&self) -> bool {
+        matches!(self, [b'@', ..])
+    }
+    fn has_verbatim(&self) -> bool {
+        self.split(|c| *c == DELIMITER)
+            .any(MayHaveVerbatim::has_direct_verbatim)
+    }
+    unsafe fn has_direct_verbatim_non_empty(&self) -> bool {
+        unsafe { *self.get_unchecked(0) == b'@' }
+    }
+}
+
+#[repr(u8)]
+enum MatchComplexity {
+    NoWilds = 0,
+    ChunkWildsOnly = 1,
+    Dsl = 2,
+}
+
+impl keyexpr {
+    fn match_complexity(&self) -> MatchComplexity {
+        let mut has_wilds = false;
+        for &c in self.as_bytes() {
+            match c {
+                b'*' => has_wilds = true,
+                b'$' => return MatchComplexity::Dsl,
+                _ => {}
+            }
+        }
+        if has_wilds {
+            MatchComplexity::ChunkWildsOnly
+        } else {
+            MatchComplexity::NoWilds
+        }
+    }
+
+    pub fn intersects(&self, other: &Self) -> bool {
+        let left = self.as_bytes();
+        let right = other.as_bytes();
+
+        if left == right {
+            return true;
+        }
+
+        match self.match_complexity() as u8 | other.match_complexity() as u8 {
+            0 => false,
+            1 => it_intersect::<false>(left, right),
+            _ => it_intersect::<true>(left, right),
+        }
+    }
+}
+
 #[cold]
 fn star_dsl_intersect(mut it1: &[u8], mut it2: &[u8]) -> bool {
     fn next(s: &[u8]) -> (u8, &[u8]) {
@@ -48,7 +111,7 @@ fn star_dsl_intersect(mut it1: &[u8], mut it2: &[u8]) -> bool {
 fn chunk_it_intersect<const STAR_DSL: bool>(it1: &[u8], it2: &[u8]) -> bool {
     it1 == b"*" || it2 == b"*" || (STAR_DSL && star_dsl_intersect(it1, it2))
 }
-#[inline(always)]
+
 fn chunk_intersect<const STAR_DSL: bool>(c1: &[u8], c2: &[u8]) -> bool {
     if c1 == c2 {
         return true;
@@ -59,7 +122,6 @@ fn chunk_intersect<const STAR_DSL: bool>(c1: &[u8], c2: &[u8]) -> bool {
     chunk_it_intersect::<STAR_DSL>(c1, c2)
 }
 
-#[inline(always)]
 fn next(s: &[u8]) -> (&[u8], &[u8]) {
     match s.iter().position(|c| *c == b'/') {
         Some(i) => (&s[..i], &s[(i + 1)..]),
@@ -96,24 +158,4 @@ fn it_intersect<const STAR_DSL: bool>(mut it1: &[u8], mut it2: &[u8]) -> bool {
         }
     }
     (it1.is_empty() || it1 == b"**") && (it2.is_empty() || it2 == b"**")
-}
-
-#[inline(always)]
-pub(crate) fn intersect<const STAR_DSL: bool>(s1: &[u8], s2: &[u8]) -> bool {
-    it_intersect::<STAR_DSL>(s1, s2)
-}
-
-use super::{Intersector, MayHaveVerbatim, restriction::NoSubWilds};
-
-pub(crate) struct ClassicIntersector;
-impl Intersector<NoSubWilds<&[u8]>, NoSubWilds<&[u8]>> for ClassicIntersector {
-    fn intersect(&self, left: NoSubWilds<&[u8]>, right: NoSubWilds<&[u8]>) -> bool {
-        intersect::<false>(left.0, right.0)
-    }
-}
-
-impl Intersector<&[u8], &[u8]> for ClassicIntersector {
-    fn intersect(&self, left: &[u8], right: &[u8]) -> bool {
-        intersect::<true>(left, right)
-    }
 }

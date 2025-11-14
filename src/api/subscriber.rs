@@ -3,7 +3,7 @@ use heapless::index_map::{FnvIndexMap, Iter};
 
 use crate::{
     api::{callback::ZCallback, sample::ZOwnedSample},
-    protocol::keyexpr::borrowed::keyexpr,
+    ke::keyexpr,
     result::{ZError, ZResult},
     zbail,
 };

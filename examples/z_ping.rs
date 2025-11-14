@@ -3,8 +3,7 @@ use zenoh_nostd::{EndPoint, PlatformStd, keyexpr, zsubscriber};
 
 const CONNECT: Option<&str> = option_env!("CONNECT");
 
-#[embassy_executor::main]
-async fn main(spawner: embassy_executor::Spawner) {
+async fn entry(spawner: embassy_executor::Spawner) -> zenoh_nostd::result::ZResult<()> {
     #[cfg(feature = "log")]
     env_logger::init();
 
@@ -18,11 +17,10 @@ async fn main(spawner: embassy_executor::Spawner) {
                 MAX_SUBSCRIBERS: 2
         ),
         EndPoint::try_from(CONNECT.unwrap_or("tcp/127.0.0.1:7447")).unwrap()
-    )
-    .unwrap();
+    );
 
-    let ke_pong: &'static keyexpr = "test/pong".try_into().unwrap();
-    let ke_ping: &'static keyexpr = "test/ping".try_into().unwrap();
+    let ke_pong = keyexpr::new("test/pong").unwrap();
+    let ke_ping = keyexpr::new("test/ping").unwrap();
 
     let sub = session
         .declare_subscriber(
@@ -69,4 +67,13 @@ async fn main(spawner: embassy_executor::Spawner) {
         "Average RTT: {:?}µs, Average Latency: {:?}µs",
         avg_rtt, avg_lat
     );
+
+    Ok(())
+}
+
+#[embassy_executor::main]
+async fn main(spawner: embassy_executor::Spawner) {
+    if let Err(e) = entry(spawner).await {
+        zenoh_nostd::error!("Error in main: {:?}", e);
+    }
 }

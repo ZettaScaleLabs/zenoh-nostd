@@ -1,12 +1,6 @@
-use core::{
-    convert::{TryFrom, TryInto},
-    fmt,
-    ops::Deref,
-};
+use core::{convert::TryFrom, fmt, ops::Deref};
 
-use heapless::String;
-
-use crate::{protocol::keyexpr::ZKeyExprError, zbail};
+use crate::{protocol::ke::ZKeyExprError, result::ZResult, zbail};
 
 #[allow(non_camel_case_types)]
 #[repr(transparent)]
@@ -14,45 +8,12 @@ use crate::{protocol::keyexpr::ZKeyExprError, zbail};
 pub struct keyexpr(str);
 
 impl keyexpr {
-    pub(crate) fn intersects(&self, other: &Self) -> bool {
-        use super::intersect::Intersector;
-        super::intersect::DEFAULT_INTERSECTOR.intersect(self, other)
-    }
-
-    pub(crate) fn is_wild_impl(&self) -> bool {
-        self.0.contains(super::SINGLE_WILD as char)
-    }
-
-    pub const fn as_str(&self) -> &str {
-        &self.0
-    }
-
-    pub(crate) const fn from_str_unchecked(s: &str) -> &Self {
-        unsafe { core::mem::transmute(s) }
-    }
-}
-
-impl fmt::Debug for keyexpr {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "ke`{}`", self.as_ref())
-    }
-}
-
-impl fmt::Display for keyexpr {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.write_str(self)
-    }
-}
-
-impl<'a> TryFrom<&'a str> for &'a keyexpr {
-    type Error = ZKeyExprError;
-
-    fn try_from(value: &'a str) -> Result<Self, Self::Error> {
-        if value.is_empty() || value.ends_with('/') {
+    pub fn new(v: &str) -> ZResult<&'_ Self, ZKeyExprError> {
+        if v.is_empty() || v.ends_with('/') {
             zbail!(ZKeyExprError::EmptyChunk);
         }
 
-        let bytes = value.as_bytes();
+        let bytes = v.as_bytes();
 
         let mut chunk_start = 0;
 
@@ -83,8 +44,8 @@ impl<'a> TryFrom<&'a str> for &'a keyexpr {
 
                         Some(&b'/') if matches!(bytes.get(i + 3), Some(b'*')) => {
                             #[cold]
-                            fn double_star_err(value: &str, i: usize) -> ZKeyExprError {
-                                match (value.as_bytes().get(i + 4), value.as_bytes().get(i + 5)) {
+                            fn double_star_err(v: &str, i: usize) -> ZKeyExprError {
+                                match (v.as_bytes().get(i + 4), v.as_bytes().get(i + 5)) {
                                     (None | Some(&b'/'), _) => {
                                         ZKeyExprError::SingleStarAfterDoubleStar
                                     }
@@ -95,7 +56,7 @@ impl<'a> TryFrom<&'a str> for &'a keyexpr {
                                 }
                             }
 
-                            zbail!(double_star_err(value, i));
+                            zbail!(double_star_err(v, i));
                         }
 
                         Some(&b'/') => {
@@ -131,28 +92,31 @@ impl<'a> TryFrom<&'a str> for &'a keyexpr {
             }
         }
 
-        Ok(keyexpr::from_str_unchecked(value))
+        Ok(keyexpr::from_str_unchecked(v))
+    }
+
+    pub(crate) fn is_wild_impl(&self) -> bool {
+        self.0.contains(super::SINGLE_WILD as char)
+    }
+
+    pub const fn as_str(&self) -> &str {
+        &self.0
+    }
+
+    pub(crate) const fn from_str_unchecked(s: &str) -> &Self {
+        unsafe { core::mem::transmute(s) }
     }
 }
 
-impl<'a> TryFrom<&'a mut str> for &'a keyexpr {
-    type Error = ZKeyExprError;
-    fn try_from(value: &'a mut str) -> Result<Self, Self::Error> {
-        (value as &'a str).try_into()
+impl fmt::Debug for keyexpr {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "ke`{}`", self.as_ref())
     }
 }
 
-impl<'a, const N: usize> TryFrom<&'a mut String<N>> for &'a keyexpr {
-    type Error = ZKeyExprError;
-    fn try_from(value: &'a mut String<N>) -> Result<Self, Self::Error> {
-        (value.as_str()).try_into()
-    }
-}
-
-impl<'a, const N: usize> TryFrom<&'a String<N>> for &'a keyexpr {
-    type Error = ZKeyExprError;
-    fn try_from(value: &'a String<N>) -> Result<Self, Self::Error> {
-        (value.as_str()).try_into()
+impl fmt::Display for keyexpr {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str(self)
     }
 }
 
@@ -197,11 +161,11 @@ impl Deref for nonwild_keyexpr {
 
 impl<'a> TryFrom<&'a keyexpr> for &'a nonwild_keyexpr {
     type Error = ZKeyExprError;
-    fn try_from(value: &'a keyexpr) -> Result<Self, Self::Error> {
-        if value.is_wild_impl() {
+    fn try_from(v: &'a keyexpr) -> Result<Self, Self::Error> {
+        if v.is_wild_impl() {
             zbail!(ZKeyExprError::WildChunk);
         }
 
-        Ok(unsafe { core::mem::transmute::<&keyexpr, &nonwild_keyexpr>(value) })
+        Ok(unsafe { core::mem::transmute::<&keyexpr, &nonwild_keyexpr>(v) })
     }
 }

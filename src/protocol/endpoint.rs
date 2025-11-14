@@ -1,6 +1,6 @@
 use core::{convert::TryFrom, fmt};
 
-use crate::protocol::ZProtocolError;
+use crate::ZProtocolError;
 
 pub(crate) const PROTO_SEPARATOR: char = '/';
 pub(crate) const METADATA_SEPARATOR: char = '?';
