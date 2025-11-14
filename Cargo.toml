@@ -1,6 +1,8 @@
 [workspace]
 members = ["zenoh-nostd-codec"]
 
+exclude = ["platforms/zenoh-nostd-embassy"]
+
 [workspace.package]
 authors = []
 categories = ["network-programming"]
