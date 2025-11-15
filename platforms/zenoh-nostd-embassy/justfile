@@ -1,5 +1,0 @@
-clippy:
-    cargo +esp clippy --fix --lib --allow-dirty --allow-staged -Zbuild-std=core,alloc --target xtensa-esp32s3-none-elf --release
-    cargo +esp clippy --fix --lib --allow-dirty --allow-staged -Zbuild-std=core,alloc --target xtensa-esp32s3-none-elf
-esp32s3 example *args:
-    cd example-esp32s3 && just esp32s3 {{example}} {{args}}
