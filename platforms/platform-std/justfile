@@ -6,9 +6,3 @@ check:
 
     cargo clippy --examples --features=zenoh-nostd/platform-std, --fix --lib --allow-dirty --allow-staged
     cargo clippy --examples --features=zenoh-nostd/platform-std,zenoh-proto/log --fix --lib --allow-dirty --allow-staged
-
-    cd platforms/platform-std && just check
-    cd platforms/platform-embassy && just check
-
-test:
-    cargo test --all

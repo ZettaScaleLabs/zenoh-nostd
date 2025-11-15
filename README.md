@@ -86,7 +86,7 @@ async fn entry(spawner: embassy_executor::Spawner) -> zenoh_nostd::result::ZResu
 
 ## 🔬 MSRV
 
-> 🛠️ **Minimum Supported Rust Version**: Currently `1.89.0`
+> 🛠️ **Minimum Supported Rust Version**: Currently `1.90.0`
 
 ---
 
@@ -99,9 +99,9 @@ async fn entry(spawner: embassy_executor::Spawner) -> zenoh_nostd::result::ZResu
 
 ## 🧪 Building and Testing
 
-This project uses [`just`](https://github.com/casey/just) for task management. Use `just clippy` to verify the crate and examples, `just test` to run the `codec` tests and `just bench` to run the `codec` benchmark.
+This project uses [`just`](https://github.com/casey/just) for task management. Use `just clippy` to check the project and examples, `just test` to run the tests and `just bench` to run the benchmarks.
 
-> 🔍 Pull requests that slow down the codec should be rejected.
+> 🔍 Pull requests that slow down the bench should be avoided.
 
 ### Testing Examples
 
@@ -146,21 +146,26 @@ just std z_sub
 ## 📁 Project Layout
 
 ```text
-src/
-├── api/           # Public API (sessions, publishers, subscribers)
-├── codec/         # Zenoh protocol codec (encoding/decoding traits
-├── io/            # I/O abstractions (traits for transport/link layers)
-├── platform/      # Platform abstractions (traits for platform-specific features)
-├── protocol/      # Zenoh protocol definitions (messages, types)
-├── tests/         # Unit and integration tests
-├── lib.rs         # Library entry point
-├── logging.rs     # Logging abstractions
-└── result.rs      # Result and error types
-
-platforms/
-└── zenoh-embassy  # Integration with Embassy-based devices
-
-zenoh-nostd-codec/ # Codec proc-macro
+zenoh-nostd/            # Git repository root
+├── crates/
+│   ├── zenoh-derive/   # Derive macros
+│   ├── zenoh-nostd/    # Zenoh with IO
+│   ├── zenoh-proto/    # Zenoh Protocol
+│  (└── zenoh-sansio/   # Zenoh Sans IO, not yet...)
+│
+├── examples/
+│   ├── z_ping.rs       # Example
+│   ├── z_pong.rs       # Example
+│   ├── z_put.rs        # Example
+│   └── z_sub.rs        # Example
+│
+└── platforms/            # Platform-specific implementations
+│   ├── platform-embassy/ # Embassy platforms (no_std)
+│   └── platform-std/     # Standard platforms (std)
+│
+├── Cargo.toml          # Workspace + example package
+└── src/
+    └── lib.rs          # Example lib.rs
 ```
 
 ---

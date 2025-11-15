@@ -1,0 +1,30 @@
+[package]
+name = "zenoh-proto"
+authors.workspace = true
+categories.workspace = true
+description.workspace = true
+edition.workspace = true
+homepage.workspace = true
+license.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+version.workspace = true
+
+[features]
+default = []
+
+log = ["dep:log"]
+defmt = ["dep:defmt"]
+
+[dependencies]
+zenoh-derive.workspace = true
+
+uhlc.workspace = true
+
+log = { workspace = true, optional = true }
+defmt = { workspace = true, optional = true }
+
+[dev-dependencies]
+rand.workspace = true
+paste.workspace = true
+criterion.workspace = true
