@@ -47,41 +47,46 @@ pub use defmt;
 #[cfg(feature = "defmt")]
 #[macro_export]
 macro_rules! trace {
-    ($($arg:tt)+) => {
+    ($($arg:tt)+) => {{
+        use $crate::defmt;
         $crate::defmt::trace!($($arg)+)
-    };
+    }};
 }
 
 #[cfg(feature = "defmt")]
 #[macro_export]
 macro_rules! debug {
-    ($($arg:tt)+) => {
+    ($($arg:tt)+) => {{
+        use $crate::defmt;
         $crate::defmt::debug!($($arg)+)
-    };
+    }};
 }
 
 #[cfg(feature = "defmt")]
 #[macro_export]
 macro_rules! info {
-    ($($arg:tt)+) => {
+    ($($arg:tt)+) => {{
+        use $crate::defmt;
         $crate::defmt::info!($($arg)+)
-    };
+    }};
 }
 
 #[cfg(feature = "defmt")]
 #[macro_export]
 macro_rules! warn {
-    ($($arg:tt)+) => {
+    ($($arg:tt)+) => {{
+        use $crate::defmt;
         $crate::defmt::warn!($($arg)+)
-    };
+    }};
 }
 
 #[cfg(feature = "defmt")]
 #[macro_export]
 macro_rules! error {
-    ($($arg:tt)+) => {
+    ($($arg:tt)+) => {{
+        use $crate::defmt;
         $crate::defmt::error!($($arg)+)
-    };
+    }};
 }
 
 #[cfg(not(any(feature = "log", feature = "defmt")))]

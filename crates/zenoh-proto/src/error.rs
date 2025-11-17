@@ -139,6 +139,53 @@ impl core::fmt::Display for ZError {
     }
 }
 
+#[cfg(not(feature = "defmt"))]
+#[macro_export]
+macro_rules! make_zerr {
+    (
+        $(
+            #[doc = $doc:literal]
+            #[err = $err:literal]
+            enum $name:ident {
+                $(
+                    $variant:ident
+                ),* $(,)?
+            }
+        )*
+    ) => {
+        $(
+            #[allow(clippy::enum_variant_names)]
+            #[repr(u8)]
+            #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+            #[doc = $doc]
+            pub enum $name {
+                $(
+                    #[doc = concat!("See [`ZError::", stringify!($variant), "`]")]
+                    $variant = $crate::ZError::$variant as u8,
+                )*
+            }
+
+            impl From<$name> for $crate::ZError {
+                fn from(value: $name) -> Self {
+                    match value {
+                        $(
+                            $name::$variant => $crate::ZError::$variant,
+                        )*
+                    }
+                }
+            }
+
+            impl ::core::fmt::Display for $name {
+                fn fmt(&self, f: &mut ::core::fmt::Formatter<'_>) -> ::core::fmt::Result {
+                    let zerror: $crate::ZError = (*self).into();
+                    write!(f, "{}: {}", $err, zerror)
+                }
+            }
+        )*
+    };
+}
+
+#[cfg(feature = "defmt")]
 #[macro_export]
 macro_rules! make_zerr {
     (
@@ -181,10 +228,10 @@ macro_rules! make_zerr {
                 }
             }
 
-            #[cfg(feature = "defmt")]
-            impl defmt::Format for $name {
-                fn format(&self, f: defmt::Formatter) {
-                    defmt::write!(f, "{}({}): {}", $err, *self as u8, self);
+            impl $crate::defmt::Format for $name {
+                fn format(&self, f: $crate::defmt::Formatter) {
+                    use $crate::defmt;
+                    $crate::defmt::write!(f, "{}({}): {}", $err, *self as u8, self);
                 }
             }
         )*

@@ -13,8 +13,6 @@ version.workspace = true
 [features]
 default = []
 
-defmt = []
-
 [dependencies]
 zenoh-proto.workspace = true
 
