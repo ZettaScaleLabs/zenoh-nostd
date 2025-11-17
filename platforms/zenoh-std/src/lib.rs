@@ -1,5 +1,7 @@
-use zenoh_nostd::platform::{Platform, ZConnectionError};
-use zenoh_proto::ZResult;
+use zenoh_nostd::{
+    ZResult,
+    platform::{Platform, ZConnectionError},
+};
 
 pub(crate) mod tcp;
 

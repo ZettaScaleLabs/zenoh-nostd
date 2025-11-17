@@ -13,6 +13,9 @@ version.workspace = true
 [features]
 default = []
 
+log = ["zenoh-proto/log"]
+defmt = ["zenoh-proto/defmt"]
+
 [dependencies]
 zenoh-proto.workspace = true
 

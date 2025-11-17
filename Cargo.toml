@@ -19,8 +19,6 @@ zenoh-derive = { version = "0.1.0", path = "crates/zenoh-derive" }
 zenoh-proto = { version = "0.1.0", path = "crates/zenoh-proto" }
 zenoh-nostd = { version = "0.1.0", path = "crates/zenoh-nostd" }
 
-zenoh-std = { version = "0.1.0", path = "platforms/zenoh-std" }
-
 uhlc = { version = "0.8.1", git = "https://github.com/Hennzau/uhlc-rs", branch = "no-alloc", default-features = false }
 sha3 = { version = "0.10.8", default-features = false }
 
@@ -31,7 +29,7 @@ embassy-sync = "0.7.2"
 embassy-executor = "0.9.1"
 
 # Heapless / static
-heapless = "0.9.2"
+heapless = { version = "0.9.2", default-features = false }
 static_cell = "2.1.1"
 
 # Proc macro
@@ -43,12 +41,10 @@ syn = { version = "2.0", features = ["full"] }
 defmt = "1.0"
 log = "0.4"
 
-# Dev
+# Tests
 rand = "0.8"
 criterion = "0.7"
 paste = "1.0"
-env_logger = "0.10.0"
-critical-section = "1.2"
 
 [package]
 name = "zenoh-examples"
@@ -65,25 +61,54 @@ readme.workspace = true
 [features]
 default = []
 
-log = ["zenoh-proto/log"]
+log = ["zenoh-nostd/log"]
+defmt = ["zenoh-nostd/defmt"]
+
+std = [
+    "dep:zenoh-std",
+    "dep:env_logger",
+    "embassy-executor/arch-std",
+    "embassy-executor/executor-thread",
+    "embassy-time/std",
+    "dep:critical-section",
+]
+
+esp32s3 = [
+    "dep:zenoh-embassy",
+    "dep:getrandom",
+    "dep:esp-bootloader-esp-idf",
+    "dep:esp-hal",
+    "dep:embassy-net",
+    "dep:esp-alloc",
+    "dep:esp-println",
+    "dep:esp-rtos",
+    "dep:esp-radio",
+]
 
 [dependencies]
-zenoh-proto = { workspace = true }
 zenoh-nostd = { workspace = true }
-zenoh-std = { workspace = true }
-
-env_logger = { workspace = true }
-
-embassy-executor = { workspace = true, features = ["arch-std", "executor-thread"] }
-embassy-time = { workspace = true, features = ["std"] }
-embassy-sync = { workspace = true  }
-
 static_cell = { workspace = true }
+embassy-sync = { workspace = true  }
+embassy-executor = { workspace = true }
+embassy-time = { workspace = true }
 
-critical-section = { workspace = true, features = ["std"] }
+zenoh-std = { version = "0.1.0", path = "platforms/zenoh-std", optional = true }
+zenoh-embassy = { version = "0.1.0", path = "platforms/zenoh-embassy", optional = true }
+
+critical-section = { version = "1.2", features = ["std"], optional = true }
+env_logger = { version = "0.10.0", optional = true}
+
+getrandom = { version = "0.2.16", features = ["custom"], optional = true }
+esp-bootloader-esp-idf = { version = "0.2.0", features = ["esp32s3"], optional = true }
+esp-hal = { version = "1.0.0", features = ["defmt", "esp32s3", "unstable"], optional = true }
+embassy-net = { version = "0.7.1", features = ["defmt", "dhcpv4", "medium-ethernet", "tcp"], optional = true }
+esp-alloc = { version = "0.9.0", features = ["defmt"], optional = true }
+esp-println = { version = "0.15.0", features = ["defmt-espflash", "esp32s3"], optional = true }
+esp-rtos = { version = "0.2.0", features = ["esp32s3", "esp-radio", "embassy"], optional = true }
+esp-radio = { version = "0.17.0", features = ["unstable", "defmt", "esp-alloc", "esp32s3", "smoltcp", "wifi"], optional = true }
 
 [profile.dev]
-opt-level = 0
+opt-level = "s"
 lto = false
 codegen-units = 16
 panic = "abort"

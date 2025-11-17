@@ -1,11 +1,12 @@
 use futures_lite::{AsyncReadExt, AsyncWriteExt};
 
-use zenoh_nostd::platform::{
-    ZConnectionError,
-    tcp::{AbstractedTcpRx, AbstractedTcpStream, AbstractedTcpTx},
+use zenoh_nostd::{
+    ZResult,
+    platform::{
+        ZConnectionError,
+        tcp::{AbstractedTcpRx, AbstractedTcpStream, AbstractedTcpTx},
+    },
 };
-
-use zenoh_proto::ZResult;
 
 pub struct StdTcpStream {
     pub stream: async_net::TcpStream,

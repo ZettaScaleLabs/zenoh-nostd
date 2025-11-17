@@ -2,8 +2,11 @@
 
 use embassy_net::{IpAddress, IpEndpoint, Stack, tcp::TcpSocket};
 use static_cell::StaticCell;
-use zenoh_nostd::platform::{Platform, ZConnectionError};
-use zenoh_proto::{ZResult, zbail};
+use zenoh_nostd::{
+    ZResult,
+    platform::{Platform, ZConnectionError},
+    zbail,
+};
 
 pub mod tcp;
 

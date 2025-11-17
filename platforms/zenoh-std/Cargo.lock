@@ -842,5 +842,4 @@ dependencies = [
  "futures-lite",
  "socket2",
  "zenoh-nostd",
- "zenoh-proto",
 ]

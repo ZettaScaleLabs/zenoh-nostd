@@ -1,10 +1,12 @@
 use embassy_net::tcp::{TcpReader, TcpSocket, TcpWriter};
 use embedded_io_async::{Read, Write};
-use zenoh_nostd::platform::{
-    ZConnectionError,
-    tcp::{AbstractedTcpRx, AbstractedTcpStream, AbstractedTcpTx},
+use zenoh_nostd::{
+    ZResult,
+    platform::{
+        ZConnectionError,
+        tcp::{AbstractedTcpRx, AbstractedTcpStream, AbstractedTcpTx},
+    },
 };
-use zenoh_proto::ZResult;
 
 pub struct EmbassyTcpStream {
     pub socket: TcpSocket<'static>,

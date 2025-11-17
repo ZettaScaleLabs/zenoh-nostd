@@ -1,4 +1,4 @@
 check:
     cargo clippy --fix --lib --allow-dirty --allow-staged
-    cargo clippy --features=zenoh-proto/log --fix --lib --allow-dirty --allow-staged
-    cargo clippy --features=zenoh-proto/defmt --fix --lib --allow-dirty --allow-staged
+    cargo clippy --features=zenoh-nostd/log --fix --lib --allow-dirty --allow-staged
+    cargo clippy --features=zenoh-nostd/defmt --fix --lib --allow-dirty --allow-staged
