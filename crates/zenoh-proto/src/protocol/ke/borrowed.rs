@@ -103,7 +103,7 @@ impl keyexpr {
         &self.0
     }
 
-    pub(crate) const fn from_str_unchecked(s: &str) -> &Self {
+    pub const fn from_str_unchecked(s: &str) -> &Self {
         unsafe { core::mem::transmute(s) }
     }
 }

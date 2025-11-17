@@ -1,8 +1,0 @@
-check:
-    cargo clippy --fix --lib --allow-dirty --allow-staged
-    cargo clippy --features=zenoh-nostd/platform-std --fix --lib --allow-dirty --allow-staged
-    cargo clippy --features=zenoh-proto/log --fix --lib --allow-dirty --allow-staged
-    cargo clippy --features=zenoh-proto/defmt --fix --lib --allow-dirty --allow-staged
-
-    cargo clippy --examples --features=zenoh-nostd/platform-std, --fix --lib --allow-dirty --allow-staged
-    cargo clippy --examples --features=zenoh-nostd/platform-std,zenoh-proto/log --fix --lib --allow-dirty --allow-staged

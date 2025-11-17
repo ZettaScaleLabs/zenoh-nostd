@@ -13,8 +13,17 @@ version.workspace = true
 [features]
 default = []
 
-platform-std = []
-platform-embassy = []
+defmt = []
 
 [dependencies]
 zenoh-proto.workspace = true
+
+sha3.workspace = true
+
+embassy-futures.workspace = true
+embassy-time.workspace = true
+embassy-sync.workspace = true
+embassy-executor.workspace = true
+
+heapless.workspace = true
+static_cell.workspace = true

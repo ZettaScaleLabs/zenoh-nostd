@@ -1,0 +1,19 @@
+[package]
+name = "zenoh-std"
+authors = []
+categories = ["network-programming"]
+description = "Zenoh: The Zero Overhead Pub/Sub/Query Protocol."
+edition = "2024"
+homepage = "http://zenoh.io"
+license = "EPL-2.0 OR Apache-2.0"
+repository = "https://github.com/ZettaScaleLabs/zenoh-nostd"
+rust-version = "1.90.0"
+version = "0.1.0"
+
+[dependencies]
+zenoh-proto = { version = "0.1.0", path = "../../crates/zenoh-proto" }
+zenoh-nostd = { version = "0.1.0", path = "../../crates/zenoh-nostd" }
+
+async-net = { version = "2.0.0" }
+socket2 = { version = "0.6.0", features = ["all"] }
+futures-lite = { version = "2.6.1" }

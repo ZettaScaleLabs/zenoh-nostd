@@ -1,6 +1,6 @@
 [workspace]
 members = ["crates/zenoh-derive","crates/zenoh-nostd", "crates/zenoh-proto"]
-exclude = ["platforms/platform-embassy", "platforms/platform-std"]
+exclude = ["platforms/zenoh-std", "platforms/zenoh-embassy"]
 
 [workspace.package]
 authors = []
@@ -19,7 +19,20 @@ zenoh-derive = { version = "0.1.0", path = "crates/zenoh-derive" }
 zenoh-proto = { version = "0.1.0", path = "crates/zenoh-proto" }
 zenoh-nostd = { version = "0.1.0", path = "crates/zenoh-nostd" }
 
+zenoh-std = { version = "0.1.0", path = "platforms/zenoh-std" }
+
 uhlc = { version = "0.8.1", git = "https://github.com/Hennzau/uhlc-rs", branch = "no-alloc", default-features = false }
+sha3 = { version = "0.10.8", default-features = false }
+
+# Embassy (for async/await support)
+embassy-futures = "0.1.2"
+embassy-time = "0.5.0"
+embassy-sync = "0.7.2"
+embassy-executor = "0.9.1"
+
+# Heapless / static
+heapless = "0.9.2"
+static_cell = "2.1.1"
 
 # Proc macro
 proc-macro2 = "1.0"
@@ -34,6 +47,8 @@ log = "0.4"
 rand = "0.8"
 criterion = "0.7"
 paste = "1.0"
+env_logger = "0.10.0"
+critical-section = "1.2"
 
 [package]
 name = "zenoh-examples"
@@ -47,9 +62,25 @@ rust-version.workspace = true
 version.workspace = true
 readme.workspace = true
 
+[features]
+default = []
+
+log = ["zenoh-proto/log"]
+
 [dependencies]
 zenoh-proto = { workspace = true }
-zenoh-nostd = { workspace = true, features = ["platform-std"] }
+zenoh-nostd = { workspace = true }
+zenoh-std = { workspace = true }
+
+env_logger = { workspace = true }
+
+embassy-executor = { workspace = true, features = ["arch-std", "executor-thread"] }
+embassy-time = { workspace = true, features = ["std"] }
+embassy-sync = { workspace = true  }
+
+static_cell = { workspace = true }
+
+critical-section = { workspace = true, features = ["std"] }
 
 [profile.dev]
 opt-level = 0

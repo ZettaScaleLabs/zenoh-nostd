@@ -1,4 +1,6 @@
 mod codec;
+
+pub use codec::ZCodecError;
 pub(crate) use codec::*;
 
 mod core;

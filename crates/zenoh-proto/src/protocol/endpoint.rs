@@ -23,7 +23,7 @@ fn address(s: &str) -> &str {
 pub struct Protocol<'a>(&'a str);
 
 impl<'a> Protocol<'a> {
-    pub(crate) fn as_str(&self) -> &'_ str {
+    pub fn as_str(&self) -> &'_ str {
         self.0
     }
 }
@@ -51,7 +51,7 @@ impl fmt::Debug for Protocol<'_> {
 pub struct Address<'a>(&'a str);
 
 impl<'a> Address<'a> {
-    pub(crate) fn as_str(&self) -> &'_ str {
+    pub fn as_str(&self) -> &'_ str {
         self.0
     }
 }
