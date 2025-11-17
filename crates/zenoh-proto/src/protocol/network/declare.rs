@@ -24,7 +24,7 @@ pub struct Declare<'a> {
     pub body: DeclareBody<'a>,
 }
 
-crate::__internal_zaggregate_encode_len_decode! {
+crate::aggregate_enum_full! {
     #[derive(Debug, PartialEq)]
     pub enum DeclareBody<'a> {
         DeclareKeyExpr<'a>,

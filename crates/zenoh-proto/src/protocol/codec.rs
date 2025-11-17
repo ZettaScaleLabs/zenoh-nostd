@@ -7,7 +7,7 @@ pub use ext::*;
 pub type ZReader<'a> = &'a [u8];
 pub type ZWriter<'a> = &'a mut [u8];
 
-crate::__internal_zerr! {
+crate::make_zerr! {
     /// Errors related to IO operations on byte buffers
     #[err = "protocol error"]
     enum ZCodecError {

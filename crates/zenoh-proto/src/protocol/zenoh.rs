@@ -22,21 +22,21 @@ use put::Put;
 use query::Query;
 use reply::Reply;
 
-crate::__internal_zaggregate_encode_len_decode! {
+crate::aggregate_enum_full! {
     #[derive(Debug, PartialEq)]
     pub enum PushBody<'a> {
         Put<'a>,
     }
 }
 
-crate::__internal_zaggregate_encode_len_decode! {
+crate::aggregate_enum_full! {
     #[derive(Debug, PartialEq)]
     pub enum RequestBody<'a> {
         Query<'a>,
     }
 }
 
-crate::__internal_zaggregate_encode_len_decode! {
+crate::aggregate_enum_full! {
     #[derive(Debug, PartialEq)]
     pub enum ResponseBody<'a> {
         Err<'a>,
@@ -168,4 +168,4 @@ impl<'a> ZBodyDecode<'a> for ConsolidationMode {
     }
 }
 
-crate::__internal_zstructimpl!(ConsolidationMode);
+crate::derive_zstruct_with_body!(ConsolidationMode);

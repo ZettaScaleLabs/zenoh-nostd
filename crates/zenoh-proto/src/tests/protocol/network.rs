@@ -10,7 +10,7 @@ use crate::{
 const NUM_ITER: usize = 100;
 const MAX_PAYLOAD_SIZE: usize = 512;
 
-crate::roundtrips!(
+super::roundtrips!(
     ext,
     network,
     QoS,
@@ -20,7 +20,7 @@ crate::roundtrips!(
     Duration,
     QueryableInfo
 );
-crate::roundtrips!(
+super::roundtrips!(
     network,
     DeclareKeyExpr,
     UndeclareKeyExpr,

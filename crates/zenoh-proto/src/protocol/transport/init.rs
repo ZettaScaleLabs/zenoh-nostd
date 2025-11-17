@@ -227,4 +227,4 @@ impl<'a> ZBodyDecode<'a> for BatchSize {
     }
 }
 
-crate::__internal_zstructimpl!(BatchSize);
+crate::derive_zstruct_with_body!(BatchSize);

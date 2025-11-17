@@ -140,7 +140,7 @@ impl core::fmt::Display for ZError {
 }
 
 #[macro_export]
-macro_rules! __internal_zerr {
+macro_rules! make_zerr {
     (
         $(
             #[doc = $doc:literal]

@@ -93,7 +93,7 @@ impl<'a> ZBodyDecode<'a> for ZenohIdProto {
     }
 }
 
-crate::__internal_zstructimpl!(ZenohIdProto);
+crate::derive_zstruct_with_body!(ZenohIdProto);
 
 impl ZBodyLen for Timestamp {
     fn z_body_len(&self) -> usize {
@@ -127,7 +127,7 @@ impl<'a> ZBodyDecode<'a> for Timestamp {
     }
 }
 
-crate::__internal_zstructimpl!(Timestamp);
+crate::derive_zstruct_with_body!(Timestamp);
 
 impl<'a> ZExt<'a> for Timestamp {
     const KIND: ZExtKind = ZExtKind::ZStruct;

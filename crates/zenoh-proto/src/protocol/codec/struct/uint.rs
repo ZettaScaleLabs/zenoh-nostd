@@ -22,7 +22,7 @@ impl<'a> ZBodyDecode<'a> for u8 {
     }
 }
 
-crate::__internal_zstructimpl!(u8);
+crate::derive_zstruct_with_body!(u8);
 
 const VLE_LEN_MAX: usize = vle_len(u64::MAX);
 
@@ -114,7 +114,7 @@ impl<'a> ZBodyDecode<'a> for u64 {
     }
 }
 
-crate::__internal_zstructimpl!(u64);
+crate::derive_zstruct_with_body!(u64);
 
 macro_rules! zint {
     ($($ty:ty),*) => {
@@ -144,4 +144,4 @@ macro_rules! zint {
 }
 
 zint!(u16, u32, usize);
-crate::__internal_zstructimpl!(u16, u32, usize);
+crate::derive_zstruct_with_body!(u16, u32, usize);

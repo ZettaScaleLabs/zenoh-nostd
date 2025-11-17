@@ -5,8 +5,8 @@ use crate::{ZWriter, *};
 const NUM_ITER: usize = 100;
 const MAX_PAYLOAD_SIZE: usize = 512;
 
-crate::roundtrips!(ext, core, Timestamp);
-crate::roundtrips!(core, ZenohIdProto, Timestamp, Encoding);
+super::roundtrips!(ext, core, Timestamp);
+super::roundtrips!(core, ZenohIdProto, Timestamp, Encoding);
 
 trait RandTimestamp {
     fn rand(w: &mut ZWriter) -> Self;

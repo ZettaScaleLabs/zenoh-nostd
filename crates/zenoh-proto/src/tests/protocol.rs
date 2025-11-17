@@ -6,7 +6,6 @@ mod zenoh;
 
 mod ke;
 
-#[macro_export]
 macro_rules! roundtrip {
     ($ty:ty) => {{
         let mut rand_data = [0u8; MAX_PAYLOAD_SIZE * NUM_ITER];
@@ -42,15 +41,15 @@ macro_rules! roundtrip {
         }
     }};
 }
+pub(crate) use roundtrip;
 
-#[macro_export]
 macro_rules! roundtrips {
     (ext, $namespace:ident, $($ty:ty),* $(,)?) => {
         $(
             paste::paste! {
                 #[test]
                 fn [<$namespace _proto_ext_ $ty:lower>]() {
-                    $crate::roundtrip!(ext, $ty);
+                    $crate::tests::protocol::roundtrip!(ext, $ty);
                 }
             }
         )*
@@ -61,9 +60,10 @@ macro_rules! roundtrips {
             paste::paste! {
                 #[test]
                 fn [<$namespace _proto_ $ty:lower>]() {
-                    $crate::roundtrip!($ty);
+                    $crate::tests::protocol::roundtrip!($ty);
                 }
             }
         )*
     };
 }
+pub(crate) use roundtrips;

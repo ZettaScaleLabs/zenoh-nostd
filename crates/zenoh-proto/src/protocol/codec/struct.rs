@@ -39,8 +39,7 @@ pub trait ZExtCount {
     fn z_ext_count(&self) -> usize;
 }
 
-#[macro_export]
-macro_rules! __internal_zstructimpl {
+macro_rules! derive_zstruct_with_body {
     (lt, $($ty:ty),*) => {
         $(
             impl<'a> $crate::ZLen for $ty {
@@ -85,3 +84,5 @@ macro_rules! __internal_zstructimpl {
         )*
     };
 }
+
+pub(crate) use derive_zstruct_with_body;

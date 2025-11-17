@@ -14,7 +14,7 @@ pub use endpoint::*;
 mod ke;
 pub use ke::*;
 
-crate::__internal_zerr! {
+crate::make_zerr! {
     /// Errors related to Zenoh protocol
     #[err = "zenoh protocol error"]
     enum ZProtocolError {
@@ -25,8 +25,7 @@ crate::__internal_zerr! {
     }
 }
 
-#[macro_export]
-macro_rules! __internal_enum {
+macro_rules! aggregate_enum_full {
     (
         $(#[$meta:meta])*
         $vis:vis enum $name:ident <'a> {
@@ -35,107 +34,7 @@ macro_rules! __internal_enum {
             ),* $(,)?
         }
     ) => {
-        $(#[$meta])*
-        $vis enum $name<'a> {
-            $(
-                $variant($variant$(<$lt>)?),
-            )*
-        }
-
-
-        impl<'a> $name<'a> {
-            #[cfg(test)]
-            pub(crate) fn rand(zbuf: &mut $crate::ZWriter<'a>) -> $name<'a> {
-                use rand::seq::SliceRandom;
-
-                let mut rng = rand::thread_rng();
-                let choices = [
-                    $(
-                        $variant::ID,
-                    )*
-                ];
-                match *choices.choose(&mut rng).unwrap() {
-                    $(
-                        <$variant>::ID => Self::$variant(<$variant>::rand(zbuf)),
-                    )*
-                    _ => unreachable!(),
-                }
-            }
-        }
-    };
-}
-
-#[macro_export]
-macro_rules! __internal_len {
-    (
-        $(#[$meta:meta])*
-        $vis:vis enum $name:ident <'a> {
-            $(
-                $variant:ident $(<$lt:lifetime>)?
-            ),* $(,)?
-        }
-    ) => {
-        impl $crate::ZBodyLen for $name<'_> {
-            fn z_body_len(&self) -> usize {
-                match self {
-                    $(
-                        Self::$variant(x) => <$variant as $crate::ZBodyLen>::z_body_len(x),
-                    )*
-                }
-            }
-        }
-
-        impl $crate::ZLen for $name<'_> {
-            fn z_len(&self) -> usize {
-                1 + <Self as $crate::ZBodyLen>::z_body_len(self)
-            }
-        }
-    };
-}
-
-#[macro_export]
-macro_rules! __internal_encode {
-    (
-        $(#[$meta:meta])*
-        $vis:vis enum $name:ident <'a> {
-            $(
-                $variant:ident $(<$lt:lifetime>)?
-            ),* $(,)?
-        }
-    ) => {
-        impl $crate::ZBodyEncode for $name<'_> {
-            fn z_body_encode(&self, w: &mut $crate::ZWriter) -> $crate::ZCodecResult<()> {
-                match self {
-                    $(
-                        Self::$variant(x) => <$variant as $crate::ZBodyEncode>::z_body_encode(x, w),
-                    )*
-                }
-            }
-        }
-
-        impl $crate::ZEncode for $name<'_> {
-            fn z_encode(&self, w: &mut $crate::ZWriter) -> $crate::ZCodecResult<()> {
-                match self {
-                    $(
-                        Self::$variant(x) => <$variant as $crate::ZEncode>::z_encode(x, w),
-                    )*
-                }
-            }
-        }
-    };
-}
-
-#[macro_export]
-macro_rules! __internal_zaggregate_encode_len_decode {
-    (
-        $(#[$meta:meta])*
-        $vis:vis enum $name:ident <'a> {
-            $(
-                $variant:ident $(<$lt:lifetime>)?
-            ),* $(,)?
-        }
-    ) => {
-        $crate::__internal_zaggregate_encode_len! {
+        $crate::aggregate_enum_batch! {
             $(#[$meta])*
             $vis enum $name<'a> {
                 $(
@@ -167,9 +66,9 @@ macro_rules! __internal_zaggregate_encode_len_decode {
         }
     };
 }
+pub(crate) use aggregate_enum_full;
 
-#[macro_export]
-macro_rules! __internal_zaggregate_encode_len {
+macro_rules! aggregate_enum_batch {
     (
         $(#[$meta:meta])*
         $vis:vis enum $name:ident <'a> {
@@ -178,31 +77,69 @@ macro_rules! __internal_zaggregate_encode_len {
             ),* $(,)?
         }
     ) => {
-        $crate::__internal_enum! {
-            $(#[$meta])*
-            $vis enum $name<'a> {
-                $(
-                    $variant $(<$lt>)?,
-                )*
+        $(#[$meta])*
+        $vis enum $name<'a> {
+            $(
+                $variant($variant$(<$lt>)?),
+            )*
+        }
+
+        impl $crate::ZBodyLen for $name<'_> {
+            fn z_body_len(&self) -> usize {
+                match self {
+                    $(
+                        Self::$variant(x) => <$variant as $crate::ZBodyLen>::z_body_len(x),
+                    )*
+                }
             }
         }
 
-        $crate::__internal_len! {
-            $(#[$meta])*
-            $vis enum $name<'a> {
-                $(
-                    $variant $(<$lt>)?,
-                )*
+        impl $crate::ZLen for $name<'_> {
+            fn z_len(&self) -> usize {
+                1 + <Self as $crate::ZBodyLen>::z_body_len(self)
             }
         }
 
-        $crate::__internal_encode! {
-            $(#[$meta])*
-            $vis enum $name<'a> {
-                $(
-                    $variant $(<$lt>)?,
-                )*
+        impl $crate::ZBodyEncode for $name<'_> {
+            fn z_body_encode(&self, w: &mut $crate::ZWriter) -> $crate::ZCodecResult<()> {
+                match self {
+                    $(
+                        Self::$variant(x) => <$variant as $crate::ZBodyEncode>::z_body_encode(x, w),
+                    )*
+                }
+            }
+        }
+
+        impl $crate::ZEncode for $name<'_> {
+            fn z_encode(&self, w: &mut $crate::ZWriter) -> $crate::ZCodecResult<()> {
+                match self {
+                    $(
+                        Self::$variant(x) => <$variant as $crate::ZEncode>::z_encode(x, w),
+                    )*
+                }
+            }
+        }
+
+        impl<'a> $name<'a> {
+            #[cfg(test)]
+            pub(crate) fn rand(zbuf: &mut $crate::ZWriter<'a>) -> $name<'a> {
+                use rand::seq::SliceRandom;
+
+                let mut rng = rand::thread_rng();
+                let choices = [
+                    $(
+                        $variant::ID,
+                    )*
+                ];
+                match *choices.choose(&mut rng).unwrap() {
+                    $(
+                        <$variant>::ID => Self::$variant(<$variant>::rand(zbuf)),
+                    )*
+                    _ => unreachable!(),
+                }
             }
         }
     };
 }
+
+pub(crate) use aggregate_enum_batch;

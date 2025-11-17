@@ -87,4 +87,4 @@ impl<'a> ZBodyDecode<'a> for Resolution {
     }
 }
 
-crate::__internal_zstructimpl!(Resolution);
+crate::derive_zstruct_with_body!(Resolution);

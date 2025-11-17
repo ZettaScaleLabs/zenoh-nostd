@@ -11,8 +11,8 @@ use crate::{
 const NUM_ITER: usize = 100;
 const MAX_PAYLOAD_SIZE: usize = 512;
 
-crate::roundtrips!(ext, transport, Auth, Patch);
-crate::roundtrips!(
+super::roundtrips!(ext, transport, Auth, Patch);
+super::roundtrips!(
     transport,
     Close,
     FrameHeader,

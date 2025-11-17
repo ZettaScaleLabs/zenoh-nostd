@@ -21,7 +21,7 @@ pub mod push;
 pub mod request;
 pub mod response;
 
-crate::__internal_zaggregate_encode_len! {
+crate::aggregate_enum_batch! {
     #[derive(Debug, PartialEq)]
     pub enum NetworkBody<'a> {
         Push<'a>,
@@ -189,7 +189,7 @@ impl ZBodyDecode<'_> for QueryTarget {
     }
 }
 
-crate::__internal_zstructimpl!(QueryTarget);
+crate::derive_zstruct_with_body!(QueryTarget);
 
 impl<'a> ZExt<'a> for QueryTarget {
     const KIND: ZExtKind = ZExtKind::U64;
@@ -306,7 +306,7 @@ impl ZBodyDecode<'_> for QueryableInfo {
     }
 }
 
-crate::__internal_zstructimpl!(QueryableInfo);
+crate::derive_zstruct_with_body!(QueryableInfo);
 
 impl<'a> ZExt<'a> for QueryableInfo {
     const KIND: ZExtKind = ZExtKind::U64;

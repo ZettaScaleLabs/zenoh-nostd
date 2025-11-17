@@ -107,4 +107,4 @@ impl<'a> ZBodyDecode<'a> for Encoding<'a> {
     }
 }
 
-crate::__internal_zstructimpl!(lt, Encoding<'a>);
+crate::derive_zstruct_with_body!(lt, Encoding<'a>);

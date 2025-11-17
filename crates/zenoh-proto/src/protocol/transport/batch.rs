@@ -25,15 +25,21 @@ impl<'a> Batch<'a> {
     }
 
     pub fn write_init_syn(&mut self, x: &InitSyn) -> ZCodecResult<()> {
-        <_ as ZEncode>::z_encode(x, &mut self.writer)
+        <_ as ZEncode>::z_encode(x, &mut self.writer)?;
+        self.frame = None;
+        Ok(())
     }
 
     pub fn write_open_syn(&mut self, x: &OpenSyn) -> ZCodecResult<()> {
-        <_ as ZEncode>::z_encode(x, &mut self.writer)
+        <_ as ZEncode>::z_encode(x, &mut self.writer)?;
+        self.frame = None;
+        Ok(())
     }
 
     pub fn write_keepalive(&mut self) -> ZCodecResult<()> {
-        <_ as ZEncode>::z_encode(&KeepAlive {}, &mut self.writer)
+        <_ as ZEncode>::z_encode(&KeepAlive {}, &mut self.writer)?;
+        self.frame = None;
+        Ok(())
     }
 
     pub fn write_msg(&mut self, x: &NetworkBody, r: Reliability, qos: QoS) -> ZCodecResult<()> {
