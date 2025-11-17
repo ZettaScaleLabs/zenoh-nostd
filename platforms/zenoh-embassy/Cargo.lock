@@ -666,7 +666,6 @@ dependencies = [
  "getrandom",
  "static_cell",
  "zenoh-nostd",
- "zenoh-proto",
 ]
 
 [[package]]

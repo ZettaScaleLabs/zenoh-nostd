@@ -111,16 +111,26 @@ just <platform> <example> [args]
 ```
 
 * **Platforms**: `std`, `esp32s3`
-* **Examples**: `z_put`, `z_sub`
+* **Examples**: `z_put`, `z_sub`, `z_ping`, `z_pong`
 
 Set the `CONNECT=<endpoint>` environment variable to specify the endpoint (default is `tcp/127.0.0.1:7447`).
 
 For `esp32s3`, you must also provide:
 
-* `WIFI_SSID`
-* `WIFI_PASSWORD`
+* `WIFI_SSID` (default is `ZettaScale`).
+* `WIFI_PASSWORD` (no default, must be provided).
 
 See the ESP32 setup documentation for toolchain and target installation.
+
+Example of few commands:
+
+```bash
+CONNECT=tcp/127.0.0.1:7447 just std z_put
+```
+
+```bash
+WIFI_PASSWORD=Abcdef12345 CONNECT=tcp/192.168.21.1:7447 just esp32s3 z_sub
+```
 
 ### Example: Local TCP
 
@@ -158,9 +168,9 @@ zenoh-nostd/            # Git repository root
 │   ├── z_put.rs        # Example
 │   └── z_sub.rs        # Example
 │
-└── platforms/            # Platform-specific implementations
-│   ├── platform-embassy/ # Embassy platforms (no_std)
-│   └── platform-std/     # Standard platforms (std)
+└── platforms/          # Platform-specific implementations
+│   ├── zenoh-embassy/  # Embassy platforms (no_std)
+│   └── zenoh-std/      # Standard platforms (std)
 │
 ├── Cargo.toml          # Workspace + example package
 └── src/
