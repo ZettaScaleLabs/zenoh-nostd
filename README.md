@@ -161,13 +161,18 @@ zenoh-nostd/            # Git repository root
 │   ├── zenoh-derive/   # Derive macros
 │   ├── zenoh-nostd/    # Zenoh with IO
 │   ├── zenoh-proto/    # Zenoh Protocol
-│  (└── zenoh-sansio/   # Zenoh Sans IO, not yet...)
+│   └── zenoh-sansio/   # Zenoh Sans IO
+│       └── examples 
+│           ├── z_ping.rs       # Example without io (example with udp)
+│           ├── z_pong.rs       # Example without io (example with udp)
+│           ├── z_put.rs        # Example without io (example with udp)
+│           └── z_sub.rs        # Example without io (example with udp)
 │
 ├── examples/
-│   ├── z_ping.rs       # Example
-│   ├── z_pong.rs       # Example
-│   ├── z_put.rs        # Example
-│   └── z_sub.rs        # Example
+│   ├── z_ping.rs       # Example with io
+│   ├── z_pong.rs       # Example with io
+│   ├── z_put.rs        # Example with io
+│   └── z_sub.rs        # Example with io
 │
 └── platforms/          # Platform-specific implementations
 │   ├── zenoh-embassy/  # Embassy platforms (no_std)

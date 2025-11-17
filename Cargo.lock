@@ -2649,6 +2649,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "zenoh-sansio"
+version = "0.1.0"
+dependencies = [
+ "zenoh-proto",
+]
+
+[[package]]
 name = "zenoh-std"
 version = "0.1.0"
 dependencies = [
