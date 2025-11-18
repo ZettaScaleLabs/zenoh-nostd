@@ -11,5 +11,11 @@ rust-version.workspace = true
 version.workspace = true
 readme.workspace = true
 
+[features]
+default = []
+
+log = ["zenoh-proto/log"]
+defmt = ["zenoh-proto/defmt"]
+
 [dependencies]
 zenoh-proto = { workspace = true }
