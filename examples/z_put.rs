@@ -26,7 +26,7 @@ async fn entry(spawner: embassy_executor::Spawner) -> zenoh_nostd::ZResult<()> {
     );
 
     let ke = keyexpr::new("demo/example")?;
-    let payload = b"Hello, from std!";
+    let payload = b"Hello, from no-std!";
 
     loop {
         session.put(ke, payload).await?;

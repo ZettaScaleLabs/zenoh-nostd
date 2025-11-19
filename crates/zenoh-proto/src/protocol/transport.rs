@@ -45,6 +45,22 @@ impl<'a, 'b> TransportBatch<'a, 'b> {
         TransportBatch { reader }
     }
 
+    pub fn mark(&self) -> &'a [u8] {
+        self.reader.mark()
+    }
+
+    pub fn rewind(&mut self, mark: &'a [u8]) {
+        self.reader.rewind(mark);
+    }
+
+    pub fn next_mark(&mut self) -> Option<(&'a [u8], TransportBody<'a, '_>)> {
+        let mark = self.reader.mark();
+        match self.next() {
+            Some(body) => Some((mark, body)),
+            None => None,
+        }
+    }
+
     #[allow(clippy::should_implement_trait)]
     pub fn next(&mut self) -> Option<TransportBody<'a, '_>> {
         if !self.reader.can_read() {
