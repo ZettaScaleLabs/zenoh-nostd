@@ -71,7 +71,7 @@ impl Session {
         }
 
         let mut batch = TransportBatch::new(&mut bytes);
-        while let Some(msg) = batch.next() {
+        while let Some(msg) = batch.next()? {
             match msg {
                 TransportBody::Close(_) => {
                     if let SessionState::Connected { mine, .. } = &self.state {

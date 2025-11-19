@@ -1,7 +1,7 @@
 use core::{fmt::Debug, time::Duration};
 
 use zenoh_proto::{
-    Reliability, Resolution, WhatAmI, ZResult, ZenohIdProto,
+    Reliability, Resolution, WhatAmI, ZCodecError, ZResult, ZenohIdProto,
     network::{NetworkBody, QoS},
     transport::{
         Batch,
@@ -192,6 +192,14 @@ impl Session {
             SessionState::Disconnected { mine } => mine.mine_lease / 4,
             SessionState::Connecting { mine, .. } => mine.mine_lease / 4,
             SessionState::Connected { mine, .. } => mine.mine_lease / 4,
+        }
+    }
+}
+
+impl From<ZCodecError> for ZSessionError {
+    fn from(value: ZCodecError) -> Self {
+        match value {
+            _ => ZSessionError::InvalidArgument,
         }
     }
 }

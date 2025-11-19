@@ -1,5 +1,5 @@
 use crate::{
-    ZExt, ZReader, ZReaderExt,
+    ZCodecResult, ZExt, ZReader, ZReaderExt,
     network::NetworkBatch,
     transport::{
         close::Close,
@@ -53,40 +53,33 @@ impl<'a, 'b> TransportBatch<'a, 'b> {
         self.reader.rewind(mark);
     }
 
-    pub fn next_mark(&mut self) -> Option<(&'a [u8], TransportBody<'a, '_>)> {
+    pub fn next_mark(&mut self) -> ZCodecResult<Option<(&'a [u8], TransportBody<'a, '_>)>> {
         let mark = self.reader.mark();
-        match self.next() {
-            Some(body) => Some((mark, body)),
-            None => None,
+        match self.next()? {
+            Some(body) => Ok(Some((mark, body))),
+            None => Ok(None),
         }
     }
 
     #[allow(clippy::should_implement_trait)]
-    pub fn next(&mut self) -> Option<TransportBody<'a, '_>> {
+    pub fn next(&mut self) -> ZCodecResult<Option<TransportBody<'a, '_>>> {
         if !self.reader.can_read() {
-            return None;
+            return Ok(None);
         }
 
-        let mark = self.reader.mark();
         let header = self
             .reader
             .read_u8()
             .expect("reader should not be empty at this stage");
 
         macro_rules! decode {
-            ($ty:ty) => {{
-                match <$ty as $crate::ZBodyDecode>::z_body_decode(self.reader, header) {
-                    Ok(msg) => msg,
-                    Err(_) => {
-                        self.reader.rewind(mark);
-                        return None;
-                    }
-                }
-            }};
+            ($ty:ty) => {
+                <$ty as $crate::ZBodyDecode>::z_body_decode(self.reader, header)?
+            };
         }
 
         let ack = header & 0b0010_0000 != 0;
-        Some(match header & 0b0001_1111 {
+        Ok(Some(match header & 0b0001_1111 {
             InitAck::ID if ack => TransportBody::InitAck(decode!(InitAck)),
             InitSyn::ID => TransportBody::InitSyn(decode!(InitSyn)),
             OpenAck::ID if ack => TransportBody::OpenAck(decode!(OpenAck)),
@@ -102,10 +95,9 @@ impl<'a, 'b> TransportBatch<'a, 'b> {
                 })
             }
             _ => {
-                self.reader.rewind(mark);
-                return None;
+                return Err(crate::ZCodecError::CouldNotRead);
             }
-        })
+        }))
     }
 }
 

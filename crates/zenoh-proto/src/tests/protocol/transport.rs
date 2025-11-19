@@ -49,11 +49,14 @@ fn transport_stream() {
         batch.write_msg(msg, *r, QoS::DEFAULT).unwrap();
     }
 
+    batch.write_keepalive().unwrap();
+
     let (_, len) = batch.finalize();
     let mut reader = &data[..len];
     let mut iter = TransportBatch::new(&mut reader);
 
-    while let Some(expected) = iter.next() {
+    let mut got_keepalive = false;
+    while let Some(expected) = iter.next().unwrap() {
         match expected {
             TransportBody::Frame(mut frame) => {
                 for msg in frame.msgs.by_ref() {
@@ -62,7 +65,12 @@ fn transport_stream() {
                     assert_eq!(actual, msg);
                 }
             }
-            _ => panic!("First message should be a Frame"),
+            TransportBody::KeepAlive(_) => {
+                assert!(messages.is_empty());
+                got_keepalive = true;
+            }
+            _ => panic!("First message should be a Frame, and last a KeepAlive"),
         }
     }
+    assert!(got_keepalive);
 }

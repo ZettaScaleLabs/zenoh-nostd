@@ -16,7 +16,7 @@ impl<T: Platform> SessionDriver<T> {
     pub(crate) async fn internal_update<'a>(&self, mut reader: &'a [u8]) -> ZResult<()> {
         let mut batch = TransportBatch::new(&mut reader);
 
-        while let Some(msg) = batch.next() {
+        while let Some(msg) = batch.next()? {
             match msg {
                 TransportBody::KeepAlive(_) => {
                     zenoh_proto::trace!("Received KeepAlive");
