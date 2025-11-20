@@ -38,7 +38,7 @@ impl<T: AbstractedWsStream> LinkWs<T> {
     }
 
     pub(crate) fn is_streamed(&self) -> bool {
-        true
+        false
     }
 
     pub(crate) async fn write(&mut self, buffer: &[u8]) -> ZResult<usize, ZLinkError> {
@@ -60,7 +60,7 @@ impl<T: AbstractedWsStream> LinkWs<T> {
 
 impl<T: AbstractedWsTx> LinkWsTx<T> {
     pub(crate) fn is_streamed(&self) -> bool {
-        true
+        false
     }
 
     pub(crate) async fn write(&mut self, buffer: &[u8]) -> ZResult<usize, ZLinkError> {
@@ -74,7 +74,7 @@ impl<T: AbstractedWsTx> LinkWsTx<T> {
 
 impl<T: AbstractedWsRx> LinkWsRx<T> {
     pub(crate) fn is_streamed(&self) -> bool {
-        true
+        false
     }
 
     pub(crate) async fn read(&mut self, buffer: &mut [u8]) -> ZResult<usize, ZLinkError> {

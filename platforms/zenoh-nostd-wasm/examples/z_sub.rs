@@ -32,8 +32,8 @@ async fn entry(spawner: embassy_executor::Spawner) -> ZResult<()> {
 
     let config = zenoh_nostd::zconfig!(
             PlatformWasm: (spawner, PlatformWasm {}),
-            TX: 1024,
-            RX: 1024,
+            TX: 512,
+            RX: 512,
             MAX_SUBSCRIBERS: 2
     );
 
