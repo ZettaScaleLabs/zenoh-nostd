@@ -10,6 +10,7 @@ use zenoh_proto::{
 };
 
 use crate::{
+    ZPublisher,
     api::{
         ZConfig, callback::ZCallback, driver::SessionDriver, sample::ZOwnedSample,
         subscriber::ZSubscriber,
@@ -119,5 +120,9 @@ impl<T: Platform + 'static> Session<T> {
         } else {
             Ok(ZSubscriber::new_sync(id, ke))
         }
+    }
+
+    pub fn declare_publisher(&self, ke: &'static keyexpr) -> ZPublisher<T> {
+        ZPublisher::new(ke, self.driver.as_ref().unwrap())
     }
 }

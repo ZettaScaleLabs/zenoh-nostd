@@ -20,20 +20,20 @@ async fn entry(spawner: embassy_executor::Spawner) -> zenoh_nostd::ZResult<()> {
             MAX_SUBSCRIBERS: 2
     );
 
-    let mut session = zenoh_nostd::open!(
+    let session = zenoh_nostd::open!(
         config,
         EndPoint::try_from(CONNECT.unwrap_or("tcp/127.0.0.1:7447"))?
     );
 
-    let ke = keyexpr::new("demo/example")?;
+    let publisher = session.declare_publisher(keyexpr::new("demo/example")?);
     let payload = b"Hello, from no-std!";
 
     loop {
-        session.put(ke, payload).await?;
+        publisher.put(payload).await?;
 
         zenoh_nostd::info!(
-            "[Put] Sent PUT ('{}': '{}')",
-            ke.as_str(),
+            "[Publisher] Sent PUT ('{}': '{}')",
+            publisher.keyexpr().as_str(),
             core::str::from_utf8(payload).unwrap()
         );
 

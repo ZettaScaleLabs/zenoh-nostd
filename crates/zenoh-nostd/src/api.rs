@@ -18,6 +18,9 @@ pub use session::Session;
 pub(crate) mod subscriber;
 pub use subscriber::{ZSubscriber, ZSubscriberCallbackStorage};
 
+pub(crate) mod publisher;
+pub use publisher::ZPublisher;
+
 pub struct ZConfig<T: Platform + 'static, S> {
     pub spawner: Spawner,
     pub platform: T,
