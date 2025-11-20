@@ -10,7 +10,7 @@ use crate::{
 };
 
 impl Session {
-    pub fn put<'a>(&self, ke: &'a keyexpr, payload: &'a [u8]) -> Event<'a> {
+    pub fn put<'a>(&self, ke: &'static keyexpr, payload: &'a [u8]) -> Event<'a> {
         Event {
             inner: EventInner::Push(Push {
                 wire_expr: WireExpr::from(ke),

@@ -52,6 +52,7 @@ fn entry() -> ZResult<()> {
     // In this case, the user should provide a larger buffer.
     while !session.connected() {
         let n = tcp_read(&mut tcp, &mut rx).unwrap_or_default();
+
         if let Ok(response) = session.update(&rx[..n], start.elapsed(), [Event::EMPTY; 16])? {
             session.dispatch(&mut tx, response.into_iter(), |bytes| {
                 tcp_write(&mut tcp, bytes)
