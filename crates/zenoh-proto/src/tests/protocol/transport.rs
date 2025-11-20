@@ -56,13 +56,13 @@ fn transport_stream() {
     let mut iter = TransportBatch::new(&mut reader);
 
     let mut got_keepalive = false;
-    while let Some(expected) = iter.next().unwrap() {
-        match expected {
+    while let Some(expected) = iter.next() {
+        match expected.unwrap() {
             TransportBody::Frame(mut frame) => {
                 for msg in frame.msgs.by_ref() {
                     let (r, actual) = messages.pop_front().unwrap();
                     assert_eq!(r, frame.header.reliability);
-                    assert_eq!(actual, msg);
+                    assert_eq!(actual, msg.unwrap());
                 }
             }
             TransportBody::KeepAlive(_) => {

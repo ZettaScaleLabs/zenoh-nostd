@@ -36,37 +36,22 @@ pub enum TransportBody<'a, 'b> {
     Frame(Frame<'a, 'b>),
 }
 
-pub struct TransportBatch<'a, 'b> {
-    reader: &'b mut ZReader<'a>,
+pub struct TransportBatch<'a> {
+    reader: ZReader<'a>,
 }
 
-impl<'a, 'b> TransportBatch<'a, 'b> {
-    pub fn new(reader: &'b mut ZReader<'a>) -> TransportBatch<'a, 'b> {
+impl<'a> TransportBatch<'a> {
+    pub fn new(reader: ZReader<'a>) -> TransportBatch<'a> {
         TransportBatch { reader }
     }
 
-    pub fn mark(&self) -> &'a [u8] {
-        self.reader.mark()
-    }
-
-    pub fn rewind(&mut self, mark: &'a [u8]) {
-        self.reader.rewind(mark);
-    }
-
-    pub fn next_mark(&mut self) -> ZCodecResult<Option<(&'a [u8], TransportBody<'a, '_>)>> {
-        let mark = self.reader.mark();
-        match self.next()? {
-            Some(body) => Ok(Some((mark, body))),
-            None => Ok(None),
-        }
-    }
-
     #[allow(clippy::should_implement_trait)]
-    pub fn next(&mut self) -> ZCodecResult<Option<TransportBody<'a, '_>>> {
+    pub fn next(&mut self) -> Option<ZCodecResult<TransportBody<'a, '_>>> {
         if !self.reader.can_read() {
-            return Ok(None);
+            return None;
         }
 
+        let mark = self.reader.mark();
         let header = self
             .reader
             .read_u8()
@@ -74,12 +59,17 @@ impl<'a, 'b> TransportBatch<'a, 'b> {
 
         macro_rules! decode {
             ($ty:ty) => {
-                <$ty as $crate::ZBodyDecode>::z_body_decode(self.reader, header)?
+                match <$ty as $crate::ZBodyDecode>::z_body_decode(&mut self.reader, header) {
+                    Ok(msg) => msg,
+                    Err(err) => {
+                        return Some(Err(err));
+                    }
+                }
             };
         }
 
         let ack = header & 0b0010_0000 != 0;
-        Ok(Some(match header & 0b0001_1111 {
+        let body = match header & 0b0001_1111 {
             InitAck::ID if ack => TransportBody::InitAck(decode!(InitAck)),
             InitSyn::ID => TransportBody::InitSyn(decode!(InitSyn)),
             OpenAck::ID if ack => TransportBody::OpenAck(decode!(OpenAck)),
@@ -88,16 +78,19 @@ impl<'a, 'b> TransportBatch<'a, 'b> {
             KeepAlive::ID => TransportBody::KeepAlive(decode!(KeepAlive)),
             Frame::ID => {
                 let frame = decode!(FrameHeader);
-                let iter = NetworkBatch::new(self.reader);
+                let iter = NetworkBatch::new(&mut self.reader);
                 TransportBody::Frame(Frame {
                     header: frame,
                     msgs: iter,
                 })
             }
             _ => {
-                return Err(crate::ZCodecError::CouldNotRead);
+                self.reader.rewind(mark);
+                return None;
             }
-        }))
+        };
+
+        Some(Ok(body))
     }
 }
 

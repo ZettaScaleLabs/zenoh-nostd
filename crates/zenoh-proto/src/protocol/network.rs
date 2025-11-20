@@ -45,7 +45,7 @@ impl<'a, 'b> NetworkBatch<'a, 'b> {
 }
 
 impl<'a, 'b> core::iter::Iterator for NetworkBatch<'a, 'b> {
-    type Item = NetworkBody<'a>;
+    type Item = ZCodecResult<NetworkBody<'a>>;
 
     fn next(&mut self) -> Option<Self::Item> {
         if !self.reader.can_read() {
@@ -62,15 +62,14 @@ impl<'a, 'b> core::iter::Iterator for NetworkBatch<'a, 'b> {
             ($ty:ty) => {{
                 match <$ty as ZBodyDecode>::z_body_decode(self.reader, header) {
                     Ok(msg) => msg,
-                    Err(_) => {
-                        self.reader.rewind(mark);
-                        return None;
+                    Err(err) => {
+                        return Some(Err(err));
                     }
                 }
             }};
         }
 
-        Some(match header & 0b0001_1111 {
+        let body = match header & 0b0001_1111 {
             Push::ID => NetworkBody::Push(decode!(Push)),
             Request::ID => NetworkBody::Request(decode!(Request)),
             Response::ID => NetworkBody::Response(decode!(Response)),
@@ -81,7 +80,9 @@ impl<'a, 'b> core::iter::Iterator for NetworkBatch<'a, 'b> {
                 self.reader.rewind(mark);
                 return None;
             }
-        })
+        };
+
+        Some(Ok(body))
     }
 }
 

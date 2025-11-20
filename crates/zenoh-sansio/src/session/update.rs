@@ -71,8 +71,8 @@ impl Session {
         }
 
         let mut batch = TransportBatch::new(&mut bytes);
-        while let Some(msg) = batch.next()? {
-            match msg {
+        while let Some(msg) = batch.next() {
+            match msg? {
                 TransportBody::Close(_) => {
                     if let SessionState::Connected { mine, .. } = &self.state {
                         disconnect = Some(mine.clone());
@@ -110,7 +110,7 @@ impl Session {
                 }
                 TransportBody::KeepAlive(_) => {}
                 _ => {
-                    zenoh_proto::debug!("Ignoring unexpected transport message {:?}", msg);
+                    zenoh_proto::debug!("Ignoring unexpected transport message");
                 }
             }
         }

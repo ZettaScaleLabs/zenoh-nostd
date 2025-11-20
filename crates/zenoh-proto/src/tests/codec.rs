@@ -70,7 +70,7 @@ fn bench_codec() {
         b.iter(|| {
             let mut r = &data[..len];
             let mut iter = TransportBatch::new(&mut r);
-            while iter.next().unwrap().is_some() {}
+            while iter.next().is_some() {}
         })
     });
 

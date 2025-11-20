@@ -79,6 +79,6 @@ fn network_stream() {
 
     for expected in iter {
         let actual = messages.pop_front().unwrap();
-        assert_eq!(actual, expected);
+        assert_eq!(actual, expected.unwrap());
     }
 }

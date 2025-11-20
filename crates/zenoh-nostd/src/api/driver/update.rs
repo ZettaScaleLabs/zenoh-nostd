@@ -16,15 +16,15 @@ impl<T: Platform> SessionDriver<T> {
     pub(crate) async fn internal_update<'a>(&self, mut reader: &'a [u8]) -> ZResult<()> {
         let mut batch = TransportBatch::new(&mut reader);
 
-        while let Some(msg) = batch.next()? {
-            match msg {
+        while let Some(msg) = batch.next() {
+            match msg? {
                 TransportBody::KeepAlive(_) => {
                     zenoh_proto::trace!("Received KeepAlive");
                 }
 
                 TransportBody::Frame(mut frame) => {
                     for msg in frame.msgs.by_ref() {
-                        if let NetworkBody::Push(push) = msg {
+                        if let NetworkBody::Push(push) = msg? {
                             match push.payload {
                                 PushBody::Put(put) => {
                                     let zbuf: &'a [u8] = put.payload;
