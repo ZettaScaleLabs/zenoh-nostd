@@ -16,7 +16,8 @@ async fn entry(spawner: Spawner) -> ZResult<()> {
             PlatformWasm: (spawner, PlatformWasm {}),
             TX: 512,
             RX: 512,
-            MAX_SUBSCRIBERS: 2
+            MAX_SUBSCRIBERS: 2,
+            MAX_QUERIES: 2
     );
 
     let session = zenoh_nostd::open!(

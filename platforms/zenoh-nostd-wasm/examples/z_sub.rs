@@ -34,7 +34,8 @@ async fn entry(spawner: embassy_executor::Spawner) -> ZResult<()> {
             PlatformWasm: (spawner, PlatformWasm {}),
             TX: 512,
             RX: 512,
-            MAX_SUBSCRIBERS: 2
+            MAX_SUBSCRIBERS: 2,
+            MAX_QUERIES: 2
     );
 
     let mut session = zenoh_nostd::open!(
