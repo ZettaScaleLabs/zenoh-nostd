@@ -1,12 +1,9 @@
 use {
-    async_wsocket::{
-        Error, Message, WebSocket,
-        futures_util::{
-            SinkExt, StreamExt,
-            stream::{SplitSink, SplitStream},
-        },
-    },
     core::net::SocketAddr,
+    futures_util::{
+        SinkExt as _, StreamExt as _,
+        stream::{SplitSink, SplitStream},
+    },
     std::marker::PhantomData,
     zenoh_nostd::{
         ZResult,
@@ -16,6 +13,15 @@ use {
         },
         zbail,
     },
+};
+
+#[cfg(all(feature = "async_wsocket", not(feature = "yawc")))]
+use async_wsocket::{Message, WebSocket};
+
+#[cfg(feature = "yawc")]
+use yawc::{
+    WebSocket,
+    frame::{FrameView, OpCode},
 };
 
 pub struct WasmWsStream {
@@ -34,8 +40,15 @@ impl WasmWsStream {
     }
 }
 
+#[cfg(all(feature = "async_wsocket", not(feature = "yawc")))]
 pub struct WasmWsTx<'a> {
     pub socket: SplitSink<WebSocket, Message>,
+    _phantom: PhantomData<&'a ()>,
+}
+
+#[cfg(feature = "yawc")]
+pub struct WasmWsTx<'a> {
+    pub socket: SplitSink<WebSocket, FrameView>,
     _phantom: PhantomData<&'a ()>,
 }
 
@@ -66,9 +79,14 @@ impl AbstractedWsStream for WasmWsStream {
     }
 
     async fn write(&mut self, buffer: &[u8]) -> ZResult<usize, ZConnectionError> {
+        #[cfg(all(feature = "async_wsocket", not(feature = "yawc")))]
+        let item = Message::Binary(buffer.to_vec());
+        #[cfg(feature = "yawc")]
+        let item = FrameView::binary(buffer.to_vec());
+
         let _ = self
             .socket
-            .send(Message::Binary(buffer.to_vec()))
+            .send(item)
             .await
             .map_err(|_| ZConnectionError::CouldNotWrite);
 
@@ -76,52 +94,78 @@ impl AbstractedWsStream for WasmWsStream {
     }
 
     async fn write_all(&mut self, buffer: &[u8]) -> ZResult<(), ZConnectionError> {
-        self.write(buffer)
+        #[cfg(all(feature = "async_wsocket", not(feature = "yawc")))]
+        let item = Message::Binary(buffer.to_vec());
+        #[cfg(feature = "yawc")]
+        let item = FrameView::binary(buffer.to_vec());
+
+        self.socket
+            .send(item)
             .await
             .map_err(|_| ZConnectionError::CouldNotWrite)
-            .map(|_| ())
     }
 
     async fn read(&mut self, buffer: &mut [u8]) -> ZResult<usize, ZConnectionError> {
-        let msg: Option<Result<Message, ZConnectionError>> = self
-            .socket
-            .next()
-            .await
-            .map(|e: Result<Message, Error>| e.map_err(|_| ZConnectionError::CouldNotRead));
+        let Some(Ok(frame)) = self.socket.next().await else {
+            return Err(ZConnectionError::CouldNotRead);
+        };
 
-        if let Some(Ok(Message::Binary(data))) = msg {
-            let len = data.len().min(buffer.len());
-            buffer[..len].copy_from_slice(&data[..len]);
-            Ok(len)
-        } else {
-            zbail!(ZConnectionError::CouldNotRead)
+        #[cfg(all(feature = "async_wsocket", not(feature = "yawc")))]
+        match frame {
+            Message::Binary(payload) => {
+                let len = payload.len().min(buffer.len());
+                buffer[..len].copy_from_slice(&payload[..len]);
+                Ok(len)
+            }
+            _ => zbail!(ZConnectionError::CouldNotRead),
+        }
+
+        #[cfg(feature = "yawc")]
+        match frame.opcode {
+            OpCode::Binary => {
+                let len = frame.payload.len().min(buffer.len());
+                buffer[..len].copy_from_slice(&frame.payload[..len]);
+                Ok(len)
+            }
+            _ => zbail!(ZConnectionError::CouldNotRead),
         }
     }
 
     async fn read_exact(&mut self, buffer: &mut [u8]) -> ZResult<(), ZConnectionError> {
-        let msg = self
-            .socket
-            .next()
-            .await
-            .map(|e: Result<Message, Error>| e.map_err(|_| ZConnectionError::CouldNotRead));
+        let Some(Ok(frame)) = self.socket.next().await else {
+            return Err(ZConnectionError::CouldNotRead);
+        };
 
-        if let Some(Ok(Message::Binary(data))) = msg {
-            if data.len() != buffer.len() {
-                zbail!(ZConnectionError::CouldNotRead);
+        #[cfg(all(feature = "async_wsocket", not(feature = "yawc")))]
+        match frame {
+            Message::Binary(payload) if payload.len() == buffer.len() => {
+                buffer.copy_from_slice(&payload);
+                Ok(())
             }
-            buffer.copy_from_slice(&data);
-            Ok(())
-        } else {
-            zbail!(ZConnectionError::CouldNotRead)
+            _ => zbail!(ZConnectionError::CouldNotRead),
+        }
+
+        #[cfg(feature = "yawc")]
+        match (frame.opcode, frame.payload.len()) {
+            (OpCode::Binary, len) if len == buffer.len() => {
+                buffer.copy_from_slice(&frame.payload);
+                Ok(())
+            }
+            _ => zbail!(ZConnectionError::CouldNotRead),
         }
     }
 }
 
 impl AbstractedWsTx for WasmWsTx<'_> {
     async fn write(&mut self, buffer: &[u8]) -> ZResult<usize, ZConnectionError> {
+        #[cfg(all(feature = "async_wsocket", not(feature = "yawc")))]
+        let item = Message::Binary(buffer.to_vec());
+        #[cfg(feature = "yawc")]
+        let item = FrameView::binary(buffer.to_vec());
+
         let _ = self
             .socket
-            .send(Message::Binary(buffer.to_vec()))
+            .send(item)
             .await
             .map_err(|_| ZConnectionError::CouldNotWrite);
 
@@ -129,50 +173,66 @@ impl AbstractedWsTx for WasmWsTx<'_> {
     }
 
     async fn write_all(&mut self, buffer: &[u8]) -> ZResult<(), ZConnectionError> {
-        self.write(buffer)
+        #[cfg(all(feature = "async_wsocket", not(feature = "yawc")))]
+        let item = Message::Binary(buffer.to_vec());
+        #[cfg(feature = "yawc")]
+        let item = FrameView::binary(buffer.to_vec());
+
+        self.socket
+            .send(item)
             .await
             .map_err(|_| ZConnectionError::CouldNotWrite)
-            .map(|_| ())
     }
 }
 
 impl AbstractedWsRx for WasmWsRx<'_> {
     async fn read(&mut self, buffer: &mut [u8]) -> ZResult<usize, ZConnectionError> {
-        let msg: Option<Result<Message, ZConnectionError>> =
-            self.socket.next().await.map(|e: Result<Message, Error>| {
-                e.map_err(|_| {
-                    zenoh_nostd::error!("Could not read from stream");
-                    ZConnectionError::CouldNotRead
-                })
-            });
+        let Some(Ok(frame)) = self.socket.next().await else {
+            return Err(ZConnectionError::CouldNotRead);
+        };
 
-        if let Some(Ok(Message::Binary(data))) = msg {
-            let len = data.len().min(buffer.len());
-            buffer[..len].copy_from_slice(&data[..len]);
-            Ok(len)
-        } else {
-            zenoh_nostd::error!("Could not read data");
-            zbail!(ZConnectionError::CouldNotRead)
+        #[cfg(all(feature = "async_wsocket", not(feature = "yawc")))]
+        match frame {
+            Message::Binary(payload) => {
+                let len = payload.len().min(buffer.len());
+                buffer[..len].copy_from_slice(&payload[..len]);
+                Ok(len)
+            }
+            _ => zbail!(ZConnectionError::CouldNotRead),
+        }
+
+        #[cfg(feature = "yawc")]
+        match frame.opcode {
+            OpCode::Binary => {
+                let len = frame.payload.len().min(buffer.len());
+                buffer[..len].copy_from_slice(&frame.payload[..len]);
+                Ok(len)
+            }
+            _ => zbail!(ZConnectionError::CouldNotRead),
         }
     }
 
     async fn read_exact(&mut self, buffer: &mut [u8]) -> ZResult<(), ZConnectionError> {
-        let msg = self.socket.next().await.map(|e: Result<Message, Error>| {
-            e.map_err(|_| {
-                zenoh_nostd::error!("Could not read from stream");
-                ZConnectionError::CouldNotRead
-            })
-        });
+        let Some(Ok(frame)) = self.socket.next().await else {
+            return Err(ZConnectionError::CouldNotRead);
+        };
 
-        if let Some(Ok(Message::Binary(data))) = msg {
-            if data.len() != buffer.len() {
-                zenoh_nostd::error!("Could not read exact data");
-                zbail!(ZConnectionError::CouldNotRead);
+        #[cfg(all(feature = "async_wsocket", not(feature = "yawc")))]
+        match frame {
+            Message::Binary(payload) if payload.len() == buffer.len() => {
+                buffer.copy_from_slice(&payload);
+                Ok(())
             }
-            buffer.copy_from_slice(&data);
-            Ok(())
-        } else {
-            zbail!(ZConnectionError::CouldNotRead)
+            _ => zbail!(ZConnectionError::CouldNotRead),
+        }
+
+        #[cfg(feature = "yawc")]
+        match (frame.opcode, frame.payload.len()) {
+            (OpCode::Binary, len) if len == buffer.len() => {
+                buffer.copy_from_slice(&frame.payload);
+                Ok(())
+            }
+            _ => zbail!(ZConnectionError::CouldNotRead),
         }
     }
 }

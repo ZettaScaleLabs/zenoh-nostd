@@ -1,8 +1,8 @@
+#![no_main]
+
 use {
     embassy_executor::Spawner,
-    zenoh_nostd::{
-        EndPoint, ZResult, ZSample, ZSubscriber, keyexpr, platform::Platform, zsubscriber,
-    },
+    zenoh_nostd::{EndPoint, ZResult, ZSample, ZSubscriber, keyexpr, zsubscriber},
     zenoh_nostd_wasm::PlatformWasm,
 };
 

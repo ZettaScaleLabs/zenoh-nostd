@@ -1,3 +1,5 @@
+cargo-features = ["per-package-target"]
+
 [package]
 name = "zenoh-nostd-wasm"
 authors = []
@@ -9,14 +11,19 @@ license = "EPL-2.0 OR Apache-2.0"
 repository = "https://github.com/ZettaScaleLabs/zenoh-nostd"
 rust-version = "1.89.0"
 version = "0.1.0"
+forced-target = "wasm32-unknown-unknown"
+
+[features]
+default = ["yawc"]
+yawc = ["dep:yawc"]
+async_wsocket = ["dep:async-wsocket"]
 
 [dependencies]
 zenoh-nostd = { version = "0.1.0", path = "../../crates/zenoh-nostd", features = ["web_console"] }
-
-async-wsocket = {git = "https://github.com/TheByteSmiths/async-wsocket", branch="develop"}
-# futures-lite = "2.6.1"
+futures-util = "0.3"
 getrandom = { version = "0.2", features = ["std", "js"] }
-# getrandom2 = { package = "getrandom", version = "0.3.4", features = ["std", "wasm_js"] }
+yawc = { git = "https://github.com/TheByteSmiths/yawc", branch = "develop", optional = true}
+async-wsocket = {git = "https://github.com/TheByteSmiths/async-wsocket", branch="develop", optional = true}
 
 [dev-dependencies]
 wasm-bindgen = "0.2.105"
@@ -27,8 +34,7 @@ critical-section = { version = "1.2.0", features = ["std"] }
 embassy-executor = { version = "0.9.1", features = ["executor-thread", "arch-wasm"] }
 embassy-time = { version = "0.5.0", features = ["wasm"] }
 embassy-sync = "0.7.2"
-# embassy-futures = "0.1.2"
-
+embassy-futures = "0.1.2"
 
 [[example]]
 name = "z_put"
@@ -39,3 +45,10 @@ crate-type = ["cdylib"]
 name = "z_sub"
 path = "examples/z_sub.rs"
 crate-type = ["cdylib"]
+
+[[example]]
+name = "z_pub"
+path = "examples/z_pub.rs"
+crate-type = ["cdylib"]
+# default-feature = false
+# features = ["async-wsocket"]

@@ -30,3 +30,6 @@ sansio example:
 
 wasm example *args:
     cd platforms/zenoh-nostd-wasm && just wasm {{example}} {{args}}
+
+wasm1 example *args:
+    cd platforms/zenoh-nostd-wasm && just wasm1 {{example}} {{args}}
