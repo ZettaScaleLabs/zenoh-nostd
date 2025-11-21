@@ -17,7 +17,7 @@ pub struct Put<'a> {
     // --- Optional attributes ---
     #[zenoh(presence = header(T))]
     pub timestamp: Option<Timestamp>,
-    #[zenoh(presence = header(E), default = Encoding::EMPTY)]
+    #[zenoh(presence = header(E), default = Encoding::DEFAULT)]
     pub encoding: Encoding<'a>,
 
     // --- Extension block ---
@@ -45,7 +45,7 @@ impl<'a> Put<'a> {
         let encoding = if thread_rng().gen_bool(0.5) {
             Encoding::rand(w)
         } else {
-            Encoding::EMPTY
+            Encoding::DEFAULT
         };
 
         let sinfo = thread_rng().gen_bool(0.5).then_some(SourceInfo::rand(w));

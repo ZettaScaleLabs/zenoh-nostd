@@ -19,7 +19,7 @@ impl Session {
                 nodeid: NodeId::DEFAULT,
                 payload: PushBody::Put(Put {
                     timestamp: None,
-                    encoding: Encoding::EMPTY,
+                    encoding: Encoding::DEFAULT,
                     sinfo: None,
                     attachment: None,
                     payload,

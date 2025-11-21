@@ -10,7 +10,7 @@ pub(crate) mod sample;
 pub use sample::{ZOwnedSample, ZSample};
 
 pub(crate) mod reply;
-pub use reply::{ZOwnedReply, ZReply};
+pub use reply::ZReply;
 
 pub(crate) mod driver;
 pub use driver::SessionDriver;
@@ -30,6 +30,8 @@ pub use publisher::ZPublisher;
 pub(crate) mod replies;
 pub use replies::callback::{ZRepliesCallback, ZRepliesCallbackStorage};
 
+pub(crate) mod query;
+
 pub struct ZConfig<T: Platform + 'static, S1> {
     pub spawner: Spawner,
     pub platform: T,
@@ -42,7 +44,7 @@ pub struct ZConfig<T: Platform + 'static, S1> {
     pub rx_zbuf: &'static mut [u8],
 
     pub subscribers: &'static mut dyn ZSubscriberCallbacks,
-    pub queries: &'static mut dyn ZRepliesCallbacks,
+    pub replies: &'static mut dyn ZRepliesCallbacks,
 }
 
 #[macro_export]
@@ -83,7 +85,7 @@ macro_rules! zconfig {
             rx_zbuf: RX_ZBUF.init([0u8; $RX]).as_mut_slice(),
             subscribers: SUBSCRIBERS
                 .init($crate::ZSubscriberCallbackStorage::<$MAX_SUBSCRIBERS>::new()),
-            queries: QUERIES.init($crate::ZRepliesCallbackStorage::<$MAX_QUERIES>::new()),
+            replies: QUERIES.init($crate::ZRepliesCallbackStorage::<$MAX_QUERIES>::new()),
         };
 
         zconfig

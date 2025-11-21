@@ -15,7 +15,6 @@ pub struct GetBuilder<'a, T: Platform + 'static> {
     parameters: Option<&'a str>,
     payload: Option<&'a [u8]>,
     timeout: Option<Duration>,
-    attachment: Option<Value<'a>>,
 }
 
 impl<'a, T: Platform + 'static> GetBuilder<'a, T> {
@@ -32,7 +31,6 @@ impl<'a, T: Platform + 'static> GetBuilder<'a, T> {
             parameters: None,
             payload: None,
             timeout: None,
-            attachment: None,
         }
     }
 
@@ -48,11 +46,6 @@ impl<'a, T: Platform + 'static> GetBuilder<'a, T> {
 
     pub fn timeout(mut self, timeout: Duration) -> Self {
         self.timeout = Some(timeout);
-        self
-    }
-
-    pub fn attachment(mut self, attachment: Value<'a>) -> Self {
-        self.attachment = Some(attachment);
         self
     }
 
@@ -85,7 +78,7 @@ impl<'a, T: Platform + 'static> GetBuilder<'a, T> {
                 consolidation: ConsolidationMode::None,
                 parameters: self.parameters.unwrap_or_default(),
                 body: self.payload.map(|p| Value {
-                    encoding: Encoding::empty(),
+                    encoding: Encoding::DEFAULT,
                     payload: p,
                 }),
                 attachment: None,

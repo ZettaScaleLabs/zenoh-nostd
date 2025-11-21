@@ -9,7 +9,7 @@ use zenoh_proto::{
 use crate::{api::driver::SessionDriver, platform::Platform};
 
 impl<T: Platform> SessionDriver<T> {
-    pub(crate) async fn send(&self, msg: NetworkBody<'_>) -> ZResult<()> {
+    pub(crate) async fn send(&'static self, msg: NetworkBody<'_>) -> ZResult<()> {
         let mut tx_guard = self.tx.lock().await;
         let tx = tx_guard.deref_mut();
 

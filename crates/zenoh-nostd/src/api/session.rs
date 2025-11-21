@@ -56,7 +56,7 @@ impl<T: Platform + 'static> Session<T> {
                 (config.tx_zbuf, tx),
                 (config.rx_zbuf, rx),
                 config.subscribers,
-                config.queries,
+                config.replies,
             ),
         ))
     }

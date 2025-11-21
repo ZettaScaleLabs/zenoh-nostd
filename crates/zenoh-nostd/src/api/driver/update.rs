@@ -14,7 +14,7 @@ use crate::{
 };
 
 impl<T: Platform> SessionDriver<T> {
-    pub(crate) async fn internal_update<'a>(&self, mut reader: &'a [u8]) -> ZResult<()> {
+    pub(crate) async fn internal_update<'a>(&'static self, mut reader: &'a [u8]) -> ZResult<()> {
         let mut batch = TransportBatch::new(&mut reader);
 
         while let Some(msg) = batch.next() {
@@ -58,9 +58,10 @@ impl<T: Platform> SessionDriver<T> {
                                 let wke: &'a str = resp.wire_expr.suffix;
                                 let wke: &'a keyexpr = keyexpr::new(wke)?;
 
-                                let mut cb_guard = self.queries.lock().await;
+                                let mut cb_guard = self.replies.lock().await;
                                 let cb = cb_guard.deref_mut();
 
+                                cb.callbacks.drop_timedout();
                                 let matching_callbacks = cb
                                     .callbacks
                                     .iter()
@@ -87,7 +88,7 @@ impl<T: Platform> SessionDriver<T> {
                             NetworkBody::ResponseFinal(resp) => {
                                 let rid = resp.rid;
 
-                                let mut cb_guard = self.queries.lock().await;
+                                let mut cb_guard = self.replies.lock().await;
                                 let cb = cb_guard.deref_mut();
 
                                 cb.callbacks.remove(&rid);

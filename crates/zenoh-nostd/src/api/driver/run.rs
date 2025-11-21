@@ -7,7 +7,7 @@ use zenoh_proto::{ZError, ZResult};
 use crate::{api::driver::SessionDriver, platform::Platform};
 
 impl<T: Platform> SessionDriver<T> {
-    pub async fn run(&self) -> ZResult<()> {
+    pub async fn run(&'static self) -> ZResult<()> {
         let mut rx_guard = self.rx.lock().await;
         let rx = rx_guard.deref_mut();
 

@@ -12,7 +12,7 @@ pub struct Encoding<'a> {
 }
 
 impl<'a> Encoding<'a> {
-    pub const EMPTY: Self = Encoding {
+    pub const DEFAULT: Self = Encoding {
         id: 0,
         schema: None,
     };

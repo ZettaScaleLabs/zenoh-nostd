@@ -33,7 +33,7 @@ pub struct SubscriberState {
     callbacks: &'static mut dyn ZSubscriberCallbacks,
 }
 
-pub struct QueriesState {
+pub struct RepliesState {
     callbacks: &'static mut dyn ZRepliesCallbacks,
 }
 
@@ -44,7 +44,7 @@ pub struct SessionDriver<T: Platform + 'static> {
     rx: Mutex<CriticalSectionRawMutex, RxState<T>>,
 
     subscribers: Mutex<CriticalSectionRawMutex, SubscriberState>,
-    queries: Mutex<CriticalSectionRawMutex, QueriesState>,
+    replies: Mutex<CriticalSectionRawMutex, RepliesState>,
 }
 
 impl<T: Platform> SessionDriver<T> {
@@ -53,7 +53,7 @@ impl<T: Platform> SessionDriver<T> {
         tx: (&'static mut [u8], TransportTx<'static, T>),
         rx: (&'static mut [u8], TransportRx<'static, T>),
         subscribers: &'static mut dyn ZSubscriberCallbacks,
-        queries: &'static mut dyn ZRepliesCallbacks,
+        replies: &'static mut dyn ZRepliesCallbacks,
     ) -> SessionDriver<T> {
         SessionDriver {
             tx: Mutex::new(TxState {
@@ -69,7 +69,7 @@ impl<T: Platform> SessionDriver<T> {
             subscribers: Mutex::new(SubscriberState {
                 callbacks: subscribers,
             }),
-            queries: Mutex::new(QueriesState { callbacks: queries }),
+            replies: Mutex::new(RepliesState { callbacks: replies }),
             config,
         }
     }
@@ -92,7 +92,7 @@ impl<T: Platform> SessionDriver<T> {
         ke: &'static keyexpr,
         callback: ZRepliesCallback,
     ) -> ZResult<()> {
-        let mut cb_guard = self.queries.lock().await;
+        let mut cb_guard = self.replies.lock().await;
         let cb = cb_guard.deref_mut();
 
         cb.callbacks.drop_timedout();
@@ -100,7 +100,7 @@ impl<T: Platform> SessionDriver<T> {
     }
 
     pub async fn remove_query_callback(&self, id: u32) {
-        let mut cb_guard = self.queries.lock().await;
+        let mut cb_guard = self.replies.lock().await;
         let cb = cb_guard.deref_mut();
 
         cb.callbacks.remove(&id);

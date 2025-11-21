@@ -47,7 +47,7 @@ fn bench_codec() {
         nodeid: NodeId::DEFAULT,
         payload: PushBody::Put(Put {
             timestamp: None,
-            encoding: Encoding::EMPTY,
+            encoding: Encoding::DEFAULT,
             sinfo: None,
             attachment: None,
             payload: &[0u8; 8],

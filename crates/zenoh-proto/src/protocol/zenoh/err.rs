@@ -10,7 +10,7 @@ use crate::{Encoding, ZStruct, zenoh::SourceInfo};
 #[zenoh(header = "Z|E|_|ID:5=0x5")]
 pub struct Err<'a> {
     // --- Optional attributes ---
-    #[zenoh(presence = header(E), default = Encoding::EMPTY)]
+    #[zenoh(presence = header(E), default = Encoding::DEFAULT)]
     pub encoding: Encoding<'a>,
 
     // --- Extension block ---
@@ -28,7 +28,7 @@ impl<'a> Err<'a> {
         let encoding = if thread_rng().gen_bool(0.5) {
             Encoding::rand(w)
         } else {
-            Encoding::EMPTY
+            Encoding::DEFAULT
         };
 
         let sinfo = thread_rng().gen_bool(0.5).then_some(SourceInfo::rand(w));
