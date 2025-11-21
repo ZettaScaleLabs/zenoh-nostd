@@ -85,7 +85,7 @@ esp32s3 = [
 ]
 wasm = [
     "web_console",
-    "dep:zenoh-embassy",
+    "dep:zenoh-nostd-wasm",
     "dep:getrandom",
     "dep:env_logger",
     "dep:embassy-net",
