@@ -42,7 +42,7 @@ pub async fn init_platform(spawner: &embassy_executor::Spawner) -> Platform {
         let timer0 = SystemTimer::new(peripherals.SYSTIMER);
         esp_rtos::start(timer0.alarm0);
 
-        zenoh_proto::info!("Embassy initialized!");
+        zenoh_nostd::info!("Embassy initialized!");
 
         let rng = Rng::new();
 
@@ -72,7 +72,7 @@ pub async fn init_platform(spawner: &embassy_executor::Spawner) -> Platform {
         spawner.spawn(connection(wifi_controller)).ok();
         spawner.spawn(net_task(runner)).ok();
 
-        zenoh_proto::info!("Waiting for link to be up");
+        zenoh_nostd::info!("Waiting for link to be up");
         loop {
             if stack.is_link_up() {
                 break;
@@ -80,15 +80,15 @@ pub async fn init_platform(spawner: &embassy_executor::Spawner) -> Platform {
             Timer::after(Duration::from_millis(500)).await;
         }
 
-        zenoh_proto::info!("Waiting to get IP address...");
+        zenoh_nostd::info!("Waiting to get IP address...");
         let ip = loop {
             if let Some(config) = stack.config_v4() {
-                zenoh_proto::info!("Got IP: {}", config.address);
+                zenoh_nostd::info!("Got IP: {}", config.address);
                 break config.address;
             }
             Timer::after(Duration::from_millis(500)).await;
         };
-        zenoh_proto::info!("Network initialized with IP: {}", ip);
+        zenoh_nostd::info!("Network initialized with IP: {}", ip);
 
         Platform { stack }
     }
@@ -97,8 +97,8 @@ pub async fn init_platform(spawner: &embassy_executor::Spawner) -> Platform {
 #[cfg(feature = "esp32s3")]
 #[embassy_executor::task]
 async fn connection(mut controller: WifiController<'static>) {
-    zenoh_proto::info!("start connection task");
-    zenoh_proto::info!("Device capabilities: {:?}", controller.capabilities());
+    zenoh_nostd::info!("start connection task");
+    zenoh_nostd::info!("Device capabilities: {:?}", controller.capabilities());
     loop {
         match esp_radio::wifi::sta_state() {
             WifiStaState::Connected => {
@@ -114,16 +114,16 @@ async fn connection(mut controller: WifiController<'static>) {
                     .with_password(PASSWORD.into()),
             );
             controller.set_config(&client_config).unwrap();
-            zenoh_proto::info!("Starting wifi");
+            zenoh_nostd::info!("Starting wifi");
             controller.start_async().await.unwrap();
-            zenoh_proto::info!("Wifi started!");
+            zenoh_nostd::info!("Wifi started!");
         }
-        zenoh_proto::info!("About to connect...");
+        zenoh_nostd::info!("About to connect...");
 
         match controller.connect_async().await {
-            Ok(_) => zenoh_proto::info!("Wifi connected!"),
+            Ok(_) => zenoh_nostd::info!("Wifi connected!"),
             Err(e) => {
-                zenoh_proto::info!("Failed to connect to wifi: {:?}", e);
+                zenoh_nostd::info!("Failed to connect to wifi: {:?}", e);
                 Timer::after(Duration::from_millis(5000)).await
             }
         }
