@@ -1,45 +1,39 @@
-use embassy_executor::{SpawnToken, Spawner};
 use embassy_sync::{
     blocking_mutex::raw::CriticalSectionRawMutex, channel::DynamicReceiver, mutex::Mutex,
 };
-use embassy_time::Duration;
 use zenoh_proto::{
-    Encoding, EndPoint, WireExpr, ZError, ZResult, ZenohIdProto, keyexpr,
+    Encoding, EndPoint, WireExpr, ZResult, ZenohIdProto, keyexpr,
     network::{
-        NetworkBody, NodeId, QoS, QueryTarget,
+        NetworkBody, NodeId, QoS,
         declare::{Declare, DeclareBody, DeclareSubscriber},
         push::Push,
-        request::Request,
     },
-    zenoh::{ConsolidationMode, PushBody, RequestBody, Value, put::Put, query::Query},
+    zenoh::{PushBody, put::Put},
 };
 
 use crate::{
-    ZOwnedReply, ZPublisher, ZQuerier, ZReplies, ZRepliesCallback,
+    ZPublisher, ZReply,
     api::{ZConfig, driver::SessionDriver, sample::ZOwnedSample, subscriber::ZSubscriber},
     io::{
         link::Link,
         transport::{Transport, TransportMineConfig},
     },
     platform::Platform,
+    session::get::GetBuilder,
     subscriber::callback::ZSubscriberCallback,
 };
 
+pub mod get;
+
 static NEXT_ID: Mutex<CriticalSectionRawMutex, u32> = Mutex::new(0);
 
-pub struct Session<T: Platform + 'static, S> {
+pub struct Session<T: Platform + 'static> {
     driver: Option<&'static SessionDriver<T>>,
-    spawner: Spawner,
-    timeout_queries: fn(
-        driver: &'static SessionDriver<T>,
-        id: u32,
-        timeout: embassy_time::Duration,
-    ) -> SpawnToken<S>,
 }
 
-impl<T: Platform + 'static, S> Session<T, S> {
+impl<T: Platform + 'static> Session<T> {
     pub async fn new<S1>(
-        config: ZConfig<T, S1, S>,
+        config: ZConfig<T, S1>,
         endpoint: EndPoint,
     ) -> ZResult<(Self, SessionDriver<T>)> {
         let transport = TransportMineConfig {
@@ -56,11 +50,7 @@ impl<T: Platform + 'static, S> Session<T, S> {
         let (tx, rx) = config.transport.init(transport).split();
 
         Ok((
-            Self {
-                driver: None,
-                spawner: config.spawner,
-                timeout_queries: config.timeout_queries,
-            },
+            Self { driver: None },
             SessionDriver::new(
                 tconfig,
                 (config.tx_zbuf, tx),
@@ -138,78 +128,17 @@ impl<T: Platform + 'static, S> Session<T, S> {
         ZPublisher::new(ke, self.driver.as_ref().unwrap())
     }
 
-    pub async fn get<const KE: usize, const PL: usize>(
-        &self,
-        ke: &'static keyexpr,
-        timeout: Option<Duration>,
-        parameters: Option<&str>,
-        payload: Option<&[u8]>,
-        config: (
-            ZRepliesCallback,
-            Option<DynamicReceiver<'static, ZOwnedReply<KE, PL>>>,
-        ),
-    ) -> ZResult<ZReplies<KE, PL>> {
-        let wke = WireExpr::from(ke);
-
-        let mut id = NEXT_ID.lock().await;
-        *id += 1;
-        let id = *id;
-
-        let is_async = config.0.is_async();
-
-        self.driver
-            .as_ref()
-            .unwrap()
-            .register_query_callback(id, ke, config.0)
-            .await?;
-
-        let timeout = timeout.unwrap_or(Duration::from_secs(5));
-
-        self.spawner
-            .spawn((self.timeout_queries)(
-                self.driver.as_ref().unwrap(),
-                id,
-                timeout,
-            ))
-            .map_err(|_| ZError::CouldNotSpawnTask)?;
-
-        let msg = NetworkBody::Request(Request {
-            id,
-            wire_expr: wke,
-            payload: RequestBody::Query(Query {
-                consolidation: ConsolidationMode::None,
-                parameters: parameters.unwrap_or_default(),
-                body: payload.map(|p| Value {
-                    encoding: Encoding::empty(),
-                    payload: p,
-                }),
-                attachment: None,
-                sinfo: None,
-            }),
-            qos: QoS::DEFAULT,
-            timestamp: None,
-            nodeid: NodeId::DEFAULT,
-            budget: None,
-            timeout: None,
-            target: QueryTarget::DEFAULT,
-        });
-
-        self.driver.as_ref().unwrap().send(msg).await?;
-
-        if is_async {
-            Ok(ZReplies::new_async(id, ke, timeout, config.1.unwrap()))
-        } else {
-            Ok(ZReplies::new_sync(id, ke, timeout))
-        }
+    pub fn get(&self, ke: &'static keyexpr, callback: fn(&ZReply<'_>)) -> GetBuilder<'_, T> {
+        GetBuilder::new(self, ke, callback)
     }
 
-    pub fn declare_querier(&self, ke: &'static keyexpr) -> ZQuerier<T, S> {
-        ZQuerier::new(
-            self.spawner,
-            self.timeout_queries,
-            ke,
-            self.driver.as_ref().unwrap(),
-            &NEXT_ID,
-        )
-    }
+    // pub fn declare_querier(&self, ke: &'static keyexpr) -> ZQuerier<T, S> {
+    //     ZQuerier::new(
+    //         self.spawner,
+    //         self.timeout_queries,
+    //         ke,
+    //         self.driver.as_ref().unwrap(),
+    //         &NEXT_ID,
+    //     )
+    // }
 }

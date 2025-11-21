@@ -45,20 +45,18 @@ async fn entry(spawner: embassy_executor::Spawner) -> zenoh_nostd::ZResult<()> {
         EndPoint::try_from(CONNECT.unwrap_or("tcp/127.0.0.1:7447"))?
     );
 
-    let ke = keyexpr::new("demo/example/**").unwrap();
+    let ke = keyexpr::new("demo/example/**")?;
 
     let _sync_sub = session
         .declare_subscriber(ke, zsubscriber!(callback_1))
-        .await
-        .unwrap();
+        .await?;
 
     let async_sub = session
         .declare_subscriber(
             ke,
             zsubscriber!(QUEUE_SIZE: 8, MAX_KEYEXPR: 32, MAX_PAYLOAD: 128),
         )
-        .await
-        .unwrap();
+        .await?;
 
     spawner.spawn(callback_2(async_sub)).unwrap();
 

@@ -81,7 +81,7 @@ impl<T: Platform> SessionDriver<T> {
                                         }
                                     };
 
-                                    callback.call(reply).await?;
+                                    callback.call(reply);
                                 }
                             }
                             NetworkBody::ResponseFinal(resp) => {

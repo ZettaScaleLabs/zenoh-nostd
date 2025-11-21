@@ -28,23 +28,12 @@ pub(crate) mod publisher;
 pub use publisher::ZPublisher;
 
 pub(crate) mod replies;
-pub use replies::{
-    ZReplies,
-    callback::{ZRepliesCallback, ZRepliesCallbackStorage},
-};
+pub use replies::callback::{ZRepliesCallback, ZRepliesCallbackStorage};
 
-pub(crate) mod querier;
-pub use querier::ZQuerier;
-
-pub struct ZConfig<T: Platform + 'static, S1, S2> {
+pub struct ZConfig<T: Platform + 'static, S1> {
     pub spawner: Spawner,
     pub platform: T,
     pub task: fn(driver: &'static SessionDriver<T>) -> SpawnToken<S1>,
-    pub timeout_queries: fn(
-        driver: &'static SessionDriver<T>,
-        id: u32,
-        timeout: embassy_time::Duration,
-    ) -> SpawnToken<S2>,
 
     pub driver: &'static StaticCell<SessionDriver<T>>,
     pub transport: &'static StaticCell<Transport<T>>,
@@ -82,21 +71,10 @@ macro_rules! zconfig {
             }
         }
 
-        #[embassy_executor::task(pool_size = $MAX_QUERIES)]
-        async fn timeout_queries(
-            runner: &'static $crate::SessionDriver<$type>,
-            id: u32,
-            timeout: embassy_time::Duration,
-        ) {
-            embassy_time::Timer::after(timeout).await;
-            runner.remove_query_callback(id).await;
-        }
-
         let zconfig = $crate::ZConfig {
             spawner: $spawner,
             platform: $platform,
             task: session_task,
-            timeout_queries: timeout_queries,
 
             driver: &DRIVER,
             transport: &TRANSPORT,

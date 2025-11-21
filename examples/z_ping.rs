@@ -27,16 +27,15 @@ async fn entry(spawner: embassy_executor::Spawner) -> zenoh_nostd::ZResult<()> {
         EndPoint::try_from(CONNECT.unwrap_or("tcp/127.0.0.1:7447"))?
     );
 
-    let ke_pong = keyexpr::new("test/pong").unwrap();
-    let ke_ping = keyexpr::new("test/ping").unwrap();
+    let ke_pong = keyexpr::new("test/pong")?;
+    let ke_ping = keyexpr::new("test/ping")?;
 
     let sub = session
         .declare_subscriber(
             ke_pong,
             zsubscriber!(QUEUE_SIZE: 8, MAX_KEYEXPR: 32, MAX_PAYLOAD: 128),
         )
-        .await
-        .unwrap();
+        .await?;
 
     let data = [0, 1, 2, 3, 4, 5, 6, 7];
 
@@ -51,9 +50,9 @@ async fn entry(spawner: embassy_executor::Spawner) -> zenoh_nostd::ZResult<()> {
     let now = Instant::now();
 
     while now.elapsed() < Duration::from_secs(1) {
-        session.put(ke_ping, &data).await.unwrap();
+        session.put(ke_ping, &data).await?;
 
-        let _ = sub.recv().await.unwrap();
+        let _ = sub.recv().await?;
     }
 
     zenoh_nostd::info!("Starting ping-pong measurements");
@@ -61,9 +60,9 @@ async fn entry(spawner: embassy_executor::Spawner) -> zenoh_nostd::ZResult<()> {
     for _ in 0..100 {
         let start = Instant::now();
 
-        session.put(ke_ping, &data).await.unwrap();
+        session.put(ke_ping, &data).await?;
 
-        let _ = sub.recv().await.unwrap();
+        let _ = sub.recv().await?;
 
         let elapsed = start.elapsed().as_micros();
         samples.push(elapsed);

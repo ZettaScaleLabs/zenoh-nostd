@@ -1,68 +1,28 @@
-use core::{
-    future::poll_fn,
-    task::{Context, Poll},
-};
-
-use embassy_sync::{blocking_mutex::raw::CriticalSectionRawMutex, channel::Channel};
+use embassy_time::Instant;
 use heapless::index_map::{FnvIndexMap, Iter};
 use zenoh_proto::{ZError, ZResult, keyexpr, zbail};
 
-use crate::{ZOwnedReply, ZReply};
+use crate::ZReply;
 
-pub trait ZRepliesAsyncCallback {
-    fn poll_ready_to_send(&self, cx: &mut Context<'_>) -> Poll<()>;
-    fn call(&self, reply: ZReply<'_>) -> ZResult<()>;
+pub struct ZRepliesCallback {
+    callback: fn(&ZReply<'_>),
+    expiration: Instant,
 }
-
-pub(crate) enum ZRepliesCallbackInner {
-    Sync(fn(&ZReply<'_>) -> ()),
-    Async(&'static dyn ZRepliesAsyncCallback),
-}
-
-pub struct ZRepliesCallback(ZRepliesCallbackInner);
 
 impl ZRepliesCallback {
-    pub fn new_sync(f: fn(&ZReply<'_>) -> ()) -> Self {
-        Self(ZRepliesCallbackInner::Sync(f))
-    }
-
-    pub fn new_async(f: &'static dyn ZRepliesAsyncCallback) -> Self {
-        Self(ZRepliesCallbackInner::Async(f))
-    }
-
-    pub(crate) fn is_async(&self) -> bool {
-        matches!(self.0, ZRepliesCallbackInner::Async(_))
-    }
-
-    pub(crate) async fn call(&self, sample: ZReply<'_>) -> ZResult<()> {
-        match self.0 {
-            ZRepliesCallbackInner::Sync(f) => {
-                f(&sample);
-            }
-            ZRepliesCallbackInner::Async(f) => {
-                poll_fn(|cx| f.poll_ready_to_send(cx)).await;
-                f.call(sample)?;
-            }
+    pub fn new(f: fn(&ZReply<'_>), expiration: Instant) -> Self {
+        Self {
+            callback: f,
+            expiration,
         }
-
-        Ok(())
-    }
-}
-
-impl<const L: usize, const KE: usize, const PL: usize> ZRepliesAsyncCallback
-    for Channel<CriticalSectionRawMutex, ZOwnedReply<KE, PL>, L>
-{
-    fn poll_ready_to_send(&self, cx: &mut Context<'_>) -> Poll<()> {
-        self.poll_ready_to_send(cx)
     }
 
-    fn call(&self, reply: ZReply<'_>) -> ZResult<()> {
-        let reply = reply.into_owned()?;
+    pub(crate) fn call(&self, reply: ZReply<'_>) {
+        (self.callback)(&reply);
+    }
 
-        self.try_send(reply)
-            .expect("You should have polled for readiness before calling the callback!");
-
-        Ok(())
+    pub fn is_timed_out(&self) -> bool {
+        Instant::now() >= self.expiration
     }
 }
 
@@ -72,6 +32,8 @@ pub trait ZRepliesCallbacks {
     fn iter(&self) -> Iter<'_, u32, ZRepliesCallback>;
 
     fn remove(&mut self, id: &u32) -> Option<ZRepliesCallback>;
+
+    fn drop_timedout(&mut self);
 }
 
 pub struct ZRepliesCallbackStorage<const N: usize> {
@@ -125,5 +87,17 @@ impl<const N: usize> ZRepliesCallbacks for ZRepliesCallbackStorage<N> {
     fn remove(&mut self, id: &u32) -> Option<ZRepliesCallback> {
         self.lookup.remove(id);
         self.callbacks.remove(id)
+    }
+
+    fn drop_timedout(&mut self) {
+        self.callbacks.retain(|id, callback| {
+            if callback.is_timed_out() {
+                crate::debug!("Dropping timed out reply callback for id {}", id);
+                self.lookup.remove(id);
+                false
+            } else {
+                true
+            }
+        });
     }
 }

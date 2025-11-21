@@ -2,11 +2,11 @@
 #![cfg_attr(feature = "esp32s3", no_main)]
 
 use zenoh_examples::*;
-use zenoh_nostd::{EndPoint, ZOwnedReply, ZReplies, ZReply, keyexpr, zreplies};
+use zenoh_nostd::{EndPoint, ZReply, keyexpr};
 
 const CONNECT: Option<&str> = option_env!("CONNECT");
 
-fn callback_1(reply: &ZReply) {
+fn callback(reply: &ZReply) {
     match reply {
         ZReply::Ok(reply) => {
             zenoh_nostd::info!(
@@ -25,35 +25,11 @@ fn callback_1(reply: &ZReply) {
     }
 }
 
-#[embassy_executor::task]
-async fn callback_2(replies: ZReplies<32, 128>) {
-    while let Ok(reply) = replies.recv().await {
-        match reply {
-            ZOwnedReply::Ok(reply) => {
-                zenoh_nostd::info!(
-                    "[Async Query] Received OK Reply ('{}': '{:?}')",
-                    reply.keyexpr().as_str(),
-                    core::str::from_utf8(reply.payload()).unwrap()
-                );
-            }
-            ZOwnedReply::Err(reply) => {
-                zenoh_nostd::error!(
-                    "[Async Query] Received ERR Reply ('{}': '{:?}')",
-                    reply.keyexpr().as_str(),
-                    core::str::from_utf8(reply.payload()).unwrap()
-                );
-            }
-        }
-    }
-
-    zenoh_nostd::info!("[Async Query] Exiting callback_2");
-}
-
 async fn entry(spawner: embassy_executor::Spawner) -> zenoh_nostd::ZResult<()> {
     #[cfg(feature = "log")]
     env_logger::init();
 
-    zenoh_nostd::info!("zenoh-nostd z_put example");
+    zenoh_nostd::info!("zenoh-nostd z_get example");
 
     let platform = init_platform(&spawner).await;
     let config = zenoh_nostd::zconfig!(
@@ -71,23 +47,9 @@ async fn entry(spawner: embassy_executor::Spawner) -> zenoh_nostd::ZResult<()> {
 
     let ke = keyexpr::new("demo/example/**").unwrap();
 
-    let _ = session
-        .get(ke, None, None, None, zreplies!(callback_1))
-        .await
-        .unwrap();
-
-    let replies = session
-        .get(
-            ke,
-            None,
-            None,
-            None,
-            zreplies!(QUEUE_SIZE: 8, MAX_KEYEXPR: 32, MAX_PAYLOAD: 128),
-        )
-        .await
-        .unwrap();
-
-    spawner.spawn(callback_2(replies)).unwrap();
+    // Because of memory growth concerns with async channels, `session.get`
+    // only supports callback-based usage in `zenoh-nostd`.
+    session.get(ke, callback).send().await.unwrap();
 
     loop {
         embassy_time::Timer::after(embassy_time::Duration::from_secs(1)).await;

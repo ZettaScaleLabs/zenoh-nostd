@@ -95,6 +95,7 @@ impl<T: Platform> SessionDriver<T> {
         let mut cb_guard = self.queries.lock().await;
         let cb = cb_guard.deref_mut();
 
+        cb.callbacks.drop_timedout();
         cb.callbacks.insert(id, ke, callback).map(|_| ())
     }
 
