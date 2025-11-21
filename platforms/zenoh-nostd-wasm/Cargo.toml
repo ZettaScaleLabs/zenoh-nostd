@@ -50,5 +50,18 @@ crate-type = ["cdylib"]
 name = "z_pub"
 path = "examples/z_pub.rs"
 crate-type = ["cdylib"]
-# default-feature = false
-# features = ["async-wsocket"]
+
+[[example]]
+name = "z_ping"
+path = "examples/z_ping.rs"
+crate-type = ["cdylib"]
+
+[[example]]
+name = "z_pong"
+path = "examples/z_pong.rs"
+crate-type = ["cdylib"]
+
+[[example]]
+name = "z_get"
+path = "examples/z_get.rs"
+crate-type = ["cdylib"]
