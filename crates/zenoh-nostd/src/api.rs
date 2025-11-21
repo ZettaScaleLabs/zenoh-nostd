@@ -2,7 +2,7 @@ use embassy_executor::{SpawnToken, Spawner};
 use static_cell::StaticCell;
 
 use crate::{
-    io::transport::Transport, platform::Platform, query::callback::ZQueryCallbacks,
+    io::transport::Transport, platform::Platform, replies::callback::ZRepliesCallbacks,
     subscriber::callback::ZSubscriberCallbacks,
 };
 
@@ -27,11 +27,14 @@ pub use subscriber::{
 pub(crate) mod publisher;
 pub use publisher::ZPublisher;
 
-pub(crate) mod query;
-pub use query::{
-    ZQuery,
-    callback::{ZQueryCallback, ZQueryCallbackStorage},
+pub(crate) mod replies;
+pub use replies::{
+    ZReplies,
+    callback::{ZRepliesCallback, ZRepliesCallbackStorage},
 };
+
+pub(crate) mod querier;
+pub use querier::ZQuerier;
 
 pub struct ZConfig<T: Platform + 'static, S1, S2> {
     pub spawner: Spawner,
@@ -50,7 +53,7 @@ pub struct ZConfig<T: Platform + 'static, S1, S2> {
     pub rx_zbuf: &'static mut [u8],
 
     pub subscribers: &'static mut dyn ZSubscriberCallbacks,
-    pub queries: &'static mut dyn ZQueryCallbacks,
+    pub queries: &'static mut dyn ZRepliesCallbacks,
 }
 
 #[macro_export]
@@ -69,7 +72,7 @@ macro_rules! zconfig {
             $crate::ZSubscriberCallbackStorage<$MAX_SUBSCRIBERS>,
         > = static_cell::StaticCell::new();
 
-        static QUERIES: static_cell::StaticCell<$crate::ZQueryCallbackStorage<$MAX_QUERIES>> =
+        static QUERIES: static_cell::StaticCell<$crate::ZRepliesCallbackStorage<$MAX_QUERIES>> =
             static_cell::StaticCell::new();
 
         #[embassy_executor::task]
@@ -102,7 +105,7 @@ macro_rules! zconfig {
             rx_zbuf: RX_ZBUF.init([0u8; $RX]).as_mut_slice(),
             subscribers: SUBSCRIBERS
                 .init($crate::ZSubscriberCallbackStorage::<$MAX_SUBSCRIBERS>::new()),
-            queries: QUERIES.init($crate::ZQueryCallbackStorage::<$MAX_QUERIES>::new()),
+            queries: QUERIES.init($crate::ZRepliesCallbackStorage::<$MAX_QUERIES>::new()),
         };
 
         zconfig

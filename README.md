@@ -159,16 +159,18 @@ just std z_sub
 zenoh-nostd/            # Git repository root
 ├── crates/
 │   ├── zenoh-derive/   # Derive macros
-│   ├── zenoh-nostd/    # Zenoh with IO
+│   ├── zenoh-nostd/    # Zenoh with IO, embassy
 │   ├── zenoh-proto/    # Zenoh Protocol
 │   └── zenoh-sansio/   # Zenoh Sans IO
-│       └── examples 
-│           ├── z_ping.rs       # Example without io (example with udp)
-│           ├── z_pong.rs       # Example without io (example with udp)
-│           ├── z_put.rs        # Example without io (example with udp)
-│           └── z_sub.rs        # Example without io (example with udp)
+│       └── examples
+│           ├── z_get.rs        # Example without io (example with tcp)
+│           ├── z_ping.rs       # Example without io (example with tcp)
+│           ├── z_pong.rs       # Example without io (example with tcp)
+│           ├── z_put.rs        # Example without io (example with tcp)
+│           └── z_sub.rs        # Example without io (example with tcp)
 │
 ├── examples/
+│   ├── z_get.rs        # Example with io
 │   ├── z_ping.rs       # Example with io
 │   ├── z_pong.rs       # Example with io
 │   ├── z_put.rs        # Example with io

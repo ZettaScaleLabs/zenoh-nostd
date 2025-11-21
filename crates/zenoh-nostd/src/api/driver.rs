@@ -9,10 +9,10 @@ use embassy_time::Instant;
 use zenoh_proto::{ZResult, keyexpr};
 
 use crate::{
-    ZQueryCallback,
+    ZRepliesCallback,
     io::transport::{TransportConfig, TransportRx, TransportTx},
     platform::Platform,
-    query::callback::ZQueryCallbacks,
+    replies::callback::ZRepliesCallbacks,
     subscriber::callback::{ZSubscriberCallback, ZSubscriberCallbacks},
 };
 
@@ -34,7 +34,7 @@ pub struct SubscriberState {
 }
 
 pub struct QueriesState {
-    callbacks: &'static mut dyn ZQueryCallbacks,
+    callbacks: &'static mut dyn ZRepliesCallbacks,
 }
 
 pub struct SessionDriver<T: Platform + 'static> {
@@ -53,7 +53,7 @@ impl<T: Platform> SessionDriver<T> {
         tx: (&'static mut [u8], TransportTx<'static, T>),
         rx: (&'static mut [u8], TransportRx<'static, T>),
         subscribers: &'static mut dyn ZSubscriberCallbacks,
-        queries: &'static mut dyn ZQueryCallbacks,
+        queries: &'static mut dyn ZRepliesCallbacks,
     ) -> SessionDriver<T> {
         SessionDriver {
             tx: Mutex::new(TxState {
@@ -90,7 +90,7 @@ impl<T: Platform> SessionDriver<T> {
         &self,
         id: u32,
         ke: &'static keyexpr,
-        callback: ZQueryCallback,
+        callback: ZRepliesCallback,
     ) -> ZResult<()> {
         let mut cb_guard = self.queries.lock().await;
         let cb = cb_guard.deref_mut();

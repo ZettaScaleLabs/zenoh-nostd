@@ -9,37 +9,37 @@ use zenoh_proto::{ZError, ZResult, keyexpr, zbail};
 
 use crate::{ZOwnedReply, ZReply};
 
-pub trait ZQueryAsyncCallback {
+pub trait ZRepliesAsyncCallback {
     fn poll_ready_to_send(&self, cx: &mut Context<'_>) -> Poll<()>;
     fn call(&self, reply: ZReply<'_>) -> ZResult<()>;
 }
 
-pub(crate) enum ZQueryCallbackInner {
+pub(crate) enum ZRepliesCallbackInner {
     Sync(fn(&ZReply<'_>) -> ()),
-    Async(&'static dyn ZQueryAsyncCallback),
+    Async(&'static dyn ZRepliesAsyncCallback),
 }
 
-pub struct ZQueryCallback(ZQueryCallbackInner);
+pub struct ZRepliesCallback(ZRepliesCallbackInner);
 
-impl ZQueryCallback {
+impl ZRepliesCallback {
     pub fn new_sync(f: fn(&ZReply<'_>) -> ()) -> Self {
-        Self(ZQueryCallbackInner::Sync(f))
+        Self(ZRepliesCallbackInner::Sync(f))
     }
 
-    pub fn new_async(f: &'static dyn ZQueryAsyncCallback) -> Self {
-        Self(ZQueryCallbackInner::Async(f))
+    pub fn new_async(f: &'static dyn ZRepliesAsyncCallback) -> Self {
+        Self(ZRepliesCallbackInner::Async(f))
     }
 
     pub(crate) fn is_async(&self) -> bool {
-        matches!(self.0, ZQueryCallbackInner::Async(_))
+        matches!(self.0, ZRepliesCallbackInner::Async(_))
     }
 
     pub(crate) async fn call(&self, sample: ZReply<'_>) -> ZResult<()> {
         match self.0 {
-            ZQueryCallbackInner::Sync(f) => {
+            ZRepliesCallbackInner::Sync(f) => {
                 f(&sample);
             }
-            ZQueryCallbackInner::Async(f) => {
+            ZRepliesCallbackInner::Async(f) => {
                 poll_fn(|cx| f.poll_ready_to_send(cx)).await;
                 f.call(sample)?;
             }
@@ -49,7 +49,7 @@ impl ZQueryCallback {
     }
 }
 
-impl<const L: usize, const KE: usize, const PL: usize> ZQueryAsyncCallback
+impl<const L: usize, const KE: usize, const PL: usize> ZRepliesAsyncCallback
     for Channel<CriticalSectionRawMutex, ZOwnedReply<KE, PL>, L>
 {
     fn poll_ready_to_send(&self, cx: &mut Context<'_>) -> Poll<()> {
@@ -66,26 +66,26 @@ impl<const L: usize, const KE: usize, const PL: usize> ZQueryAsyncCallback
     }
 }
 
-pub trait ZQueryCallbacks {
-    fn insert(&mut self, id: u32, ke: &'static keyexpr, callback: ZQueryCallback) -> ZResult<()>;
+pub trait ZRepliesCallbacks {
+    fn insert(&mut self, id: u32, ke: &'static keyexpr, callback: ZRepliesCallback) -> ZResult<()>;
     fn intersects(&self, id: &u32, ke: &'_ keyexpr) -> bool;
-    fn iter(&self) -> Iter<'_, u32, ZQueryCallback>;
+    fn iter(&self) -> Iter<'_, u32, ZRepliesCallback>;
 
-    fn remove(&mut self, id: &u32) -> Option<ZQueryCallback>;
+    fn remove(&mut self, id: &u32) -> Option<ZRepliesCallback>;
 }
 
-pub struct ZQueryCallbackStorage<const N: usize> {
+pub struct ZRepliesCallbackStorage<const N: usize> {
     lookup: FnvIndexMap<u32, &'static keyexpr, N>,
-    callbacks: FnvIndexMap<u32, ZQueryCallback, N>,
+    callbacks: FnvIndexMap<u32, ZRepliesCallback, N>,
 }
 
-impl<const N: usize> Default for ZQueryCallbackStorage<N> {
+impl<const N: usize> Default for ZRepliesCallbackStorage<N> {
     fn default() -> Self {
         Self::new()
     }
 }
 
-impl<const N: usize> ZQueryCallbackStorage<N> {
+impl<const N: usize> ZRepliesCallbackStorage<N> {
     pub fn new() -> Self {
         Self {
             lookup: FnvIndexMap::new(),
@@ -94,8 +94,8 @@ impl<const N: usize> ZQueryCallbackStorage<N> {
     }
 }
 
-impl<const N: usize> ZQueryCallbacks for ZQueryCallbackStorage<N> {
-    fn insert(&mut self, id: u32, ke: &'static keyexpr, callback: ZQueryCallback) -> ZResult<()> {
+impl<const N: usize> ZRepliesCallbacks for ZRepliesCallbackStorage<N> {
+    fn insert(&mut self, id: u32, ke: &'static keyexpr, callback: ZRepliesCallback) -> ZResult<()> {
         if self.lookup.contains_key(&id) {
             zbail!(ZError::CallbackAlreadySet)
         }
@@ -118,11 +118,11 @@ impl<const N: usize> ZQueryCallbacks for ZQueryCallbackStorage<N> {
         false
     }
 
-    fn iter(&self) -> Iter<'_, u32, ZQueryCallback> {
+    fn iter(&self) -> Iter<'_, u32, ZRepliesCallback> {
         self.callbacks.iter()
     }
 
-    fn remove(&mut self, id: &u32) -> Option<ZQueryCallback> {
+    fn remove(&mut self, id: &u32) -> Option<ZRepliesCallback> {
         self.lookup.remove(id);
         self.callbacks.remove(id)
     }

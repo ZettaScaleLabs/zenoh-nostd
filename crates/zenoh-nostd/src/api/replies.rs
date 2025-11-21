@@ -7,25 +7,25 @@ use crate::ZOwnedReply;
 
 pub mod callback;
 
-pub enum ZQueryInner<const MAX_KEYEXPR: usize, const MAX_PAYLOAD: usize> {
+pub enum ZRepliesInner<const MAX_KEYEXPR: usize, const MAX_PAYLOAD: usize> {
     Sync,
     Async(DynamicReceiver<'static, ZOwnedReply<MAX_KEYEXPR, MAX_PAYLOAD>>),
 }
 
-pub struct ZQuery<const MAX_KEYEXPR: usize, const MAX_PAYLOAD: usize> {
+pub struct ZReplies<const MAX_KEYEXPR: usize, const MAX_PAYLOAD: usize> {
     id: u32,
     ke: &'static keyexpr,
     timeout: Duration,
-    inner: ZQueryInner<MAX_KEYEXPR, MAX_PAYLOAD>,
+    inner: ZRepliesInner<MAX_KEYEXPR, MAX_PAYLOAD>,
 }
 
-impl<const MAX_KEYEXPR: usize, const MAX_PAYLOAD: usize> ZQuery<MAX_KEYEXPR, MAX_PAYLOAD> {
+impl<const MAX_KEYEXPR: usize, const MAX_PAYLOAD: usize> ZReplies<MAX_KEYEXPR, MAX_PAYLOAD> {
     pub(crate) fn new_sync(id: u32, ke: &'static keyexpr, timeout: Duration) -> Self {
         Self {
             id,
             ke,
             timeout,
-            inner: ZQueryInner::Sync,
+            inner: ZRepliesInner::Sync,
         }
     }
 
@@ -35,11 +35,11 @@ impl<const MAX_KEYEXPR: usize, const MAX_PAYLOAD: usize> ZQuery<MAX_KEYEXPR, MAX
         timeout: Duration,
         rx: DynamicReceiver<'static, ZOwnedReply<MAX_KEYEXPR, MAX_PAYLOAD>>,
     ) -> Self {
-        ZQuery {
+        ZReplies {
             id,
             ke,
             timeout,
-            inner: ZQueryInner::Async(rx),
+            inner: ZRepliesInner::Async(rx),
         }
     }
 
@@ -59,8 +59,8 @@ impl<const MAX_KEYEXPR: usize, const MAX_PAYLOAD: usize> ZQuery<MAX_KEYEXPR, MAX
             },
             async {
                 match &self.inner {
-                    ZQueryInner::Sync => Err(zenoh_proto::ZError::CouldNotRecvFromChannel),
-                    ZQueryInner::Async(rx) => Ok(rx.receive().await),
+                    ZRepliesInner::Sync => Err(zenoh_proto::ZError::CouldNotRecvFromChannel),
+                    ZRepliesInner::Async(rx) => Ok(rx.receive().await),
                 }
             },
         )
@@ -73,10 +73,10 @@ impl<const MAX_KEYEXPR: usize, const MAX_PAYLOAD: usize> ZQuery<MAX_KEYEXPR, MAX
 }
 
 #[macro_export]
-macro_rules! zquery {
+macro_rules! zreplies {
     ($sync:expr) => {
         (
-            $crate::ZQueryCallback::new_sync($sync),
+            $crate::ZRepliesCallback::new_sync($sync),
             None::<embassy_sync::channel::DynamicReceiver<'static, $crate::ZOwnedReply<0, 0>>>,
         )
     };
@@ -93,7 +93,7 @@ macro_rules! zquery {
         let channel = CHANNEL.init(embassy_sync::channel::Channel::new());
 
         (
-            $crate::ZQueryCallback::new_async(channel),
+            $crate::ZRepliesCallback::new_async(channel),
             Some(channel.dyn_receiver()),
         )
     }};

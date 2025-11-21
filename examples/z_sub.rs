@@ -40,7 +40,7 @@ async fn entry(spawner: embassy_executor::Spawner) -> zenoh_nostd::ZResult<()> {
             MAX_QUERIES: 2
     );
 
-    let mut session = zenoh_nostd::open!(
+    let session = zenoh_nostd::open!(
         config,
         EndPoint::try_from(CONNECT.unwrap_or("tcp/127.0.0.1:7447"))?
     );

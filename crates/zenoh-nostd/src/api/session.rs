@@ -1,5 +1,7 @@
 use embassy_executor::{SpawnToken, Spawner};
-use embassy_sync::channel::DynamicReceiver;
+use embassy_sync::{
+    blocking_mutex::raw::CriticalSectionRawMutex, channel::DynamicReceiver, mutex::Mutex,
+};
 use embassy_time::Duration;
 use zenoh_proto::{
     Encoding, EndPoint, WireExpr, ZError, ZResult, ZenohIdProto, keyexpr,
@@ -13,7 +15,7 @@ use zenoh_proto::{
 };
 
 use crate::{
-    ZOwnedReply, ZPublisher, ZQuery, ZQueryCallback,
+    ZOwnedReply, ZPublisher, ZQuerier, ZReplies, ZRepliesCallback,
     api::{ZConfig, driver::SessionDriver, sample::ZOwnedSample, subscriber::ZSubscriber},
     io::{
         link::Link,
@@ -23,6 +25,8 @@ use crate::{
     subscriber::callback::ZSubscriberCallback,
 };
 
+static NEXT_ID: Mutex<CriticalSectionRawMutex, u32> = Mutex::new(0);
+
 pub struct Session<T: Platform + 'static, S> {
     driver: Option<&'static SessionDriver<T>>,
     spawner: Spawner,
@@ -31,8 +35,6 @@ pub struct Session<T: Platform + 'static, S> {
         id: u32,
         timeout: embassy_time::Duration,
     ) -> SpawnToken<S>,
-
-    next_id: u32,
 }
 
 impl<T: Platform + 'static, S> Session<T, S> {
@@ -58,7 +60,6 @@ impl<T: Platform + 'static, S> Session<T, S> {
                 driver: None,
                 spawner: config.spawner,
                 timeout_queries: config.timeout_queries,
-                next_id: 0,
             },
             SessionDriver::new(
                 tconfig,
@@ -95,7 +96,7 @@ impl<T: Platform + 'static, S> Session<T, S> {
     }
 
     pub async fn declare_subscriber<const KE: usize, const PL: usize>(
-        &mut self,
+        &self,
         ke: &'static keyexpr,
         config: (
             ZSubscriberCallback,
@@ -104,8 +105,9 @@ impl<T: Platform + 'static, S> Session<T, S> {
     ) -> ZResult<ZSubscriber<KE, PL>> {
         let wke = WireExpr::from(ke);
 
-        let id = self.next_id;
-        self.next_id += 1;
+        let mut id = NEXT_ID.lock().await;
+        *id += 1;
+        let id = *id;
 
         let msg = NetworkBody::Declare(Declare {
             id: None,
@@ -137,20 +139,21 @@ impl<T: Platform + 'static, S> Session<T, S> {
     }
 
     pub async fn get<const KE: usize, const PL: usize>(
-        &mut self,
+        &self,
         ke: &'static keyexpr,
         timeout: Option<Duration>,
         parameters: Option<&str>,
         payload: Option<&[u8]>,
         config: (
-            ZQueryCallback,
+            ZRepliesCallback,
             Option<DynamicReceiver<'static, ZOwnedReply<KE, PL>>>,
         ),
-    ) -> ZResult<ZQuery<KE, PL>> {
+    ) -> ZResult<ZReplies<KE, PL>> {
         let wke = WireExpr::from(ke);
 
-        let id = self.next_id;
-        self.next_id += 1;
+        let mut id = NEXT_ID.lock().await;
+        *id += 1;
+        let id = *id;
 
         let is_async = config.0.is_async();
 
@@ -194,9 +197,19 @@ impl<T: Platform + 'static, S> Session<T, S> {
         self.driver.as_ref().unwrap().send(msg).await?;
 
         if is_async {
-            Ok(ZQuery::new_async(id, ke, timeout, config.1.unwrap()))
+            Ok(ZReplies::new_async(id, ke, timeout, config.1.unwrap()))
         } else {
-            Ok(ZQuery::new_sync(id, ke, timeout))
+            Ok(ZReplies::new_sync(id, ke, timeout))
         }
+    }
+
+    pub fn declare_querier(&self, ke: &'static keyexpr) -> ZQuerier<T, S> {
+        ZQuerier::new(
+            self.spawner,
+            self.timeout_queries,
+            ke,
+            self.driver.as_ref().unwrap(),
+            &NEXT_ID,
+        )
     }
 }

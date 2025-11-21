@@ -2,7 +2,7 @@
 #![cfg_attr(feature = "esp32s3", no_main)]
 
 use zenoh_examples::*;
-use zenoh_nostd::{EndPoint, ZOwnedReply, ZReplies, ZReply, keyexpr, zreplies};
+use zenoh_nostd::{EndPoint, ZReply, keyexpr, zreplies};
 
 const CONNECT: Option<&str> = option_env!("CONNECT");
 
@@ -25,30 +25,6 @@ fn callback_1(reply: &ZReply) {
     }
 }
 
-#[embassy_executor::task]
-async fn callback_2(replies: ZReplies<32, 128>) {
-    while let Ok(reply) = replies.recv().await {
-        match reply {
-            ZOwnedReply::Ok(reply) => {
-                zenoh_nostd::info!(
-                    "[Async Query] Received OK Reply ('{}': '{:?}')",
-                    reply.keyexpr().as_str(),
-                    core::str::from_utf8(reply.payload()).unwrap()
-                );
-            }
-            ZOwnedReply::Err(reply) => {
-                zenoh_nostd::error!(
-                    "[Async Query] Received ERR Reply ('{}': '{:?}')",
-                    reply.keyexpr().as_str(),
-                    core::str::from_utf8(reply.payload()).unwrap()
-                );
-            }
-        }
-    }
-
-    zenoh_nostd::info!("[Async Query] Exiting callback_2");
-}
-
 async fn entry(spawner: embassy_executor::Spawner) -> zenoh_nostd::ZResult<()> {
     #[cfg(feature = "log")]
     env_logger::init();
@@ -69,27 +45,14 @@ async fn entry(spawner: embassy_executor::Spawner) -> zenoh_nostd::ZResult<()> {
         EndPoint::try_from(CONNECT.unwrap_or("tcp/127.0.0.1:7447"))?
     );
 
-    let ke = keyexpr::new("demo/example/**").unwrap();
-
-    let _ = session
-        .get(ke, None, None, None, zreplies!(callback_1))
-        .await
-        .unwrap();
-
-    let replies = session
-        .get(
-            ke,
-            None,
-            None,
-            None,
-            zreplies!(QUEUE_SIZE: 8, MAX_KEYEXPR: 32, MAX_PAYLOAD: 128),
-        )
-        .await
-        .unwrap();
-
-    spawner.spawn(callback_2(replies)).unwrap();
+    let querier = session.declare_querier(keyexpr::new("demo/example/**")?);
 
     loop {
+        let _ = querier
+            .get(None, None, None, zreplies!(callback_1))
+            .await
+            .unwrap();
+
         embassy_time::Timer::after(embassy_time::Duration::from_secs(1)).await;
     }
 }
