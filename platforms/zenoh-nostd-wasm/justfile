@@ -11,5 +11,5 @@ wasm example *args:
 
 wasm1 example *args:
     RUSTFLAGS='--cfg getrandom_backend="wasm_js"' cargo build --example {{example}} --no-default-features --features='async_wsocket zenoh-nostd/web_console' --target wasm32-unknown-unknown -- {{args}}
-    wasm-bindgen --target web --out-dir web/ ../../target/wasm32-unknown-unknown/debug/examples/{{example}}.wasm --out-name z_example
+    wasm-bindgen --no-demangle --target web --out-dir web/ ../../target/wasm32-unknown-unknown/debug/examples/{{example}}.wasm --out-name z_example
     basic-http-server web
