@@ -18,7 +18,7 @@ std example:
     RUST_LOG=info cargo run --example {{example}} --features="std,log"
 
 esp32s3 example:
-    cargo +esp --config .cargo/config.esp32s3.toml run --example {{example}} --features="esp32s3,defmt"
+    cargo +esp --config .cargo/config.esp32s3.toml run --example {{example}} --no-default-features --features="esp32s3,defmt"
 
 sansio example:
     RUST_LOG=debug cargo run -p zenoh-sansio --example {{example}} --features="log"
