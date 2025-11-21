@@ -21,9 +21,9 @@ impl Platform for PlatformEmbassy {
         &self,
         addr: &core::net::SocketAddr,
     ) -> ZResult<Self::AbstractedTcpStream, ZConnectionError> {
-        static RX_BUF: StaticCell<[u8; 1024]> = StaticCell::new();
-        static TX_BUF: StaticCell<[u8; 1024]> = StaticCell::new();
-        let (rx_buf, tx_buf) = (RX_BUF.init([0; 1024]), TX_BUF.init([0; 1024]));
+        static RX_BUF: StaticCell<[u8; 2048]> = StaticCell::new();
+        static TX_BUF: StaticCell<[u8; 2048]> = StaticCell::new();
+        let (rx_buf, tx_buf) = (RX_BUF.init([0; 2048]), TX_BUF.init([0; 2048]));
 
         let mut socket: TcpSocket<'static> = TcpSocket::new(self.stack, rx_buf, tx_buf);
 
