@@ -2,11 +2,16 @@ check:
     cargo clippy -p zenoh-nostd --fix --lib --allow-dirty --allow-staged
     cargo clippy -p zenoh-nostd --features=log --fix --lib --allow-dirty --allow-staged
     cargo clippy -p zenoh-nostd --features=defmt --fix --lib --allow-dirty --allow-staged
+    cargo clippy -p zenoh-nostd --features=web_console --fix --lib --allow-dirty --allow-staged
 
     cd platforms/zenoh-std && just check
     cd platforms/zenoh-embassy && just check
+    cd platforms/zenoh-nostd-wasm && just clippy
 
     cargo clippy --examples --features=std,log --fix --lib --allow-dirty --allow-staged
+
+wasm-clippy:
+    cd platforms/zenoh-nostd-wasm && just clippy
 
 test:
     cargo test -p zenoh-proto
@@ -22,3 +27,6 @@ esp32s3 example:
 
 sansio example:
     RUST_LOG=debug cargo run -p zenoh-sansio --example {{example}} --features="log"
+
+wasm example *args:
+    cd platforms/zenoh-nostd-wasm && just wasm {{example}} {{args}}

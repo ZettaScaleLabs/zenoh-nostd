@@ -16,6 +16,14 @@ pub struct PlatformEmbassy {
 
 impl Platform for PlatformEmbassy {
     type AbstractedTcpStream = tcp::EmbassyTcpStream;
+    type AbstractedWsStream = zenoh_nostd::platform::ws::DummyWsStream;
+
+    async fn new_websocket_stream(
+        &self,
+        _addr: &core::net::SocketAddr,
+    ) -> ZResult<Self::AbstractedWsStream, ZConnectionError> {
+        Err(ZConnectionError::CouldNotConnect)
+    }
 
     async fn new_tcp_stream(
         &self,

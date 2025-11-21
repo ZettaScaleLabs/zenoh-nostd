@@ -1,0 +1,8 @@
+clippy:
+    RUSTFLAGS='--cfg getrandom_backend="wasm_js"' cargo clippy --features='zenoh-nostd/web_console' --target wasm32-unknown-unknown
+    RUSTFLAGS='--cfg getrandom_backend="wasm_js"' cargo clippy --examples --features='zenoh-nostd/web_console' --target wasm32-unknown-unknown
+
+wasm example *args:
+    RUSTFLAGS='--cfg getrandom_backend="wasm_js"' cargo build --example {{example}} --features='zenoh-nostd/web_console' --target wasm32-unknown-unknown -- {{args}}
+    wasm-bindgen --target web --out-dir web/ ../../target/wasm32-unknown-unknown/debug/examples/{{example}}.wasm --out-name z_example
+    basic-http-server web

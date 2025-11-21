@@ -19,7 +19,7 @@ embassy-net = { version = "0.7.1", features = [
   "medium-ethernet",
   "tcp",
 ]}
-embedded-io-async = { version = "0.6.1", features = ["defmt-03"] }
+embedded-io-async = { version = "0.6", features = ["defmt-03"] }
 static_cell = "2.1.1"
 
-getrandom = { version = "0.2.16", features = ["custom"] }
+getrandom = { version = "0.2", features = ["custom"] }

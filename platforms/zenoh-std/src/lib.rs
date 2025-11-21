@@ -9,6 +9,14 @@ pub struct PlatformStd;
 
 impl Platform for PlatformStd {
     type AbstractedTcpStream = tcp::StdTcpStream;
+    type AbstractedWsStream = zenoh_nostd::platform::ws::DummyWsStream;
+
+    async fn new_websocket_stream(
+        &self,
+        _addr: &core::net::SocketAddr,
+    ) -> ZResult<Self::AbstractedWsStream, ZConnectionError> {
+        Err(ZConnectionError::CouldNotConnect)
+    }
 
     async fn new_tcp_stream(
         &self,
