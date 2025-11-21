@@ -45,6 +45,8 @@ async fn callback_2(query: ZQuery<32, 128>) {
             }
         }
     }
+
+    zenoh_nostd::info!("[Async Query] Exiting callback_2");
 }
 
 async fn entry(spawner: embassy_executor::Spawner) -> zenoh_nostd::ZResult<()> {
@@ -70,21 +72,22 @@ async fn entry(spawner: embassy_executor::Spawner) -> zenoh_nostd::ZResult<()> {
     let ke = keyexpr::new("demo/example/**").unwrap();
 
     let _sync_query = session
-        .get(ke, None, None, zquery!(callback_1))
+        .get(ke, None, None, None, zquery!(callback_1))
         .await
         .unwrap();
 
-    // let async_query = session
-    //     .get(
-    //         ke,
-    //         None,
-    //         None,
-    //         zquery!(QUEUE_SIZE: 8, MAX_KEYEXPR: 32, MAX_PAYLOAD: 128),
-    //     )
-    //     .await
-    //     .unwrap();
+    let async_query = session
+        .get(
+            ke,
+            None,
+            None,
+            None,
+            zquery!(QUEUE_SIZE: 8, MAX_KEYEXPR: 32, MAX_PAYLOAD: 128),
+        )
+        .await
+        .unwrap();
 
-    // spawner.spawn(callback_2(async_query)).unwrap();
+    spawner.spawn(callback_2(async_query)).unwrap();
 
     loop {
         embassy_time::Timer::after(embassy_time::Duration::from_secs(1)).await;

@@ -1,4 +1,6 @@
+use embassy_futures::select::select;
 use embassy_sync::channel::DynamicReceiver;
+use embassy_time::Duration;
 use zenoh_proto::keyexpr;
 
 use crate::ZOwnedReply;
@@ -13,14 +15,16 @@ pub enum ZQueryInner<const MAX_KEYEXPR: usize, const MAX_PAYLOAD: usize> {
 pub struct ZQuery<const MAX_KEYEXPR: usize, const MAX_PAYLOAD: usize> {
     id: u32,
     ke: &'static keyexpr,
+    timeout: Duration,
     inner: ZQueryInner<MAX_KEYEXPR, MAX_PAYLOAD>,
 }
 
 impl<const MAX_KEYEXPR: usize, const MAX_PAYLOAD: usize> ZQuery<MAX_KEYEXPR, MAX_PAYLOAD> {
-    pub(crate) fn new_sync(id: u32, ke: &'static keyexpr) -> Self {
+    pub(crate) fn new_sync(id: u32, ke: &'static keyexpr, timeout: Duration) -> Self {
         Self {
             id,
             ke,
+            timeout,
             inner: ZQueryInner::Sync,
         }
     }
@@ -28,11 +32,13 @@ impl<const MAX_KEYEXPR: usize, const MAX_PAYLOAD: usize> ZQuery<MAX_KEYEXPR, MAX
     pub(crate) fn new_async(
         id: u32,
         ke: &'static keyexpr,
+        timeout: Duration,
         rx: DynamicReceiver<'static, ZOwnedReply<MAX_KEYEXPR, MAX_PAYLOAD>>,
     ) -> Self {
         ZQuery {
             id,
             ke,
+            timeout,
             inner: ZQueryInner::Async(rx),
         }
     }
@@ -46,9 +52,22 @@ impl<const MAX_KEYEXPR: usize, const MAX_PAYLOAD: usize> ZQuery<MAX_KEYEXPR, MAX
     }
 
     pub async fn recv(&self) -> crate::ZResult<ZOwnedReply<MAX_KEYEXPR, MAX_PAYLOAD>> {
-        match &self.inner {
-            ZQueryInner::Sync => Err(zenoh_proto::ZError::CouldNotRecvFromChannel),
-            ZQueryInner::Async(rx) => Ok(rx.receive().await),
+        match select(
+            async {
+                embassy_time::Timer::after(self.timeout).await;
+                Err(zenoh_proto::ZError::Timeout)
+            },
+            async {
+                match &self.inner {
+                    ZQueryInner::Sync => Err(zenoh_proto::ZError::CouldNotRecvFromChannel),
+                    ZQueryInner::Async(rx) => Ok(rx.receive().await),
+                }
+            },
+        )
+        .await
+        {
+            embassy_futures::select::Either::First(timeout_err) => timeout_err,
+            embassy_futures::select::Either::Second(reply_res) => reply_res,
         }
     }
 }

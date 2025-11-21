@@ -1,6 +1,8 @@
+use embassy_executor::{SpawnToken, Spawner};
 use embassy_sync::channel::DynamicReceiver;
+use embassy_time::Duration;
 use zenoh_proto::{
-    Encoding, EndPoint, WireExpr, ZResult, ZenohIdProto, keyexpr,
+    Encoding, EndPoint, WireExpr, ZError, ZResult, ZenohIdProto, keyexpr,
     network::{
         NetworkBody, NodeId, QoS, QueryTarget,
         declare::{Declare, DeclareBody, DeclareSubscriber},
@@ -21,15 +23,21 @@ use crate::{
     subscriber::callback::ZSubscriberCallback,
 };
 
-pub struct Session<T: Platform + 'static> {
+pub struct Session<T: Platform + 'static, S> {
     driver: Option<&'static SessionDriver<T>>,
+    spawner: Spawner,
+    timeout_queries: fn(
+        driver: &'static SessionDriver<T>,
+        id: u32,
+        timeout: embassy_time::Duration,
+    ) -> SpawnToken<S>,
 
     next_id: u32,
 }
 
-impl<T: Platform + 'static> Session<T> {
-    pub async fn new<S>(
-        config: ZConfig<T, S>,
+impl<T: Platform + 'static, S> Session<T, S> {
+    pub async fn new<S1>(
+        config: ZConfig<T, S1, S>,
         endpoint: EndPoint,
     ) -> ZResult<(Self, SessionDriver<T>)> {
         let transport = TransportMineConfig {
@@ -48,6 +56,8 @@ impl<T: Platform + 'static> Session<T> {
         Ok((
             Self {
                 driver: None,
+                spawner: config.spawner,
+                timeout_queries: config.timeout_queries,
                 next_id: 0,
             },
             SessionDriver::new(
@@ -129,6 +139,7 @@ impl<T: Platform + 'static> Session<T> {
     pub async fn get<const KE: usize, const PL: usize>(
         &mut self,
         ke: &'static keyexpr,
+        timeout: Option<Duration>,
         parameters: Option<&str>,
         payload: Option<&[u8]>,
         config: (
@@ -148,6 +159,16 @@ impl<T: Platform + 'static> Session<T> {
             .unwrap()
             .register_query_callback(id, ke, config.0)
             .await?;
+
+        let timeout = timeout.unwrap_or(Duration::from_secs(5));
+
+        self.spawner
+            .spawn((self.timeout_queries)(
+                self.driver.as_ref().unwrap(),
+                id,
+                timeout,
+            ))
+            .map_err(|_| ZError::CouldNotSpawnTask)?;
 
         let msg = NetworkBody::Request(Request {
             id,
@@ -173,9 +194,9 @@ impl<T: Platform + 'static> Session<T> {
         self.driver.as_ref().unwrap().send(msg).await?;
 
         if is_async {
-            Ok(ZQuery::new_async(id, ke, config.1.unwrap()))
+            Ok(ZQuery::new_async(id, ke, timeout, config.1.unwrap()))
         } else {
-            Ok(ZQuery::new_sync(id, ke))
+            Ok(ZQuery::new_sync(id, ke, timeout))
         }
     }
 }

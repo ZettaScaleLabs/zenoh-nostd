@@ -97,4 +97,11 @@ impl<T: Platform> SessionDriver<T> {
 
         cb.callbacks.insert(id, ke, callback).map(|_| ())
     }
+
+    pub async fn remove_query_callback(&self, id: u32) {
+        let mut cb_guard = self.queries.lock().await;
+        let cb = cb_guard.deref_mut();
+
+        cb.callbacks.remove(&id);
+    }
 }
