@@ -31,7 +31,7 @@ impl<'a> ZSample<'a> {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub struct ZOwnedSample<const MAX_KEYEXPR: usize, const MAX_PAYLOAD: usize> {
     keyexpr: String<MAX_KEYEXPR>,
     payload: Vec<u8, MAX_PAYLOAD>,

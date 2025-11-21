@@ -17,10 +17,11 @@ async fn entry(spawner: embassy_executor::Spawner) -> zenoh_nostd::ZResult<()> {
             Platform: (spawner, platform),
             TX: 512,
             RX: 512,
-            MAX_SUBSCRIBERS: 2
+            MAX_SUBSCRIBERS: 2,
+            MAX_QUERIES: 2
     );
 
-    let mut session = zenoh_nostd::open!(
+    let session = zenoh_nostd::open!(
         config,
         EndPoint::try_from(CONNECT.unwrap_or("tcp/127.0.0.1:7447"))?
     );
@@ -28,17 +29,15 @@ async fn entry(spawner: embassy_executor::Spawner) -> zenoh_nostd::ZResult<()> {
     let ke = keyexpr::new("demo/example")?;
     let payload = b"Hello, from no-std!";
 
-    loop {
-        session.put(ke, payload).await?;
+    session.put(ke, payload).await?;
 
-        zenoh_nostd::info!(
-            "[Put] Sent PUT ('{}': '{}')",
-            ke.as_str(),
-            core::str::from_utf8(payload).unwrap()
-        );
+    zenoh_nostd::info!(
+        "[Put] Sent PUT ('{}': '{}')",
+        ke.as_str(),
+        core::str::from_utf8(payload).unwrap()
+    );
 
-        embassy_time::Timer::after(embassy_time::Duration::from_secs(1)).await;
-    }
+    Ok(())
 }
 
 #[cfg_attr(feature = "std", embassy_executor::main)]

@@ -29,11 +29,11 @@ pub enum ZError {
     /// An error occurred while processing a TX packet.
     TxError = 15,
 
-    /// Could not receive from subscriber.
-    CouldNotRecvFromSubscriber = 16,
+    /// Could not receive from channel.
+    CouldNotRecvFromChannel = 16,
 
     /// A subscriber callback is already set.
-    SubscriberCallbackAlreadySet = 17,
+    CallbackAlreadySet = 17,
 
     /// The connection was closed.
     ConnectionClosed = 18,
@@ -107,8 +107,8 @@ impl core::fmt::Display for ZError {
             ZError::CapacityExceeded => f.write_str("capacity limit exceeded"),
             ZError::InvalidRx => f.write_str("invalid rx packet"),
             ZError::TxError => f.write_str("tx error occurred"),
-            ZError::CouldNotRecvFromSubscriber => f.write_str("could not receive from subscriber"),
-            ZError::SubscriberCallbackAlreadySet => f.write_str("subscriber callback already set"),
+            ZError::CouldNotRecvFromChannel => f.write_str("could not receive from channel"),
+            ZError::CallbackAlreadySet => f.write_str("callback already set"),
             ZError::ConnectionClosed => f.write_str("connection closed"),
             ZError::CouldNotSpawnTask => f.write_str("could not spawn task"),
 

@@ -1,8 +1,9 @@
 use embassy_sync::channel::DynamicReceiver;
-use heapless::index_map::{FnvIndexMap, Iter};
-use zenoh_proto::{ZError, ZResult, keyexpr, zbail};
+use zenoh_proto::{ZError, ZResult, keyexpr};
 
-use crate::api::{callback::ZCallback, sample::ZOwnedSample};
+use crate::api::sample::ZOwnedSample;
+
+pub mod callback;
 
 pub enum ZSubscriberInner<const MAX_KEYEXPR: usize, const MAX_PAYLOAD: usize> {
     Sync,
@@ -46,64 +47,9 @@ impl<const MAX_KEYEXPR: usize, const MAX_PAYLOAD: usize> ZSubscriber<MAX_KEYEXPR
 
     pub async fn recv(&self) -> ZResult<ZOwnedSample<MAX_KEYEXPR, MAX_PAYLOAD>> {
         match &self.inner {
-            ZSubscriberInner::Sync => Err(ZError::CouldNotRecvFromSubscriber),
+            ZSubscriberInner::Sync => Err(ZError::CouldNotRecvFromChannel),
             ZSubscriberInner::Async(rx) => Ok(rx.receive().await),
         }
-    }
-}
-
-pub trait ZSubscriberCallbacks {
-    fn insert(&mut self, id: u32, ke: &'static keyexpr, callback: ZCallback) -> ZResult<()>;
-    fn intersects(&self, id: &u32, ke: &'_ keyexpr) -> bool;
-    fn iter(&self) -> Iter<'_, u32, ZCallback>;
-}
-
-pub struct ZSubscriberCallbackStorage<const N: usize> {
-    lookup: FnvIndexMap<u32, &'static keyexpr, N>,
-    callbacks: FnvIndexMap<u32, ZCallback, N>,
-}
-
-impl<const N: usize> Default for ZSubscriberCallbackStorage<N> {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
-impl<const N: usize> ZSubscriberCallbackStorage<N> {
-    pub fn new() -> Self {
-        Self {
-            lookup: FnvIndexMap::new(),
-            callbacks: FnvIndexMap::new(),
-        }
-    }
-}
-
-impl<const N: usize> ZSubscriberCallbacks for ZSubscriberCallbackStorage<N> {
-    fn insert(&mut self, id: u32, ke: &'static keyexpr, callback: ZCallback) -> ZResult<()> {
-        if self.lookup.contains_key(&id) {
-            zbail!(ZError::SubscriberCallbackAlreadySet)
-        }
-
-        self.lookup
-            .insert(id, ke)
-            .map_err(|_| ZError::CapacityExceeded)?;
-
-        self.callbacks
-            .insert(id, callback)
-            .map_err(|_| ZError::CapacityExceeded)
-            .map(|_| ())
-    }
-
-    fn intersects(&self, id: &u32, ke: &'_ keyexpr) -> bool {
-        if let Some(stored_ke) = self.lookup.get(id) {
-            return stored_ke.intersects(ke);
-        }
-
-        false
-    }
-
-    fn iter(&self) -> Iter<'_, u32, ZCallback> {
-        self.callbacks.iter()
     }
 }
 
@@ -111,7 +57,7 @@ impl<const N: usize> ZSubscriberCallbacks for ZSubscriberCallbackStorage<N> {
 macro_rules! zsubscriber {
     ($sync:expr) => {
         (
-            $crate::ZCallback::new_sync($sync),
+            $crate::ZSubscriberCallback::new_sync($sync),
             None::<embassy_sync::channel::DynamicReceiver<'static, $crate::ZOwnedSample<0, 0>>>,
         )
     };
@@ -128,7 +74,7 @@ macro_rules! zsubscriber {
         let channel = CHANNEL.init(embassy_sync::channel::Channel::new());
 
         (
-            $crate::ZCallback::new_async(channel),
+            $crate::ZSubscriberCallback::new_async(channel),
             Some(channel.dyn_receiver()),
         )
     }};

@@ -4,10 +4,11 @@ use zenoh_proto::{
     ZResult, keyexpr,
     network::NetworkBody,
     transport::{TransportBatch, TransportBody},
-    zenoh::PushBody,
+    zenoh::{PushBody, ResponseBody},
 };
 
 use crate::{
+    ZReply,
     api::{driver::SessionDriver, sample::ZSample},
     platform::Platform,
 };
@@ -24,8 +25,8 @@ impl<T: Platform> SessionDriver<T> {
 
                 TransportBody::Frame(mut frame) => {
                     for msg in frame.msgs.by_ref() {
-                        if let NetworkBody::Push(push) = msg? {
-                            match push.payload {
+                        match msg? {
+                            NetworkBody::Push(push) => match push.payload {
                                 PushBody::Put(put) => {
                                     let zbuf: &'a [u8] = put.payload;
 
@@ -50,7 +51,48 @@ impl<T: Platform> SessionDriver<T> {
                                         callback.call(sample).await?;
                                     }
                                 }
+                            },
+                            NetworkBody::Response(resp) => {
+                                let rid = resp.rid;
+
+                                let wke: &'a str = resp.wire_expr.suffix;
+                                let wke: &'a keyexpr = keyexpr::new(wke)?;
+
+                                let mut cb_guard = self.queries.lock().await;
+                                let cb = cb_guard.deref_mut();
+
+                                let matching_callbacks = cb
+                                    .callbacks
+                                    .iter()
+                                    .filter_map(|(k, v)| if *k == rid { Some(v) } else { None });
+
+                                for callback in matching_callbacks {
+                                    let reply = match &resp.payload {
+                                        ResponseBody::Reply(reply) => match &reply.payload {
+                                            PushBody::Put(put) => {
+                                                let sample = ZSample::new(wke, put.payload);
+
+                                                ZReply::Ok(sample)
+                                            }
+                                        },
+                                        ResponseBody::Err(err) => {
+                                            let sample = ZSample::new(wke, err.payload);
+                                            ZReply::Err(sample)
+                                        }
+                                    };
+
+                                    callback.call(reply).await?;
+                                }
                             }
+                            NetworkBody::ResponseFinal(resp) => {
+                                let rid = resp.rid;
+
+                                let mut cb_guard = self.queries.lock().await;
+                                let cb = cb_guard.deref_mut();
+
+                                cb.callbacks.remove(&rid);
+                            }
+                            _ => {}
                         }
                     }
                 }

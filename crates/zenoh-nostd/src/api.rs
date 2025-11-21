@@ -1,13 +1,16 @@
 use embassy_executor::{SpawnToken, Spawner};
 use static_cell::StaticCell;
 
-use crate::{api::subscriber::ZSubscriberCallbacks, io::transport::Transport, platform::Platform};
-
-pub(crate) mod callback;
-pub use callback::ZCallback;
+use crate::{
+    io::transport::Transport, platform::Platform, query::callback::ZQueryCallbacks,
+    subscriber::callback::ZSubscriberCallbacks,
+};
 
 pub(crate) mod sample;
 pub use sample::{ZOwnedSample, ZSample};
+
+pub(crate) mod reply;
+pub use reply::{ZOwnedReply, ZReply};
 
 pub(crate) mod driver;
 pub use driver::SessionDriver;
@@ -16,10 +19,19 @@ pub(crate) mod session;
 pub use session::Session;
 
 pub(crate) mod subscriber;
-pub use subscriber::{ZSubscriber, ZSubscriberCallbackStorage};
+pub use subscriber::{
+    ZSubscriber,
+    callback::{ZSubscriberCallback, ZSubscriberCallbackStorage},
+};
 
 pub(crate) mod publisher;
 pub use publisher::ZPublisher;
+
+pub(crate) mod query;
+pub use query::{
+    ZQuery,
+    callback::{ZQueryCallback, ZQueryCallbackStorage},
+};
 
 pub struct ZConfig<T: Platform + 'static, S> {
     pub spawner: Spawner,
@@ -33,11 +45,12 @@ pub struct ZConfig<T: Platform + 'static, S> {
     pub rx_zbuf: &'static mut [u8],
 
     pub subscribers: &'static mut dyn ZSubscriberCallbacks,
+    pub queries: &'static mut dyn ZQueryCallbacks,
 }
 
 #[macro_export]
 macro_rules! zconfig {
-    ($type:ident : ($spawner:expr, $platform:expr), TX: $TX:expr, RX: $RX:expr, MAX_SUBSCRIBERS: $MAX_SUBSCRIBERS:expr) => {{
+    ($type:ident : ($spawner:expr, $platform:expr), TX: $TX:expr, RX: $RX:expr, MAX_SUBSCRIBERS: $MAX_SUBSCRIBERS:expr, MAX_QUERIES: $MAX_QUERIES:expr) => {{
         static DRIVER: static_cell::StaticCell<$crate::SessionDriver<$type>> =
             static_cell::StaticCell::new();
 
@@ -50,6 +63,9 @@ macro_rules! zconfig {
         static SUBSCRIBERS: static_cell::StaticCell<
             $crate::ZSubscriberCallbackStorage<$MAX_SUBSCRIBERS>,
         > = static_cell::StaticCell::new();
+
+        static QUERIES: static_cell::StaticCell<$crate::ZQueryCallbackStorage<$MAX_QUERIES>> =
+            static_cell::StaticCell::new();
 
         #[embassy_executor::task]
         async fn session_task(runner: &'static $crate::SessionDriver<$type>) {
@@ -70,6 +86,7 @@ macro_rules! zconfig {
             rx_zbuf: RX_ZBUF.init([0u8; $RX]).as_mut_slice(),
             subscribers: SUBSCRIBERS
                 .init($crate::ZSubscriberCallbackStorage::<$MAX_SUBSCRIBERS>::new()),
+            queries: QUERIES.init($crate::ZQueryCallbackStorage::<$MAX_QUERIES>::new()),
         };
 
         zconfig
