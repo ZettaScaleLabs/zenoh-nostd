@@ -9,6 +9,7 @@ use zenoh_nostd::{
 };
 
 pub mod tcp;
+pub mod ws;
 
 pub struct PlatformEmbassy {
     pub stack: Stack<'static>,

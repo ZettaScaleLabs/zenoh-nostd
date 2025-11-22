@@ -4,7 +4,6 @@ use {
         SinkExt as _, StreamExt as _,
         stream::{SplitSink, SplitStream},
     },
-    std::marker::PhantomData,
     zenoh_nostd::{
         ZResult,
         platform::{
@@ -24,17 +23,55 @@ use yawc::{
     frame::{FrameView, OpCode},
 };
 
+// pub struct WasmWsStream {
+//     pub peer_addr: SocketAddr,
+//     pub socket: WebSocket,
+//     mtu: u16,
+// }
+
+// impl WasmWsStream {
+//     pub fn new(peer_addr: SocketAddr, socket: WebSocket) -> Self {
+//         Self {
+//             peer_addr,
+//             socket,
+//             mtu: u16::MAX,
+//         }
+//     }
+// }
+
+// #[cfg(all(feature = "async_wsocket", not(feature = "yawc")))]
+// pub struct WasmWsTx {
+//     pub socket: SplitSink<WebSocket, Message>,
+// }
+
+// #[cfg(feature = "yawc")]
+// pub struct WasmWsTx {
+//     pub socket: SplitSink<WebSocket, FrameView>,
+// }
+
+// pub struct WasmWsRx {
+//     pub socket: SplitStream<WebSocket>,
+// }
+
+#[cfg(all(feature = "async_wsocket", not(feature = "yawc")))]
+type WasmWsStreamSink = SplitSink<WebSocket, Message>;
+#[cfg(feature = "yawc")]
+type WasmWsStreamSink = SplitSink<WebSocket, FrameView>;
+
 pub struct WasmWsStream {
     pub peer_addr: SocketAddr,
-    pub socket: WebSocket,
-    mtu: u16,
+    pub sink: WasmWsStreamSink,
+    pub stream: SplitStream<WebSocket>,
+    pub mtu: u16,
 }
 
 impl WasmWsStream {
-    pub fn new(peer_addr: SocketAddr, socket: WebSocket) -> Self {
+    pub fn new(peer_addr: SocketAddr, stream: WebSocket) -> Self {
+        let (sink, stream) = stream.split();
         Self {
             peer_addr,
-            socket,
+            sink,
+            stream,
             mtu: u16::MAX,
         }
     }
@@ -42,19 +79,16 @@ impl WasmWsStream {
 
 #[cfg(all(feature = "async_wsocket", not(feature = "yawc")))]
 pub struct WasmWsTx<'a> {
-    pub socket: SplitSink<WebSocket, Message>,
-    _phantom: PhantomData<&'a ()>,
+    pub sink: &'a mut SplitSink<WebSocket, Message>,
 }
 
 #[cfg(feature = "yawc")]
 pub struct WasmWsTx<'a> {
-    pub socket: SplitSink<WebSocket, FrameView>,
-    _phantom: PhantomData<&'a ()>,
+    pub sink: &'a mut SplitSink<WebSocket, FrameView>,
 }
 
 pub struct WasmWsRx<'a> {
-    pub socket: SplitStream<WebSocket>,
-    _phantom: PhantomData<&'a ()>,
+    pub stream: &'a mut SplitStream<WebSocket>,
 }
 
 impl AbstractedWsStream for WasmWsStream {
@@ -66,14 +100,11 @@ impl AbstractedWsStream for WasmWsStream {
     }
 
     fn split(&mut self) -> (Self::Tx<'_>, Self::Rx<'_>) {
-        let (tx, rx) = self.socket.clone().split();
         let tx = WasmWsTx {
-            socket: tx,
-            _phantom: PhantomData,
+            sink: &mut self.sink,
         };
         let rx = WasmWsRx {
-            socket: rx,
-            _phantom: PhantomData,
+            stream: &mut self.stream,
         };
         (tx, rx)
     }
@@ -84,13 +115,11 @@ impl AbstractedWsStream for WasmWsStream {
         #[cfg(feature = "yawc")]
         let item = FrameView::binary(buffer.to_vec());
 
-        let _ = self
-            .socket
+        self.sink
             .send(item)
             .await
-            .map_err(|_| ZConnectionError::CouldNotWrite);
-
-        Ok(buffer.len())
+            .map_err(|_| ZConnectionError::CouldNotWrite)
+            .map(|_| buffer.len())
     }
 
     async fn write_all(&mut self, buffer: &[u8]) -> ZResult<(), ZConnectionError> {
@@ -99,14 +128,14 @@ impl AbstractedWsStream for WasmWsStream {
         #[cfg(feature = "yawc")]
         let item = FrameView::binary(buffer.to_vec());
 
-        self.socket
+        self.sink
             .send(item)
             .await
             .map_err(|_| ZConnectionError::CouldNotWrite)
     }
 
     async fn read(&mut self, buffer: &mut [u8]) -> ZResult<usize, ZConnectionError> {
-        let Some(Ok(frame)) = self.socket.next().await else {
+        let Some(Ok(frame)) = self.stream.next().await else {
             return Err(ZConnectionError::CouldNotRead);
         };
 
@@ -132,7 +161,7 @@ impl AbstractedWsStream for WasmWsStream {
     }
 
     async fn read_exact(&mut self, buffer: &mut [u8]) -> ZResult<(), ZConnectionError> {
-        let Some(Ok(frame)) = self.socket.next().await else {
+        let Some(Ok(frame)) = self.stream.next().await else {
             return Err(ZConnectionError::CouldNotRead);
         };
 
@@ -163,13 +192,11 @@ impl AbstractedWsTx for WasmWsTx<'_> {
         #[cfg(feature = "yawc")]
         let item = FrameView::binary(buffer.to_vec());
 
-        let _ = self
-            .socket
+        self.sink
             .send(item)
             .await
-            .map_err(|_| ZConnectionError::CouldNotWrite);
-
-        Ok(buffer.len())
+            .map_err(|_| ZConnectionError::CouldNotWrite)
+            .map(|_| buffer.len())
     }
 
     async fn write_all(&mut self, buffer: &[u8]) -> ZResult<(), ZConnectionError> {
@@ -178,7 +205,7 @@ impl AbstractedWsTx for WasmWsTx<'_> {
         #[cfg(feature = "yawc")]
         let item = FrameView::binary(buffer.to_vec());
 
-        self.socket
+        self.sink
             .send(item)
             .await
             .map_err(|_| ZConnectionError::CouldNotWrite)
@@ -187,7 +214,7 @@ impl AbstractedWsTx for WasmWsTx<'_> {
 
 impl AbstractedWsRx for WasmWsRx<'_> {
     async fn read(&mut self, buffer: &mut [u8]) -> ZResult<usize, ZConnectionError> {
-        let Some(Ok(frame)) = self.socket.next().await else {
+        let Some(Ok(frame)) = self.stream.next().await else {
             return Err(ZConnectionError::CouldNotRead);
         };
 
@@ -213,7 +240,7 @@ impl AbstractedWsRx for WasmWsRx<'_> {
     }
 
     async fn read_exact(&mut self, buffer: &mut [u8]) -> ZResult<(), ZConnectionError> {
-        let Some(Ok(frame)) = self.socket.next().await else {
+        let Some(Ok(frame)) = self.stream.next().await else {
             return Err(ZConnectionError::CouldNotRead);
         };
 

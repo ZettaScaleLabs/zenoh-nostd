@@ -7,7 +7,7 @@ pub use zenoh_std::PlatformStd as Platform;
 pub use zenoh_embassy::PlatformEmbassy as Platform;
 
 #[cfg(feature = "wasm")]
-pub use zenoh_nostd_wasm::PlatformWasm as Platform;
+pub use zenoh_wasm::PlatformWasm as Platform;
 
 #[cfg(feature = "esp32s3")]
 mod esp32s3_app {
@@ -28,7 +28,12 @@ mod esp32s3_app {
 use esp32s3_app::*;
 
 pub async fn init_platform(spawner: &embassy_executor::Spawner) -> Platform {
-    #[cfg(any(feature = "std", feature = "wasm"))]
+    #[cfg(feature = "std")]
+    {
+        let _ = spawner;
+        Platform {}
+    }
+    #[cfg(feature = "wasm")]
     {
         let _ = spawner;
         Platform {}
