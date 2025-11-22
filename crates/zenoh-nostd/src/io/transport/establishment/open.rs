@@ -70,8 +70,8 @@ impl<'a> RecvInitAckOut<'a> {
         transport: &mut Transport<T>,
         state: &mut StateTransport,
     ) -> ZResult<Self, ZTransportError> {
-        let mut reader = transport.recv(rx).await?;
-        let mut batch = TransportBatch::new(&mut reader);
+        let reader = transport.recv(rx).await?;
+        let mut batch = TransportBatch::new(reader);
         let init_ack = loop {
             match batch.next() {
                 Some(Ok(TransportBody::InitAck(i))) => break i,
@@ -166,8 +166,8 @@ impl RecvOpenAckOut {
         rx: &mut [u8],
         transport: &mut Transport<T>,
     ) -> ZResult<Self, ZTransportError> {
-        let mut reader = transport.recv(rx).await?;
-        let mut batch = TransportBatch::new(&mut reader);
+        let reader = transport.recv(rx).await?;
+        let mut batch = TransportBatch::new(reader);
         let open_ack = loop {
             match batch.next() {
                 Some(Ok(TransportBody::OpenAck(o))) => break o,

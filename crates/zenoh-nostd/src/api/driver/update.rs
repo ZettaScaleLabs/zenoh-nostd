@@ -14,8 +14,8 @@ use crate::{
 };
 
 impl<T: Platform> SessionDriver<T> {
-    pub(crate) async fn internal_update<'a>(&'static self, mut reader: &'a [u8]) -> ZResult<()> {
-        let mut batch = TransportBatch::new(&mut reader);
+    pub(crate) async fn internal_update<'a>(&'static self, reader: &'a [u8]) -> ZResult<()> {
+        let mut batch = TransportBatch::new(reader);
 
         while let Some(msg) = batch.next() {
             match msg? {
