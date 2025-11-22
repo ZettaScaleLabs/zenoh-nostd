@@ -1,33 +1,24 @@
-# Project
+check:
+    cargo clippy -p zenoh-nostd --fix --lib --allow-dirty --allow-staged
+    cargo clippy -p zenoh-nostd --features=log --fix --lib --allow-dirty --allow-staged
+    cargo clippy -p zenoh-nostd --features=defmt --fix --lib --allow-dirty --allow-staged
 
-clippy:
-    cargo clippy --fix --lib --allow-dirty --allow-staged
-    cargo clippy --features=platform-std --fix --lib --allow-dirty --allow-staged
-    cargo clippy --features=log --fix --lib --allow-dirty --allow-staged
-    cargo clippy --features=defmt --fix --lib --allow-dirty --allow-staged
-    cargo clippy --features=web_console --fix --lib --allow-dirty --allow-staged
+    cd platforms/zenoh-std && just check
+    cd platforms/zenoh-embassy && just check
 
-    cargo clippy --examples --features=platform-std, --fix --lib --allow-dirty --allow-staged
-    cargo clippy --examples --features=platform-std,log --fix --lib --allow-dirty --allow-staged
+    cargo clippy --examples --features=std,log --fix --lib --allow-dirty --allow-staged
 
 test:
-    cargo test codec
+    cargo test -p zenoh-proto
 
 bench:
-    cargo test bench --profile=release -- --nocapture bench --
+    cargo test -p zenoh-proto bench --profile=release -- --nocapture --ignored
 
-# Ping
+std example:
+    RUST_LOG=debug cargo run --example {{example}} --features="std,log"
 
-ping:
-    RUST_LOG=info cargo run --example z_ping --features=platform-std,log --release
+esp32s3 example:
+    cargo +esp --config .cargo/config.esp32s3.toml run --example {{example}} --no-default-features --features="esp32s3,defmt"
 
-pong:
-    RUST_LOG=info cargo run --example z_pong --features=platform-std,log --release
-
-# Examples
-
-std example *args:
-    RUST_LOG=trace cargo run --example {{example}} --features=platform-std,log -- {{args}}
-
-esp32s3 example *args:
-    cd platforms/zenoh-nostd-embassy && just esp32s3 {{example}} {{args}}
+sansio example:
+    RUST_LOG=debug cargo run -p zenoh-sansio --example {{example}} --features="log"

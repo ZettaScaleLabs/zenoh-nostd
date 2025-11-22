@@ -1,4 +1,4 @@
-<p align="center">  
+<p align="center">
   <img src="https://zenoh.io/img/zenoh-dragon-small.png" height="121">
 </p>
 
@@ -16,7 +16,7 @@
 
 ⚠️ This project is in early development.
 
-**zenoh-nostd** is a Rust-native, `#![no_std]`, `no_alloc` library that provides a **zero-overhead network abstraction layer** for 
+**zenoh-nostd** is a Rust-native, `#![no_std]`, `no_alloc` library that provides a **zero-overhead network abstraction layer** for
 ultra-constrained and bare-metal environments. In other terms you can run this *bare metal* on your favourite microcontroller.
 
 > ⚡ Built on the <a href="https://github.com/eclipse-zenoh/zenoh">Zenoh protocol</a>, but stripped to the bone for minimalism and raw performance.
@@ -63,23 +63,21 @@ zenoh-nostd = { git = "https://github.com/ZettaScaleLabs/zenoh-nostd" }
 Here’s a simple example of sending a payload with `zenoh-nostd`:
 
 ```rust
-#[embassy_executor::main]
-async fn main(spawner: Spawner) {
+async fn entry(spawner: embassy_executor::Spawner) -> zenoh_nostd::result::ZResult<()> {
     let mut session = zenoh_nostd::open!(
         zenoh_nostd::zconfig!(
                 PlatformStd: (spawner, PlatformStd {}),
                 TX: 512,
                 RX: 512,
-                SUBSCRIBERS: 2
+                MAX_SUBSCRIBERS: 2
         ),
-        EndPoint::try_from(CONNECT.unwrap_or("tcp/127.0.0.1:7447")).unwrap()
-    )
-    .unwrap();
+        EndPoint::try_from(CONNECT.unwrap_or("tcp/127.0.0.1:7447"))?
+    );
 
-    let ke: &'static keyexpr = "demo/example".try_into().unwrap();
+    let ke = keyexpr::new("demo/example")?;
     let payload = b"Hello, from std!";
 
-    session.put(ke, payload).await.unwrap();
+    session.put(ke, payload).await?;
 }
 ```
 
@@ -87,7 +85,7 @@ async fn main(spawner: Spawner) {
 
 ## 🔬 MSRV
 
-> 🛠️ **Minimum Supported Rust Version**: Currently `1.89.0`
+> 🛠️ **Minimum Supported Rust Version**: Currently `1.90.0`
 
 ---
 
@@ -100,9 +98,9 @@ async fn main(spawner: Spawner) {
 
 ## 🧪 Building and Testing
 
-This project uses [`just`](https://github.com/casey/just) for task management. Use `just clippy` to verify the crate and examples, `just test` to run the `codec` tests and `just bench` to run the `codec` benchmark.
+This project uses [`just`](https://github.com/casey/just) for task management. Use `just clippy` to check the project and examples, `just test` to run the tests and `just bench` to run the benchmarks.
 
-> 🔍 Pull requests that slow down the codec should be rejected.
+> 🔍 Pull requests that slow down the bench should be avoided.
 
 ### Testing Examples
 
@@ -113,16 +111,26 @@ just <platform> <example> [args]
 ```
 
 * **Platforms**: `std`, `esp32s3`
-* **Examples**: `z_put`, `z_sub`
+* **Examples**: `z_put`, `z_sub`, `z_ping`, `z_pong`
 
 Set the `CONNECT=<endpoint>` environment variable to specify the endpoint (default is `tcp/127.0.0.1:7447`).
 
 For `esp32s3`, you must also provide:
 
-* `WIFI_SSID`
-* `WIFI_PASSWORD`
+* `WIFI_SSID` (default is `ZettaScale`).
+* `WIFI_PASSWORD` (no default, must be provided).
 
 See the ESP32 setup documentation for toolchain and target installation.
+
+Example of few commands:
+
+```bash
+CONNECT=tcp/127.0.0.1:7447 just std z_put
+```
+
+```bash
+WIFI_PASSWORD=Abcdef12345 CONNECT=tcp/192.168.21.1:7447 just esp32s3 z_sub
+```
 
 ### Example: Local TCP
 
@@ -147,17 +155,33 @@ just std z_sub
 ## 📁 Project Layout
 
 ```text
-src/
-├── keyexpr/       # Lightweight key expression parsing
-├── protocol/      # Protocol definitions, encoding/decoding
-├── platform/      # Platform abstraction (e.g., std support)
-├── logging.rs     # Logging facade
-├── result.rs      # Result and error types
-├── zbuf.rs        # Byte buffer extension traits
-└── lib.rs         # Library entry point
-
-platforms/
-└── zenoh-embassy  # Integration with Embassy-based devices
+zenoh-nostd/            # Git repository root
+├── crates/
+│   ├── zenoh-derive/   # Derive macros
+│   ├── zenoh-nostd/    # Zenoh with IO, embassy
+│   ├── zenoh-proto/    # Zenoh Protocol
+│   └── zenoh-sansio/   # Zenoh Sans IO
+│       └── examples
+│           ├── z_get.rs        # Example without io (example with tcp)
+│           ├── z_ping.rs       # Example without io (example with tcp)
+│           ├── z_pong.rs       # Example without io (example with tcp)
+│           ├── z_put.rs        # Example without io (example with tcp)
+│           └── z_sub.rs        # Example without io (example with tcp)
+│
+├── examples/
+│   ├── z_get.rs        # Example with io
+│   ├── z_ping.rs       # Example with io
+│   ├── z_pong.rs       # Example with io
+│   ├── z_put.rs        # Example with io
+│   └── z_sub.rs        # Example with io
+│
+└── platforms/          # Platform-specific implementations
+│   ├── zenoh-embassy/  # Embassy platforms (no_std)
+│   └── zenoh-std/      # Standard platforms (std)
+│
+├── Cargo.toml          # Workspace + example package
+└── src/
+    └── lib.rs          # Example lib.rs
 ```
 
 ---
