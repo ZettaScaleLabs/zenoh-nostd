@@ -1,0 +1,23 @@
+[package]
+name = "zenoh-wasm"
+authors = []
+categories = ["network-programming"]
+description = "Zenoh: The Zero Overhead Pub/Sub/Query Protocol."
+edition = "2024"
+homepage = "http://zenoh.io"
+license = "EPL-2.0 OR Apache-2.0"
+repository = "https://github.com/ZettaScaleLabs/zenoh-nostd"
+rust-version = "1.89.0"
+version = "0.1.0"
+
+[features]
+default = ["yawc"]
+yawc = ["dep:yawc"]
+async_wsocket = ["dep:async-wsocket"]
+
+[dependencies]
+zenoh-nostd = { version = "0.1.0", path = "../../crates/zenoh-nostd", features = ["web_console"] }
+futures-util = "0.3"
+getrandom = { version = "0.2", features = ["std", "js"] }
+yawc = {git = "https://github.com/infinitefield/yawc", branch = "master", optional = true}
+async-wsocket = { version = "0.13.1", optional = true}

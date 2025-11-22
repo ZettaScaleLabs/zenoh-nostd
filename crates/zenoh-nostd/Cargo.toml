@@ -12,19 +12,16 @@ version.workspace = true
 
 [features]
 default = []
-
 log = ["zenoh-proto/log"]
 defmt = ["zenoh-proto/defmt"]
+web_console = ["zenoh-proto/web_console"] # Use `web-sys` crate for logging in webassembly
 
 [dependencies]
 zenoh-proto.workspace = true
-
 sha3.workspace = true
-
 embassy-futures.workspace = true
 embassy-time.workspace = true
 embassy-sync.workspace = true
 embassy-executor.workspace = true
-
 heapless.workspace = true
 static_cell.workspace = true

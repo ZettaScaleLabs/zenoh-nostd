@@ -6,6 +6,9 @@ pub use zenoh_std::PlatformStd as Platform;
 #[cfg(feature = "esp32s3")]
 pub use zenoh_embassy::PlatformEmbassy as Platform;
 
+#[cfg(feature = "wasm")]
+pub use zenoh_wasm::PlatformWasm as Platform;
+
 #[cfg(feature = "esp32s3")]
 mod esp32s3_app {
     pub use embassy_net::{DhcpConfig, Runner, StackResources};
@@ -26,6 +29,11 @@ use esp32s3_app::*;
 
 pub async fn init_platform(spawner: &embassy_executor::Spawner) -> Platform {
     #[cfg(feature = "std")]
+    {
+        let _ = spawner;
+        Platform {}
+    }
+    #[cfg(feature = "wasm")]
     {
         let _ = spawner;
         Platform {}

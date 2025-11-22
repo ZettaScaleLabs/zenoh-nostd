@@ -1,5 +1,6 @@
 #![cfg_attr(feature = "esp32s3", no_std)]
 #![cfg_attr(feature = "esp32s3", no_main)]
+#![cfg_attr(feature = "wasm", no_main)]
 
 use zenoh_examples::*;
 use zenoh_nostd::{EndPoint, keyexpr, zqueryable};
@@ -63,6 +64,7 @@ async fn entry(spawner: embassy_executor::Spawner) -> zenoh_nostd::ZResult<()> {
 }
 
 #[cfg_attr(feature = "std", embassy_executor::main)]
+#[cfg_attr(feature = "wasm", embassy_executor::main)]
 #[cfg_attr(feature = "esp32s3", esp_rtos::main)]
 async fn main(spawner: embassy_executor::Spawner) {
     if let Err(e) = entry(spawner).await {

@@ -89,7 +89,50 @@ macro_rules! error {
     }};
 }
 
-#[cfg(not(any(feature = "log", feature = "defmt")))]
+#[cfg(feature = "web_console")]
+pub use web_sys::console;
+
+#[cfg(feature = "web_console")]
+#[macro_export]
+macro_rules! trace {
+    ($($arg:tt)+) => {
+        $crate::console::trace_1(&format!($($arg)+).into())
+    };
+}
+
+#[cfg(feature = "web_console")]
+#[macro_export]
+macro_rules! debug {
+    ($($arg:tt)+) => {
+        $crate::console::debug_1(&format!($($arg)+).into())
+    };
+}
+
+#[cfg(feature = "web_console")]
+#[macro_export]
+macro_rules! info {
+    ($($arg:tt)+) => {
+        $crate::console::info_1(&format!($($arg)+).into())
+    };
+}
+
+#[cfg(feature = "web_console")]
+#[macro_export]
+macro_rules! warn {
+    ($($arg:tt)+) => {
+        $crate::console::warn_1(&format!($($arg)+).into())
+    };
+}
+
+#[cfg(feature = "web_console")]
+#[macro_export]
+macro_rules! error {
+    ($($arg:tt)+) => {
+        $crate::console::error_1(&format!($($arg)+).into())
+    };
+}
+
+#[cfg(not(any(feature = "log", feature = "defmt", feature = "web_console")))]
 #[macro_export]
 macro_rules! trace {
     ($($arg:tt)+) => {{
@@ -97,7 +140,7 @@ macro_rules! trace {
     }};
 }
 
-#[cfg(not(any(feature = "log", feature = "defmt")))]
+#[cfg(not(any(feature = "log", feature = "defmt", feature = "web_console")))]
 #[macro_export]
 macro_rules! debug {
     ($($arg:tt)+) => {{
@@ -105,7 +148,7 @@ macro_rules! debug {
     }};
 }
 
-#[cfg(not(any(feature = "log", feature = "defmt")))]
+#[cfg(not(any(feature = "log", feature = "defmt", feature = "web_console")))]
 #[macro_export]
 macro_rules! info {
     ($($arg:tt)+) => {{
@@ -113,7 +156,7 @@ macro_rules! info {
     }};
 }
 
-#[cfg(not(any(feature = "log", feature = "defmt")))]
+#[cfg(not(any(feature = "log", feature = "defmt", feature = "web_console")))]
 #[macro_export]
 macro_rules! warn {
     ($($arg:tt)+) => {{
@@ -121,7 +164,7 @@ macro_rules! warn {
     }};
 }
 
-#[cfg(not(any(feature = "log", feature = "defmt")))]
+#[cfg(not(any(feature = "log", feature = "defmt", feature = "web_console")))]
 #[macro_export]
 macro_rules! error {
     ($($arg:tt)+) => {{
