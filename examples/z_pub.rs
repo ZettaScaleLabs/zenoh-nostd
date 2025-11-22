@@ -10,7 +10,7 @@ async fn entry(spawner: embassy_executor::Spawner) -> zenoh_nostd::ZResult<()> {
     #[cfg(feature = "log")]
     env_logger::init();
 
-    zenoh_nostd::info!("zenoh-nostd z_put example");
+    zenoh_nostd::info!("zenoh-nostd z_pub example");
 
     let platform = init_platform(&spawner).await;
     let config = zenoh_nostd::zconfig!(
@@ -18,7 +18,8 @@ async fn entry(spawner: embassy_executor::Spawner) -> zenoh_nostd::ZResult<()> {
             TX: 512,
             RX: 512,
             MAX_SUBSCRIBERS: 2,
-            MAX_QUERIES: 2
+            MAX_QUERIES: 2,
+            MAX_QUERYABLES: 2
     );
 
     let session = zenoh_nostd::open!(

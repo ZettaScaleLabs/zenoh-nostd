@@ -4,15 +4,15 @@ use embassy_sync::{
 use zenoh_proto::{
     Encoding, EndPoint, WireExpr, ZResult, ZenohIdProto, keyexpr,
     network::{
-        NetworkBody, NodeId, QoS,
-        declare::{Declare, DeclareBody, DeclareSubscriber},
+        NetworkBody, NodeId, QoS, QueryableInfo,
+        declare::{Declare, DeclareBody, DeclareQueryable, DeclareSubscriber},
         push::Push,
     },
     zenoh::{PushBody, put::Put},
 };
 
 use crate::{
-    ZPublisher, ZReply,
+    ZOwnedQuery, ZPublisher, ZQueryable, ZQueryableCallback, ZReply,
     api::{ZConfig, driver::SessionDriver, sample::ZOwnedSample, subscriber::ZSubscriber},
     io::{
         link::Link,
@@ -57,6 +57,7 @@ impl<T: Platform + 'static> Session<T> {
                 (config.rx_zbuf, rx),
                 config.subscribers,
                 config.replies,
+                config.queryables,
             ),
         ))
     }
@@ -132,13 +133,44 @@ impl<T: Platform + 'static> Session<T> {
         GetBuilder::new(self, ke, callback)
     }
 
-    // pub fn declare_querier(&self, ke: &'static keyexpr) -> ZQuerier<T, S> {
-    //     ZQuerier::new(
-    //         self.spawner,
-    //         self.timeout_queries,
-    //         ke,
-    //         self.driver.as_ref().unwrap(),
-    //         &NEXT_ID,
-    //     )
-    // }
+    pub async fn declare_queryable<
+        const MAX_KEYEXPR: usize,
+        const MAX_PARAMETERS: usize,
+        const MAX_PAYLOAD: usize,
+    >(
+        &self,
+        ke: &'static keyexpr,
+        config: (
+            ZQueryableCallback<T>,
+            DynamicReceiver<'static, ZOwnedQuery<T, MAX_KEYEXPR, MAX_PARAMETERS, MAX_PAYLOAD>>,
+        ),
+    ) -> ZResult<ZQueryable<T, MAX_KEYEXPR, MAX_PARAMETERS, MAX_PAYLOAD>> {
+        let wke = WireExpr::from(ke);
+
+        let mut id = NEXT_ID.lock().await;
+        *id += 1;
+        let id = *id;
+
+        let msg = NetworkBody::Declare(Declare {
+            id: None,
+            qos: QoS::DECLARE,
+            timestamp: None,
+            nodeid: NodeId::DEFAULT,
+            body: DeclareBody::DeclareQueryable(DeclareQueryable {
+                id,
+                wire_expr: wke,
+                qinfo: QueryableInfo::DEFAULT,
+            }),
+        });
+
+        self.driver.as_ref().unwrap().send(msg).await?;
+
+        self.driver
+            .as_ref()
+            .unwrap()
+            .register_queryable_callback(id, ke, config.0)
+            .await?;
+
+        Ok(ZQueryable::new(ke, config.1))
+    }
 }

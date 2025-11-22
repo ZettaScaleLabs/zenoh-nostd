@@ -2,8 +2,8 @@ use embassy_executor::{SpawnToken, Spawner};
 use static_cell::StaticCell;
 
 use crate::{
-    io::transport::Transport, platform::Platform, replies::callback::ZRepliesCallbacks,
-    subscriber::callback::ZSubscriberCallbacks,
+    io::transport::Transport, platform::Platform, queryable::ZQueryableCallbacks,
+    replies::callback::ZRepliesCallbacks, subscriber::callback::ZSubscriberCallbacks,
 };
 
 pub(crate) mod sample;
@@ -31,6 +31,10 @@ pub(crate) mod replies;
 pub use replies::callback::{ZRepliesCallback, ZRepliesCallbackStorage};
 
 pub(crate) mod query;
+pub use query::{ZOwnedQuery, ZQuery};
+
+pub(crate) mod queryable;
+pub use queryable::{ZQueryable, ZQueryableCallback, ZQueryableCallbackStorage};
 
 pub struct ZConfig<T: Platform + 'static, S1> {
     pub spawner: Spawner,
@@ -45,11 +49,12 @@ pub struct ZConfig<T: Platform + 'static, S1> {
 
     pub subscribers: &'static mut dyn ZSubscriberCallbacks,
     pub replies: &'static mut dyn ZRepliesCallbacks,
+    pub queryables: &'static mut dyn ZQueryableCallbacks<T>,
 }
 
 #[macro_export]
 macro_rules! zconfig {
-    ($type:ident : ($spawner:expr, $platform:expr), TX: $TX:expr, RX: $RX:expr, MAX_SUBSCRIBERS: $MAX_SUBSCRIBERS:expr, MAX_QUERIES: $MAX_QUERIES:expr) => {{
+    ($type:ident : ($spawner:expr, $platform:expr), TX: $TX:expr, RX: $RX:expr, MAX_SUBSCRIBERS: $MAX_SUBSCRIBERS:expr, MAX_QUERIES: $MAX_QUERIES:expr, MAX_QUERYABLES: $MAX_QUERYABLES:expr) => {{
         static DRIVER: static_cell::StaticCell<$crate::SessionDriver<$type>> =
             static_cell::StaticCell::new();
 
@@ -65,6 +70,10 @@ macro_rules! zconfig {
 
         static QUERIES: static_cell::StaticCell<$crate::ZRepliesCallbackStorage<$MAX_QUERIES>> =
             static_cell::StaticCell::new();
+
+        static QUERYABLES: static_cell::StaticCell<
+            $crate::ZQueryableCallbackStorage<$type, $MAX_QUERYABLES>,
+        > = static_cell::StaticCell::new();
 
         #[embassy_executor::task]
         async fn session_task(runner: &'static $crate::SessionDriver<$type>) {
@@ -86,6 +95,8 @@ macro_rules! zconfig {
             subscribers: SUBSCRIBERS
                 .init($crate::ZSubscriberCallbackStorage::<$MAX_SUBSCRIBERS>::new()),
             replies: QUERIES.init($crate::ZRepliesCallbackStorage::<$MAX_QUERIES>::new()),
+            queryables: QUERYABLES
+                .init($crate::ZQueryableCallbackStorage::<$type, $MAX_QUERYABLES>::new()),
         };
 
         zconfig

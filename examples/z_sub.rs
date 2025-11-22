@@ -37,7 +37,8 @@ async fn entry(spawner: embassy_executor::Spawner) -> zenoh_nostd::ZResult<()> {
             TX: 512,
             RX: 512,
             MAX_SUBSCRIBERS: 2,
-            MAX_QUERIES: 2
+            MAX_QUERIES: 2,
+            MAX_QUERYABLES: 2
     );
 
     let session = zenoh_nostd::open!(

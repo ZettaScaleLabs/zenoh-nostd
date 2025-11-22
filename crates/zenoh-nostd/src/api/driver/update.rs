@@ -4,11 +4,11 @@ use zenoh_proto::{
     ZResult, keyexpr,
     network::NetworkBody,
     transport::{TransportBatch, TransportBody},
-    zenoh::{PushBody, ResponseBody},
+    zenoh::{PushBody, RequestBody, ResponseBody},
 };
 
 use crate::{
-    ZReply,
+    ZQuery, ZReply,
     api::{driver::SessionDriver, sample::ZSample},
     platform::Platform,
 };
@@ -93,6 +93,44 @@ impl<T: Platform> SessionDriver<T> {
 
                                 cb.callbacks.remove(&rid);
                             }
+                            NetworkBody::Request(request) => match request.payload {
+                                RequestBody::Query(query) => {
+                                    let rid = request.id;
+
+                                    let ke: &'a str = request.wire_expr.suffix;
+                                    let ke: &'a keyexpr = keyexpr::new(ke)?;
+
+                                    let mut cb_guard = self.queryables.lock().await;
+                                    let cb = cb_guard.deref_mut();
+
+                                    let matching_callbacks =
+                                        cb.callbacks.iter().filter_map(|(k, v)| {
+                                            if cb.callbacks.intersects(k, ke) {
+                                                Some(v)
+                                            } else {
+                                                None
+                                            }
+                                        });
+
+                                    for callback in matching_callbacks {
+                                        let query = ZQuery::new(
+                                            rid,
+                                            self,
+                                            ke,
+                                            match query.parameters {
+                                                "" => None,
+                                                p => Some(p),
+                                            },
+                                            match &query.body {
+                                                None => None,
+                                                Some(v) => Some(v.payload),
+                                            },
+                                        );
+
+                                        callback.call(query).await?;
+                                    }
+                                }
+                            },
                             _ => {}
                         }
                     }
