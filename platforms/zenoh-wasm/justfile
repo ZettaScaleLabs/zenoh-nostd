@@ -1,3 +1,2 @@
 clippy:
-    RUSTFLAGS='--cfg getrandom_backend="wasm_js"' cargo clippy --no-default-features --features='async_wsocket zenoh-nostd/web_console' --target wasm32-unknown-unknown --fix --lib --allow-dirty --allow-staged
-    RUSTFLAGS='--cfg getrandom_backend="wasm_js"' cargo clippy --features='yawc zenoh-nostd/web_console' --target wasm32-unknown-unknown --fix --lib --allow-dirty --allow-staged
+    RUSTFLAGS='--cfg getrandom_backend="wasm_js"' cargo clippy --features='zenoh-nostd/web_console' --target wasm32-unknown-unknown --fix --lib --allow-dirty --allow-staged
