@@ -25,7 +25,8 @@ pub struct StdWsStream {
     pub stream: WebSocketReaderOwned<(), Xorshift64, TcpStream, true>,
     pub sink: WebSocketWriterOwned<(), Xorshift64, TcpStream, true>,
     pub replier: Arc<WebSocketReplier<true>>,
-    pub buffer: Vector<u8>,
+    pub read_buffer: Vector<u8>,
+    pub write_buffer: Vector<u8>,
     pub mtu: u16,
 }
 
@@ -46,7 +47,8 @@ impl StdWsStream {
             stream: reader,
             sink: writer,
             replier,
-            buffer: Vector::<u8>::new(),
+            read_buffer: Vector::<u8>::new(),
+            write_buffer: Vector::<u8>::new(),
             mtu: u16::MAX,
         }
     }
@@ -54,12 +56,13 @@ impl StdWsStream {
 
 pub struct StdWsTx<'a> {
     pub sink: &'a mut WebSocketWriterOwned<(), Xorshift64, TcpStream, true>,
-    pub replier: Arc<WebSocketReplier<true>>,
+    pub replier: &'a WebSocketReplier<true>,
+    pub write_buffer: &'a mut Vector<u8>,
 }
 
 pub struct StdWsRx<'a> {
     pub stream: &'a mut WebSocketReaderOwned<(), Xorshift64, TcpStream, true>,
-    pub buffer: &'a mut Vector<u8>,
+    pub read_buffer: &'a mut Vector<u8>,
 }
 
 impl AbstractedWsStream for StdWsStream {
@@ -73,121 +76,73 @@ impl AbstractedWsStream for StdWsStream {
     fn split(&mut self) -> (Self::Tx<'_>, Self::Rx<'_>) {
         let tx = StdWsTx {
             sink: &mut self.sink,
-            replier: self.replier.clone(),
+            replier: &self.replier,
+            write_buffer: &mut self.write_buffer,
         };
         let rx = StdWsRx {
             stream: &mut self.stream,
-            buffer: &mut self.buffer,
+            read_buffer: &mut self.read_buffer,
         };
         (tx, rx)
     }
 
     async fn write(&mut self, buffer: &[u8]) -> ZResult<usize, ZConnectionError> {
-        self.sink
-            .write_frame(&mut Frame::new_fin(
-                OpCode::Binary,
-                buffer.to_vec().as_mut_slice(),
-            ))
-            .await
-            .map_err(|_| {
-                zenoh_nostd::error!("Could not read write frame");
-                ZConnectionError::CouldNotWrite
-            })
-            .map(|_| buffer.len())
+        let mut tx = StdWsTx {
+            sink: &mut self.sink,
+            replier: &self.replier,
+            write_buffer: &mut self.write_buffer,
+        };
+        tx.write(buffer).await
     }
 
     async fn write_all(&mut self, buffer: &[u8]) -> ZResult<(), ZConnectionError> {
-        self.sink
-            .write_frame(&mut Frame::new_fin(
-                OpCode::Binary,
-                buffer.to_vec().as_mut_slice(),
-            ))
-            .await
-            .map_err(|_| {
-                zenoh_nostd::error!("Could not read write all frame");
-                ZConnectionError::CouldNotWrite
-            })
+        self.write(buffer).await.map(|_| ())
     }
 
     async fn read(&mut self, buffer: &mut [u8]) -> ZResult<usize, ZConnectionError> {
-        let Ok(frame) = self
-            .stream
-            .read_frame(&mut self.buffer, WebSocketPayloadOrigin::Adaptive)
-            .await
-        else {
-            zenoh_nostd::error!("Could not read frame");
-            return Err(ZConnectionError::CouldNotRead);
+        let mut rx = StdWsRx {
+            stream: &mut self.stream,
+            read_buffer: &mut self.read_buffer,
         };
-        match frame.op_code() {
-            OpCode::Binary => {
-                let len = frame.payload().len().min(buffer.len());
-                buffer[..len].copy_from_slice(&frame.payload()[..len]);
-                self.buffer.clear();
-                Ok(len)
-            }
-            _ => {
-                zenoh_nostd::error!("Could not read frame into buffer");
-                zbail!(ZConnectionError::CouldNotRead);
-            }
-        }
+        rx.read(buffer).await
     }
 
     async fn read_exact(&mut self, buffer: &mut [u8]) -> ZResult<(), ZConnectionError> {
-        let Ok(frame) = self
-            .stream
-            .read_frame(&mut self.buffer, WebSocketPayloadOrigin::Adaptive)
-            .await
-        else {
-            return Err(ZConnectionError::CouldNotRead);
-        };
-        match (frame.op_code(), frame.payload().len()) {
-            (OpCode::Binary, len) if len == buffer.len() => {
-                buffer.copy_from_slice(frame.payload());
-                self.buffer.clear();
-                Ok(())
-            }
-            _ => {
-                zenoh_nostd::error!("Could not read exact frame into buffer");
-                zbail!(ZConnectionError::CouldNotRead);
-            }
-        }
+        self.read(buffer).await.map(|_| ())
     }
 }
 
 impl AbstractedWsTx for StdWsTx<'_> {
     async fn write(&mut self, buffer: &[u8]) -> ZResult<usize, ZConnectionError> {
+        self.write_buffer.clear();
+        self.write_buffer
+            .extend_from_copyable_slice(buffer)
+            .map_err(|_| {
+                zenoh_nostd::error!("Failed to extend write buffer");
+                ZConnectionError::CouldNotWrite
+            })?;
+        let payload = self.write_buffer.as_slice_mut();
         self.sink
-            .write_frame(&mut Frame::new_fin(
-                OpCode::Binary,
-                buffer.to_vec().as_mut_slice(),
-            ))
+            .write_frame(&mut Frame::new_fin(OpCode::Binary, payload))
             .await
             .map_err(|_| {
-                zenoh_nostd::error!("Could not read write frame");
+                zenoh_nostd::error!("Could not write frame");
                 ZConnectionError::CouldNotWrite
             })
             .map(|_| buffer.len())
     }
 
     async fn write_all(&mut self, buffer: &[u8]) -> ZResult<(), ZConnectionError> {
-        self.sink
-            .write_frame(&mut Frame::new_fin(
-                OpCode::Binary,
-                buffer.to_vec().as_mut_slice(),
-            ))
-            .await
-            .map_err(|_| {
-                zenoh_nostd::error!("Could not read write all frame");
-                ZConnectionError::CouldNotWrite
-            })
+        self.write(buffer).await.map(|_| ())
     }
 }
 
 impl AbstractedWsRx for StdWsRx<'_> {
     async fn read(&mut self, buffer: &mut [u8]) -> ZResult<usize, ZConnectionError> {
+        self.read_buffer.clear();
         let Ok(frame) = self
             .stream
-            .read_frame(self.buffer, WebSocketPayloadOrigin::Adaptive)
+            .read_frame(self.read_buffer, WebSocketPayloadOrigin::Consistent)
             .await
         else {
             zenoh_nostd::error!("Could not read frame");
@@ -197,7 +152,6 @@ impl AbstractedWsRx for StdWsRx<'_> {
             OpCode::Binary => {
                 let len = frame.payload().len().min(buffer.len());
                 buffer[..len].copy_from_slice(&frame.payload()[..len]);
-                self.buffer.clear();
                 Ok(len)
             }
             _ => {
@@ -208,24 +162,6 @@ impl AbstractedWsRx for StdWsRx<'_> {
     }
 
     async fn read_exact(&mut self, buffer: &mut [u8]) -> ZResult<(), ZConnectionError> {
-        let Ok(frame) = self
-            .stream
-            .read_frame(self.buffer, WebSocketPayloadOrigin::Adaptive)
-            .await
-        else {
-            zenoh_nostd::error!("Could not read frame");
-            return Err(ZConnectionError::CouldNotRead);
-        };
-        match (frame.op_code(), frame.payload().len()) {
-            (OpCode::Binary, len) if len == buffer.len() => {
-                buffer.copy_from_slice(frame.payload());
-                self.buffer.clear();
-                Ok(())
-            }
-            _ => {
-                zenoh_nostd::error!("Could not read exact frame into buffer");
-                zbail!(ZConnectionError::CouldNotRead);
-            }
-        }
+        self.read(buffer).await.map(|_| ())
     }
 }
