@@ -64,47 +64,28 @@ impl AbstractedWsStream for WasmWsStream {
     }
 
     async fn write(&mut self, buffer: &[u8]) -> ZResult<usize, ZConnectionError> {
-        let item = FrameView::binary(buffer.to_vec());
-        self.sink
-            .send(item)
-            .await
-            .map_err(|_| ZConnectionError::CouldNotWrite)
-            .map(|_| buffer.len())
+        let mut tx = WasmWsTx {
+            sink: &mut self.sink,
+        };
+        tx.write(buffer).await
     }
 
     async fn write_all(&mut self, buffer: &[u8]) -> ZResult<(), ZConnectionError> {
-        let item = FrameView::binary(buffer.to_vec());
-        self.sink
-            .send(item)
-            .await
-            .map_err(|_| ZConnectionError::CouldNotWrite)
+        self.write(buffer).await.map(|_| ())
     }
 
     async fn read(&mut self, buffer: &mut [u8]) -> ZResult<usize, ZConnectionError> {
-        let Some(Ok(frame)) = self.stream.next().await else {
-            return Err(ZConnectionError::CouldNotRead);
+        let mut rx = WasmWsRx {
+            stream: &mut self.stream,
         };
-        match frame.opcode {
-            OpCode::Binary => {
-                let len = frame.payload.len().min(buffer.len());
-                buffer[..len].copy_from_slice(&frame.payload[..len]);
-                Ok(len)
-            }
-            _ => zbail!(ZConnectionError::CouldNotRead),
-        }
+        rx.read(buffer).await
     }
 
     async fn read_exact(&mut self, buffer: &mut [u8]) -> ZResult<(), ZConnectionError> {
-        let Some(Ok(frame)) = self.stream.next().await else {
-            return Err(ZConnectionError::CouldNotRead);
+        let mut rx = WasmWsRx {
+            stream: &mut self.stream,
         };
-        match (frame.opcode, frame.payload.len()) {
-            (OpCode::Binary, len) if len == buffer.len() => {
-                buffer.copy_from_slice(&frame.payload);
-                Ok(())
-            }
-            _ => zbail!(ZConnectionError::CouldNotRead),
-        }
+        rx.read_exact(buffer).await
     }
 }
 
@@ -119,11 +100,7 @@ impl AbstractedWsTx for WasmWsTx<'_> {
     }
 
     async fn write_all(&mut self, buffer: &[u8]) -> ZResult<(), ZConnectionError> {
-        let item = FrameView::binary(buffer.to_vec());
-        self.sink
-            .send(item)
-            .await
-            .map_err(|_| ZConnectionError::CouldNotWrite)
+        self.write(buffer).await.map(|_| ())
     }
 }
 
