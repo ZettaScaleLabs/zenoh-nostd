@@ -1,7 +1,10 @@
-use yawc::WebSocket;
-use zenoh_nostd::{
-    ZResult,
-    platform::{Platform, ZConnectionError},
+use {
+    async_net::TcpStream,
+    wtx::{misc::Uri, web_socket::WebSocketConnector},
+    zenoh_nostd::{
+        ZResult,
+        platform::{Platform, ZConnectionError},
+    },
 };
 
 pub(crate) mod tcp;
@@ -17,19 +20,22 @@ impl Platform for PlatformStd {
         &self,
         addr: &std::net::SocketAddr,
     ) -> ZResult<Self::AbstractedWsStream, ZConnectionError> {
-        let url = format!("ws://{}", addr);
-
-        let stream = WebSocket::connect(url.parse().map_err(|_| {
-            let err_msg = format!("Could not parse URL: {url}");
-            zenoh_nostd::error!("{}", err_msg.as_str());
-            ZConnectionError::CouldNotConnect
-        })?)
-        .await
-        .map_err(|_| {
-            zenoh_nostd::error!("Could not connect to WebSocket");
-            ZConnectionError::CouldNotConnect
-        })?;
-
+        let uri = Uri::new(format!("ws://{}", addr));
+        let stream = WebSocketConnector::default()
+            .connect(
+                TcpStream::connect(uri.hostname_with_implied_port())
+                    .await
+                    .map_err(|_| {
+                        zenoh_nostd::error!("Could not connect to TcpStream");
+                        ZConnectionError::CouldNotConnect
+                    })?,
+                &uri.to_ref(),
+            )
+            .await
+            .map_err(|_| {
+                zenoh_nostd::error!("Could not connect to WebSocket");
+                ZConnectionError::CouldNotConnect
+            })?;
         let peer_addr = *addr;
         Ok(Self::AbstractedWsStream::new(peer_addr, stream))
     }

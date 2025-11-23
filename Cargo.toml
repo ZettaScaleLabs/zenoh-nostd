@@ -1,6 +1,6 @@
 [workspace]
 members = ["crates/zenoh-derive","crates/zenoh-nostd", "crates/zenoh-proto", "crates/zenoh-sansio"]
-exclude = ["platforms/zenoh-std", "platforms/zenoh-embassy", "platforms/zenoh-wasm"]
+exclude = ["platforms/zenoh-std", "platforms/zenoh-embassy", "platforms/zenoh-wasm", "platforms/wtx_test"]
 
 [workspace.package]
 authors = []
