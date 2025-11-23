@@ -21,16 +21,18 @@ impl Platform for PlatformStd {
         addr: &std::net::SocketAddr,
     ) -> ZResult<Self::AbstractedWsStream, ZConnectionError> {
         let uri = Uri::new(format!("ws://{}", addr));
+        let tcp_stream = TcpStream::connect(uri.hostname_with_implied_port())
+            .await
+            .map_err(|_| {
+                zenoh_nostd::error!("Could not connect to TcpStream");
+                ZConnectionError::CouldNotConnect
+            })?;
+        tcp_stream.set_nodelay(true).map_err(|_| {
+            zenoh_nostd::error!("Could not set nodelay on TcpStream");
+            ZConnectionError::CouldNotConnect
+        })?;
         let stream = WebSocketConnector::default()
-            .connect(
-                TcpStream::connect(uri.hostname_with_implied_port())
-                    .await
-                    .map_err(|_| {
-                        zenoh_nostd::error!("Could not connect to TcpStream");
-                        ZConnectionError::CouldNotConnect
-                    })?,
-                &uri.to_ref(),
-            )
+            .connect(tcp_stream, &uri.to_ref())
             .await
             .map_err(|_| {
                 zenoh_nostd::error!("Could not connect to WebSocket");
@@ -44,9 +46,14 @@ impl Platform for PlatformStd {
         &self,
         addr: &core::net::SocketAddr,
     ) -> ZResult<Self::AbstractedTcpStream, ZConnectionError> {
-        let socket = async_net::TcpStream::connect(addr)
+        let socket = TcpStream::connect(addr)
             .await
             .map_err(|_| ZConnectionError::CouldNotConnect)?;
+
+        socket.set_nodelay(true).map_err(|_| {
+            zenoh_nostd::error!("Could not set nodelay on TcpStream");
+            ZConnectionError::CouldNotConnect
+        })?;
 
         let header = match socket
             .local_addr()
