@@ -10,7 +10,7 @@ check:
 
     cargo clippy --examples --features=std,log --fix --lib --allow-dirty --allow-staged
 
-    CONNECT="ws/127.0.0.1:7446" RUSTFLAGS='--cfg getrandom_backend="wasm_js"' cargo clippy --examples --no-default-features --features=wasm --target wasm32-unknown-unknown
+    RUSTFLAGS='--cfg getrandom_backend="wasm_js"' cargo clippy --examples --no-default-features --features=wasm --target wasm32-unknown-unknown
 
 test:
     cargo test -p zenoh-proto

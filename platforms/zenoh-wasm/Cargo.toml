@@ -5,9 +5,9 @@ categories = ["network-programming"]
 description = "Zenoh: The Zero Overhead Pub/Sub/Query Protocol."
 edition = "2024"
 homepage = "http://zenoh.io"
-license = "EPL-2.0 OR Apache-2.0"
+license = "ZSA-1.0"
 repository = "https://github.com/ZettaScaleLabs/zenoh-nostd"
-rust-version = "1.89.0"
+rust-version = "1.90.0"
 version = "0.1.0"
 
 [dependencies]

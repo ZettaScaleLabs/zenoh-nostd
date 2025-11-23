@@ -14,7 +14,7 @@ version.workspace = true
 default = []
 log = ["dep:log"]
 defmt = ["dep:defmt"]
-web_console = ["dep:web-sys"] # Use `web-sys` crate for logging in webassembly
+web_console = ["dep:web-sys"]
 
 [dependencies]
 zenoh-derive.workspace = true
