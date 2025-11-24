@@ -5,12 +5,16 @@
 use zenoh_examples::*;
 use zenoh_nostd::{EndPoint, keyexpr};
 
-const CONNECT: Option<&str> = option_env!("CONNECT");
-
-#[cfg(feature = "wasm")]
-const DEFAULT_CONNECT_ENDPOINT: &str = "ws/127.0.0.1:7446";
-#[cfg(not(feature = "wasm"))]
-const DEFAULT_CONNECT_ENDPOINT: &str = "tcp/127.0.0.1:7447";
+const CONNECT: &str = match option_env!("CONNECT") {
+    Some(v) => v,
+    None => {
+        if cfg!(feature = "wasm") {
+            "ws/127.0.0.1:7446"
+        } else {
+            "tcp/127.0.0.1:7447"
+        }
+    }
+};
 
 async fn entry(spawner: embassy_executor::Spawner) -> zenoh_nostd::ZResult<()> {
     #[cfg(feature = "log")]
@@ -28,10 +32,7 @@ async fn entry(spawner: embassy_executor::Spawner) -> zenoh_nostd::ZResult<()> {
             MAX_QUERYABLES: 2
     );
 
-    let session = zenoh_nostd::open!(
-        config,
-        EndPoint::try_from(CONNECT.unwrap_or(DEFAULT_CONNECT_ENDPOINT))?
-    );
+    let session = zenoh_nostd::open!(config, EndPoint::try_from(CONNECT)?);
 
     let ke = keyexpr::new("demo/example")?;
     let payload = b"Hello, from no-std!";
