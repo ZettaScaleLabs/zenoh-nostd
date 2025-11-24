@@ -19,4 +19,4 @@ yawc = "0.2.7"
 
 [patch.crates-io.yawc]
 git = "https://github.com/infinitefield/yawc"
-branch = "master"
+rev = "b43b05d51e18345d228b72c4f12a93e2f51df9d8"
