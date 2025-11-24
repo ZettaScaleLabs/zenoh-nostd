@@ -8,6 +8,11 @@ use zenoh_nostd::{EndPoint, keyexpr, zsubscriber};
 
 const CONNECT: Option<&str> = option_env!("CONNECT");
 
+#[cfg(feature = "wasm")]
+const DEFAULT_CONNECT_ENDPOINT: &str = "ws/127.0.0.1:7446";
+#[cfg(not(feature = "wasm"))]
+const DEFAULT_CONNECT_ENDPOINT: &str = "tcp/127.0.0.1:7447";
+
 async fn entry(spawner: embassy_executor::Spawner) -> zenoh_nostd::ZResult<()> {
     #[cfg(feature = "log")]
     env_logger::init();
@@ -26,7 +31,7 @@ async fn entry(spawner: embassy_executor::Spawner) -> zenoh_nostd::ZResult<()> {
 
     let session = zenoh_nostd::open!(
         config,
-        EndPoint::try_from(CONNECT.unwrap_or("tcp/127.0.0.1:7447"))?
+        EndPoint::try_from(CONNECT.unwrap_or(DEFAULT_CONNECT_ENDPOINT))?
     );
 
     let ke_pong = keyexpr::new("test/pong")?;

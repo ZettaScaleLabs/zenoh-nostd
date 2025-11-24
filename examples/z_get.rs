@@ -7,6 +7,11 @@ use zenoh_nostd::{EndPoint, ZReply, keyexpr};
 
 const CONNECT: Option<&str> = option_env!("CONNECT");
 
+#[cfg(feature = "wasm")]
+const DEFAULT_CONNECT_ENDPOINT: &str = "ws/127.0.0.1:7446";
+#[cfg(not(feature = "wasm"))]
+const DEFAULT_CONNECT_ENDPOINT: &str = "tcp/127.0.0.1:7447";
+
 fn callback(reply: &ZReply) {
     match reply {
         ZReply::Ok(reply) => {
@@ -44,7 +49,7 @@ async fn entry(spawner: embassy_executor::Spawner) -> zenoh_nostd::ZResult<()> {
 
     let session = zenoh_nostd::open!(
         config,
-        EndPoint::try_from(CONNECT.unwrap_or("tcp/127.0.0.1:7447"))?
+        EndPoint::try_from(CONNECT.unwrap_or(DEFAULT_CONNECT_ENDPOINT))?
     );
 
     let ke = keyexpr::new("demo/example/**").unwrap();
