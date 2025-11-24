@@ -71,6 +71,8 @@ async fn entry(spawner: embassy_executor::Spawner) -> zenoh_nostd::result::ZResu
                 TX: 512,
                 RX: 512,
                 MAX_SUBSCRIBERS: 2
+                MAX_QUERIES: 2,
+                MAX_QUERYABLES: 2
         ),
         EndPoint::try_from(CONNECT.unwrap_or("tcp/127.0.0.1:7447"))?
     );
@@ -111,8 +113,8 @@ Use the following command structure:
 just <platform> <example> [args]
 ```
 
-* **Platforms**: `std`, `esp32s3`
-* **Examples**: `z_put`, `z_sub`, `z_ping`, `z_pong`
+* **Platforms**: `std`, `wasm`, `esp32s3`
+* **Examples**: `z_put`, `z_pub`, `z_sub`, `z_ping`, `z_pong`, `z_get`, `z_queryable`
 
 Set the `CONNECT=<endpoint>` environment variable to specify the endpoint (default is `tcp/127.0.0.1:7447`).
 
@@ -126,7 +128,7 @@ See the ESP32 setup documentation for toolchain and target installation.
 Example of few commands:
 
 ```bash
-CONNECT=tcp/127.0.0.1:7447 just std z_put
+CONNECT=tcp/127.0.0.1:7447 just std z_pub
 ```
 
 ```bash
@@ -145,11 +147,34 @@ In two terminals:
 
 ```bash
 # Terminal 1
-just std z_put
+just std z_pub
 
 # Terminal 2
 just std z_sub
 ```
+### Example: WebSocket + WASM
+
+Run a Zenoh router with:
+
+```bash
+zenohd -l tcp/127.0.0.1:7447 -l ws/127.0.0.1:7446
+```
+
+Then:
+
+```bash
+# Terminal 1 (WASM)
+CONNECT=ws/127.0.0.1:7446 just wasm z_pub
+
+# Terminal 2 (STD)
+just std z_sub
+```
+
+> 📦 Note: For WASM, ensure you have:
+>
+> * `wasm32-unknown-unknown` target
+> * `wasm-bindgen-cli`
+> * `basic-http-server` (or similar)
 
 ---
 
@@ -173,12 +198,15 @@ zenoh-nostd/            # Git repository root
 │   ├── z_get.rs        # Example with io
 │   ├── z_ping.rs       # Example with io
 │   ├── z_pong.rs       # Example with io
+│   ├── z_pub.rs        # Example with io
 │   ├── z_put.rs        # Example with io
+│   ├── z_queryable.rs  # Example with io
 │   └── z_sub.rs        # Example with io
 │
-└── platforms/          # Platform-specific implementations
+├── platforms/          # Platform-specific implementations
 │   ├── zenoh-embassy/  # Embassy platforms (no_std)
-│   └── zenoh-std/      # Standard platforms (std)
+│   ├── zenoh-std/      # Standard platforms (std)
+│   └── zenoh-wasm/     # WASM32 platforms (wasm)
 │
 ├── Cargo.toml          # Workspace + example package
 └── src/
