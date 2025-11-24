@@ -28,6 +28,6 @@ sansio example:
     RUST_LOG=debug cargo run -p zenoh-sansio --example {{example}} --features="log"
 
 wasm example *args:
-    CONNECT='ws/127.0.0.1:7446' RUST_LOG='info' RUSTFLAGS='--cfg getrandom_backend="wasm_js"' cargo build --example {{example}} --no-default-features --features=wasm --target wasm32-unknown-unknown -- {{args}}
+    RUST_LOG='debug' RUSTFLAGS='--cfg getrandom_backend="wasm_js"' cargo build --example {{example}} --no-default-features --features=wasm --target wasm32-unknown-unknown -- {{args}}
     wasm-bindgen --target web --out-dir ./examples/web/ ./target/wasm32-unknown-unknown/debug/examples/{{example}}.wasm --out-name z_example
     basic-http-server ./examples/web
