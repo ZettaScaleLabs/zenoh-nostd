@@ -776,9 +776,9 @@ checksum = "7da8b5736845d9f2fcb837ea5d9e2628564b3b043a70948a3f0b778838c5fb4f"
 
 [[package]]
 name = "syn"
-version = "2.0.110"
+version = "2.0.111"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a99801b5bd34ede4cf3fc688c5919368fea4e4814a4664359503e6015b280aea"
+checksum = "390cc9a294ab71bdb1aa2e99d13be9c753cd2d7bd6560c77118597410c4d2e87"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -793,8 +793,8 @@ checksum = "562d481066bde0658276a35467c4af00bdc6ee726305698a55b86e61d7ad82bb"
 
 [[package]]
 name = "uhlc"
-version = "0.8.1"
-source = "git+https://github.com/Hennzau/uhlc-rs?branch=no-alloc#050c34aebc5a54f12490d1b5e98eb089f2a0d963"
+version = "0.8.2"
+source = "git+https://github.com/Hennzau/uhlc-rs?branch=no-alloc#27ab8b408da49baa878eef1c3f74575bbdaa5ec4"
 dependencies = [
  "rand",
  "serde",
