@@ -14,4 +14,9 @@ version = "0.1.0"
 zenoh-nostd = { version = "0.1.0", path = "../../crates/zenoh-nostd", features = ["web_console"] }
 futures-util = "0.3"
 getrandom = { version = "0.2", features = ["std", "js"] }
-yawc = {git = "https://github.com/infinitefield/yawc", branch = "master"}
+yawc = "0.2.7"
+
+
+[patch.crates-io.yawc]
+git = "https://github.com/infinitefield/yawc"
+branch = "master"
