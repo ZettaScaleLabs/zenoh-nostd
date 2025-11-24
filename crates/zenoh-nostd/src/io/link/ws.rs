@@ -41,6 +41,7 @@ impl<T: AbstractedWsStream> LinkWs<T> {
         false
     }
 
+    #[allow(unused)]
     pub(crate) async fn write(&mut self, buffer: &[u8]) -> ZResult<usize, ZLinkError> {
         self.stream.write(buffer).await.map_err(|e| e.into())
     }
@@ -63,6 +64,7 @@ impl<T: AbstractedWsTx> LinkWsTx<T> {
         false
     }
 
+    #[allow(unused)]
     pub(crate) async fn write(&mut self, buffer: &[u8]) -> ZResult<usize, ZLinkError> {
         self.tx.write(buffer).await.map_err(|e| e.into())
     }
