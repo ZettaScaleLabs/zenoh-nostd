@@ -1,22 +1,59 @@
-use zenoh_nostd::{
-    ZResult,
-    platform::{Platform, ZConnectionError},
+use {
+    async_net::TcpStream,
+    wtx::{misc::Uri, web_socket::WebSocketConnector},
+    zenoh_nostd::{
+        ZResult,
+        platform::{Platform, ZConnectionError},
+    },
 };
 
 pub(crate) mod tcp;
+pub(crate) mod ws;
 
 pub struct PlatformStd;
 
 impl Platform for PlatformStd {
     type AbstractedTcpStream = tcp::StdTcpStream;
+    type AbstractedWsStream = ws::StdWsStream;
+
+    async fn new_websocket_stream(
+        &self,
+        addr: &std::net::SocketAddr,
+    ) -> ZResult<Self::AbstractedWsStream, ZConnectionError> {
+        let uri = Uri::new(format!("ws://{}", addr));
+        let tcp_stream = TcpStream::connect(uri.hostname_with_implied_port())
+            .await
+            .map_err(|_| {
+                zenoh_nostd::error!("Could not connect to TcpStream");
+                ZConnectionError::CouldNotConnect
+            })?;
+        tcp_stream.set_nodelay(true).map_err(|_| {
+            zenoh_nostd::error!("Could not set nodelay on TcpStream");
+            ZConnectionError::CouldNotConnect
+        })?;
+        let stream = WebSocketConnector::default()
+            .connect(tcp_stream, &uri.to_ref())
+            .await
+            .map_err(|_| {
+                zenoh_nostd::error!("Could not connect to WebSocket");
+                ZConnectionError::CouldNotConnect
+            })?;
+        let peer_addr = *addr;
+        Ok(Self::AbstractedWsStream::new(peer_addr, stream))
+    }
 
     async fn new_tcp_stream(
         &self,
         addr: &core::net::SocketAddr,
     ) -> ZResult<Self::AbstractedTcpStream, ZConnectionError> {
-        let socket = async_net::TcpStream::connect(addr)
+        let socket = TcpStream::connect(addr)
             .await
             .map_err(|_| ZConnectionError::CouldNotConnect)?;
+
+        socket.set_nodelay(true).map_err(|_| {
+            zenoh_nostd::error!("Could not set nodelay on TcpStream");
+            ZConnectionError::CouldNotConnect
+        })?;
 
         let header = match socket
             .local_addr()

@@ -1,4 +1,4 @@
-#![cfg_attr(not(any(feature = "log")), no_std)]
+#![cfg_attr(not(any(feature = "log", feature = "web_console")), no_std)]
 
 mod api;
 pub use api::*;

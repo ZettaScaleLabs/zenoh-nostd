@@ -1,10 +1,20 @@
 #![cfg_attr(feature = "esp32s3", no_std)]
 #![cfg_attr(feature = "esp32s3", no_main)]
+#![cfg_attr(feature = "wasm", no_main)]
 
 use zenoh_examples::*;
 use zenoh_nostd::{EndPoint, ZSample, ZSubscriber, keyexpr, zsubscriber};
 
-const CONNECT: Option<&str> = option_env!("CONNECT");
+const CONNECT: &str = match option_env!("CONNECT") {
+    Some(v) => v,
+    None => {
+        if cfg!(feature = "wasm") {
+            "ws/127.0.0.1:7446"
+        } else {
+            "tcp/127.0.0.1:7447"
+        }
+    }
+};
 
 fn callback_1(sample: &ZSample) {
     zenoh_nostd::info!(
@@ -41,10 +51,7 @@ async fn entry(spawner: embassy_executor::Spawner) -> zenoh_nostd::ZResult<()> {
             MAX_QUERYABLES: 2
     );
 
-    let session = zenoh_nostd::open!(
-        config,
-        EndPoint::try_from(CONNECT.unwrap_or("tcp/127.0.0.1:7447"))?
-    );
+    let session = zenoh_nostd::open!(config, EndPoint::try_from(CONNECT)?);
 
     let ke = keyexpr::new("demo/example/**")?;
 
@@ -67,6 +74,7 @@ async fn entry(spawner: embassy_executor::Spawner) -> zenoh_nostd::ZResult<()> {
 }
 
 #[cfg_attr(feature = "std", embassy_executor::main)]
+#[cfg_attr(feature = "wasm", embassy_executor::main)]
 #[cfg_attr(feature = "esp32s3", esp_rtos::main)]
 async fn main(spawner: embassy_executor::Spawner) {
     if let Err(e) = entry(spawner).await {
