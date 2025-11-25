@@ -9,6 +9,7 @@
 <p align="center">
   <code>bare-metal</code> • <code>no_std</code> • <code>zenoh</code>
 </p>
+<a href="https://cla-assistant.io/ZettaScaleLabs/zenoh-nostd"><img src="https://cla-assistant.io/readme/badge/ZettaScaleLabs/zenoh-nostd" alt="CLA assistant" /></a>
 
 ---
 
