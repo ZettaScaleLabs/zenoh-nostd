@@ -6,11 +6,10 @@ check:
 
     cd platforms/zenoh-std && just check
     cd platforms/zenoh-embassy && just check
-    cd platforms/zenoh-wasm && just clippy
+    cd platforms/zenoh-wasm && just check
 
     cargo clippy --examples --features=std,log --fix --lib --allow-dirty --allow-staged
-
-    RUSTFLAGS='--cfg getrandom_backend="wasm_js"' cargo clippy --examples --no-default-features --features=wasm --target wasm32-unknown-unknown
+    cargo clippy --examples --no-default-features --features=wasm,web_console --target wasm32-unknown-unknown
 
 test:
     cargo test -p zenoh-proto

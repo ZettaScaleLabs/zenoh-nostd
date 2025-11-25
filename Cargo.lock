@@ -3548,7 +3548,7 @@ dependencies = [
  "embassy-futures",
  "embassy-sync 0.7.2",
  "embassy-time",
- "heapless 0.9.2",
+ "heapless 0.8.0",
  "sha3",
  "static_cell",
  "zenoh-proto",
@@ -3573,7 +3573,7 @@ name = "zenoh-sansio"
 version = "0.1.0"
 dependencies = [
  "env_logger 0.11.8",
- "heapless 0.9.2",
+ "heapless 0.8.0",
  "sha3",
  "zenoh-proto",
 ]

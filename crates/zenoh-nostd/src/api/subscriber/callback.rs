@@ -4,7 +4,7 @@ use core::{
 };
 
 use embassy_sync::{blocking_mutex::raw::CriticalSectionRawMutex, channel::Channel};
-use heapless::index_map::{FnvIndexMap, Iter};
+use heapless::{FnvIndexMap, IndexMapIter};
 use zenoh_proto::{ZError, ZResult, keyexpr, zbail};
 
 use crate::api::sample::{ZOwnedSample, ZSample};
@@ -74,7 +74,7 @@ pub trait ZSubscriberCallbacks {
         callback: ZSubscriberCallback,
     ) -> ZResult<()>;
     fn intersects(&self, id: &u32, ke: &'_ keyexpr) -> bool;
-    fn iter(&self) -> Iter<'_, u32, ZSubscriberCallback>;
+    fn iter(&self) -> IndexMapIter<'_, u32, ZSubscriberCallback>;
 }
 
 pub struct ZSubscriberCallbackStorage<const N: usize> {
@@ -126,7 +126,7 @@ impl<const N: usize> ZSubscriberCallbacks for ZSubscriberCallbackStorage<N> {
         false
     }
 
-    fn iter(&self) -> Iter<'_, u32, ZSubscriberCallback> {
+    fn iter(&self) -> IndexMapIter<'_, u32, ZSubscriberCallback> {
         self.callbacks.iter()
     }
 }

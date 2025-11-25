@@ -4,7 +4,7 @@ use embassy_sync::{
     blocking_mutex::raw::CriticalSectionRawMutex,
     channel::{Channel, DynamicReceiver},
 };
-use heapless::index_map::{FnvIndexMap, Iter};
+use heapless::{FnvIndexMap, IndexMapIter};
 use zenoh_proto::{ZError, ZResult, keyexpr, zbail};
 
 use crate::{ZOwnedQuery, ZQuery, platform::Platform};
@@ -93,7 +93,7 @@ pub trait ZQueryableCallbacks<T: Platform + 'static> {
         callback: ZQueryableCallback<T>,
     ) -> ZResult<()>;
     fn intersects(&self, id: &u32, ke: &'_ keyexpr) -> bool;
-    fn iter(&self) -> Iter<'_, u32, ZQueryableCallback<T>>;
+    fn iter(&self) -> IndexMapIter<'_, u32, ZQueryableCallback<T>>;
 }
 
 pub struct ZQueryableCallbackStorage<T: Platform + 'static, const N: usize> {
@@ -147,7 +147,7 @@ impl<T: Platform + 'static, const N: usize> ZQueryableCallbacks<T>
         false
     }
 
-    fn iter(&self) -> Iter<'_, u32, ZQueryableCallback<T>> {
+    fn iter(&self) -> IndexMapIter<'_, u32, ZQueryableCallback<T>> {
         self.callbacks.iter()
     }
 }

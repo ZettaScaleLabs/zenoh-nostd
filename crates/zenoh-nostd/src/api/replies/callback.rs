@@ -1,5 +1,5 @@
 use embassy_time::Instant;
-use heapless::index_map::{FnvIndexMap, Iter};
+use heapless::{FnvIndexMap, IndexMapIter};
 use zenoh_proto::{ZError, ZResult, keyexpr, zbail};
 
 use crate::ZReply;
@@ -29,7 +29,7 @@ impl ZRepliesCallback {
 pub trait ZRepliesCallbacks {
     fn insert(&mut self, id: u32, ke: &'static keyexpr, callback: ZRepliesCallback) -> ZResult<()>;
     fn intersects(&self, id: &u32, ke: &'_ keyexpr) -> bool;
-    fn iter(&self) -> Iter<'_, u32, ZRepliesCallback>;
+    fn iter(&self) -> IndexMapIter<'_, u32, ZRepliesCallback>;
 
     fn remove(&mut self, id: &u32) -> Option<ZRepliesCallback>;
 
@@ -80,7 +80,7 @@ impl<const N: usize> ZRepliesCallbacks for ZRepliesCallbackStorage<N> {
         false
     }
 
-    fn iter(&self) -> Iter<'_, u32, ZRepliesCallback> {
+    fn iter(&self) -> IndexMapIter<'_, u32, ZRepliesCallback> {
         self.callbacks.iter()
     }
 
