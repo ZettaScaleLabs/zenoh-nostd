@@ -1,11 +1,22 @@
 #![cfg_attr(feature = "esp32s3", no_std)]
 #![cfg_attr(feature = "esp32s3", no_main)]
+#![cfg_attr(feature = "wasm", no_main)]
 
 use embassy_time::Instant;
 use zenoh_examples::*;
 use zenoh_nostd::{EndPoint, keyexpr};
 
-const CONNECT: Option<&str> = option_env!("CONNECT");
+const CONNECT: &str = match option_env!("CONNECT") {
+    Some(v) => v,
+    None => {
+        if cfg!(feature = "wasm") {
+            "ws/127.0.0.1:7446"
+        } else {
+            "tcp/127.0.0.1:7447"
+        }
+    }
+};
+
 const PAYLOAD: usize = match usize::from_str_radix(
     match option_env!("PAYLOAD") {
         Some(v) => v,
@@ -33,14 +44,11 @@ async fn entry(spawner: embassy_executor::Spawner) -> zenoh_nostd::ZResult<()> {
             MAX_QUERYABLES: 2
     );
 
-    let session = zenoh_nostd::open!(
-        config,
-        EndPoint::try_from(CONNECT.unwrap_or("tcp/127.0.0.1:7447"))?
-    );
+    let session = zenoh_nostd::open!(config, EndPoint::try_from(CONNECT)?);
 
     let mut payload = [0u8; PAYLOAD];
-    for i in 0..PAYLOAD {
-        payload[i] = (i % 10) as u8;
+    for (i, p) in payload.iter_mut().enumerate().take(PAYLOAD) {
+        *p = (i % 10) as u8;
     }
 
     let publisher = session.declare_publisher(keyexpr::new("test/thr")?);
@@ -63,6 +71,7 @@ async fn entry(spawner: embassy_executor::Spawner) -> zenoh_nostd::ZResult<()> {
 
 #[cfg_attr(feature = "std", embassy_executor::main)]
 #[cfg_attr(feature = "esp32s3", esp_rtos::main)]
+#[cfg_attr(feature = "wasm", embassy_executor::main)]
 async fn main(spawner: embassy_executor::Spawner) {
     if let Err(e) = entry(spawner).await {
         zenoh_nostd::error!("Error in main: {:?}", e);

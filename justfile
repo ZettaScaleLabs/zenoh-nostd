@@ -11,11 +11,11 @@ check:
     cargo clippy --examples --features=std,log --fix --lib --allow-dirty --allow-staged
     cargo clippy --examples --no-default-features --features=wasm,web_console --target wasm32-unknown-unknown
 
-test:
-    cargo test -p zenoh-proto
+test filter="":
+    cargo test {{filter}} -p zenoh-proto
 
-bench:
-    cargo test -p zenoh-proto bench --profile=release -- --nocapture --ignored
+bench filter="bench":
+    cargo test -p zenoh-proto {{filter}} --profile=release -- --nocapture --ignored --test-threads=1
 
 std example:
     RUST_LOG=debug cargo run --example {{example}} --features="std,log"
