@@ -1,6 +1,9 @@
 [workspace]
-members = ["crates/zenoh-derive","crates/zenoh-nostd", "crates/zenoh-proto", "crates/zenoh-sansio"]
-exclude = ["platforms/zenoh-std", "platforms/zenoh-embassy", "platforms/zenoh-wasm"]
+members = [
+"crates/zenoh-derive",
+#"crates/zenoh-nostd", "crates/zenoh-proto", "crates/zenoh-sansio"
+]
+# exclude = ["platforms/zenoh-std", "platforms/zenoh-embassy", "platforms/zenoh-wasm"]
 
 [workspace.package]
 authors = []
@@ -15,9 +18,9 @@ version = "0.1.0"
 readme = "README.md"
 
 [workspace.dependencies]
-zenoh-derive = { version = "0.1.0", path = "crates/zenoh-derive" }
-zenoh-proto = { version = "0.1.0", path = "crates/zenoh-proto" }
-zenoh-nostd = { version = "0.1.0", path = "crates/zenoh-nostd" }
+# zenoh-derive = { version = "0.1.0", path = "crates/zenoh-derive" }
+# zenoh-proto = { version = "0.1.0", path = "crates/zenoh-proto" }
+# zenoh-nostd = { version = "0.1.0", path = "crates/zenoh-nostd" }
 
 uhlc = { version = "0.8.1", git = "https://github.com/Hennzau/uhlc-rs", branch = "no-alloc", default-features = false }
 sha3 = { version = "0.10.8", default-features = false }
@@ -47,82 +50,82 @@ rand = "0.8"
 criterion = "0.7"
 paste = "1.0"
 
-[package]
-name = "zenoh-examples"
-authors.workspace = true
-description.workspace = true
-edition.workspace = true
-homepage.workspace = true
-license.workspace = true
-repository.workspace = true
-rust-version.workspace = true
-version.workspace = true
-readme.workspace = true
+# [package]
+# name = "zenoh-examples"
+# authors.workspace = true
+# description.workspace = true
+# edition.workspace = true
+# homepage.workspace = true
+# license.workspace = true
+# repository.workspace = true
+# rust-version.workspace = true
+# version.workspace = true
+# readme.workspace = true
 
-[features]
-default = ["std", "log"]
-log = ["zenoh-nostd/log"]
-defmt = ["zenoh-nostd/defmt"]
-web_console = ["zenoh-nostd/web_console"]
-std = [
-    "dep:zenoh-std",
-    "dep:env_logger",
-    "embassy-executor/arch-std",
-    "embassy-executor/executor-thread",
-    "embassy-time/std",
-    "dep:critical-section",
-]
-esp32s3 = [
-    "dep:zenoh-embassy",
-    "dep:getrandom",
-    "dep:esp-bootloader-esp-idf",
-    "dep:esp-hal",
-    "dep:embassy-net",
-    "dep:esp-alloc",
-    "dep:esp-println",
-    "dep:esp-rtos",
-    "dep:esp-radio",
-]
-wasm = [
-    "dep:zenoh-wasm",
-    "getrandom/std",
-    "getrandom/js",
-    "dep:env_logger",
-    "embassy-executor/arch-wasm",
-    "embassy-executor/executor-thread",
-    "embassy-time/wasm",
-    "dep:critical-section",
-    "dep:wasm-bindgen",
-]
+# [features]
+# default = ["std", "log"]
+# log = ["zenoh-nostd/log"]
+# defmt = ["zenoh-nostd/defmt"]
+# web_console = ["zenoh-nostd/web_console"]
+# std = [
+#     "dep:zenoh-std",
+#     "dep:env_logger",
+#     "embassy-executor/arch-std",
+#     "embassy-executor/executor-thread",
+#     "embassy-time/std",
+#     "dep:critical-section",
+# ]
+# esp32s3 = [
+#     "dep:zenoh-embassy",
+#     "dep:getrandom",
+#     "dep:esp-bootloader-esp-idf",
+#     "dep:esp-hal",
+#     "dep:embassy-net",
+#     "dep:esp-alloc",
+#     "dep:esp-println",
+#     "dep:esp-rtos",
+#     "dep:esp-radio",
+# ]
+# wasm = [
+#     "dep:zenoh-wasm",
+#     "getrandom/std",
+#     "getrandom/js",
+#     "dep:env_logger",
+#     "embassy-executor/arch-wasm",
+#     "embassy-executor/executor-thread",
+#     "embassy-time/wasm",
+#     "dep:critical-section",
+#     "dep:wasm-bindgen",
+# ]
 
-[dependencies]
-zenoh-nostd = { workspace = true }
-static_cell = { workspace = true }
-embassy-sync = { workspace = true  }
-embassy-executor = { workspace = true }
-embassy-time = { workspace = true }
-embassy-futures = { workspace = true }
+# [dependencies]
+# zenoh-nostd = { workspace = true }
+# static_cell = { workspace = true }
+# embassy-sync = { workspace = true  }
+# embassy-executor = { workspace = true }
+# embassy-time = { workspace = true }
+# embassy-futures = { workspace = true }
 
-zenoh-std = { version = "0.1.0", path = "platforms/zenoh-std", optional = true }
-zenoh-embassy = { version = "0.1.0", path = "platforms/zenoh-embassy", optional = true }
-zenoh-wasm = { version = "0.1.0", path = "platforms/zenoh-wasm", optional = true }
+# zenoh-std = { version = "0.1.0", path = "platforms/zenoh-std", optional = true }
+# zenoh-embassy = { version = "0.1.0", path = "platforms/zenoh-embassy", optional = true }
+# zenoh-wasm = { version = "0.1.0", path = "platforms/zenoh-wasm", optional = true }
 
-critical-section = { version = "1.2", features = ["std"], optional = true }
-env_logger = { version = "0.10", optional = true}
+# critical-section = { version = "1.2", features = ["std"], optional = true }
+# env_logger = { version = "0.10", optional = true}
 
-getrandom = { version = "0.2.16", features = ["custom"], optional = true }
-esp-bootloader-esp-idf = { version = "0.4.0", features = ["esp32s3"], optional = true }
-esp-hal = { version = "1.0.0", features = ["defmt", "esp32s3", "unstable"], optional = true }
-embassy-net = { version = "0.7.1", features = ["defmt", "dhcpv4", "medium-ethernet", "tcp"], optional = true }
-esp-alloc = { version = "0.9.0", features = ["defmt"], optional = true }
-esp-println = { version = "0.16.1", features = ["defmt-espflash", "esp32s3"], optional = true }
-esp-rtos = { version = "0.2.0", features = ["esp32s3", "esp-radio", "embassy"], optional = true }
-esp-radio = { version = "0.17.0", features = ["unstable", "defmt", "esp-alloc", "esp32s3", "smoltcp", "wifi"], optional = true }
-wasm-bindgen = { version = "0.2.105", optional = true }
+# getrandom = { version = "0.2.16", features = ["custom"], optional = true }
+# esp-bootloader-esp-idf = { version = "0.4.0", features = ["esp32s3"], optional = true }
+# esp-hal = { version = "1.0.0", features = ["defmt", "esp32s3", "unstable"], optional = true }
+# embassy-net = { version = "0.7.1", features = ["defmt", "dhcpv4", "medium-ethernet", "tcp"], optional = true }
+# esp-alloc = { version = "0.9.0", features = ["defmt"], optional = true }
+# esp-println = { version = "0.16.1", features = ["defmt-espflash", "esp32s3"], optional = true }
+# esp-rtos = { version = "0.2.0", features = ["esp32s3", "esp-radio", "embassy"], optional = true }
+# esp-radio = { version = "0.17.0", features = ["unstable", "defmt", "esp-alloc", "esp32s3", "smoltcp", "wifi"], optional = true }
+# wasm-bindgen = { version = "0.2.105", optional = true }
 
-[patch.crates-io.yawc]
-git = "https://github.com/infinitefield/yawc"
-rev = "b43b05d51e18345d228b72c4f12a93e2f51df9d8"
+# [patch.crates-io.yawc]
+# git = "https://github.com/infinitefield/yawc"
+# rev = "b43b05d51e18345d228b72c4f12a93e2f51df9d8"
 
 [profile.dev]
 opt-level = "s"
