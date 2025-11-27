@@ -1,4 +1,4 @@
-use crate::{ZCodecResult, ZReader, ZWriter};
+use crate::{ZReader, ZWriter};
 
 mod array;
 mod bytes;
@@ -10,13 +10,16 @@ pub trait ZBodyLen {
 }
 
 pub trait ZBodyEncode {
-    fn z_body_encode(&self, w: &mut ZWriter) -> ZCodecResult<()>;
+    fn z_body_encode(&self, w: &mut ZWriter) -> crate::ZResult<(), crate::ZCodecError>;
 }
 
 pub trait ZBodyDecode<'a>: Sized {
     type Ctx;
 
-    fn z_body_decode(r: &mut ZReader<'a>, ctx: Self::Ctx) -> ZCodecResult<Self>;
+    fn z_body_decode(
+        r: &mut ZReader<'a>,
+        ctx: Self::Ctx,
+    ) -> crate::ZResult<Self, crate::ZCodecError>;
 }
 
 pub trait ZHeader {
@@ -28,11 +31,11 @@ pub trait ZLen: ZBodyLen {
 }
 
 pub trait ZEncode: ZBodyEncode {
-    fn z_encode(&self, w: &mut ZWriter) -> ZCodecResult<()>;
+    fn z_encode(&self, w: &mut ZWriter) -> crate::ZResult<(), crate::ZCodecError>;
 }
 
 pub trait ZDecode<'a>: Sized + ZBodyDecode<'a> {
-    fn z_decode(r: &mut ZReader<'a>) -> ZCodecResult<Self>;
+    fn z_decode(r: &mut ZReader<'a>) -> crate::ZResult<Self, crate::ZCodecError>;
 }
 
 pub trait ZExtCount {
@@ -49,13 +52,13 @@ macro_rules! derive_zstruct_with_body {
             }
 
             impl<'a> $crate::ZEncode for $ty {
-                fn z_encode(&self, w: &mut $crate::ZWriter) -> $crate::ZCodecResult<()> {
+                fn z_encode(&self, w: &mut $crate::ZWriter) -> $crate::ZResult<(), crate::ZCodecError> {
                     <Self as $crate::ZBodyEncode>::z_body_encode(self, w)
                 }
             }
 
             impl<'a> $crate::ZDecode<'a> for $ty {
-                fn z_decode(r: &mut $crate::ZReader<'a>) -> $crate::ZCodecResult<Self> {
+                fn z_decode(r: &mut $crate::ZReader<'a>) -> $crate::ZResult<Self, crate::ZCodecError> {
                     <Self as $crate::ZBodyDecode>::z_body_decode(r, ())
                 }
             }
@@ -71,13 +74,13 @@ macro_rules! derive_zstruct_with_body {
             }
 
             impl $crate::ZEncode for $ty {
-                fn z_encode(&self, w: &mut $crate::ZWriter) -> $crate::ZCodecResult<()> {
+                fn z_encode(&self, w: &mut $crate::ZWriter) -> $crate::ZResult<(), crate::ZCodecError> {
                     <Self as $crate::ZBodyEncode>::z_body_encode(self, w)
                 }
             }
 
             impl<'a> $crate::ZDecode<'a> for $ty {
-                fn z_decode(r: &mut $crate::ZReader<'a>) -> $crate::ZCodecResult<Self> {
+                fn z_decode(r: &mut $crate::ZReader<'a>) -> $crate::ZResult<Self, crate::ZCodecError> {
                     <Self as $crate::ZBodyDecode>::z_body_decode(r, ())
                 }
             }

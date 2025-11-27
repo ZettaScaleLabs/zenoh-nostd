@@ -1,5 +1,5 @@
 use crate::{
-    Reliability, ZCodecResult, ZEncode, ZWriter,
+    Reliability, ZEncode, ZWriter,
     network::{NetworkBody, QoS},
     transport::{frame::FrameHeader, init::InitSyn, keepalive::KeepAlive, open::OpenSyn},
 };
@@ -24,25 +24,30 @@ impl<'a> Batch<'a> {
         }
     }
 
-    pub fn write_init_syn(&mut self, x: &InitSyn) -> ZCodecResult<()> {
+    pub fn write_init_syn(&mut self, x: &InitSyn) -> crate::ZResult<(), crate::ZCodecError> {
         <_ as ZEncode>::z_encode(x, &mut self.writer)?;
         self.frame = None;
         Ok(())
     }
 
-    pub fn write_open_syn(&mut self, x: &OpenSyn) -> ZCodecResult<()> {
+    pub fn write_open_syn(&mut self, x: &OpenSyn) -> crate::ZResult<(), crate::ZCodecError> {
         <_ as ZEncode>::z_encode(x, &mut self.writer)?;
         self.frame = None;
         Ok(())
     }
 
-    pub fn write_keepalive(&mut self) -> ZCodecResult<()> {
+    pub fn write_keepalive(&mut self) -> crate::ZResult<(), crate::ZCodecError> {
         <_ as ZEncode>::z_encode(&KeepAlive {}, &mut self.writer)?;
         self.frame = None;
         Ok(())
     }
 
-    pub fn write_msg(&mut self, x: &NetworkBody, r: Reliability, qos: QoS) -> ZCodecResult<()> {
+    pub fn write_msg(
+        &mut self,
+        x: &NetworkBody,
+        r: Reliability,
+        qos: QoS,
+    ) -> crate::ZResult<(), crate::ZCodecError> {
         if self.frame != Some(r) {
             <_ as ZEncode>::z_encode(
                 &FrameHeader {

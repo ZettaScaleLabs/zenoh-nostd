@@ -75,7 +75,7 @@ pub fn derive_zenum(input: &DeriveInput) -> syn::Result<TokenStream> {
         }
 
         impl #impl_generics crate::ZBodyEncode for #ident #ty_generics #where_clause {
-            fn z_body_encode(&self, w: &mut crate::ZWriter) -> crate::ZCodecResult<()> {
+            fn z_body_encode(&self, w: &mut crate::ZWriter) -> crate::ZResult<(), crate::ZCodecError> {
                 match self {
                     #(#body_encode)*
                 }
@@ -83,7 +83,7 @@ pub fn derive_zenum(input: &DeriveInput) -> syn::Result<TokenStream> {
         }
 
         impl #impl_generics crate::ZEncode for #ident #ty_generics #where_clause {
-            fn z_encode(&self, w: &mut crate::ZWriter) -> crate::ZCodecResult<()> {
+            fn z_encode(&self, w: &mut crate::ZWriter) -> crate::ZResult<(), crate::ZCodecError> {
                 match self {
                     #(#encode)*
                 }
@@ -93,7 +93,7 @@ pub fn derive_zenum(input: &DeriveInput) -> syn::Result<TokenStream> {
         impl<'a> crate::ZBodyDecode<'a> for #ident #ty_generics #where_clause {
             type Ctx = u8;
 
-            fn z_body_decode(r: &mut crate::ZReader<'a>, header: u8) -> crate::ZCodecResult<Self> {
+            fn z_body_decode(r: &mut crate::ZReader<'a>, header: u8) -> crate::ZResult<Self, crate::ZCodecError> {
                 let id = header & 0b0001_1111;
                 match id {
                     #(#body_decode)*
@@ -103,7 +103,7 @@ pub fn derive_zenum(input: &DeriveInput) -> syn::Result<TokenStream> {
         }
 
         impl<'a> crate::ZDecode<'a> for #ident #ty_generics #where_clause {
-            fn z_decode(r: &mut crate::ZReader<'a>) -> crate::ZCodecResult<Self> {
+            fn z_decode(r: &mut crate::ZReader<'a>) -> crate::ZResult<Self, crate::ZCodecError> {
                 #decode
             }
         }

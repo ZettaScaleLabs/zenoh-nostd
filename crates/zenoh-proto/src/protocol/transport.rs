@@ -1,5 +1,5 @@
 use crate::{
-    ZCodecResult, ZExt, ZReader, ZReaderExt,
+    ZCodecError, ZExt, ZReader, ZReaderExt, ZResult,
     network::NetworkBatch,
     transport::{
         close::Close,
@@ -46,7 +46,7 @@ impl<'a> TransportBatch<'a> {
     }
 
     #[allow(clippy::should_implement_trait)]
-    pub fn next(&mut self) -> Option<ZCodecResult<TransportBody<'a, '_>>> {
+    pub fn next(&mut self) -> Option<ZResult<TransportBody<'a, '_>, ZCodecError>> {
         if !self.reader.can_read() {
             return None;
         }

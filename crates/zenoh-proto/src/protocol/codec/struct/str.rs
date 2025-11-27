@@ -1,6 +1,6 @@
 use crate::{
-    ZBodyDecode, ZBodyEncode, ZBodyLen, ZCodecResult, ZDecode, ZEncode, ZLen, ZReader, ZReaderExt,
-    ZWriter, ZWriterExt,
+    ZBodyDecode, ZBodyEncode, ZBodyLen, ZDecode, ZEncode, ZLen, ZReader, ZReaderExt, ZWriter,
+    ZWriterExt,
 };
 
 impl ZBodyLen for &str {
@@ -16,13 +16,13 @@ impl ZLen for &str {
 }
 
 impl ZBodyEncode for &str {
-    fn z_body_encode(&self, w: &mut ZWriter) -> ZCodecResult<()> {
+    fn z_body_encode(&self, w: &mut ZWriter) -> crate::ZResult<(), crate::ZCodecError> {
         w.write_exact(self.as_bytes())
     }
 }
 
 impl ZEncode for &str {
-    fn z_encode(&self, w: &mut ZWriter) -> ZCodecResult<()> {
+    fn z_encode(&self, w: &mut ZWriter) -> crate::ZResult<(), crate::ZCodecError> {
         <Self as ZBodyEncode>::z_body_encode(self, w)
     }
 }
@@ -30,7 +30,7 @@ impl ZEncode for &str {
 impl<'a> ZBodyDecode<'a> for &'a str {
     type Ctx = ();
 
-    fn z_body_decode(r: &mut ZReader<'a>, _: ()) -> ZCodecResult<Self> {
+    fn z_body_decode(r: &mut ZReader<'a>, _: ()) -> crate::ZResult<Self, crate::ZCodecError> {
         let bytes = r.read(r.remaining())?;
 
         core::str::from_utf8(bytes).map_err(|_| crate::ZCodecError::CouldNotParseField)
@@ -38,7 +38,7 @@ impl<'a> ZBodyDecode<'a> for &'a str {
 }
 
 impl<'a> ZDecode<'a> for &'a str {
-    fn z_decode(r: &mut ZReader<'a>) -> ZCodecResult<Self> {
+    fn z_decode(r: &mut ZReader<'a>) -> crate::ZResult<Self, crate::ZCodecError> {
         <Self as ZBodyDecode>::z_body_decode(r, ())
     }
 }

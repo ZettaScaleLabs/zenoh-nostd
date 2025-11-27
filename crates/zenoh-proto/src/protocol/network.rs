@@ -5,8 +5,8 @@ use rand::{Rng, thread_rng};
 use zenoh_derive::ZEnum;
 
 use crate::{
-    ZBodyDecode, ZBodyEncode, ZBodyLen, ZCodecResult, ZDecode, ZEncode, ZExt, ZExtKind, ZHeader,
-    ZLen, ZReader, ZReaderExt, ZWriter,
+    ZBodyDecode, ZBodyEncode, ZBodyLen, ZCodecError, ZDecode, ZEncode, ZExt, ZExtKind, ZHeader,
+    ZLen, ZReader, ZReaderExt, ZResult, ZWriter,
     network::{
         declare::Declare,
         interest::Interest,
@@ -44,7 +44,7 @@ impl<'a, 'b> NetworkBatch<'a, 'b> {
 }
 
 impl<'a, 'b> core::iter::Iterator for NetworkBatch<'a, 'b> {
-    type Item = ZCodecResult<NetworkBody<'a>>;
+    type Item = ZResult<NetworkBody<'a>, ZCodecError>;
 
     fn next(&mut self) -> Option<Self::Item> {
         if !self.reader.can_read() {
@@ -169,7 +169,7 @@ impl ZBodyLen for QueryTarget {
 }
 
 impl ZBodyEncode for QueryTarget {
-    fn z_body_encode(&self, w: &mut ZWriter) -> ZCodecResult<()> {
+    fn z_body_encode(&self, w: &mut ZWriter) -> crate::ZResult<(), crate::ZCodecError> {
         <u64 as ZEncode>::z_encode(&((*self as u8) as u64), w)
     }
 }
@@ -177,7 +177,7 @@ impl ZBodyEncode for QueryTarget {
 impl ZBodyDecode<'_> for QueryTarget {
     type Ctx = ();
 
-    fn z_body_decode(r: &mut ZReader<'_>, _: ()) -> ZCodecResult<Self> {
+    fn z_body_decode(r: &mut ZReader<'_>, _: ()) -> crate::ZResult<Self, crate::ZCodecError> {
         let value = <u64 as ZDecode>::z_decode(r)?;
 
         match value as u8 {
@@ -236,7 +236,7 @@ impl ZLen for Duration {
 }
 
 impl ZBodyEncode for Duration {
-    fn z_body_encode(&self, w: &mut ZWriter) -> ZCodecResult<()> {
+    fn z_body_encode(&self, w: &mut ZWriter) -> crate::ZResult<(), crate::ZCodecError> {
         let v = match self.as_millis() % 1_000 {
             0 => self.as_millis() / 1_000,
             _ => self.as_millis(),
@@ -247,7 +247,7 @@ impl ZBodyEncode for Duration {
 }
 
 impl ZEncode for Duration {
-    fn z_encode(&self, w: &mut ZWriter) -> ZCodecResult<()> {
+    fn z_encode(&self, w: &mut ZWriter) -> crate::ZResult<(), crate::ZCodecError> {
         <u64 as ZEncode>::z_encode(&(self.as_millis() as u64), w)
     }
 }
@@ -255,7 +255,7 @@ impl ZEncode for Duration {
 impl<'a> ZBodyDecode<'a> for Duration {
     type Ctx = u8;
 
-    fn z_body_decode(r: &mut ZReader<'a>, h: u8) -> ZCodecResult<Self> {
+    fn z_body_decode(r: &mut ZReader<'a>, h: u8) -> crate::ZResult<Self, crate::ZCodecError> {
         let is_seconds = (h & 0b0000_0001) != 0;
         let value = <u64 as ZDecode>::z_decode(r)?;
         if is_seconds {
@@ -267,7 +267,7 @@ impl<'a> ZBodyDecode<'a> for Duration {
 }
 
 impl<'a> ZDecode<'a> for Duration {
-    fn z_decode(r: &mut ZReader<'a>) -> ZCodecResult<Self> {
+    fn z_decode(r: &mut ZReader<'a>) -> crate::ZResult<Self, crate::ZCodecError> {
         let value = <u64 as ZDecode>::z_decode(r)?;
         Ok(Duration::from_millis(value))
     }
@@ -290,7 +290,7 @@ impl ZBodyLen for QueryableInfo {
 }
 
 impl ZBodyEncode for QueryableInfo {
-    fn z_body_encode(&self, w: &mut ZWriter) -> ZCodecResult<()> {
+    fn z_body_encode(&self, w: &mut ZWriter) -> crate::ZResult<(), crate::ZCodecError> {
         <u64 as ZEncode>::z_encode(&self.as_u64(), w)
     }
 }
@@ -298,7 +298,7 @@ impl ZBodyEncode for QueryableInfo {
 impl ZBodyDecode<'_> for QueryableInfo {
     type Ctx = ();
 
-    fn z_body_decode(r: &mut ZReader<'_>, _: ()) -> ZCodecResult<Self> {
+    fn z_body_decode(r: &mut ZReader<'_>, _: ()) -> crate::ZResult<Self, crate::ZCodecError> {
         let value = <u64 as ZDecode>::z_decode(r)?;
         let complete = (value & 0b0000_0001) != 0;
         let distance = ((value >> 8) & 0xFFFF) as u16;

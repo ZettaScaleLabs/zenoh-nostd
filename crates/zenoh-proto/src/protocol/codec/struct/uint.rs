@@ -1,6 +1,4 @@
-use crate::{
-    ZBodyDecode, ZBodyEncode, ZBodyLen, ZCodecResult, ZReader, ZReaderExt, ZWriter, ZWriterExt,
-};
+use crate::{ZBodyDecode, ZBodyEncode, ZBodyLen, ZReader, ZReaderExt, ZWriter, ZWriterExt};
 
 impl ZBodyLen for u8 {
     fn z_body_len(&self) -> usize {
@@ -9,7 +7,7 @@ impl ZBodyLen for u8 {
 }
 
 impl ZBodyEncode for u8 {
-    fn z_body_encode(&self, w: &mut ZWriter) -> ZCodecResult<()> {
+    fn z_body_encode(&self, w: &mut ZWriter) -> crate::ZResult<(), crate::ZCodecError> {
         <ZWriter as ZWriterExt>::write_u8(w, *self)
     }
 }
@@ -17,7 +15,7 @@ impl ZBodyEncode for u8 {
 impl<'a> ZBodyDecode<'a> for u8 {
     type Ctx = ();
 
-    fn z_body_decode(r: &mut ZReader<'a>, _: ()) -> ZCodecResult<Self> {
+    fn z_body_decode(r: &mut ZReader<'a>, _: ()) -> crate::ZResult<Self, crate::ZCodecError> {
         <ZReader as ZReaderExt>::read_u8(r)
     }
 }
@@ -64,7 +62,7 @@ impl ZBodyLen for u64 {
 }
 
 impl ZBodyEncode for u64 {
-    fn z_body_encode(&self, w: &mut ZWriter) -> ZCodecResult<()> {
+    fn z_body_encode(&self, w: &mut ZWriter) -> crate::ZResult<(), crate::ZCodecError> {
         let mut x = *self;
 
         w.write_slot(VLE_LEN_MAX, |buffer: &mut [u8]| {
@@ -96,7 +94,7 @@ impl ZBodyEncode for u64 {
 impl<'a> ZBodyDecode<'a> for u64 {
     type Ctx = ();
 
-    fn z_body_decode(r: &mut ZReader<'a>, _: ()) -> ZCodecResult<Self> {
+    fn z_body_decode(r: &mut ZReader<'a>, _: ()) -> crate::ZResult<Self, crate::ZCodecError> {
         let mut b = r.read_u8()?;
 
         let mut v = 0;
@@ -126,7 +124,7 @@ macro_rules! zint {
             }
 
             impl ZBodyEncode for $ty {
-                fn z_body_encode(&self, w: &mut ZWriter) -> ZCodecResult<()> {
+                fn z_body_encode(&self, w: &mut ZWriter) -> crate::ZResult<(), crate::ZCodecError> {
                     <u64 as ZBodyEncode>::z_body_encode(&(*self as u64), w)
                 }
             }
@@ -134,7 +132,7 @@ macro_rules! zint {
             impl<'a> ZBodyDecode<'a> for $ty {
                 type Ctx = ();
 
-                fn z_body_decode(r: &mut ZReader<'a>, _: ()) -> ZCodecResult<Self> {
+                fn z_body_decode(r: &mut ZReader<'a>, _: ()) -> crate::ZResult<Self, crate::ZCodecError> {
                     let v = <u64 as ZBodyDecode>::z_body_decode(r, ())?;
                     Ok(v as $ty)
                 }

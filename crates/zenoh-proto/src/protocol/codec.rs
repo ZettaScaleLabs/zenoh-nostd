@@ -7,8 +7,6 @@ pub use ext::*;
 pub type ZReader<'a> = &'a [u8];
 pub type ZWriter<'a> = &'a mut [u8];
 
-pub type ZCodecResult<T> = crate::ZResult<T, crate::ZCodecError>;
-
 pub trait ZReaderExt<'a> {
     fn mark(&self) -> &'a [u8];
     fn rewind(&mut self, mark: &'a [u8]);
@@ -18,32 +16,32 @@ pub trait ZReaderExt<'a> {
         self.remaining().gt(&0)
     }
 
-    fn peek_u8(&self) -> ZCodecResult<u8>;
+    fn peek_u8(&self) -> crate::ZResult<u8, crate::ZCodecError>;
 
-    fn read(&mut self, len: usize) -> ZCodecResult<&'a [u8]>;
-    fn read_u8(&mut self) -> ZCodecResult<u8>;
+    fn read(&mut self, len: usize) -> crate::ZResult<&'a [u8], crate::ZCodecError>;
+    fn read_u8(&mut self) -> crate::ZResult<u8, crate::ZCodecError>;
 
-    fn read_into(&mut self, dst: &'_ mut [u8]) -> ZCodecResult<usize>;
+    fn read_into(&mut self, dst: &'_ mut [u8]) -> crate::ZResult<usize, crate::ZCodecError>;
 
-    fn sub(&mut self, len: usize) -> ZCodecResult<ZReader<'a>> {
+    fn sub(&mut self, len: usize) -> crate::ZResult<ZReader<'a>, crate::ZCodecError> {
         let sub = self.read(len)?;
         Ok(sub)
     }
 }
 
 pub trait ZWriterExt<'a> {
-    fn write(&mut self, src: &'_ [u8]) -> ZCodecResult<usize>;
-    fn write_u8(&mut self, value: u8) -> ZCodecResult<()>;
+    fn write(&mut self, src: &'_ [u8]) -> crate::ZResult<usize, crate::ZCodecError>;
+    fn write_u8(&mut self, value: u8) -> crate::ZResult<(), crate::ZCodecError>;
 
-    fn write_exact(&mut self, src: &'_ [u8]) -> ZCodecResult<()>;
+    fn write_exact(&mut self, src: &'_ [u8]) -> crate::ZResult<(), crate::ZCodecError>;
     fn write_slot(
         &mut self,
         len: usize,
         writer: impl FnOnce(&'_ mut [u8]) -> usize,
-    ) -> ZCodecResult<&'a [u8]>;
+    ) -> crate::ZResult<&'a [u8], crate::ZCodecError>;
 
     #[cfg(test)]
-    fn write_str(&mut self, s: &str) -> ZCodecResult<&'a str> {
+    fn write_str(&mut self, s: &str) -> crate::ZResult<&'a str, crate::ZCodecError> {
         let bytes = s.as_bytes();
         let slot = self.write_slot(bytes.len(), |buf| {
             buf[..bytes.len()].copy_from_slice(bytes);
@@ -67,7 +65,7 @@ impl<'a> ZReaderExt<'a> for ZReader<'a> {
         self.len()
     }
 
-    fn peek_u8(&self) -> ZCodecResult<u8> {
+    fn peek_u8(&self) -> crate::ZResult<u8, crate::ZCodecError> {
         if !self.can_read() {
             return Err(crate::ZCodecError::CouldNotRead);
         }
@@ -75,7 +73,7 @@ impl<'a> ZReaderExt<'a> for ZReader<'a> {
         Ok(unsafe { *self.get_unchecked(0) })
     }
 
-    fn read_u8(&mut self) -> ZCodecResult<u8> {
+    fn read_u8(&mut self) -> crate::ZResult<u8, crate::ZCodecError> {
         if !self.can_read() {
             return Err(crate::ZCodecError::CouldNotRead);
         }
@@ -86,7 +84,7 @@ impl<'a> ZReaderExt<'a> for ZReader<'a> {
         Ok(value)
     }
 
-    fn read_into(&mut self, dst: &'_ mut [u8]) -> ZCodecResult<usize> {
+    fn read_into(&mut self, dst: &'_ mut [u8]) -> crate::ZResult<usize, crate::ZCodecError> {
         let len = self.remaining().min(dst.len());
         if len == 0 {
             return Err(crate::ZCodecError::CouldNotRead);
@@ -102,7 +100,7 @@ impl<'a> ZReaderExt<'a> for ZReader<'a> {
         Ok(len)
     }
 
-    fn read(&mut self, len: usize) -> ZCodecResult<&'a [u8]> {
+    fn read(&mut self, len: usize) -> crate::ZResult<&'a [u8], crate::ZCodecError> {
         if self.len() < len {
             return Err(crate::ZCodecError::CouldNotRead);
         }
@@ -115,7 +113,7 @@ impl<'a> ZReaderExt<'a> for ZReader<'a> {
 }
 
 impl<'a> ZWriterExt<'a> for ZWriter<'a> {
-    fn write_u8(&mut self, value: u8) -> ZCodecResult<()> {
+    fn write_u8(&mut self, value: u8) -> crate::ZResult<(), crate::ZCodecError> {
         if self.is_empty() {
             return Err(crate::ZCodecError::CouldNotWrite);
         }
@@ -128,7 +126,7 @@ impl<'a> ZWriterExt<'a> for ZWriter<'a> {
         Ok(())
     }
 
-    fn write(&mut self, src: &[u8]) -> ZCodecResult<usize> {
+    fn write(&mut self, src: &[u8]) -> crate::ZResult<usize, crate::ZCodecError> {
         if src.is_empty() {
             return Ok(0);
         }
@@ -144,7 +142,7 @@ impl<'a> ZWriterExt<'a> for ZWriter<'a> {
         Ok(len)
     }
 
-    fn write_exact(&mut self, src: &[u8]) -> ZCodecResult<()> {
+    fn write_exact(&mut self, src: &[u8]) -> crate::ZResult<(), crate::ZCodecError> {
         let len = self.write(src)?;
 
         if len < src.len() {
@@ -158,7 +156,7 @@ impl<'a> ZWriterExt<'a> for ZWriter<'a> {
         &mut self,
         len: usize,
         writer: impl FnOnce(&mut [u8]) -> usize,
-    ) -> ZCodecResult<&'a [u8]> {
+    ) -> crate::ZResult<&'a [u8], crate::ZCodecError> {
         if self.len() < len {
             return Err(crate::ZCodecError::CouldNotWrite);
         }

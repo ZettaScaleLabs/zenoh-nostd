@@ -1,7 +1,5 @@
 use core::convert::TryFrom;
 
-use crate::ZCodecResult;
-
 #[repr(u8)]
 #[derive(Debug, Default, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum WhatAmI {
@@ -36,7 +34,7 @@ impl From<WhatAmI> for u8 {
 impl TryFrom<u8> for WhatAmI {
     type Error = crate::ZCodecError;
 
-    fn try_from(v: u8) -> ZCodecResult<Self> {
+    fn try_from(v: u8) -> crate::ZResult<Self, crate::ZCodecError> {
         match v {
             Self::U8_R => Ok(Self::Router),
             Self::U8_P => Ok(Self::Peer),

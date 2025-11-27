@@ -4,8 +4,8 @@ use uhlc::NTP64;
 use rand::{Rng, thread_rng};
 
 use crate::{
-    ZBodyDecode, ZBodyEncode, ZBodyLen, ZCodecResult, ZDecode, ZEncode, ZExt, ZExtKind, ZLen,
-    ZReader, ZReaderExt, ZWriter, zbail,
+    ZBodyDecode, ZBodyEncode, ZBodyLen, ZDecode, ZEncode, ZExt, ZExtKind, ZLen, ZReader,
+    ZReaderExt, ZWriter, zbail,
 };
 
 use core::{
@@ -63,7 +63,7 @@ impl Default for ZenohIdProto {
 impl TryFrom<&[u8]> for ZenohIdProto {
     type Error = crate::ZCodecError;
 
-    fn try_from(val: &[u8]) -> ZCodecResult<Self> {
+    fn try_from(val: &[u8]) -> crate::ZResult<Self, crate::ZCodecError> {
         match val.try_into() {
             Ok(ok) => Ok(Self(ok)),
             Err(_) => zbail!(crate::ZCodecError::CouldNotParseField),
@@ -78,7 +78,7 @@ impl ZBodyLen for ZenohIdProto {
 }
 
 impl ZBodyEncode for ZenohIdProto {
-    fn z_body_encode(&self, w: &mut ZWriter) -> ZCodecResult<()> {
+    fn z_body_encode(&self, w: &mut ZWriter) -> crate::ZResult<(), crate::ZCodecError> {
         let bytes = &self.as_le_bytes()[..self.size()];
         <&[u8] as ZEncode>::z_encode(&bytes, w)
     }
@@ -87,7 +87,7 @@ impl ZBodyEncode for ZenohIdProto {
 impl<'a> ZBodyDecode<'a> for ZenohIdProto {
     type Ctx = ();
 
-    fn z_body_decode(r: &mut ZReader<'a>, _: ()) -> ZCodecResult<Self> {
+    fn z_body_decode(r: &mut ZReader<'a>, _: ()) -> crate::ZResult<Self, crate::ZCodecError> {
         let bytes = <&[u8] as ZDecode>::z_decode(r)?;
         ZenohIdProto::try_from(bytes)
     }
@@ -107,7 +107,7 @@ impl ZBodyLen for Timestamp {
 }
 
 impl ZBodyEncode for Timestamp {
-    fn z_body_encode(&self, w: &mut ZWriter) -> ZCodecResult<()> {
+    fn z_body_encode(&self, w: &mut ZWriter) -> crate::ZResult<(), crate::ZCodecError> {
         <u64 as ZEncode>::z_encode(&self.get_time().as_u64(), w)?;
         let bytes = &self.get_id().to_le_bytes()[..self.get_id().size()];
         <usize as ZEncode>::z_encode(&bytes.len(), w)?;
@@ -118,7 +118,7 @@ impl ZBodyEncode for Timestamp {
 impl<'a> ZBodyDecode<'a> for Timestamp {
     type Ctx = ();
 
-    fn z_body_decode(r: &mut ZReader<'a>, _: ()) -> ZCodecResult<Self> {
+    fn z_body_decode(r: &mut ZReader<'a>, _: ()) -> crate::ZResult<Self, crate::ZCodecError> {
         let time = NTP64(<u64 as ZDecode>::z_decode(r)?);
         let id_len = <usize as ZDecode>::z_decode(r)?;
         let id_bytes = <&[u8] as ZDecode>::z_decode(&mut r.sub(id_len)?)?;

@@ -1,4 +1,4 @@
-use crate::{ZCodecResult, ZDecode, ZEncode, ZLen, ZReader, ZReaderExt, ZWriter};
+use crate::{ZDecode, ZEncode, ZLen, ZReader, ZReaderExt, ZWriter};
 
 const KIND_MASK: u8 = 0b0110_0000;
 
@@ -19,7 +19,7 @@ impl From<ZExtKind> for u8 {
 impl TryFrom<u8> for ZExtKind {
     type Error = crate::ZCodecError;
 
-    fn try_from(value: u8) -> ZCodecResult<Self> {
+    fn try_from(value: u8) -> crate::ZResult<Self, crate::ZCodecError> {
         match value & KIND_MASK {
             0b0000_0000 => Ok(ZExtKind::Unit),
             0b0010_0000 => Ok(ZExtKind::U64),
@@ -60,7 +60,7 @@ pub fn zext_encode<'a, T: ZExt<'a>, const ID: u8, const MANDATORY: bool>(
     x: &T,
     w: &mut ZWriter,
     more: bool,
-) -> ZCodecResult<()> {
+) -> crate::ZResult<(), crate::ZCodecError> {
     let header: u8 = zext_header::<ID, MANDATORY, T>(more);
 
     <u8 as ZEncode>::z_encode(&header, w)?;
@@ -72,7 +72,7 @@ pub fn zext_encode<'a, T: ZExt<'a>, const ID: u8, const MANDATORY: bool>(
     <T as ZEncode>::z_encode(x, w)
 }
 
-pub fn zext_decode<'a, T: ZExt<'a>>(r: &mut ZReader<'a>) -> ZCodecResult<T> {
+pub fn zext_decode<'a, T: ZExt<'a>>(r: &mut ZReader<'a>) -> crate::ZResult<T, crate::ZCodecError> {
     let _ = <u8 as ZDecode>::z_decode(r)?;
 
     if T::KIND == ZExtKind::ZStruct {
@@ -83,7 +83,7 @@ pub fn zext_decode<'a, T: ZExt<'a>>(r: &mut ZReader<'a>) -> ZCodecResult<T> {
     }
 }
 
-pub fn skip_ext(r: &mut ZReader, kind: ZExtKind) -> ZCodecResult<()> {
+pub fn skip_ext(r: &mut ZReader, kind: ZExtKind) -> crate::ZResult<(), crate::ZCodecError> {
     let _ = <u8 as ZDecode>::z_decode(r)?;
 
     match kind {
@@ -100,7 +100,9 @@ pub fn skip_ext(r: &mut ZReader, kind: ZExtKind) -> ZCodecResult<()> {
     Ok(())
 }
 
-pub fn decode_ext_header(r: &mut ZReader) -> ZCodecResult<(u8, ZExtKind, bool, bool)> {
+pub fn decode_ext_header(
+    r: &mut ZReader,
+) -> crate::ZResult<(u8, ZExtKind, bool, bool), crate::ZCodecError> {
     let header = r.peek_u8()?;
 
     let id = header & ID_MASK;

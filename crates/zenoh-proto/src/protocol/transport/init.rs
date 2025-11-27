@@ -211,7 +211,7 @@ impl ZBodyLen for BatchSize {
 }
 
 impl ZBodyEncode for BatchSize {
-    fn z_body_encode(&self, w: &mut ZWriter) -> crate::ZCodecResult<()> {
+    fn z_body_encode(&self, w: &mut ZWriter) -> crate::ZResult<(), crate::ZCodecError> {
         w.write(&self.0.to_le_bytes())?;
         Ok(())
     }
@@ -220,7 +220,10 @@ impl ZBodyEncode for BatchSize {
 impl<'a> ZBodyDecode<'a> for BatchSize {
     type Ctx = ();
 
-    fn z_body_decode(r: &mut crate::ZReader<'_>, _: ()) -> crate::ZCodecResult<Self> {
+    fn z_body_decode(
+        r: &mut crate::ZReader<'_>,
+        _: (),
+    ) -> crate::ZResult<Self, crate::ZCodecError> {
         let mut bytes = u16::MAX.to_le_bytes();
         r.read_into(&mut bytes)?;
         Ok(BatchSize(u16::from_le_bytes(bytes)))

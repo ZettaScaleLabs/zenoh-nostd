@@ -90,7 +90,7 @@ impl ZBodyLen for Interest<'_> {
 }
 
 impl ZBodyEncode for Interest<'_> {
-    fn z_body_encode(&self, w: &mut ZWriter) -> crate::ZCodecResult<()> {
+    fn z_body_encode(&self, w: &mut ZWriter) -> crate::ZResult<(), crate::ZCodecError> {
         <u32 as ZBodyEncode>::z_body_encode(&self.id, w)?;
 
         if self.mode != InterestMode::Final {
@@ -106,7 +106,10 @@ impl ZBodyEncode for Interest<'_> {
 impl<'a> ZBodyDecode<'a> for Interest<'a> {
     type Ctx = u8;
 
-    fn z_body_decode(r: &mut crate::ZReader<'a>, header: u8) -> crate::ZCodecResult<Self> {
+    fn z_body_decode(
+        r: &mut crate::ZReader<'a>,
+        header: u8,
+    ) -> crate::ZResult<Self, crate::ZCodecError> {
         let id = <u32 as ZDecode>::z_decode(r)?;
 
         let mode = match (header >> 5) & 0b11 {
@@ -144,7 +147,7 @@ impl ZLen for Interest<'_> {
 }
 
 impl ZEncode for Interest<'_> {
-    fn z_encode(&self, w: &mut ZWriter) -> crate::ZCodecResult<()> {
+    fn z_encode(&self, w: &mut ZWriter) -> crate::ZResult<(), crate::ZCodecError> {
         let header = <Self as ZHeader>::z_header(self);
         <u8 as ZEncode>::z_encode(&header, w)?;
         <Self as ZBodyEncode>::z_body_encode(self, w)
@@ -152,7 +155,7 @@ impl ZEncode for Interest<'_> {
 }
 
 impl<'a> ZDecode<'a> for Interest<'a> {
-    fn z_decode(r: &mut crate::ZReader<'a>) -> crate::ZCodecResult<Self> {
+    fn z_decode(r: &mut crate::ZReader<'a>) -> crate::ZResult<Self, crate::ZCodecError> {
         let header = <u8 as ZDecode>::z_decode(r)?;
         <Self as ZBodyDecode>::z_body_decode(r, header)
     }

@@ -1,6 +1,6 @@
 use crate::{
-    Encoding, ZBodyDecode, ZBodyEncode, ZBodyLen, ZCodecResult, ZDecode, ZEncode, ZEnum, ZExt,
-    ZLen, ZReader, ZWriter, ZenohIdProto,
+    Encoding, ZBodyDecode, ZBodyEncode, ZBodyLen, ZDecode, ZEncode, ZEnum, ZExt, ZLen, ZReader,
+    ZWriter, ZenohIdProto,
 };
 
 #[cfg(test)]
@@ -139,7 +139,7 @@ impl ZBodyLen for ConsolidationMode {
 }
 
 impl ZBodyEncode for ConsolidationMode {
-    fn z_body_encode(&self, w: &mut ZWriter) -> ZCodecResult<()> {
+    fn z_body_encode(&self, w: &mut ZWriter) -> crate::ZResult<(), crate::ZCodecError> {
         <u64 as ZEncode>::z_encode(&((*self as u8) as u64), w)
     }
 }
@@ -147,7 +147,7 @@ impl ZBodyEncode for ConsolidationMode {
 impl<'a> ZBodyDecode<'a> for ConsolidationMode {
     type Ctx = ();
 
-    fn z_body_decode(r: &mut ZReader<'a>, _: ()) -> ZCodecResult<Self> {
+    fn z_body_decode(r: &mut ZReader<'a>, _: ()) -> crate::ZResult<Self, crate::ZCodecError> {
         let value = <u64 as ZDecode>::z_decode(r)?;
         match value as u8 {
             0 => Ok(ConsolidationMode::Auto),
