@@ -1,6 +1,6 @@
 use proc_macro2::TokenStream;
 
-use crate::error::model::DeclaredErrors;
+use crate::zerror::model::DeclaredErrors;
 
 pub fn declare_zerror(input: &DeclaredErrors) -> TokenStream {
     let variants_declare = input.values().flat_map(|error_enum| {
@@ -41,6 +41,7 @@ pub fn declare_zerror(input: &DeclaredErrors) -> TokenStream {
             fn fmt(&self, f: &mut ::core::fmt::Formatter<'_>) -> ::core::fmt::Result {
                 match self {
                     #(#variants_display)*
+                    _ => Ok(())
                 }
             }
         }

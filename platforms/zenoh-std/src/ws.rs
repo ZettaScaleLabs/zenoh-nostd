@@ -12,10 +12,7 @@ use {
     },
     zenoh_nostd::{
         ZResult,
-        platform::{
-            ZConnectionError,
-            ws::{AbstractedWsRx, AbstractedWsStream, AbstractedWsTx},
-        },
+        platform::ws::{AbstractedWsRx, AbstractedWsStream, AbstractedWsTx},
         zbail,
     },
 };
@@ -86,7 +83,7 @@ impl AbstractedWsStream for StdWsStream {
         (tx, rx)
     }
 
-    async fn write(&mut self, buffer: &[u8]) -> ZResult<usize, ZConnectionError> {
+    async fn write(&mut self, buffer: &[u8]) -> ZResult<usize, zenoh_nostd::ZConnectionError> {
         let mut tx = StdWsTx {
             sink: &mut self.sink,
             replier: &self.replier,
@@ -95,11 +92,11 @@ impl AbstractedWsStream for StdWsStream {
         tx.write(buffer).await
     }
 
-    async fn write_all(&mut self, buffer: &[u8]) -> ZResult<(), ZConnectionError> {
+    async fn write_all(&mut self, buffer: &[u8]) -> ZResult<(), zenoh_nostd::ZConnectionError> {
         self.write(buffer).await.map(|_| ())
     }
 
-    async fn read(&mut self, buffer: &mut [u8]) -> ZResult<usize, ZConnectionError> {
+    async fn read(&mut self, buffer: &mut [u8]) -> ZResult<usize, zenoh_nostd::ZConnectionError> {
         let mut rx = StdWsRx {
             stream: &mut self.stream,
             read_buffer: &mut self.read_buffer,
@@ -107,19 +104,22 @@ impl AbstractedWsStream for StdWsStream {
         rx.read(buffer).await
     }
 
-    async fn read_exact(&mut self, buffer: &mut [u8]) -> ZResult<(), ZConnectionError> {
+    async fn read_exact(
+        &mut self,
+        buffer: &mut [u8],
+    ) -> ZResult<(), zenoh_nostd::ZConnectionError> {
         self.read(buffer).await.map(|_| ())
     }
 }
 
 impl AbstractedWsTx for StdWsTx<'_> {
-    async fn write(&mut self, buffer: &[u8]) -> ZResult<usize, ZConnectionError> {
+    async fn write(&mut self, buffer: &[u8]) -> ZResult<usize, zenoh_nostd::ZConnectionError> {
         self.write_buffer.clear();
         self.write_buffer
             .extend_from_copyable_slice(buffer)
             .map_err(|_| {
                 zenoh_nostd::error!("Failed to extend write buffer");
-                ZConnectionError::CouldNotWrite
+                zenoh_nostd::ZConnectionError::CouldNotWrite
             })?;
         let payload = self.write_buffer.as_slice_mut();
         self.sink
@@ -127,18 +127,18 @@ impl AbstractedWsTx for StdWsTx<'_> {
             .await
             .map_err(|_| {
                 zenoh_nostd::error!("Could not write frame");
-                ZConnectionError::CouldNotWrite
+                zenoh_nostd::ZConnectionError::CouldNotWrite
             })
             .map(|_| buffer.len())
     }
 
-    async fn write_all(&mut self, buffer: &[u8]) -> ZResult<(), ZConnectionError> {
+    async fn write_all(&mut self, buffer: &[u8]) -> ZResult<(), zenoh_nostd::ZConnectionError> {
         self.write(buffer).await.map(|_| ())
     }
 }
 
 impl AbstractedWsRx for StdWsRx<'_> {
-    async fn read(&mut self, buffer: &mut [u8]) -> ZResult<usize, ZConnectionError> {
+    async fn read(&mut self, buffer: &mut [u8]) -> ZResult<usize, zenoh_nostd::ZConnectionError> {
         self.read_buffer.clear();
         let Ok(frame) = self
             .stream
@@ -146,7 +146,7 @@ impl AbstractedWsRx for StdWsRx<'_> {
             .await
         else {
             zenoh_nostd::error!("Could not read frame");
-            return Err(ZConnectionError::CouldNotRead);
+            return Err(zenoh_nostd::ZConnectionError::CouldNotRead);
         };
         match frame.op_code() {
             OpCode::Binary => {
@@ -156,12 +156,15 @@ impl AbstractedWsRx for StdWsRx<'_> {
             }
             _ => {
                 zenoh_nostd::error!("Could not read frame into buffer");
-                zbail!(ZConnectionError::CouldNotRead);
+                zbail!(zenoh_nostd::ZConnectionError::CouldNotRead);
             }
         }
     }
 
-    async fn read_exact(&mut self, buffer: &mut [u8]) -> ZResult<(), ZConnectionError> {
+    async fn read_exact(
+        &mut self,
+        buffer: &mut [u8],
+    ) -> ZResult<(), zenoh_nostd::ZConnectionError> {
         self.read(buffer).await.map(|_| ())
     }
 }

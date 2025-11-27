@@ -1,6 +1,4 @@
 mod codec;
-
-pub use codec::ZCodecError;
 pub(crate) use codec::*;
 
 mod core;
@@ -15,17 +13,6 @@ pub use endpoint::*;
 
 mod ke;
 pub use ke::*;
-
-crate::make_zerr! {
-    /// Errors related to Zenoh protocol
-    #[err = "zenoh protocol error"]
-    enum ZProtocolError {
-        NoProtocolSeparator,
-        MetadataNotSupported,
-        ConfigNotSupported,
-        CouldNotParse
-    }
-}
 
 macro_rules! aggregate_enum_full {
     (
@@ -55,7 +42,7 @@ macro_rules! aggregate_enum_full {
                     $(
                         <$variant>::ID => Ok(Self::$variant(<$variant as $crate::ZBodyDecode>::z_body_decode(r, header)?)),
                     )*
-                    _ => Err($crate::ZCodecError::CouldNotParse),
+                    _ => Err($crate::ZCodecError::CouldNotParseHeader),
                 }
             }
         }

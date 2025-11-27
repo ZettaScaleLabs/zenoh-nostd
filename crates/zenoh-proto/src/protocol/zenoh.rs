@@ -2,8 +2,7 @@ use crate::ZExt;
 use crate::{Encoding, ZenohIdProto};
 
 use crate::{
-    ZBodyDecode, ZBodyEncode, ZBodyLen, ZCodecError, ZCodecResult, ZDecode, ZEncode, ZLen, ZReader,
-    ZWriter,
+    ZBodyDecode, ZBodyEncode, ZBodyLen, ZCodecResult, ZDecode, ZEncode, ZLen, ZReader, ZWriter,
 };
 
 #[cfg(test)]
@@ -163,7 +162,7 @@ impl<'a> ZBodyDecode<'a> for ConsolidationMode {
             1 => Ok(ConsolidationMode::None),
             2 => Ok(ConsolidationMode::Monotonic),
             3 => Ok(ConsolidationMode::Latest),
-            _ => Err(ZCodecError::CouldNotParse),
+            _ => Err(crate::ZCodecError::CouldNotParseField),
         }
     }
 }

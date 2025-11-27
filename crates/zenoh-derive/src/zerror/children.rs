@@ -2,7 +2,7 @@ use std::collections::HashSet;
 
 use proc_macro2::TokenStream;
 
-use crate::error::model::{DeclaredErrors, ErrorEnum, ErrorVariant};
+use crate::zerror::model::{DeclaredErrors, ErrorEnum, ErrorVariant};
 
 pub(crate) mod display;
 pub(crate) mod impls;

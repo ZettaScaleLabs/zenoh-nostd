@@ -1,7 +1,5 @@
 use core::{convert::TryFrom, fmt};
 
-use crate::ZProtocolError;
-
 const PROTO_SEPARATOR: char = '/';
 const METADATA_SEPARATOR: char = '?';
 const CONFIG_SEPARATOR: char = '#';
@@ -108,23 +106,23 @@ impl fmt::Debug for EndPoint {
 }
 
 impl TryFrom<&'static str> for EndPoint {
-    type Error = ZProtocolError;
+    type Error = crate::ZEndpointError;
 
     fn try_from(s: &'static str) -> Result<Self, Self::Error> {
         let pidx = s
             .find(PROTO_SEPARATOR)
             .and_then(|i| (!s[..i].is_empty() && !s[i + 1..].is_empty()).then_some(i))
-            .ok_or(ZProtocolError::NoProtocolSeparator)?;
+            .ok_or(crate::ZEndpointError::NoProtocolSeparator)?;
 
         match (s.find(METADATA_SEPARATOR), s.find(CONFIG_SEPARATOR)) {
             (None, None) => Ok(EndPoint { inner: s }),
 
             (Some(midx), None) if midx > pidx && !s[midx + 1..].is_empty() => {
-                crate::zbail!(ZProtocolError::MetadataNotSupported)
+                crate::zbail!(crate::ZEndpointError::MetadataNotSupported)
             }
 
             (None, Some(cidx)) if cidx > pidx && !s[cidx + 1..].is_empty() => {
-                crate::zbail!(ZProtocolError::ConfigNotSupported)
+                crate::zbail!(crate::ZEndpointError::ConfigNotSupported)
             }
 
             (Some(midx), Some(cidx))
@@ -133,9 +131,9 @@ impl TryFrom<&'static str> for EndPoint {
                     && !s[midx + 1..cidx].is_empty()
                     && !s[cidx + 1..].is_empty() =>
             {
-                crate::zbail!(ZProtocolError::MetadataNotSupported)
+                crate::zbail!(crate::ZEndpointError::MetadataNotSupported)
             }
-            _ => Err(ZProtocolError::MetadataNotSupported),
+            _ => Err(crate::ZEndpointError::MetadataNotSupported),
         }
     }
 }

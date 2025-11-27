@@ -1,6 +1,6 @@
 use crate::{
-    ZBodyDecode, ZBodyEncode, ZBodyLen, ZCodecError, ZCodecResult, ZDecode, ZEncode, ZLen, ZReader,
-    ZReaderExt, ZWriter, ZWriterExt,
+    ZBodyDecode, ZBodyEncode, ZBodyLen, ZCodecResult, ZDecode, ZEncode, ZLen, ZReader, ZReaderExt,
+    ZWriter, ZWriterExt,
 };
 
 impl ZBodyLen for &str {
@@ -33,7 +33,7 @@ impl<'a> ZBodyDecode<'a> for &'a str {
     fn z_body_decode(r: &mut ZReader<'a>, _: ()) -> ZCodecResult<Self> {
         let bytes = r.read(r.remaining())?;
 
-        core::str::from_utf8(bytes).map_err(|_| ZCodecError::CouldNotParse)
+        core::str::from_utf8(bytes).map_err(|_| crate::ZCodecError::CouldNotParseField)
     }
 }
 

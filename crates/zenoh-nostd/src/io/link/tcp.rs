@@ -1,9 +1,6 @@
 use zenoh_proto::ZResult;
 
-use crate::{
-    io::ZLinkError,
-    platform::tcp::{AbstractedTcpRx, AbstractedTcpStream, AbstractedTcpTx},
-};
+use crate::platform::tcp::{AbstractedTcpRx, AbstractedTcpStream, AbstractedTcpTx};
 
 pub(crate) struct LinkTcp<T: AbstractedTcpStream> {
     stream: T,
@@ -41,15 +38,15 @@ impl<T: AbstractedTcpStream> LinkTcp<T> {
         true
     }
 
-    pub(crate) async fn write_all(&mut self, buffer: &[u8]) -> ZResult<(), ZLinkError> {
+    pub(crate) async fn write_all(&mut self, buffer: &[u8]) -> ZResult<(), crate::ZLinkError> {
         self.stream.write_all(buffer).await.map_err(|e| e.into())
     }
 
-    pub(crate) async fn read(&mut self, buffer: &mut [u8]) -> ZResult<usize, ZLinkError> {
+    pub(crate) async fn read(&mut self, buffer: &mut [u8]) -> ZResult<usize, crate::ZLinkError> {
         self.stream.read(buffer).await.map_err(|e| e.into())
     }
 
-    pub(crate) async fn read_exact(&mut self, buffer: &mut [u8]) -> ZResult<(), ZLinkError> {
+    pub(crate) async fn read_exact(&mut self, buffer: &mut [u8]) -> ZResult<(), crate::ZLinkError> {
         self.stream.read_exact(buffer).await.map_err(|e| e.into())
     }
 }
@@ -59,7 +56,7 @@ impl<T: AbstractedTcpTx> LinkTcpTx<T> {
         true
     }
 
-    pub(crate) async fn write_all(&mut self, buffer: &[u8]) -> ZResult<(), ZLinkError> {
+    pub(crate) async fn write_all(&mut self, buffer: &[u8]) -> ZResult<(), crate::ZLinkError> {
         self.tx.write_all(buffer).await.map_err(|e| e.into())
     }
 }
@@ -69,11 +66,11 @@ impl<T: AbstractedTcpRx> LinkTcpRx<T> {
         true
     }
 
-    pub(crate) async fn read(&mut self, buffer: &mut [u8]) -> ZResult<usize, ZLinkError> {
+    pub(crate) async fn read(&mut self, buffer: &mut [u8]) -> ZResult<usize, crate::ZLinkError> {
         self.rx.read(buffer).await.map_err(|e| e.into())
     }
 
-    pub(crate) async fn read_exact(&mut self, buffer: &mut [u8]) -> ZResult<(), ZLinkError> {
+    pub(crate) async fn read_exact(&mut self, buffer: &mut [u8]) -> ZResult<(), crate::ZLinkError> {
         self.rx.read_exact(buffer).await.map_err(|e| e.into())
     }
 }

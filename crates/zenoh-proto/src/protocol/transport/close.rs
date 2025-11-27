@@ -1,7 +1,7 @@
 #[cfg(test)]
 use crate::ZWriter;
 
-use crate::{ZCodecError, ZCodecResult, ZStruct};
+use crate::{ZCodecResult, ZStruct};
 
 #[derive(ZStruct, Debug, PartialEq)]
 #[zenoh(header = "_:2|S|ID:5=0x03")]
@@ -27,13 +27,13 @@ impl From<CloseBehaviour> for u8 {
 }
 
 impl TryFrom<u8> for CloseBehaviour {
-    type Error = ZCodecError;
+    type Error = crate::ZCodecError;
 
     fn try_from(value: u8) -> ZCodecResult<Self> {
         match value {
             0 => Ok(CloseBehaviour::Link),
             1 => Ok(CloseBehaviour::Session),
-            _ => Err(ZCodecError::CouldNotParse),
+            _ => Err(crate::ZCodecError::CouldNotParseField),
         }
     }
 }

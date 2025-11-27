@@ -2,10 +2,7 @@ use futures_lite::{AsyncReadExt, AsyncWriteExt};
 
 use zenoh_nostd::{
     ZResult,
-    platform::{
-        ZConnectionError,
-        tcp::{AbstractedTcpRx, AbstractedTcpStream, AbstractedTcpTx},
-    },
+    platform::tcp::{AbstractedTcpRx, AbstractedTcpStream, AbstractedTcpTx},
 };
 
 pub struct StdTcpStream {
@@ -46,63 +43,69 @@ impl AbstractedTcpStream for StdTcpStream {
         (tx, rx)
     }
 
-    async fn write(&mut self, buffer: &[u8]) -> ZResult<usize, ZConnectionError> {
+    async fn write(&mut self, buffer: &[u8]) -> ZResult<usize, zenoh_nostd::ZConnectionError> {
         self.stream
             .write(buffer)
             .await
-            .map_err(|_| ZConnectionError::CouldNotWrite)
+            .map_err(|_| zenoh_nostd::ZConnectionError::CouldNotWrite)
     }
 
-    async fn write_all(&mut self, buffer: &[u8]) -> ZResult<(), ZConnectionError> {
+    async fn write_all(&mut self, buffer: &[u8]) -> ZResult<(), zenoh_nostd::ZConnectionError> {
         self.stream
             .write_all(buffer)
             .await
-            .map_err(|_| ZConnectionError::CouldNotWrite)
+            .map_err(|_| zenoh_nostd::ZConnectionError::CouldNotWrite)
     }
 
-    async fn read(&mut self, buffer: &mut [u8]) -> ZResult<usize, ZConnectionError> {
+    async fn read(&mut self, buffer: &mut [u8]) -> ZResult<usize, zenoh_nostd::ZConnectionError> {
         self.stream
             .read(buffer)
             .await
-            .map_err(|_| ZConnectionError::CouldNotRead)
+            .map_err(|_| zenoh_nostd::ZConnectionError::CouldNotRead)
     }
 
-    async fn read_exact(&mut self, buffer: &mut [u8]) -> ZResult<(), ZConnectionError> {
+    async fn read_exact(
+        &mut self,
+        buffer: &mut [u8],
+    ) -> ZResult<(), zenoh_nostd::ZConnectionError> {
         self.stream
             .read_exact(buffer)
             .await
-            .map_err(|_| ZConnectionError::CouldNotRead)
+            .map_err(|_| zenoh_nostd::ZConnectionError::CouldNotRead)
     }
 }
 
 impl AbstractedTcpTx for StdTcpTx {
-    async fn write(&mut self, buffer: &[u8]) -> ZResult<usize, ZConnectionError> {
+    async fn write(&mut self, buffer: &[u8]) -> ZResult<usize, zenoh_nostd::ZConnectionError> {
         self.stream
             .write(buffer)
             .await
-            .map_err(|_| ZConnectionError::CouldNotWrite)
+            .map_err(|_| zenoh_nostd::ZConnectionError::CouldNotWrite)
     }
 
-    async fn write_all(&mut self, buffer: &[u8]) -> ZResult<(), ZConnectionError> {
+    async fn write_all(&mut self, buffer: &[u8]) -> ZResult<(), zenoh_nostd::ZConnectionError> {
         self.stream
             .write_all(buffer)
             .await
-            .map_err(|_| ZConnectionError::CouldNotWrite)
+            .map_err(|_| zenoh_nostd::ZConnectionError::CouldNotWrite)
     }
 }
 
 impl AbstractedTcpRx for StdTcpRx {
-    async fn read(&mut self, buffer: &mut [u8]) -> ZResult<usize, ZConnectionError> {
+    async fn read(&mut self, buffer: &mut [u8]) -> ZResult<usize, zenoh_nostd::ZConnectionError> {
         self.stream
             .read(buffer)
             .await
-            .map_err(|_| ZConnectionError::CouldNotRead)
+            .map_err(|_| zenoh_nostd::ZConnectionError::CouldNotRead)
     }
 
-    async fn read_exact(&mut self, buffer: &mut [u8]) -> ZResult<(), ZConnectionError> {
+    async fn read_exact(
+        &mut self,
+        buffer: &mut [u8],
+    ) -> ZResult<(), zenoh_nostd::ZConnectionError> {
         self.stream
             .read_exact(buffer)
             .await
-            .map_err(|_| ZConnectionError::CouldNotRead)
+            .map_err(|_| zenoh_nostd::ZConnectionError::CouldNotRead)
     }
 }

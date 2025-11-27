@@ -114,7 +114,7 @@ impl<'a> ZBodyDecode<'a> for Interest<'a> {
             0b01 => InterestMode::Current,
             0b10 => InterestMode::Future,
             0b11 => InterestMode::CurrentFuture,
-            _ => zbail!(crate::ZCodecError::CouldNotParse),
+            _ => zbail!(crate::ZCodecError::CouldNotParseField),
         };
 
         let inner = if mode != InterestMode::Final {

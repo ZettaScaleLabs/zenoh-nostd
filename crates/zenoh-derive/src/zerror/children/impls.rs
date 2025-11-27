@@ -1,6 +1,6 @@
 use proc_macro2::TokenStream;
 
-use crate::error::model::{DeclaredErrors, ErrorEnum, ErrorVariant};
+use crate::zerror::model::{DeclaredErrors, ErrorEnum, ErrorVariant};
 
 pub fn impls_from(error_enum: &ErrorEnum, input: &DeclaredErrors) -> TokenStream {
     let name = &error_enum.name;
@@ -23,6 +23,7 @@ pub fn impls_from(error_enum: &ErrorEnum, input: &DeclaredErrors) -> TokenStream
                 fn from(value: #name) -> Self {
                     match value {
                         #(#variants)*
+                        _ => unreachable!(),
                     }
                 }
             }
@@ -47,6 +48,7 @@ pub fn impls_from(error_enum: &ErrorEnum, input: &DeclaredErrors) -> TokenStream
                 fn from(value: #child_name) -> Self {
                     match value {
                         #(#variants)*
+                        _ => unreachable!(),
                     }
                 }
             }
