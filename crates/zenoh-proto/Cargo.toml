@@ -12,9 +12,13 @@ version.workspace = true
 
 [features]
 default = []
-log = ["dep:log"]
+
+std = []
+alloc = []
+
+log = ["std", "dep:log"]
 defmt = ["dep:defmt"]
-web_console = ["dep:web-sys"]
+web_console = ["std", "dep:web-sys"]
 
 [dependencies]
 zenoh-derive.workspace = true

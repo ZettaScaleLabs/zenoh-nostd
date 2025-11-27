@@ -5,7 +5,7 @@ pub use log;
 #[macro_export]
 macro_rules! trace {
     ($($arg:tt)+) => {
-        $crate::log::trace!($($arg)+)
+        $crate::logging::log::trace!($($arg)+)
     };
 }
 
@@ -13,7 +13,7 @@ macro_rules! trace {
 #[macro_export]
 macro_rules! debug {
     ($($arg:tt)+) => {
-        $crate::log::debug!($($arg)+)
+        $crate::logging::log::debug!($($arg)+)
     };
 }
 
@@ -21,7 +21,7 @@ macro_rules! debug {
 #[macro_export]
 macro_rules! info {
     ($($arg:tt)+) => {
-        $crate::log::info!($($arg)+)
+        $crate::logging::log::info!($($arg)+)
     };
 }
 
@@ -29,7 +29,7 @@ macro_rules! info {
 #[macro_export]
 macro_rules! warn {
     ($($arg:tt)+) => {
-        $crate::log::warn!($($arg)+)
+        $crate::logging::log::warn!($($arg)+)
     };
 }
 
@@ -37,7 +37,7 @@ macro_rules! warn {
 #[macro_export]
 macro_rules! error {
     ($($arg:tt)+) => {
-        $crate::log::error!($($arg)+)
+        $crate::logging::log::error!($($arg)+)
     };
 }
 
@@ -48,8 +48,8 @@ pub use defmt;
 #[macro_export]
 macro_rules! trace {
     ($($arg:tt)+) => {{
-        use $crate::defmt;
-        $crate::defmt::trace!($($arg)+)
+        use $crate::logging::defmt;
+        $crate::logging::defmt::trace!($($arg)+)
     }};
 }
 
@@ -57,8 +57,8 @@ macro_rules! trace {
 #[macro_export]
 macro_rules! debug {
     ($($arg:tt)+) => {{
-        use $crate::defmt;
-        $crate::defmt::debug!($($arg)+)
+        use $crate::logging::defmt;
+        $crate::logging::defmt::debug!($($arg)+)
     }};
 }
 
@@ -66,8 +66,8 @@ macro_rules! debug {
 #[macro_export]
 macro_rules! info {
     ($($arg:tt)+) => {{
-        use $crate::defmt;
-        $crate::defmt::info!($($arg)+)
+        use $crate::logging::defmt;
+        $crate::logging::defmt::info!($($arg)+)
     }};
 }
 
@@ -75,8 +75,8 @@ macro_rules! info {
 #[macro_export]
 macro_rules! warn {
     ($($arg:tt)+) => {{
-        use $crate::defmt;
-        $crate::defmt::warn!($($arg)+)
+        use $crate::logging::defmt;
+        $crate::logging::defmt::warn!($($arg)+)
     }};
 }
 
@@ -84,8 +84,8 @@ macro_rules! warn {
 #[macro_export]
 macro_rules! error {
     ($($arg:tt)+) => {{
-        use $crate::defmt;
-        $crate::defmt::error!($($arg)+)
+        use $crate::logging::defmt;
+        $crate::logging::defmt::error!($($arg)+)
     }};
 }
 
@@ -96,7 +96,7 @@ pub use web_sys::console;
 #[macro_export]
 macro_rules! trace {
     ($($arg:tt)+) => {
-        $crate::console::trace_1(&format!($($arg)+).into())
+        $crate::logging::console::trace_1(&format!($($arg)+).into())
     };
 }
 
@@ -104,7 +104,7 @@ macro_rules! trace {
 #[macro_export]
 macro_rules! debug {
     ($($arg:tt)+) => {
-        $crate::console::debug_1(&format!($($arg)+).into())
+        $crate::logging::console::debug_1(&format!($($arg)+).into())
     };
 }
 
@@ -112,7 +112,7 @@ macro_rules! debug {
 #[macro_export]
 macro_rules! info {
     ($($arg:tt)+) => {
-        $crate::console::info_1(&format!($($arg)+).into())
+        $crate::logging::console::info_1(&format!($($arg)+).into())
     };
 }
 
@@ -120,7 +120,7 @@ macro_rules! info {
 #[macro_export]
 macro_rules! warn {
     ($($arg:tt)+) => {
-        $crate::console::warn_1(&format!($($arg)+).into())
+        $crate::logging::console::warn_1(&format!($($arg)+).into())
     };
 }
 
@@ -128,7 +128,7 @@ macro_rules! warn {
 #[macro_export]
 macro_rules! error {
     ($($arg:tt)+) => {
-        $crate::console::error_1(&format!($($arg)+).into())
+        $crate::logging::console::error_1(&format!($($arg)+).into())
     };
 }
 

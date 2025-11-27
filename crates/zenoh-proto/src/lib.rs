@@ -1,14 +1,25 @@
-#![cfg_attr(not(any(feature = "log", feature = "web_console")), no_std)]
+#![cfg_attr(not(feature = "std"), no_std)]
 
-mod logging;
-#[cfg(any(feature = "log", feature = "defmt", feature = "web_console"))]
-pub use logging::*;
+#[cfg(feature = "alloc")]
+extern crate alloc;
+
+pub mod logging;
 
 mod error;
 pub use error::*;
 
-mod protocol;
-pub use protocol::*;
+mod codec;
+pub(crate) use codec::*;
+
+mod core;
+pub use core::*;
+
+pub mod network;
+pub mod transport;
+pub mod zenoh;
+
+mod batch;
+pub use batch::*;
 
 pub(crate) use zenoh_derive::*;
 

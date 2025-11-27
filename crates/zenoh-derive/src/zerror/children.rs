@@ -40,7 +40,7 @@ pub fn declare_children(input: &DeclaredErrors) -> TokenStream {
 
         let variants = map_variants(error_enum, input, |_, error_variant: &ErrorVariant| {
             let name = &error_variant.name;
-            let doc = format!("See [`ZError::{}`]", name.to_string());
+            let doc = format!("See [`ZError::{}`]", name);
             quote::quote! {
                 #[doc = #doc]
                 #name = ZError:: #name as u8,

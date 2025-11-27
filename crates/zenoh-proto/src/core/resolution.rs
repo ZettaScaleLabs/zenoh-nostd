@@ -18,7 +18,7 @@ pub enum Field {
 
 #[repr(transparent)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
-pub struct Resolution(u8);
+pub struct Resolution(pub(crate) u8);
 
 impl Resolution {
     pub const DEFAULT: Self = {
@@ -43,17 +43,7 @@ impl Resolution {
         self.0 &= !(0b11 << field as u8);
         self.0 |= (bits as u8) << (field as u8);
     }
-
-    #[cfg(test)]
-    pub fn rand() -> Self {
-        use rand::Rng;
-
-        let mut rng = rand::thread_rng();
-        let v: u8 = rng.r#gen();
-        Self(v & 0b0000_1111)
-    }
 }
-
 impl Default for Resolution {
     fn default() -> Self {
         Self::DEFAULT

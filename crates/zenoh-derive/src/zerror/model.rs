@@ -54,16 +54,15 @@ fn extract_attr_string(attrs: &[Attribute], name: &str) -> Result<String> {
 }
 
 fn extract_variant_code(variant: &syn::Variant) -> Result<u8> {
-    if let Some((_, expr)) = &variant.discriminant {
-        if let Expr::Lit(syn::ExprLit {
+    if let Some((_, expr)) = &variant.discriminant
+        && let Expr::Lit(syn::ExprLit {
             lit: Lit::Int(int), ..
         }) = expr
-        {
-            let val = int
-                .base10_parse::<u8>()
-                .map_err(|_| Error::new_spanned(int, "code must fit in u8"))?;
-            return Ok(val);
-        }
+    {
+        let val = int
+            .base10_parse::<u8>()
+            .map_err(|_| Error::new_spanned(int, "code must fit in u8"))?;
+        return Ok(val);
     }
     Err(Error::new_spanned(
         &variant.ident,

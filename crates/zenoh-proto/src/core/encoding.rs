@@ -10,7 +10,7 @@ pub struct Encoding<'a> {
     pub schema: Option<&'a [u8]>,
 }
 
-impl<'a> Encoding<'a> {
+impl Encoding<'_> {
     pub const DEFAULT: Self = Encoding {
         id: 0,
         schema: None,
@@ -24,35 +24,7 @@ impl<'a> Encoding<'a> {
             schema: None,
         }
     }
-
-    #[cfg(test)]
-    pub fn rand(w: &mut ZWriter<'a>) -> Self {
-        use rand::Rng;
-
-        let mut rng = rand::thread_rng();
-
-        const MIN: usize = 0;
-        const MAX: usize = 16;
-
-        let id: u16 = rng.r#gen();
-        let schema = if rng.gen_bool(0.5) {
-            use crate::ZWriterExt;
-
-            Some(
-                w.write_slot(rng.gen_range(MIN..MAX), |b: &mut [u8]| {
-                    rng.fill(b);
-                    b.len()
-                })
-                .unwrap(),
-            )
-        } else {
-            None
-        };
-
-        Encoding { id, schema }
-    }
 }
-
 impl ZBodyLen for Encoding<'_> {
     fn z_body_len(&self) -> usize {
         <u32 as ZLen>::z_len(&((self.id as u32) << 1))
