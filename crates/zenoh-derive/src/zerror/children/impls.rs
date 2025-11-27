@@ -6,7 +6,7 @@ pub fn impls_from(error_enum: &ErrorEnum, input: &DeclaredErrors) -> TokenStream
     let name = &error_enum.name;
 
     let to_zerror = {
-        let variants = super::iterative_gather_variants(
+        let variants = super::map_variants(
             error_enum,
             input,
             |_: &ErrorEnum, variant: &ErrorVariant| {
@@ -35,7 +35,7 @@ pub fn impls_from(error_enum: &ErrorEnum, input: &DeclaredErrors) -> TokenStream
         let child_name = &child_error.name;
 
         let variants =
-            super::iterative_gather_variants(child_error, input, |_, variant: &ErrorVariant| {
+            super::map_variants(child_error, input, |_, variant: &ErrorVariant| {
                 let vname = &variant.name;
 
                 quote::quote! {

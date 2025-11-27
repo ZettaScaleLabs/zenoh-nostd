@@ -7,7 +7,7 @@ use crate::zerror::model::{DeclaredErrors, ErrorEnum, ErrorVariant};
 pub(crate) mod display;
 pub(crate) mod impls;
 
-fn iterative_gather_variants(
+fn map_variants(
     error: &ErrorEnum,
     input: &DeclaredErrors,
     map: impl Fn(&ErrorEnum, &ErrorVariant) -> TokenStream,
@@ -38,15 +38,14 @@ pub fn declare_children(input: &DeclaredErrors) -> TokenStream {
         let name = &error_enum.name;
         let doc = &error_enum.doc;
 
-        let variants =
-            iterative_gather_variants(error_enum, input, |_, error_variant: &ErrorVariant| {
-                let name = &error_variant.name;
-                let doc = format!("See [`ZError::{}`]", name.to_string());
-                quote::quote! {
-                    #[doc = #doc]
-                    #name = ZError:: #name as u8,
-                }
-            });
+        let variants = map_variants(error_enum, input, |_, error_variant: &ErrorVariant| {
+            let name = &error_variant.name;
+            let doc = format!("See [`ZError::{}`]", name.to_string());
+            quote::quote! {
+                #[doc = #doc]
+                #name = ZError:: #name as u8,
+            }
+        });
 
         let display = display::impl_display(error_enum, input);
         let impls = impls::impls_from(error_enum, input);

@@ -2,6 +2,7 @@ use uhlc::Timestamp;
 
 #[cfg(test)]
 use rand::Rng;
+use zenoh_derive::ZEnum;
 
 use crate::{
     WireExpr, ZStruct,
@@ -24,19 +25,17 @@ pub struct Declare<'a> {
     pub body: DeclareBody<'a>,
 }
 
-crate::aggregate_enum_full! {
-    #[derive(Debug, PartialEq)]
-    pub enum DeclareBody<'a> {
-        DeclareKeyExpr<'a>,
-        UndeclareKeyExpr,
-        DeclareSubscriber<'a>,
-        UndeclareSubscriber<'a>,
-        DeclareQueryable<'a>,
-        UndeclareQueryable<'a>,
-        DeclareToken<'a>,
-        UndeclareToken<'a>,
-        DeclareFinal,
-    }
+#[derive(ZEnum, Debug, PartialEq)]
+pub enum DeclareBody<'a> {
+    DeclareKeyExpr(DeclareKeyExpr<'a>),
+    UndeclareKeyExpr(UndeclareKeyExpr),
+    DeclareSubscriber(DeclareSubscriber<'a>),
+    UndeclareSubscriber(UndeclareSubscriber<'a>),
+    DeclareQueryable(DeclareQueryable<'a>),
+    UndeclareQueryable(UndeclareQueryable<'a>),
+    DeclareToken(DeclareToken<'a>),
+    UndeclareToken(UndeclareToken<'a>),
+    DeclareFinal(DeclareFinal),
 }
 
 #[derive(ZStruct, Debug, PartialEq)]

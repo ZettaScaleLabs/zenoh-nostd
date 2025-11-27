@@ -5,7 +5,7 @@ use crate::zerror::model::{DeclaredErrors, ErrorEnum, ErrorVariant};
 pub fn impl_display(error_enum: &ErrorEnum, input: &DeclaredErrors) -> TokenStream {
     let name = &error_enum.name;
 
-    let variants = super::iterative_gather_variants(
+    let variants = super::map_variants(
         error_enum,
         input,
         |error_enum: &ErrorEnum, variant: &ErrorVariant| {

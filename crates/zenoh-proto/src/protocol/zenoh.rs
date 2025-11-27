@@ -1,8 +1,6 @@
-use crate::ZExt;
-use crate::{Encoding, ZenohIdProto};
-
 use crate::{
-    ZBodyDecode, ZBodyEncode, ZBodyLen, ZCodecResult, ZDecode, ZEncode, ZLen, ZReader, ZWriter,
+    Encoding, ZBodyDecode, ZBodyEncode, ZBodyLen, ZCodecResult, ZDecode, ZEncode, ZEnum, ZExt,
+    ZLen, ZReader, ZWriter, ZenohIdProto,
 };
 
 #[cfg(test)]
@@ -21,26 +19,20 @@ use put::Put;
 use query::Query;
 use reply::Reply;
 
-crate::aggregate_enum_full! {
-    #[derive(Debug, PartialEq)]
-    pub enum PushBody<'a> {
-        Put<'a>,
-    }
+#[derive(ZEnum, Debug, PartialEq)]
+pub enum PushBody<'a> {
+    Put(Put<'a>),
 }
 
-crate::aggregate_enum_full! {
-    #[derive(Debug, PartialEq)]
-    pub enum RequestBody<'a> {
-        Query<'a>,
-    }
+#[derive(ZEnum, Debug, PartialEq)]
+pub enum RequestBody<'a> {
+    Query(Query<'a>),
 }
 
-crate::aggregate_enum_full! {
-    #[derive(Debug, PartialEq)]
-    pub enum ResponseBody<'a> {
-        Err<'a>,
-        Reply<'a>,
-    }
+#[derive(ZEnum, Debug, PartialEq)]
+pub enum ResponseBody<'a> {
+    Err(Err<'a>),
+    Reply(Reply<'a>),
 }
 
 #[derive(ZExt, Debug, PartialEq)]

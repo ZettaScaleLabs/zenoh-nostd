@@ -2,6 +2,7 @@ use core::time::Duration;
 
 #[cfg(test)]
 use rand::{Rng, thread_rng};
+use zenoh_derive::ZEnum;
 
 use crate::{
     ZBodyDecode, ZBodyEncode, ZBodyLen, ZCodecResult, ZDecode, ZEncode, ZExt, ZExtKind, ZHeader,
@@ -21,16 +22,14 @@ pub mod push;
 pub mod request;
 pub mod response;
 
-crate::aggregate_enum_batch! {
-    #[derive(Debug, PartialEq)]
-    pub enum NetworkBody<'a> {
-        Push<'a>,
-        Request<'a>,
-        Response<'a>,
-        ResponseFinal,
-        Interest<'a>,
-        Declare<'a>,
-    }
+#[derive(ZEnum, Debug, PartialEq)]
+pub enum NetworkBody<'a> {
+    Push(Push<'a>),
+    Request(Request<'a>),
+    Response(Response<'a>),
+    ResponseFinal(ResponseFinal),
+    Interest(Interest<'a>),
+    Declare(Declare<'a>),
 }
 
 #[derive(Debug, PartialEq)]
