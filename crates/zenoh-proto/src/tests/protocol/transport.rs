@@ -1,12 +1,8 @@
-use core::panic;
+use ::core::panic;
 
 use rand::{Rng, thread_rng};
 
-use crate::{
-    Reliability,
-    network::{NetworkBody, QoS},
-    transport::{close::*, frame::*, init::*, keepalive::*, open::*, *},
-};
+use crate::{network::*, transport::*, *};
 
 const NUM_ITER: usize = 100;
 const MAX_PAYLOAD_SIZE: usize = 512;

@@ -15,7 +15,7 @@ pub fn impl_display(error_enum: &ErrorEnum, input: &DeclaredErrors) -> TokenStre
             let err = &variant.err;
 
             quote::quote! {
-                #name:: #vname => write!(f, "[{}::{}({})]: {}", stringify!(#ename), stringify!(#vname), #code, #err),
+                #name:: #vname => write!(f, "[{}({})]: {}", stringify!(#ename), #code, #err),
             }
         },
     );

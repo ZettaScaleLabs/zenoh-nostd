@@ -1,8 +1,5 @@
 use uhlc::NTP64;
 
-#[cfg(test)]
-use rand::{Rng, thread_rng};
-
 use crate::{
     ZBodyDecode, ZBodyEncode, ZBodyLen, ZDecode, ZEncode, ZExt, ZExtKind, ZLen, ZReader,
     ZReaderExt, ZWriter, zbail,
@@ -27,9 +24,15 @@ pub use whatami::*;
 mod wire_expr;
 pub use wire_expr::*;
 
+mod endpoint;
+pub use endpoint::*;
+
+mod ke;
+pub use ke::*;
+
 #[derive(PartialEq, Clone)]
 #[repr(transparent)]
-pub struct ZenohIdProto(uhlc::ID);
+pub struct ZenohIdProto(pub(crate) uhlc::ID);
 
 impl ZenohIdProto {
     #[inline]
@@ -41,13 +44,7 @@ impl ZenohIdProto {
     pub fn as_le_bytes(&self) -> [u8; uhlc::ID::MAX_SIZE] {
         self.0.to_le_bytes()
     }
-
-    #[cfg(test)]
-    pub fn rand(_: &mut ZWriter) -> ZenohIdProto {
-        ZenohIdProto(uhlc::ID::rand())
-    }
 }
-
 impl fmt::Debug for ZenohIdProto {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "{}", self.0)
@@ -159,16 +156,6 @@ impl TryFrom<u8> for Reliability {
         }
     }
 }
-
 impl Reliability {
     pub const DEFAULT: Self = Self::Reliable;
-
-    #[cfg(test)]
-    pub fn rand(_: &mut ZWriter) -> Self {
-        if thread_rng().gen_bool(0.5) {
-            Reliability::Reliable
-        } else {
-            Reliability::BestEffort
-        }
-    }
 }

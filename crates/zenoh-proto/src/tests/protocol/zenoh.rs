@@ -1,4 +1,4 @@
-use crate::zenoh::{err::*, put::*, query::*, reply::*, *};
+use crate::zenoh::*;
 
 const NUM_ITER: usize = 100;
 const MAX_PAYLOAD_SIZE: usize = 512;
