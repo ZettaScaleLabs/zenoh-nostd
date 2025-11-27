@@ -1,5 +1,5 @@
 pub(crate) mod codec;
-pub(crate) mod error;
+pub(crate) mod zerror;
 
 #[proc_macro_derive(ZStruct, attributes(zenoh))]
 pub fn derive_zstruct(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
@@ -20,10 +20,10 @@ pub fn derive_zext(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
 }
 
 #[proc_macro]
-pub fn make_error(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
-    let input = syn::parse_macro_input!(input as error::model::DeclaredErrors);
+pub fn declare_zerror(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
+    let input = syn::parse_macro_input!(input as zerror::model::DeclaredErrors);
 
-    error::make_error(&input)
+    zerror::declare_zerror(&input)
         .unwrap_or_else(|err| err.to_compile_error())
         .into()
 }

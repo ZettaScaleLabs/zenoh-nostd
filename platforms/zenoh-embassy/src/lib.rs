@@ -4,7 +4,7 @@ use embassy_net::{IpAddress, IpEndpoint, Stack, tcp::TcpSocket};
 use static_cell::StaticCell;
 use zenoh_nostd::{
     ZResult,
-    platform::{Platform, ZConnectionError},
+    platform::{crate::ZConnectionError, Platform},
     zbail,
 };
 
@@ -22,14 +22,14 @@ impl Platform for PlatformEmbassy {
     async fn new_websocket_stream(
         &self,
         _addr: &core::net::SocketAddr,
-    ) -> ZResult<Self::AbstractedWsStream, ZConnectionError> {
-        Err(ZConnectionError::CouldNotConnect)
+    ) -> ZResult<Self::AbstractedWsStream, crate::ZConnectionError> {
+        Err(crate::ZConnectionError::CouldNotConnect)
     }
 
     async fn new_tcp_stream(
         &self,
         addr: &core::net::SocketAddr,
-    ) -> ZResult<Self::AbstractedTcpStream, ZConnectionError> {
+    ) -> ZResult<Self::AbstractedTcpStream, crate::ZConnectionError> {
         static RX_BUF: StaticCell<[u8; 2048]> = StaticCell::new();
         static TX_BUF: StaticCell<[u8; 2048]> = StaticCell::new();
         let (rx_buf, tx_buf) = (RX_BUF.init([0; 2048]), TX_BUF.init([0; 2048]));
@@ -38,7 +38,7 @@ impl Platform for PlatformEmbassy {
 
         let address: IpAddress = match addr.ip() {
             core::net::IpAddr::V4(v4) => IpAddress::Ipv4(v4),
-            core::net::IpAddr::V6(_) => zbail!(ZConnectionError::CouldNotConnect),
+            core::net::IpAddr::V6(_) => zbail!(crate::ZConnectionError::CouldNotConnect),
         };
 
         let ip_endpoint = IpEndpoint::new(address, addr.port());
@@ -46,7 +46,7 @@ impl Platform for PlatformEmbassy {
         socket
             .connect(ip_endpoint)
             .await
-            .map_err(|_| ZConnectionError::CouldNotConnect)?;
+            .map_err(|_| crate::ZConnectionError::CouldNotConnect)?;
 
         Ok(Self::AbstractedTcpStream { socket, mtu: 1024 })
     }

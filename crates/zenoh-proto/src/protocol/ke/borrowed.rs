@@ -1,6 +1,6 @@
 use core::{convert::TryFrom, fmt, ops::Deref};
 
-use crate::{ZResult, protocol::ke::ZKeyExprError, zbail};
+use crate::{ZResult, zbail};
 
 #[allow(non_camel_case_types)]
 #[repr(transparent)]
@@ -8,9 +8,9 @@ use crate::{ZResult, protocol::ke::ZKeyExprError, zbail};
 pub struct keyexpr(str);
 
 impl keyexpr {
-    pub fn new(v: &str) -> ZResult<&'_ Self, ZKeyExprError> {
+    pub fn new(v: &str) -> ZResult<&'_ Self, crate::ZKeyexprError> {
         if v.is_empty() || v.ends_with('/') {
-            zbail!(ZKeyExprError::EmptyChunk);
+            zbail!(crate::ZKeyexprError::EmptyChunk);
         }
 
         let bytes = v.as_bytes();
@@ -22,14 +22,14 @@ impl keyexpr {
             match bytes[i] {
                 c if c > b'/' && c != b'?' => i += 1,
 
-                b'/' if i == chunk_start => zbail!(ZKeyExprError::EmptyChunk),
+                b'/' if i == chunk_start => zbail!(crate::ZKeyexprError::EmptyChunk),
 
                 b'/' => {
                     i += 1;
                     chunk_start = i;
                 }
 
-                b'*' if i != chunk_start => zbail!(ZKeyExprError::StarInChunk),
+                b'*' if i != chunk_start => zbail!(crate::ZKeyexprError::StarInChunk),
 
                 b'*' => match bytes.get(i + 1) {
                     None => break,
@@ -44,15 +44,15 @@ impl keyexpr {
 
                         Some(&b'/') if matches!(bytes.get(i + 3), Some(b'*')) => {
                             #[cold]
-                            fn double_star_err(v: &str, i: usize) -> ZKeyExprError {
+                            fn double_star_err(v: &str, i: usize) -> crate::ZKeyexprError {
                                 match (v.as_bytes().get(i + 4), v.as_bytes().get(i + 5)) {
                                     (None | Some(&b'/'), _) => {
-                                        ZKeyExprError::SingleStarAfterDoubleStar
+                                        crate::ZKeyexprError::SingleStarAfterDoubleStar
                                     }
                                     (Some(&b'*'), None | Some(&b'/')) => {
-                                        ZKeyExprError::DoubleStarAfterDoubleStar
+                                        crate::ZKeyexprError::DoubleStarAfterDoubleStar
                                     }
-                                    _ => ZKeyExprError::StarInChunk,
+                                    _ => crate::ZKeyexprError::StarInChunk,
                                 }
                             }
 
@@ -64,21 +64,21 @@ impl keyexpr {
                             chunk_start = i;
                         }
 
-                        _ => zbail!(ZKeyExprError::StarInChunk),
+                        _ => zbail!(crate::ZKeyexprError::StarInChunk),
                     },
 
-                    _ => zbail!(ZKeyExprError::StarInChunk),
+                    _ => zbail!(crate::ZKeyexprError::StarInChunk),
                 },
 
                 b'$' if bytes.get(i + 1) != Some(&b'*') => {
-                    zbail!(ZKeyExprError::UnboundDollar)
+                    zbail!(crate::ZKeyexprError::UnboundDollar)
                 }
 
                 b'$' => match bytes.get(i + 2) {
-                    Some(&b'$') => zbail!(ZKeyExprError::DollarAfterDollar),
+                    Some(&b'$') => zbail!(crate::ZKeyexprError::DollarAfterDollar),
 
                     Some(&b'/') | None if i == chunk_start => {
-                        zbail!(ZKeyExprError::LoneDollarStar)
+                        zbail!(crate::ZKeyexprError::LoneDollarStar)
                     }
 
                     None => break,
@@ -86,7 +86,7 @@ impl keyexpr {
                     _ => i += 2,
                 },
 
-                b'#' | b'?' => zbail!(ZKeyExprError::SharpOrQMark),
+                b'#' | b'?' => zbail!(crate::ZKeyexprError::SharpOrQMark),
 
                 _ => i += 1,
             }
@@ -160,10 +160,10 @@ impl Deref for nonwild_keyexpr {
 }
 
 impl<'a> TryFrom<&'a keyexpr> for &'a nonwild_keyexpr {
-    type Error = ZKeyExprError;
+    type Error = crate::ZKeyexprError;
     fn try_from(v: &'a keyexpr) -> Result<Self, Self::Error> {
         if v.is_wild_impl() {
-            zbail!(ZKeyExprError::WildChunk);
+            zbail!(crate::ZKeyexprError::WildChunk);
         }
 
         Ok(unsafe { core::mem::transmute::<&keyexpr, &nonwild_keyexpr>(v) })

@@ -4,8 +4,8 @@ use uhlc::NTP64;
 use rand::{Rng, thread_rng};
 
 use crate::{
-    ZBodyDecode, ZBodyEncode, ZBodyLen, ZCodecError, ZCodecResult, ZDecode, ZEncode, ZExt,
-    ZExtKind, ZLen, ZReader, ZReaderExt, ZWriter, zbail,
+    ZBodyDecode, ZBodyEncode, ZBodyLen, ZCodecResult, ZDecode, ZEncode, ZExt, ZExtKind, ZLen,
+    ZReader, ZReaderExt, ZWriter, zbail,
 };
 
 use core::{
@@ -61,12 +61,12 @@ impl Default for ZenohIdProto {
 }
 
 impl TryFrom<&[u8]> for ZenohIdProto {
-    type Error = ZCodecError;
+    type Error = crate::ZCodecError;
 
     fn try_from(val: &[u8]) -> ZCodecResult<Self> {
         match val.try_into() {
             Ok(ok) => Ok(Self(ok)),
-            Err(_) => zbail!(ZCodecError::CouldNotParse),
+            Err(_) => zbail!(crate::ZCodecError::CouldNotParseField),
         }
     }
 }
@@ -122,7 +122,8 @@ impl<'a> ZBodyDecode<'a> for Timestamp {
         let time = NTP64(<u64 as ZDecode>::z_decode(r)?);
         let id_len = <usize as ZDecode>::z_decode(r)?;
         let id_bytes = <&[u8] as ZDecode>::z_decode(&mut r.sub(id_len)?)?;
-        let id = uhlc::ID::try_from(id_bytes).map_err(|_| ZCodecError::CouldNotParse)?;
+        let id =
+            uhlc::ID::try_from(id_bytes).map_err(|_| crate::ZCodecError::CouldNotParseField)?;
         Ok(Timestamp::new(time, id))
     }
 }
@@ -148,13 +149,13 @@ impl From<Reliability> for u8 {
 }
 
 impl TryFrom<u8> for Reliability {
-    type Error = ZCodecError;
+    type Error = crate::ZCodecError;
 
     fn try_from(value: u8) -> Result<Self, Self::Error> {
         match value {
             0 => Ok(Reliability::BestEffort),
             1 => Ok(Reliability::Reliable),
-            _ => Err(ZCodecError::CouldNotParse),
+            _ => Err(crate::ZCodecError::CouldNotParseField),
         }
     }
 }

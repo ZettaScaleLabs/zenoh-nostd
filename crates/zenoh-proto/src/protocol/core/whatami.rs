@@ -1,6 +1,6 @@
 use core::convert::TryFrom;
 
-use crate::{ZCodecError, ZCodecResult};
+use crate::ZCodecResult;
 
 #[repr(u8)]
 #[derive(Debug, Default, Clone, Copy, PartialEq, Eq, Hash)]
@@ -34,14 +34,14 @@ impl From<WhatAmI> for u8 {
 }
 
 impl TryFrom<u8> for WhatAmI {
-    type Error = ZCodecError;
+    type Error = crate::ZCodecError;
 
     fn try_from(v: u8) -> ZCodecResult<Self> {
         match v {
             Self::U8_R => Ok(Self::Router),
             Self::U8_P => Ok(Self::Peer),
             Self::U8_C => Ok(Self::Client),
-            _ => Err(ZCodecError::CouldNotParse),
+            _ => Err(crate::ZCodecError::CouldNotParseField),
         }
     }
 }

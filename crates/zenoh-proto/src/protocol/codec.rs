@@ -7,18 +7,7 @@ pub use ext::*;
 pub type ZReader<'a> = &'a [u8];
 pub type ZWriter<'a> = &'a mut [u8];
 
-crate::make_zerr! {
-    /// Errors related to IO operations on byte buffers
-    #[err = "protocol error"]
-    enum ZCodecError {
-        CouldNotRead,
-        CouldNotWrite,
-        CouldNotParse,
-        MissingMandatoryExtension,
-    }
-}
-
-pub type ZCodecResult<T> = crate::ZResult<T, ZCodecError>;
+pub type ZCodecResult<T> = crate::ZResult<T, crate::ZCodecError>;
 
 pub trait ZReaderExt<'a> {
     fn mark(&self) -> &'a [u8];
@@ -61,7 +50,7 @@ pub trait ZWriterExt<'a> {
             bytes.len()
         })?;
 
-        core::str::from_utf8(slot).map_err(|_| ZCodecError::CouldNotWrite)
+        core::str::from_utf8(slot).map_err(|_| crate::ZCodecError::CouldNotWrite)
     }
 }
 
@@ -80,7 +69,7 @@ impl<'a> ZReaderExt<'a> for ZReader<'a> {
 
     fn peek_u8(&self) -> ZCodecResult<u8> {
         if !self.can_read() {
-            return Err(ZCodecError::CouldNotRead);
+            return Err(crate::ZCodecError::CouldNotRead);
         }
 
         Ok(unsafe { *self.get_unchecked(0) })
@@ -88,7 +77,7 @@ impl<'a> ZReaderExt<'a> for ZReader<'a> {
 
     fn read_u8(&mut self) -> ZCodecResult<u8> {
         if !self.can_read() {
-            return Err(ZCodecError::CouldNotRead);
+            return Err(crate::ZCodecError::CouldNotRead);
         }
 
         let value = unsafe { *self.get_unchecked(0) };
@@ -100,7 +89,7 @@ impl<'a> ZReaderExt<'a> for ZReader<'a> {
     fn read_into(&mut self, dst: &'_ mut [u8]) -> ZCodecResult<usize> {
         let len = self.remaining().min(dst.len());
         if len == 0 {
-            return Err(ZCodecError::CouldNotRead);
+            return Err(crate::ZCodecError::CouldNotRead);
         }
 
         let (to_write, remain) = unsafe { self.split_at_unchecked(len) };
@@ -115,7 +104,7 @@ impl<'a> ZReaderExt<'a> for ZReader<'a> {
 
     fn read(&mut self, len: usize) -> ZCodecResult<&'a [u8]> {
         if self.len() < len {
-            return Err(ZCodecError::CouldNotRead);
+            return Err(crate::ZCodecError::CouldNotRead);
         }
 
         let (zbuf, remain) = unsafe { self.split_at_unchecked(len) };
@@ -128,7 +117,7 @@ impl<'a> ZReaderExt<'a> for ZReader<'a> {
 impl<'a> ZWriterExt<'a> for ZWriter<'a> {
     fn write_u8(&mut self, value: u8) -> ZCodecResult<()> {
         if self.is_empty() {
-            return Err(ZCodecError::CouldNotWrite);
+            return Err(crate::ZCodecError::CouldNotWrite);
         }
 
         unsafe {
@@ -145,7 +134,7 @@ impl<'a> ZWriterExt<'a> for ZWriter<'a> {
         }
         let len = self.len().min(src.len());
         if len == 0 {
-            return Err(ZCodecError::CouldNotWrite);
+            return Err(crate::ZCodecError::CouldNotWrite);
         }
 
         let (to_write, remain) = unsafe { core::mem::take(self).split_at_mut_unchecked(len) };
@@ -159,7 +148,7 @@ impl<'a> ZWriterExt<'a> for ZWriter<'a> {
         let len = self.write(src)?;
 
         if len < src.len() {
-            return Err(ZCodecError::CouldNotWrite);
+            return Err(crate::ZCodecError::CouldNotWrite);
         }
 
         Ok(())
@@ -171,13 +160,13 @@ impl<'a> ZWriterExt<'a> for ZWriter<'a> {
         writer: impl FnOnce(&mut [u8]) -> usize,
     ) -> ZCodecResult<&'a [u8]> {
         if self.len() < len {
-            return Err(ZCodecError::CouldNotWrite);
+            return Err(crate::ZCodecError::CouldNotWrite);
         }
 
         let written = writer(unsafe { self.get_unchecked_mut(..len) });
 
         if written > len {
-            return Err(ZCodecError::CouldNotWrite);
+            return Err(crate::ZCodecError::CouldNotWrite);
         }
 
         let (slot, remain) = unsafe { core::mem::take(self).split_at_mut_unchecked(written) };

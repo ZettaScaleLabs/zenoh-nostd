@@ -12,21 +12,10 @@ pub trait Platform {
     fn new_tcp_stream(
         &self,
         addr: &SocketAddr,
-    ) -> impl Future<Output = ZResult<Self::AbstractedTcpStream, ZConnectionError>>;
+    ) -> impl Future<Output = ZResult<Self::AbstractedTcpStream, crate::ZConnectionError>>;
 
     fn new_websocket_stream(
         &self,
         addr: &SocketAddr,
-    ) -> impl Future<Output = ZResult<Self::AbstractedWsStream, ZConnectionError>>;
-}
-
-zenoh_proto::make_zerr! {
-    /// Errors related to connections.
-    #[err = "connection error"]
-    enum ZConnectionError {
-        CouldNotGetAddrInfo,
-        CouldNotConnect,
-        CouldNotWrite,
-        CouldNotRead
-    }
+    ) -> impl Future<Output = ZResult<Self::AbstractedWsStream, crate::ZConnectionError>>;
 }

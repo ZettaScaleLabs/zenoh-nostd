@@ -4,8 +4,8 @@ use core::time::Duration;
 use rand::{Rng, thread_rng};
 
 use crate::{
-    ZBodyDecode, ZBodyEncode, ZBodyLen, ZCodecError, ZCodecResult, ZDecode, ZEncode, ZExt,
-    ZExtKind, ZHeader, ZLen, ZReader, ZReaderExt, ZWriter,
+    ZBodyDecode, ZBodyEncode, ZBodyLen, ZCodecResult, ZDecode, ZEncode, ZExt, ZExtKind, ZHeader,
+    ZLen, ZReader, ZReaderExt, ZWriter,
     network::{
         declare::Declare,
         interest::Interest,
@@ -185,7 +185,7 @@ impl ZBodyDecode<'_> for QueryTarget {
             0 => Ok(QueryTarget::BestMatching),
             1 => Ok(QueryTarget::All),
             2 => Ok(QueryTarget::AllComplete),
-            _ => Err(ZCodecError::CouldNotParse),
+            _ => Err(crate::ZCodecError::CouldNotParseField),
         }
     }
 }
@@ -350,13 +350,13 @@ impl From<Mapping> for u8 {
 }
 
 impl TryFrom<u8> for Mapping {
-    type Error = ZCodecError;
+    type Error = crate::ZCodecError;
 
     fn try_from(value: u8) -> Result<Self, Self::Error> {
         match value {
             0 => Ok(Mapping::Receiver),
             1 => Ok(Mapping::Sender),
-            _ => Err(ZCodecError::CouldNotParse),
+            _ => Err(crate::ZCodecError::CouldNotParseField),
         }
     }
 }

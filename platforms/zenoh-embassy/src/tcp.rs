@@ -3,7 +3,7 @@ use embedded_io_async::{Read, Write};
 use zenoh_nostd::{
     ZResult,
     platform::{
-        ZConnectionError,
+        crate::ZConnectionError,
         tcp::{AbstractedTcpRx, AbstractedTcpStream, AbstractedTcpTx},
     },
 };
@@ -43,63 +43,63 @@ impl AbstractedTcpStream for EmbassyTcpStream {
         (tx, rx)
     }
 
-    async fn write(&mut self, buffer: &[u8]) -> ZResult<usize, ZConnectionError> {
+    async fn write(&mut self, buffer: &[u8]) -> ZResult<usize, crate::ZConnectionError> {
         self.socket
             .write(buffer)
             .await
-            .map_err(|_| ZConnectionError::CouldNotWrite)
+            .map_err(|_| crate::ZConnectionError::CouldNotWrite)
     }
 
-    async fn write_all(&mut self, buffer: &[u8]) -> ZResult<(), ZConnectionError> {
+    async fn write_all(&mut self, buffer: &[u8]) -> ZResult<(), crate::ZConnectionError> {
         self.socket
             .write_all(buffer)
             .await
-            .map_err(|_| ZConnectionError::CouldNotWrite)
+            .map_err(|_| crate::ZConnectionError::CouldNotWrite)
     }
 
-    async fn read(&mut self, buffer: &mut [u8]) -> ZResult<usize, ZConnectionError> {
+    async fn read(&mut self, buffer: &mut [u8]) -> ZResult<usize, crate::ZConnectionError> {
         self.socket
             .read(buffer)
             .await
-            .map_err(|_| ZConnectionError::CouldNotRead)
+            .map_err(|_| crate::ZConnectionError::CouldNotRead)
     }
 
-    async fn read_exact(&mut self, buffer: &mut [u8]) -> ZResult<(), ZConnectionError> {
+    async fn read_exact(&mut self, buffer: &mut [u8]) -> ZResult<(), crate::ZConnectionError> {
         self.socket
             .read_exact(buffer)
             .await
-            .map_err(|_| ZConnectionError::CouldNotRead)
+            .map_err(|_| crate::ZConnectionError::CouldNotRead)
     }
 }
 
 impl AbstractedTcpTx for EmbassyTcpTx<'_> {
-    async fn write(&mut self, buffer: &[u8]) -> ZResult<usize, ZConnectionError> {
+    async fn write(&mut self, buffer: &[u8]) -> ZResult<usize, crate::ZConnectionError> {
         self.socket
             .write(buffer)
             .await
-            .map_err(|_| ZConnectionError::CouldNotWrite)
+            .map_err(|_| crate::ZConnectionError::CouldNotWrite)
     }
 
-    async fn write_all(&mut self, buffer: &[u8]) -> ZResult<(), ZConnectionError> {
+    async fn write_all(&mut self, buffer: &[u8]) -> ZResult<(), crate::ZConnectionError> {
         self.socket
             .write_all(buffer)
             .await
-            .map_err(|_| ZConnectionError::CouldNotWrite)
+            .map_err(|_| crate::ZConnectionError::CouldNotWrite)
     }
 }
 
 impl AbstractedTcpRx for EmbassyTcpRx<'_> {
-    async fn read(&mut self, buffer: &mut [u8]) -> ZResult<usize, ZConnectionError> {
+    async fn read(&mut self, buffer: &mut [u8]) -> ZResult<usize, crate::ZConnectionError> {
         self.socket
             .read(buffer)
             .await
-            .map_err(|_| ZConnectionError::CouldNotRead)
+            .map_err(|_| crate::ZConnectionError::CouldNotRead)
     }
 
-    async fn read_exact(&mut self, buffer: &mut [u8]) -> ZResult<(), ZConnectionError> {
+    async fn read_exact(&mut self, buffer: &mut [u8]) -> ZResult<(), crate::ZConnectionError> {
         self.socket
             .read_exact(buffer)
             .await
-            .map_err(|_| ZConnectionError::CouldNotRead)
+            .map_err(|_| crate::ZConnectionError::CouldNotRead)
     }
 }

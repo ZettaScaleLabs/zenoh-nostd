@@ -1,7 +1,8 @@
 use core::{fmt::Debug, time::Duration};
 
 use zenoh_proto::{
-    Reliability, Resolution, WhatAmI, ZCodecError, ZResult, ZenohIdProto,
+    crate::ZCodecError,
+    Reliability, Resolution, WhatAmI, ZResult, ZenohIdProto,
     network::{NetworkBody, QoS},
     transport::{
         Batch,

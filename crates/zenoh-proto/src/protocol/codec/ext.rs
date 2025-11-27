@@ -1,4 +1,4 @@
-use crate::{ZCodecError, ZCodecResult, ZDecode, ZEncode, ZLen, ZReader, ZReaderExt, ZWriter};
+use crate::{ZCodecResult, ZDecode, ZEncode, ZLen, ZReader, ZReaderExt, ZWriter};
 
 const KIND_MASK: u8 = 0b0110_0000;
 
@@ -17,14 +17,14 @@ impl From<ZExtKind> for u8 {
 }
 
 impl TryFrom<u8> for ZExtKind {
-    type Error = ZCodecError;
+    type Error = crate::ZCodecError;
 
     fn try_from(value: u8) -> ZCodecResult<Self> {
         match value & KIND_MASK {
             0b0000_0000 => Ok(ZExtKind::Unit),
             0b0010_0000 => Ok(ZExtKind::U64),
             0b0100_0000 => Ok(ZExtKind::ZStruct),
-            _ => Err(ZCodecError::CouldNotParse),
+            _ => Err(crate::ZCodecError::CouldNotParseHeader),
         }
     }
 }
