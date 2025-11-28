@@ -103,7 +103,7 @@ fn bench_codec_decode_batch() {
     c.bench_function("decode_batch", |b| {
         b.iter(|| {
             let mut r = &data[..len];
-            let mut iter = BatchReader::new(&mut r);
+            let mut iter = ZBatchReader::new(&mut r);
             while iter.next().is_some() {}
         })
     });

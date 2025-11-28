@@ -46,13 +46,38 @@ super::roundtrips!(
     transport,
     Close,
     FrameHeader,
-    FrameBody,
     InitSyn,
     InitAck,
     KeepAlive,
     OpenSyn,
     OpenAck
 );
+
+#[derive(ZEnum, Debug, PartialEq)]
+pub enum FrameBody<'a> {
+    Push(Push<'a>),
+    Request(Request<'a>),
+    Response(Response<'a>),
+    ResponseFinal(ResponseFinal),
+    Interest(Interest<'a>),
+    Declare(Declare<'a>),
+}
+
+impl Framed for FrameBody<'_> {}
+
+impl<'a> FrameBody<'a> {
+    pub fn is(&self, x: &ZMessage<'a>) -> bool {
+        match (self, x) {
+            (FrameBody::Push(x), ZMessage::Push { body: y, .. }) => x == y,
+            (FrameBody::Request(x), ZMessage::Request { body: y, .. }) => x == y,
+            (FrameBody::Response(x), ZMessage::Response { body: y, .. }) => x == y,
+            (FrameBody::ResponseFinal(x), ZMessage::ResponseFinal { body: y, .. }) => x == y,
+            (FrameBody::Interest(x), ZMessage::Interest { body: y, .. }) => x == y,
+            (FrameBody::Declare(x), ZMessage::Declare { body: y, .. }) => x == y,
+            _ => false,
+        }
+    }
+}
 
 #[test]
 fn network_stream() {
@@ -71,26 +96,21 @@ fn network_stream() {
     };
 
     let mut data = [0u8; MAX_PAYLOAD_SIZE * NUM_ITER];
-    let mut writer = data.as_mut_slice();
-    let start = writer.len();
+    let mut batch = ZBatchWriter::new(&mut data, 0);
+
     for msg in &messages {
-        <_ as ZEncode>::z_encode(msg, &mut writer).unwrap();
+        batch
+            .frame(msg, Reliability::Reliable, QoS::DEFAULT)
+            .unwrap();
     }
-    let len = start - writer.len();
 
+    let (_, len) = batch.finalize();
     let mut reader = &data[..len];
-    let frame = Frame {
-        header: FrameHeader {
-            reliability: Reliability::Reliable,
-            sn: 0,
-            qos: QoS::DEFAULT,
-        },
-        msgs: &mut reader,
-    };
+    let batch = ZBatchReader::new(&mut reader);
 
-    for msg in frame {
+    for msg in batch {
         let actual = messages.pop_front().unwrap();
-        assert_eq!(actual, msg.unwrap());
+        assert_eq!(true, actual.is(&msg));
     }
 }
 
@@ -114,35 +134,36 @@ fn transport_stream() {
     };
 
     let mut data = [0u8; MAX_PAYLOAD_SIZE * NUM_ITER];
-    let mut batch = BatchWriter::new(&mut data, 0);
+    let mut batch = ZBatchWriter::new(&mut data, 0);
 
     for (r, msg) in &messages {
-        batch.write_msg(msg, *r, QoS::DEFAULT).unwrap();
+        batch.frame(msg, *r, QoS::DEFAULT).unwrap();
     }
 
-    batch.write_keepalive().unwrap();
+    batch.unframe(&KeepAlive {}).unwrap();
 
     let (_, len) = batch.finalize();
     let mut reader = &data[..len];
-    let mut batch = BatchReader::new(&mut reader);
+    let batch = ZBatchReader::new(&mut reader);
 
     let mut got_keepalive = false;
-    while let Some(expected) = batch.next() {
-        match expected.unwrap() {
-            TransportBody::Frame(frame) => {
-                let reliability = frame.header.reliability;
-                for msg in frame {
-                    let (r, actual) = messages.pop_front().unwrap();
-                    assert_eq!(r, reliability);
-                    assert_eq!(actual, msg.unwrap());
-                }
+    for msg in batch {
+        if let Some((_, actual)) = messages.pop_front() {
+            if actual.is(&msg) {
+                continue;
+            } else {
+                panic!("Frame message did not match");
             }
-            TransportBody::KeepAlive(_) => {
-                assert!(messages.is_empty());
+        }
+
+        match msg {
+            ZMessage::KeepAlive(_) => {
                 got_keepalive = true;
             }
-            _ => panic!("First message should be a Frame, and last a KeepAlive"),
+            _ => panic!("First messages should be Frames, and last a KeepAlive"),
         }
     }
+
+    assert!(messages.is_empty());
     assert!(got_keepalive);
 }
