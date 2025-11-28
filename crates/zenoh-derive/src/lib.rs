@@ -28,6 +28,15 @@ pub fn derive_zenum(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
         .into()
 }
 
+#[proc_macro_derive(ZRU8)]
+pub fn derive_zru8(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
+    let input = syn::parse_macro_input!(input as syn::DeriveInput);
+
+    codec::ru8::derive_zru8(&input)
+        .unwrap_or_else(|err| err.to_compile_error())
+        .into()
+}
+
 #[proc_macro]
 pub fn declare_zerror(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     let input = syn::parse_macro_input!(input as zerror::model::DeclaredErrors);

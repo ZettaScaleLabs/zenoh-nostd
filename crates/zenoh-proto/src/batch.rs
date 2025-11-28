@@ -1,9 +1,6 @@
-use crate::{
-    Reliability, ZCodecError, ZEncode, ZReader, ZReaderExt, ZResult, ZWriter, network::*,
-    transport::*,
-};
+use crate::{exts::*, msgs::*, *};
 
-pub struct Batch<'a> {
+pub struct BatchWriter<'a> {
     writer: ZWriter<'a>,
     frame: Option<Reliability>,
     sn: u32,
@@ -11,7 +8,7 @@ pub struct Batch<'a> {
     initial_length: usize,
 }
 
-impl<'a> Batch<'a> {
+impl<'a> BatchWriter<'a> {
     pub fn new(data: &'a mut [u8], sn: u32) -> Self {
         let writer = data;
         Self {
@@ -29,7 +26,19 @@ impl<'a> Batch<'a> {
         Ok(())
     }
 
+    pub fn write_init_ack(&mut self, x: &InitAck) -> crate::ZResult<(), crate::ZCodecError> {
+        <_ as ZEncode>::z_encode(x, &mut self.writer)?;
+        self.frame = None;
+        Ok(())
+    }
+
     pub fn write_open_syn(&mut self, x: &OpenSyn) -> crate::ZResult<(), crate::ZCodecError> {
+        <_ as ZEncode>::z_encode(x, &mut self.writer)?;
+        self.frame = None;
+        Ok(())
+    }
+
+    pub fn write_open_ack(&mut self, x: &OpenAck) -> crate::ZResult<(), crate::ZCodecError> {
         <_ as ZEncode>::z_encode(x, &mut self.writer)?;
         self.frame = None;
         Ok(())
@@ -41,9 +50,15 @@ impl<'a> Batch<'a> {
         Ok(())
     }
 
+    pub fn write_close(&mut self, x: &Close) -> crate::ZResult<(), crate::ZCodecError> {
+        <_ as ZEncode>::z_encode(x, &mut self.writer)?;
+        self.frame = None;
+        Ok(())
+    }
+
     pub fn write_msg(
         &mut self,
-        x: &NetworkBody,
+        x: &FrameBody,
         r: Reliability,
         qos: QoS,
     ) -> crate::ZResult<(), crate::ZCodecError> {
@@ -76,65 +91,23 @@ impl<'a> Batch<'a> {
 }
 
 #[derive(Debug, PartialEq)]
-pub struct NetworkBatch<'a, 'b> {
-    pub reader: &'b mut ZReader<'a>,
+pub enum TransportBody<'a, 'b> {
+    InitSyn(InitSyn<'a>),
+    InitAck(InitAck<'a>),
+    OpenSyn(OpenSyn<'a>),
+    OpenAck(OpenAck<'a>),
+    Close(Close),
+    KeepAlive(KeepAlive),
+    Frame(Frame<'a, 'b>),
 }
 
-impl<'a, 'b> NetworkBatch<'a, 'b> {
-    pub fn new(reader: &'b mut ZReader<'a>) -> Self {
-        Self { reader }
-    }
-}
-
-impl<'a, 'b> core::iter::Iterator for NetworkBatch<'a, 'b> {
-    type Item = ZResult<NetworkBody<'a>, ZCodecError>;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        if !self.reader.can_read() {
-            return None;
-        }
-
-        let mark = self.reader.mark();
-        let header = self
-            .reader
-            .read_u8()
-            .expect("reader should not be empty at this stage");
-
-        macro_rules! decode {
-            ($ty:ty) => {{
-                match <$ty as $crate::ZBodyDecode>::z_body_decode(self.reader, header) {
-                    Ok(msg) => msg,
-                    Err(err) => {
-                        return Some(Err(err));
-                    }
-                }
-            }};
-        }
-
-        let body = match header & 0b0001_1111 {
-            Push::ID => NetworkBody::Push(decode!(Push)),
-            Request::ID => NetworkBody::Request(decode!(Request)),
-            Response::ID => NetworkBody::Response(decode!(Response)),
-            ResponseFinal::ID => NetworkBody::ResponseFinal(decode!(ResponseFinal)),
-            Interest::ID => NetworkBody::Interest(decode!(Interest)),
-            Declare::ID => NetworkBody::Declare(decode!(Declare)),
-            _ => {
-                self.reader.rewind(mark);
-                return None;
-            }
-        };
-
-        Some(Ok(body))
-    }
-}
-
-pub struct TransportBatch<'a> {
+pub struct BatchReader<'a> {
     reader: ZReader<'a>,
 }
 
-impl<'a> TransportBatch<'a> {
-    pub fn new(reader: ZReader<'a>) -> TransportBatch<'a> {
-        TransportBatch { reader }
+impl<'a> BatchReader<'a> {
+    pub fn new(reader: ZReader<'a>) -> BatchReader<'a> {
+        BatchReader { reader }
     }
 
     #[allow(clippy::should_implement_trait)]
@@ -170,10 +143,9 @@ impl<'a> TransportBatch<'a> {
             KeepAlive::ID => TransportBody::KeepAlive(decode!(KeepAlive)),
             FrameHeader::ID => {
                 let frame = decode!(FrameHeader);
-                let iter = NetworkBatch::new(&mut self.reader);
                 TransportBody::Frame(Frame {
                     header: frame,
-                    msgs: iter,
+                    msgs: &mut self.reader,
                 })
             }
             _ => {

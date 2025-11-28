@@ -14,9 +14,8 @@ pub(crate) use codec::*;
 mod core;
 pub use core::*;
 
-pub mod network;
-pub mod transport;
-pub mod zenoh;
+pub mod msgs;
+pub use msgs::{exts, fields};
 
 mod batch;
 pub use batch::*;

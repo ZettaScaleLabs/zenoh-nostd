@@ -2,7 +2,7 @@ use core::time::Duration;
 
 use embassy_futures::select::select;
 use embassy_time::Timer;
-use zenoh_proto::{Resolution, WhatAmI, ZResult, ZenohIdProto, transport::Batch, zbail};
+use zenoh_proto::{BatchWriter, Resolution, WhatAmI, ZResult, ZenohIdProto, zbail};
 
 use crate::{
     io::link::{Link, LinkRx, LinkTx},
@@ -83,14 +83,14 @@ impl<T: Platform> Transport<T> {
         &mut self,
         tx: &mut [u8],
         sn: &mut u32,
-        mut writer: impl FnMut(&mut Batch) -> ZResult<(), crate::ZCodecError>,
+        mut writer: impl FnMut(&mut BatchWriter) -> ZResult<(), crate::ZCodecError>,
     ) -> ZResult<(), crate::ZTransportError> {
         let (mut batch, space) = if self.link.is_streamed() {
             let space = u16::MIN.to_le_bytes();
             tx[..space.len()].copy_from_slice(&space);
-            (Batch::new(&mut tx[space.len()..], *sn), space.len())
+            (BatchWriter::new(&mut tx[space.len()..], *sn), space.len())
         } else {
-            (Batch::new(tx, *sn), 0)
+            (BatchWriter::new(tx, *sn), 0)
         };
 
         writer(&mut batch)?;
@@ -136,14 +136,14 @@ impl<'a, T: Platform> TransportTx<'a, T> {
         &mut self,
         tx: &mut [u8],
         sn: &mut u32,
-        mut writer: impl FnMut(&mut Batch) -> ZResult<(), crate::ZCodecError>,
+        mut writer: impl FnMut(&mut BatchWriter) -> ZResult<(), crate::ZCodecError>,
     ) -> ZResult<(), crate::ZTransportError> {
         let (mut batch, space) = if self.link.is_streamed() {
             let space = u16::MIN.to_le_bytes();
             tx[..space.len()].copy_from_slice(&space);
-            (Batch::new(&mut tx[space.len()..], *sn), space.len())
+            (BatchWriter::new(&mut tx[space.len()..], *sn), space.len())
         } else {
-            (Batch::new(tx, *sn), 0)
+            (BatchWriter::new(tx, *sn), 0)
         };
 
         writer(&mut batch)?;

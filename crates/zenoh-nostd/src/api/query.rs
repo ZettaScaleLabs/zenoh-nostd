@@ -1,14 +1,7 @@
 use core::str::FromStr;
 
 use heapless::{String, Vec};
-use zenoh_proto::{
-    Encoding, WireExpr, ZResult, keyexpr,
-    network::{
-        NetworkBody, QoS,
-        response::{Response, ResponseFinal},
-    },
-    zenoh::{ConsolidationMode, PushBody, ResponseBody, err::Err, put::Put, reply::Reply},
-};
+use zenoh_proto::{Encoding, WireExpr, ZResult, keyexpr, network::*, zenoh::*};
 
 use crate::{SessionDriver, platform::Platform};
 

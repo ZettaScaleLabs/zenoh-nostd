@@ -1,0 +1,115 @@
+use proc_macro2::TokenStream;
+use syn::DeriveInput;
+
+pub fn derive_zru8(input: &DeriveInput) -> syn::Result<TokenStream> {
+    let ident = &input.ident;
+    let variants = match &input.data {
+        syn::Data::Enum(data_enum) => &data_enum.variants,
+        _ => {
+            return Err(syn::Error::new_spanned(
+                input,
+                "ZEnum can only be derived for enums",
+            ));
+        }
+    }
+    .iter()
+    .map(|variant| {
+        (
+            &variant.ident,
+            variant.discriminant.as_ref().map(|(_, expr)| expr),
+        )
+    });
+
+    if variants.clone().any(|(_, discr)| discr.is_none()) && variants.clone().count() > 1 {
+        return Err(syn::Error::new_spanned(
+            input,
+            "All enum variants must have discriminants",
+        ));
+    }
+
+    let variants_map = variants.clone().map(|(ident, discr)| {
+        let expr = discr.expect("All variants have discriminants");
+
+        quote::quote! {
+            #expr => Ok(Self:: #ident),
+        }
+    });
+
+    let ids = variants.clone().map(|(_, discr)| {
+        let expr = discr.expect("All variants have discriminants");
+
+        quote::quote! {
+            #expr,
+        }
+    });
+
+    let rand = variants.map(|(ident, discr)| {
+        let expr = discr.expect("All variants have discriminants");
+
+        quote::quote! {
+            #expr => Self:: #ident,
+        }
+    });
+
+    Ok(quote::quote! {
+        impl crate::ZBodyLen for #ident {
+            fn z_body_len(&self) -> usize {
+                <u64 as crate::ZLen>::z_len(&((*self as u8) as u64))
+            }
+        }
+
+        impl crate::ZLen for #ident {
+            fn z_len(&self) -> usize {
+                <Self as crate::ZBodyLen>::z_body_len(self)
+            }
+        }
+
+        impl crate::ZBodyEncode for #ident {
+            fn z_body_encode(&self, w: &mut crate::ZWriter) -> crate::ZResult<(), crate::ZCodecError> {
+                <u64 as ZEncode>::z_encode(&((*self as u8) as u64), w)
+            }
+        }
+
+        impl crate::ZEncode for #ident {
+            fn z_encode(&self, w: &mut crate::ZWriter) -> crate::ZResult<(), crate::ZCodecError> {
+                <Self as crate::ZBodyEncode>::z_body_encode(self, w)
+            }
+        }
+
+        impl<'a> crate::ZBodyDecode<'a> for #ident {
+            type Ctx = ();
+
+            fn z_body_decode(r: &mut crate::ZReader<'a>, _: ()) -> crate::ZResult<Self, crate::ZCodecError> {
+                let value = <u64 as ZDecode>::z_decode(r)?;
+                match value as u8 {
+                    #(#variants_map)*
+                    _ => Err(crate::ZCodecError::CouldNotParseField),
+                }
+            }
+        }
+
+        impl<'a> crate::ZDecode<'a> for #ident {
+            fn z_decode(r: &mut crate::ZReader<'a>) -> crate::ZResult<Self, crate::ZCodecError> {
+                <Self as crate::ZBodyDecode<'a>>::z_body_decode(r, ())
+            }
+        }
+
+        impl<'a> crate::ZExt<'a> for #ident {
+            const KIND: ZExtKind = ZExtKind::U64;
+        }
+
+        impl #ident {
+            #[cfg(test)]
+            pub(crate) fn rand(_: &mut crate::ZWriter) -> Self {
+                use rand::seq::SliceRandom;
+                let mut rng = rand::thread_rng();
+                let choices = [#(#ids)*];
+
+                match *choices.choose(&mut rng).unwrap() {
+                    #(#rand)*
+                    _ => unreachable!(),
+                }
+            }
+        }
+    })
+}

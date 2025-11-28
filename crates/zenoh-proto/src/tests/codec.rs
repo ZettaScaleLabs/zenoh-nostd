@@ -1,6 +1,6 @@
 use criterion::Criterion;
 
-use crate::{keyexpr, network::*, transport::*, zenoh::*, *};
+use crate::{exts::*, keyexpr, msgs::*, *};
 
 #[test]
 #[ignore]
@@ -103,7 +103,7 @@ fn bench_codec_decode_batch() {
     c.bench_function("decode_batch", |b| {
         b.iter(|| {
             let mut r = &data[..len];
-            let mut iter = TransportBatch::new(&mut r);
+            let mut iter = BatchReader::new(&mut r);
             while iter.next().is_some() {}
         })
     });

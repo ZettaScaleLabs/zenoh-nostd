@@ -159,3 +159,27 @@ impl TryFrom<u8> for Reliability {
 impl Reliability {
     pub const DEFAULT: Self = Self::Reliable;
 }
+
+#[repr(u8)]
+#[derive(Debug, Default, PartialEq)]
+pub enum Priority {
+    #[default]
+    Data = 5,
+}
+
+impl Priority {
+    pub const DEFAULT: Self = Self::Data;
+}
+
+#[derive(Debug, Default, PartialEq)]
+#[repr(u8)]
+pub enum CongestionControl {
+    #[default]
+    Drop = 0,
+    Block = 1,
+}
+
+impl CongestionControl {
+    pub const DEFAULT: Self = Self::Drop;
+    pub const DEFAULT_DECLARE: Self = Self::Block;
+}

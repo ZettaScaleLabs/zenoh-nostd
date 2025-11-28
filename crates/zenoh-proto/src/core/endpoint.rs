@@ -79,11 +79,11 @@ impl<'a> From<&'a str> for Address<'a> {
 }
 
 #[derive(Clone, PartialEq, Eq, Hash)]
-pub struct EndPoint {
-    pub(super) inner: &'static str,
+pub struct EndPoint<'a> {
+    pub(super) inner: &'a str,
 }
 
-impl EndPoint {
+impl EndPoint<'_> {
     pub fn protocol(&self) -> Protocol<'_> {
         Protocol(protocol(self.inner))
     }
@@ -93,22 +93,22 @@ impl EndPoint {
     }
 }
 
-impl fmt::Display for EndPoint {
+impl fmt::Display for EndPoint<'_> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.write_str(self.inner)
     }
 }
 
-impl fmt::Debug for EndPoint {
+impl fmt::Debug for EndPoint<'_> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{self}")
     }
 }
 
-impl TryFrom<&'static str> for EndPoint {
+impl<'a> TryFrom<&'a str> for EndPoint<'a> {
     type Error = crate::ZEndpointError;
 
-    fn try_from(s: &'static str) -> Result<Self, Self::Error> {
+    fn try_from(s: &'a str) -> Result<Self, Self::Error> {
         let pidx = s
             .find(PROTO_SEPARATOR)
             .and_then(|i| (!s[..i].is_empty() && !s[i + 1..].is_empty()).then_some(i))

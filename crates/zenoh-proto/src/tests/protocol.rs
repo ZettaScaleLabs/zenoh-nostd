@@ -1,4 +1,4 @@
-use crate::{network::*, transport::*, zenoh::*, *};
+use crate::{exts::*, fields::*, msgs::*, *};
 
 use {
     crate::ZWriterExt,
@@ -6,18 +6,13 @@ use {
     rand::{
         Rng,
         distributions::{Alphanumeric, DistString},
-        seq::SliceRandom,
         thread_rng,
     },
 };
 
 mod core;
-
-mod network;
-mod transport;
-mod zenoh;
-
 mod ke;
+mod msgs;
 
 macro_rules! roundtrip {
     ($ty:ty) => {{
@@ -228,7 +223,7 @@ impl<'a> Query<'a> {
         const MAX: usize = 16;
 
         let consolidation = if thread_rng().gen_bool(0.5) {
-            ConsolidationMode::rand()
+            ConsolidationMode::rand(w)
         } else {
             ConsolidationMode::default()
         };
@@ -261,7 +256,7 @@ impl<'a> Reply<'a> {
         let payload = PushBody::rand(w);
 
         let consolidation = if thread_rng().gen_bool(0.5) {
-            ConsolidationMode::rand()
+            ConsolidationMode::rand(w)
         } else {
             ConsolidationMode::default()
         };
@@ -322,15 +317,6 @@ impl<'a> Attachment<'a> {
     }
 }
 
-impl ConsolidationMode {
-    #[cfg(test)]
-    pub(crate) fn rand() -> Self {
-        *[Self::None, Self::Monotonic, Self::Latest, Self::Auto]
-            .choose(&mut thread_rng())
-            .unwrap()
-    }
-}
-
 impl QoS {
     #[cfg(test)]
     pub(crate) fn rand(_: &mut ZWriter) -> Self {
@@ -343,22 +329,6 @@ impl NodeId {
     pub(crate) fn rand(_: &mut ZWriter) -> Self {
         let node_id: u16 = thread_rng().r#gen();
         Self { node_id }
-    }
-}
-
-impl QueryTarget {
-    #[cfg(test)]
-    pub fn rand(_: &mut ZWriter) -> Self {
-        use rand::prelude::*;
-        let mut rng = rand::thread_rng();
-
-        *[
-            QueryTarget::All,
-            QueryTarget::AllComplete,
-            QueryTarget::BestMatching,
-        ]
-        .choose(&mut rng)
-        .unwrap()
     }
 }
 

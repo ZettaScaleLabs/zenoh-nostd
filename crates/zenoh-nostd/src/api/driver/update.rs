@@ -1,11 +1,6 @@
 use core::ops::DerefMut;
 
-use zenoh_proto::{
-    ZResult, keyexpr,
-    network::NetworkBody,
-    transport::{TransportBatch, TransportBody},
-    zenoh::{PushBody, RequestBody, ResponseBody},
-};
+use zenoh_proto::{BatchReader, ZResult, keyexpr, network::NetworkBody, transport::*, zenoh::*};
 
 use crate::{
     ZQuery, ZReply,
@@ -15,7 +10,7 @@ use crate::{
 
 impl<T: Platform> SessionDriver<T> {
     pub(crate) async fn internal_update<'a>(&'static self, reader: &'a [u8]) -> ZResult<()> {
-        let mut batch = TransportBatch::new(reader);
+        let mut batch = BatchReader::new(reader);
 
         while let Some(msg) = batch.next() {
             match msg? {

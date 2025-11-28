@@ -2,13 +2,7 @@ use embassy_sync::{
     blocking_mutex::raw::CriticalSectionRawMutex, channel::DynamicReceiver, mutex::Mutex,
 };
 use zenoh_proto::{
-    Encoding, EndPoint, WireExpr, ZResult, ZenohIdProto, keyexpr,
-    network::{
-        NetworkBody, NodeId, QoS, QueryableInfo,
-        declare::{Declare, DeclareBody, DeclareQueryable, DeclareSubscriber},
-        push::Push,
-    },
-    zenoh::{PushBody, put::Put},
+    Encoding, EndPoint, WireExpr, ZResult, ZenohIdProto, keyexpr, network::*, zenoh::*,
 };
 
 use crate::{

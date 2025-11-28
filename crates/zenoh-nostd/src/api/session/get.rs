@@ -1,9 +1,5 @@
 use embassy_time::{Duration, Instant};
-use zenoh_proto::{
-    Encoding, WireExpr, ZResult, keyexpr,
-    network::{NetworkBody, NodeId, QoS, QueryTarget, request::Request},
-    zenoh::{ConsolidationMode, RequestBody, Value, query::Query},
-};
+use zenoh_proto::{Encoding, WireExpr, ZResult, keyexpr, network::*, zenoh::*};
 
 use crate::{Session, ZRepliesCallback, ZReply, platform::Platform, session::NEXT_ID};
 

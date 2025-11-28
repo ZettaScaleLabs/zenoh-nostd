@@ -11,11 +11,10 @@ use crate::{
     platform::Platform,
 };
 use zenoh_proto::{
-    Field, Resolution, WhatAmI, ZResult, ZenohIdProto,
+    BatchReader, Field, Resolution, WhatAmI, ZResult, ZenohIdProto,
     transport::{
-        TransportBatch, TransportBody,
-        init::{BatchSize, InitExt, InitIdentifier, InitResolution, InitSyn},
-        open::{OpenExt, OpenSyn},
+        BatchSize, InitExt, InitIdentifier, InitResolution, InitSyn, OpenExt, OpenSyn,
+        TransportBody,
     },
     zbail,
 };
@@ -70,7 +69,7 @@ impl<'a> RecvInitAckOut<'a> {
         state: &mut StateTransport,
     ) -> ZResult<Self, crate::ZTransportError> {
         let reader = transport.recv(rx).await?;
-        let mut batch = TransportBatch::new(reader);
+        let mut batch = BatchReader::new(reader);
         let init_ack = loop {
             match batch.next() {
                 Some(Ok(TransportBody::InitAck(i))) => break i,
@@ -166,7 +165,7 @@ impl RecvOpenAckOut {
         transport: &mut Transport<T>,
     ) -> ZResult<Self, crate::ZTransportError> {
         let reader = transport.recv(rx).await?;
-        let mut batch = TransportBatch::new(reader);
+        let mut batch = BatchReader::new(reader);
         let open_ack = loop {
             match batch.next() {
                 Some(Ok(TransportBody::OpenAck(o))) => break o,
