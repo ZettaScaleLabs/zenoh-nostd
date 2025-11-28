@@ -63,6 +63,14 @@ pub fn declare_children(input: &DeclaredErrors) -> TokenStream {
             #display
 
             impl ::core::error::Error for #name {}
+
+
+            #[cfg(feature = "defmt")]
+            impl defmt::Format for #name {
+                fn format(&self, f: defmt::Formatter) {
+                    defmt::write!(f, "{}", defmt::Display2Format(self));
+                }
+            }
         }
     });
 

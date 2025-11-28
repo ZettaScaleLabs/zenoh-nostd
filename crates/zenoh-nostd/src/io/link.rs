@@ -39,7 +39,10 @@ pub(crate) enum Link<T: Platform> {
 }
 
 impl<T: Platform> Link<T> {
-    pub(crate) async fn new(platform: &T, endpoint: EndPoint) -> ZResult<Self, crate::ZLinkError> {
+    pub(crate) async fn new(
+        platform: &T,
+        endpoint: EndPoint<'_>,
+    ) -> ZResult<Self, crate::ZLinkError> {
         let protocol = endpoint.protocol();
         let address = endpoint.address();
 

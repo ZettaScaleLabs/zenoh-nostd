@@ -8,12 +8,13 @@ impl Interest<'_> {
     pub const ID: u8 = 25u8;
 }
 
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[repr(u8)]
+#[derive(ZRU8, Debug, Clone, Copy, PartialEq)]
 pub enum InterestMode {
-    Final,
-    Current,
-    Future,
-    CurrentFuture,
+    Final = 0b00,
+    Current = 0b01,
+    Future = 0b10,
+    CurrentFuture = 0b11,
 }
 
 #[derive(ZStruct, Debug)]
@@ -113,13 +114,7 @@ impl ZHeader for Interest<'_> {
     fn z_header(&self) -> u8 {
         let mut header: u8 = Self::HEADER_BASE;
 
-        header |= match self.mode {
-            InterestMode::Final => 0b00,
-            InterestMode::Current => 0b01,
-            InterestMode::Future => 0b10,
-            InterestMode::CurrentFuture => 0b11,
-        } << 5;
-
+        header |= (self.mode as u8) << 5;
         header |= <_ as ZHeader>::z_header(&self.ext);
 
         header
@@ -161,14 +156,7 @@ impl<'a> ZBodyDecode<'a> for Interest<'a> {
     ) -> crate::ZResult<Self, crate::ZCodecError> {
         let id = <u32 as ZDecode>::z_decode(r)?;
 
-        let mode = match (header >> 5) & 0b11 {
-            0b00 => InterestMode::Final,
-            0b01 => InterestMode::Current,
-            0b10 => InterestMode::Future,
-            0b11 => InterestMode::CurrentFuture,
-            _ => zbail!(crate::ZCodecError::CouldNotParseField),
-        };
-
+        let mode = InterestMode::try_from((header >> 5) & 0b11)?;
         let inner = if mode != InterestMode::Final {
             <_ as ZDecode>::z_decode(r)?
         } else {

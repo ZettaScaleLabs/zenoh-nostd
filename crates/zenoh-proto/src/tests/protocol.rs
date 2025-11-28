@@ -10,7 +10,6 @@ use {
     },
 };
 
-mod core;
 mod ke;
 mod msgs;
 
@@ -1016,18 +1015,5 @@ impl<'a> OpenAck<'a> {
         let ext = OpenExt::rand(w);
 
         Self { lease, sn, ext }
-    }
-}
-
-impl InterestMode {
-    #[cfg(test)]
-    pub fn rand(_: &mut ZWriter) -> Self {
-        match thread_rng().gen_range(0..4) {
-            0 => InterestMode::Final,
-            1 => InterestMode::Current,
-            2 => InterestMode::Future,
-            3 => InterestMode::CurrentFuture,
-            _ => unreachable!(),
-        }
     }
 }

@@ -1,4 +1,4 @@
-use zenoh_proto::{Encoding, WireExpr, keyexpr, network::*, zenoh::*};
+use zenoh_proto::{exts::*, msgs::*, *};
 
 use crate::{SessionDriver, platform::Platform};
 
@@ -17,7 +17,7 @@ impl<T: Platform + 'static> ZPublisher<T> {
     }
 
     pub async fn put(&self, bytes: &[u8]) -> zenoh_proto::ZResult<()> {
-        let msg = NetworkBody::Push(Push {
+        let msg = FrameBody::Push(Push {
             wire_expr: WireExpr::from(self.ke),
             qos: QoS::DEFAULT,
             timestamp: None,

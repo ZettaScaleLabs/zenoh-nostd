@@ -1,6 +1,6 @@
 use core::ops::DerefMut;
 
-use zenoh_proto::{BatchReader, ZResult, keyexpr, network::NetworkBody, transport::*, zenoh::*};
+use zenoh_proto::{msgs::*, *};
 
 use crate::{
     ZQuery, ZReply,
@@ -18,10 +18,10 @@ impl<T: Platform> SessionDriver<T> {
                     zenoh_proto::trace!("Received KeepAlive");
                 }
 
-                TransportBody::Frame(mut frame) => {
-                    for msg in frame.msgs.by_ref() {
+                TransportBody::Frame(frame) => {
+                    for msg in frame {
                         match msg? {
-                            NetworkBody::Push(push) => match push.payload {
+                            FrameBody::Push(push) => match push.payload {
                                 PushBody::Put(put) => {
                                     let zbuf: &'a [u8] = put.payload;
 
@@ -47,7 +47,7 @@ impl<T: Platform> SessionDriver<T> {
                                     }
                                 }
                             },
-                            NetworkBody::Response(resp) => {
+                            FrameBody::Response(resp) => {
                                 let rid = resp.rid;
 
                                 let wke: &'a str = resp.wire_expr.suffix;
@@ -80,7 +80,7 @@ impl<T: Platform> SessionDriver<T> {
                                     callback.call(reply);
                                 }
                             }
-                            NetworkBody::ResponseFinal(resp) => {
+                            FrameBody::ResponseFinal(resp) => {
                                 let rid = resp.rid;
 
                                 let mut cb_guard = self.replies.lock().await;
@@ -88,7 +88,7 @@ impl<T: Platform> SessionDriver<T> {
 
                                 cb.callbacks.remove(&rid);
                             }
-                            NetworkBody::Request(request) => match request.payload {
+                            FrameBody::Request(request) => match request.payload {
                                 RequestBody::Query(query) => {
                                     let rid = request.id;
 

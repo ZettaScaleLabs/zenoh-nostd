@@ -10,14 +10,7 @@ use crate::{
     },
     platform::Platform,
 };
-use zenoh_proto::{
-    BatchReader, Field, Resolution, WhatAmI, ZResult, ZenohIdProto,
-    transport::{
-        BatchSize, InitExt, InitIdentifier, InitResolution, InitSyn, OpenExt, OpenSyn,
-        TransportBody,
-    },
-    zbail,
-};
+use zenoh_proto::{fields::*, msgs::*, zbail, *};
 
 pub(crate) struct StateTransport {
     pub(crate) batch_size: u16,

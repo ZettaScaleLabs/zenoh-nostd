@@ -2,7 +2,7 @@ use core::time::Duration;
 
 use embassy_futures::select::select;
 use embassy_time::Timer;
-use zenoh_proto::{BatchWriter, Resolution, WhatAmI, ZResult, ZenohIdProto, zbail};
+use zenoh_proto::{fields::*, *};
 
 use crate::{
     io::link::{Link, LinkRx, LinkTx},

@@ -11,6 +11,9 @@ check:
     cargo clippy --examples --features=std,log --fix --lib --allow-dirty --allow-staged
     cargo clippy --examples --no-default-features --features=wasm,web_console --target wasm32-unknown-unknown
 
+loc-proto:
+    tokei --files crates/zenoh-proto crates/zenoh-derive/src/codec* --exclude crates/zenoh-proto/src/tests*
+
 test filter="":
     cargo test {{filter}} -p zenoh-proto
 

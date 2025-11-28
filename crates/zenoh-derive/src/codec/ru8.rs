@@ -8,7 +8,7 @@ pub fn derive_zru8(input: &DeriveInput) -> syn::Result<TokenStream> {
         _ => {
             return Err(syn::Error::new_spanned(
                 input,
-                "ZEnum can only be derived for enums",
+                "ZRU8 can only be derived for enums represented as u8",
             ));
         }
     }

@@ -1,9 +1,7 @@
 use embassy_sync::{
     blocking_mutex::raw::CriticalSectionRawMutex, channel::DynamicReceiver, mutex::Mutex,
 };
-use zenoh_proto::{
-    Encoding, EndPoint, WireExpr, ZResult, ZenohIdProto, keyexpr, network::*, zenoh::*,
-};
+use zenoh_proto::{exts::*, fields::*, msgs::*, *};
 
 use crate::{
     ZOwnedQuery, ZPublisher, ZQueryable, ZQueryableCallback, ZReply,
@@ -28,7 +26,7 @@ pub struct Session<T: Platform + 'static> {
 impl<T: Platform + 'static> Session<T> {
     pub async fn new<S1>(
         config: ZConfig<T, S1>,
-        endpoint: EndPoint,
+        endpoint: EndPoint<'_>,
     ) -> ZResult<(Self, SessionDriver<T>)> {
         let transport = TransportMineConfig {
             mine_zid: ZenohIdProto::default(),
@@ -61,7 +59,7 @@ impl<T: Platform + 'static> Session<T> {
     }
 
     pub async fn put(&self, ke: &'static keyexpr, bytes: &[u8]) -> ZResult<()> {
-        let msg = NetworkBody::Push(Push {
+        let msg = FrameBody::Push(Push {
             wire_expr: WireExpr::from(ke),
             qos: QoS::DEFAULT,
             timestamp: None,
@@ -94,7 +92,7 @@ impl<T: Platform + 'static> Session<T> {
         *id += 1;
         let id = *id;
 
-        let msg = NetworkBody::Declare(Declare {
+        let msg = FrameBody::Declare(Declare {
             id: None,
             qos: QoS::DECLARE,
             timestamp: None,
@@ -145,7 +143,7 @@ impl<T: Platform + 'static> Session<T> {
         *id += 1;
         let id = *id;
 
-        let msg = NetworkBody::Declare(Declare {
+        let msg = FrameBody::Declare(Declare {
             id: None,
             qos: QoS::DECLARE,
             timestamp: None,

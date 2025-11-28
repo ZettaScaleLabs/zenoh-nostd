@@ -3,7 +3,7 @@ use core::{fmt::Debug, time::Duration};
 use zenoh_proto::{
     crate::ZCodecError,
     Reliability, Resolution, WhatAmI, ZResult, ZenohIdProto,
-    network::{NetworkBody, QoS},
+    network::{FrameBody, QoS},
     transport::{
         Batch,
         init::{BatchSize, InitExt, InitIdentifier, InitResolution, InitSyn},
@@ -144,11 +144,7 @@ impl Session {
                         continue;
                     }
 
-                    batch.write_msg(
-                        &NetworkBody::Push(push),
-                        Reliability::Reliable,
-                        QoS::DEFAULT,
-                    )?
+                    batch.write_msg(&FrameBody::Push(push), Reliability::Reliable, QoS::DEFAULT)?
                 }
                 EventInner::KeepAlive => {
                     keepalive = true;

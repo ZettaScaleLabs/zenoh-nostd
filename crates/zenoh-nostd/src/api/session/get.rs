@@ -1,5 +1,5 @@
 use embassy_time::{Duration, Instant};
-use zenoh_proto::{Encoding, WireExpr, ZResult, keyexpr, network::*, zenoh::*};
+use zenoh_proto::{exts::*, fields::*, msgs::*, *};
 
 use crate::{Session, ZRepliesCallback, ZReply, platform::Platform, session::NEXT_ID};
 
@@ -67,7 +67,7 @@ impl<'a, T: Platform + 'static> GetBuilder<'a, T> {
             )
             .await?;
 
-        let msg = NetworkBody::Request(Request {
+        let msg = FrameBody::Request(Request {
             id,
             wire_expr: wke,
             payload: RequestBody::Query(Query {

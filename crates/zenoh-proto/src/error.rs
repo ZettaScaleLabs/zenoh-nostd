@@ -121,10 +121,3 @@ macro_rules! zbail {
         return Err($err)
     };
 }
-
-#[cfg(feature = "defmt")]
-impl defmt::Format for ZError {
-    fn format(&self, f: defmt::Formatter) {
-        defmt::write!(f, "ZError({}): {}", *self as u8, self);
-    }
-}

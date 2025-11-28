@@ -54,6 +54,13 @@ pub fn declare_zerror(input: &DeclaredErrors) -> syn::Result<TokenStream> {
 
         impl ::core::error::Error for ZError {}
 
+        #[cfg(feature = "defmt")]
+        impl defmt::Format for ZError {
+            fn format(&self, f: defmt::Formatter) {
+                defmt::write!(f, "{}", defmt::Display2Format(self));
+            }
+        }
+
         #children
     })
 }
