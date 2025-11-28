@@ -31,7 +31,7 @@ pub struct Attachment<'a> {
     pub buffer: &'a [u8],
 }
 
-#[derive(ZExt, Debug, PartialEq)]
+#[derive(ZExt, Clone, Copy, Debug, PartialEq)]
 pub struct QoS {
     pub inner: u8,
 }
