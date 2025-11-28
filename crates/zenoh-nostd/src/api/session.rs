@@ -59,7 +59,7 @@ impl<T: Platform + 'static> Session<T> {
     }
 
     pub async fn put(&self, ke: &'static keyexpr, bytes: &[u8]) -> ZResult<()> {
-        let msg = FrameBody::Push(Push {
+        let msg = Push {
             wire_expr: WireExpr::from(ke),
             qos: QoS::DEFAULT,
             timestamp: None,
@@ -71,7 +71,7 @@ impl<T: Platform + 'static> Session<T> {
                 attachment: None,
                 payload: bytes,
             }),
-        });
+        };
 
         self.driver.as_ref().unwrap().send(msg).await?;
 
@@ -92,13 +92,13 @@ impl<T: Platform + 'static> Session<T> {
         *id += 1;
         let id = *id;
 
-        let msg = FrameBody::Declare(Declare {
+        let msg = Declare {
             id: None,
             qos: QoS::DECLARE,
             timestamp: None,
             nodeid: NodeId::DEFAULT,
             body: DeclareBody::DeclareSubscriber(DeclareSubscriber { id, wire_expr: wke }),
-        });
+        };
 
         self.driver.as_ref().unwrap().send(msg).await?;
 
@@ -143,7 +143,7 @@ impl<T: Platform + 'static> Session<T> {
         *id += 1;
         let id = *id;
 
-        let msg = FrameBody::Declare(Declare {
+        let msg = Declare {
             id: None,
             qos: QoS::DECLARE,
             timestamp: None,
@@ -153,7 +153,7 @@ impl<T: Platform + 'static> Session<T> {
                 wire_expr: wke,
                 qinfo: QueryableInfo::DEFAULT,
             }),
-        });
+        };
 
         self.driver.as_ref().unwrap().send(msg).await?;
 

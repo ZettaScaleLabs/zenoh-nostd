@@ -17,7 +17,7 @@ impl<T: Platform + 'static> ZPublisher<T> {
     }
 
     pub async fn put(&self, bytes: &[u8]) -> zenoh_proto::ZResult<()> {
-        let msg = FrameBody::Push(Push {
+        let msg = Push {
             wire_expr: WireExpr::from(self.ke),
             qos: QoS::DEFAULT,
             timestamp: None,
@@ -29,7 +29,7 @@ impl<T: Platform + 'static> ZPublisher<T> {
                 attachment: None,
                 payload: bytes,
             }),
-        });
+        };
 
         self.driver.send(msg).await
     }

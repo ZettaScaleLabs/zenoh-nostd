@@ -44,7 +44,7 @@ impl SendInitSynIn {
         };
 
         transport
-            .send(tx, &mut 0, |batch| batch.write_init_syn(&msg))
+            .send(tx, &mut 0, |batch| batch.unframe(&msg))
             .await
     }
 }
@@ -62,10 +62,10 @@ impl<'a> RecvInitAckOut<'a> {
         state: &mut StateTransport,
     ) -> ZResult<Self, crate::ZTransportError> {
         let reader = transport.recv(rx).await?;
-        let mut batch = BatchReader::new(reader);
+        let mut batch = ZBatchReader::new(reader);
         let init_ack = loop {
             match batch.next() {
-                Some(Ok(TransportBody::InitAck(i))) => break i,
+                Some(ZMessage::InitAck(i)) => break i,
                 Some(_) => continue,
                 None => zbail!(crate::ZTransportError::InvalidRx),
             }
@@ -131,7 +131,7 @@ impl<'a> SendOpenSynIn<'a> {
         };
 
         transport
-            .send(tx, &mut 0, |batch| batch.write_open_syn(&msg))
+            .send(tx, &mut 0, |batch| batch.unframe(&msg))
             .await?;
 
         let output = SendOpenSynOut {
@@ -158,15 +158,14 @@ impl RecvOpenAckOut {
         transport: &mut Transport<T>,
     ) -> ZResult<Self, crate::ZTransportError> {
         let reader = transport.recv(rx).await?;
-        let mut batch = BatchReader::new(reader);
+        let mut batch = ZBatchReader::new(reader);
         let open_ack = loop {
             match batch.next() {
-                Some(Ok(TransportBody::OpenAck(o))) => break o,
+                Some(ZMessage::OpenAck(i)) => break i,
                 Some(_) => continue,
                 None => zbail!(crate::ZTransportError::InvalidRx),
             }
         };
-
         let output = RecvOpenAckOut {
             other_sn: open_ack.sn,
             other_lease: open_ack.lease,

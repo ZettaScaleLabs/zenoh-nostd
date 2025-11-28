@@ -174,7 +174,7 @@ impl<'a> ZBatchWriter<'a> {
     }
 }
 
-pub trait Unframed {}
+pub trait Unframed: ZEncode {}
 
 impl Unframed for InitSyn<'_> {}
 impl Unframed for InitAck<'_> {}
@@ -183,11 +183,11 @@ impl Unframed for OpenAck<'_> {}
 impl Unframed for KeepAlive {}
 impl Unframed for Close {}
 
-pub trait ZBatchUnframed<T: ZEncode + Unframed> {
+pub trait ZBatchUnframed<T: Unframed> {
     fn unframe(&mut self, x: &T) -> crate::ZResult<(), crate::ZCodecError>;
 }
 
-impl<'a, T: ZEncode + Unframed> ZBatchUnframed<T> for ZBatchWriter<'a> {
+impl<'a, T: Unframed> ZBatchUnframed<T> for ZBatchWriter<'a> {
     fn unframe(&mut self, x: &T) -> crate::ZResult<(), crate::ZCodecError> {
         <_ as ZEncode>::z_encode(x, &mut self.writer)?;
         self.frame = None;
@@ -195,7 +195,7 @@ impl<'a, T: ZEncode + Unframed> ZBatchUnframed<T> for ZBatchWriter<'a> {
     }
 }
 
-pub trait Framed {}
+pub trait Framed: ZEncode {}
 
 impl Framed for Push<'_> {}
 impl Framed for Request<'_> {}
@@ -204,11 +204,11 @@ impl Framed for ResponseFinal {}
 impl Framed for Interest<'_> {}
 impl Framed for Declare<'_> {}
 
-pub trait ZBatchFramed<T: ZEncode + Framed> {
+pub trait ZBatchFramed<T: Framed> {
     fn frame(&mut self, x: &T, r: Reliability, qos: QoS) -> crate::ZResult<(), crate::ZCodecError>;
 }
 
-impl<'a, T: ZEncode + Framed> ZBatchFramed<T> for ZBatchWriter<'a> {
+impl<'a, T: Framed> ZBatchFramed<T> for ZBatchWriter<'a> {
     fn frame(&mut self, x: &T, r: Reliability, qos: QoS) -> crate::ZResult<(), crate::ZCodecError> {
         if self.frame.as_ref().map(|f| f.reliability) != Some(r) {
             <_ as ZEncode>::z_encode(

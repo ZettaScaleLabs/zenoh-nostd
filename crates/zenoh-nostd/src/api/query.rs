@@ -124,7 +124,7 @@ impl<
     pub async fn reply(&self, ke: &'static keyexpr, payload: &[u8]) -> ZResult<()> {
         let wke = WireExpr::from(ke);
 
-        let response = FrameBody::Response(Response {
+        let response = Response {
             rid: self.rid,
             wire_expr: wke,
             qos: QoS::DEFAULT,
@@ -140,13 +140,13 @@ impl<
                     sinfo: None,
                 }),
             }),
-        });
+        };
 
         self.driver.send(response).await
     }
 
     pub async fn err(&self, payload: &[u8]) -> ZResult<()> {
-        let response = FrameBody::Response(Response {
+        let response = Response {
             rid: self.rid,
             wire_expr: WireExpr::from(self.keyexpr()),
             qos: QoS::DEFAULT,
@@ -157,17 +157,17 @@ impl<
                 sinfo: None,
                 payload,
             }),
-        });
+        };
 
         self.driver.send(response).await
     }
 
     pub async fn finalize(&self) -> ZResult<()> {
-        let response: FrameBody<'static> = FrameBody::ResponseFinal(ResponseFinal {
+        let response = ResponseFinal {
             rid: self.rid,
             qos: QoS::DEFAULT,
             timestamp: None,
-        });
+        };
 
         self.driver.send(response).await
     }

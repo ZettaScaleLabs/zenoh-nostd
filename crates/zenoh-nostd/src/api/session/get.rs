@@ -67,7 +67,7 @@ impl<'a, T: Platform + 'static> GetBuilder<'a, T> {
             )
             .await?;
 
-        let msg = FrameBody::Request(Request {
+        let msg = Request {
             id,
             wire_expr: wke,
             payload: RequestBody::Query(Query {
@@ -86,7 +86,7 @@ impl<'a, T: Platform + 'static> GetBuilder<'a, T> {
             budget: None,
             timeout: None,
             target: QueryTarget::DEFAULT,
-        });
+        };
 
         self.session.driver.as_ref().unwrap().send(msg).await?;
 

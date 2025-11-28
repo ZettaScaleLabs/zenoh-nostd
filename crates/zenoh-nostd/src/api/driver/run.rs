@@ -2,7 +2,7 @@ use core::ops::{Deref, DerefMut};
 
 use embassy_futures::select::select;
 use embassy_time::{Instant, Timer};
-use zenoh_proto::{ZError, ZResult};
+use zenoh_proto::{ZBatchUnframed, ZError, ZResult, msgs::KeepAlive};
 
 use crate::{api::driver::SessionDriver, platform::Platform};
 
@@ -51,7 +51,7 @@ impl<T: Platform> SessionDriver<T> {
                         zenoh_proto::trace!("Sending KeepAlive");
 
                         tx.tx
-                            .send(tx.tx_zbuf, &mut 0, |batch| batch.write_keepalive())
+                            .send(tx.tx_zbuf, &mut 0, |batch| batch.unframe(&KeepAlive {}))
                             .await?;
 
                         tx.next_keepalive = Instant::now() + keep_alive_timeout.try_into().unwrap();

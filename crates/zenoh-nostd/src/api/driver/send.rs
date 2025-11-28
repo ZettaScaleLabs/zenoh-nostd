@@ -1,18 +1,18 @@
 use core::ops::DerefMut;
 
 use embassy_time::Instant;
-use zenoh_proto::{exts::*, fields::*, msgs::*, *};
+use zenoh_proto::{exts::*, fields::*, *};
 
 use crate::{api::driver::SessionDriver, platform::Platform};
 
 impl<T: Platform> SessionDriver<T> {
-    pub(crate) async fn send(&'static self, msg: FrameBody<'_>) -> ZResult<()> {
+    pub(crate) async fn send(&'static self, x: impl Framed) -> ZResult<()> {
         let mut tx_guard = self.tx.lock().await;
         let tx = tx_guard.deref_mut();
 
         tx.tx
             .send(tx.tx_zbuf, &mut tx.sn, |batch| {
-                batch.write_msg(&msg, Reliability::Reliable, QoS::DEFAULT)
+                batch.frame(&x, Reliability::Reliable, QoS::DEFAULT)
             })
             .await?;
 
