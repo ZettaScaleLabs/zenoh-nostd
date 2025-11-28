@@ -146,7 +146,7 @@ pub fn parse(r#struct: &ZenohStruct) -> syn::Result<(TokenStream, TokenStream)> 
                             });
 
                             body_ext.push(quote::quote! {
-                                #id => {
+                                #id if ext_kind == < _ as crate::ZExtResolveKind>::ext_kind(& #access) => {
                                     #access = Some(crate::zext_decode::< _ >(r)?);
                                 }
                             });

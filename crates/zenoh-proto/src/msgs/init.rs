@@ -20,9 +20,8 @@ pub struct InitResolution {
 pub struct InitExt<'a> {
     #[zenoh(ext = 0x1)]
     pub qos: Option<HasQoS>,
-    // TODO: support this extension WITH A DIFFERENT ID
-    // #[zenoh(ext = 0x1)]
-    // pub qos_link: Option<QoSLink>,
+    #[zenoh(ext = 0x1)]
+    pub qos_link: Option<QoSLink>,
     #[zenoh(ext = 0x3)]
     pub auth: Option<Auth<'a>>,
     #[zenoh(ext = 0x4)]
@@ -74,6 +73,7 @@ impl InitResolution {
 impl InitExt<'_> {
     pub const DEFAULT: Self = Self {
         qos: None,
+        qos_link: None,
         auth: None,
         mlink: None,
         lowlatency: None,

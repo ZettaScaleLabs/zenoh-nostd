@@ -1,6 +1,6 @@
 use ::core::time::Duration;
 
-use crate::*;
+use crate::{fields::*, *};
 
 #[derive(ZExt, Debug, PartialEq)]
 #[zenoh(header = "ID:4|_:4")]
@@ -94,7 +94,7 @@ impl ZBodyLen for QueryableInfo {
 }
 
 impl ZBodyEncode for QueryableInfo {
-    fn z_body_encode(&self, w: &mut ZWriter) -> crate::ZResult<(), crate::ZCodecError> {
+    fn z_body_encode(&self, w: &mut crate::ZWriter) -> crate::ZResult<(), crate::ZCodecError> {
         <u64 as ZEncode>::z_encode(&self.as_u64(), w)
     }
 }
@@ -102,7 +102,10 @@ impl ZBodyEncode for QueryableInfo {
 impl ZBodyDecode<'_> for QueryableInfo {
     type Ctx = ();
 
-    fn z_body_decode(r: &mut ZReader<'_>, _: ()) -> crate::ZResult<Self, crate::ZCodecError> {
+    fn z_body_decode(
+        r: &mut crate::ZReader<'_>,
+        _: (),
+    ) -> crate::ZResult<Self, crate::ZCodecError> {
         let value = <u64 as ZDecode>::z_decode(r)?;
         let complete = (value & 0b0000_0001) != 0;
         let distance = ((value >> 8) & 0xFFFF) as u16;
@@ -164,7 +167,7 @@ impl ZLen for Duration {
 }
 
 impl ZBodyEncode for Duration {
-    fn z_body_encode(&self, w: &mut ZWriter) -> crate::ZResult<(), crate::ZCodecError> {
+    fn z_body_encode(&self, w: &mut crate::ZWriter) -> crate::ZResult<(), crate::ZCodecError> {
         let v = match self.as_millis() % 1_000 {
             0 => self.as_millis() / 1_000,
             _ => self.as_millis(),
@@ -175,7 +178,7 @@ impl ZBodyEncode for Duration {
 }
 
 impl ZEncode for Duration {
-    fn z_encode(&self, w: &mut ZWriter) -> crate::ZResult<(), crate::ZCodecError> {
+    fn z_encode(&self, w: &mut crate::ZWriter) -> crate::ZResult<(), crate::ZCodecError> {
         <u64 as ZEncode>::z_encode(&(self.as_millis() as u64), w)
     }
 }
@@ -183,7 +186,10 @@ impl ZEncode for Duration {
 impl<'a> ZBodyDecode<'a> for Duration {
     type Ctx = u8;
 
-    fn z_body_decode(r: &mut ZReader<'a>, h: u8) -> crate::ZResult<Self, crate::ZCodecError> {
+    fn z_body_decode(
+        r: &mut crate::ZReader<'a>,
+        h: u8,
+    ) -> crate::ZResult<Self, crate::ZCodecError> {
         let is_seconds = (h & 0b0000_0001) != 0;
         let value = <u64 as ZDecode>::z_decode(r)?;
         if is_seconds {
@@ -195,7 +201,7 @@ impl<'a> ZBodyDecode<'a> for Duration {
 }
 
 impl<'a> ZDecode<'a> for Duration {
-    fn z_decode(r: &mut ZReader<'a>) -> crate::ZResult<Self, crate::ZCodecError> {
+    fn z_decode(r: &mut crate::ZReader<'a>) -> crate::ZResult<Self, crate::ZCodecError> {
         let value = <u64 as ZDecode>::z_decode(r)?;
         Ok(Duration::from_millis(value))
     }
@@ -209,6 +215,11 @@ impl<'a> ZExt<'a> for Duration {
 pub struct HasQoS {}
 
 #[derive(ZExt, Debug, PartialEq)]
+pub struct QoSLink {
+    pub qos: u64,
+}
+
+#[derive(ZExt, Debug, PartialEq)]
 pub struct Auth<'a> {
     #[zenoh(size = remain)]
     pub payload: &'a [u8],
@@ -219,6 +230,15 @@ pub struct MultiLink<'a> {
     #[zenoh(size = remain)]
     pub payload: &'a [u8],
 }
+
+#[derive(ZExt, Debug, PartialEq)]
+pub struct MultiLinkSyn<'a> {
+    #[zenoh(size = remain)]
+    pub payload: &'a [u8],
+}
+
+#[derive(ZExt, Debug, PartialEq)]
+pub struct HasMultiLinkAck {}
 
 #[derive(ZExt, Debug, PartialEq)]
 pub struct HasLowLatency {}

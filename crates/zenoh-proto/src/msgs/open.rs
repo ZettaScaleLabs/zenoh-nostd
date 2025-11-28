@@ -9,6 +9,10 @@ pub struct OpenExt<'a> {
     pub qos: Option<HasQoS>,
     #[zenoh(ext = 0x3)]
     pub auth: Option<Auth<'a>>,
+    #[zenoh(ext = 0x4)]
+    pub mlink_syn: Option<MultiLinkSyn<'a>>,
+    #[zenoh(ext = 0x4)]
+    pub mlink_ack: Option<HasMultiLinkAck>,
     #[zenoh(ext = 0x5)]
     pub lowlatency: Option<HasLowLatency>,
     #[zenoh(ext = 0x6)]
@@ -44,6 +48,8 @@ impl OpenExt<'_> {
     pub const DEFAULT: Self = Self {
         qos: None,
         auth: None,
+        mlink_syn: None,
+        mlink_ack: None,
         lowlatency: None,
         compression: None,
     };

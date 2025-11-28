@@ -1,6 +1,6 @@
 use rand::{Rng, thread_rng};
 
-use crate::{ZWriter, *};
+use crate::{ZWriter, fields::*, *};
 
 const NUM_ITER: usize = 100;
 const MAX_PAYLOAD_SIZE: usize = 512;
@@ -9,7 +9,7 @@ super::roundtrips!(ext, core, Timestamp);
 super::roundtrips!(core, ZenohIdProto, Timestamp, Encoding);
 
 trait RandTimestamp {
-    fn rand(w: &mut ZWriter) -> Self;
+    fn rand(w: &mut crate::ZWriter) -> Self;
 }
 
 impl RandTimestamp for Timestamp {

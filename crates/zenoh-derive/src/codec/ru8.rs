@@ -51,7 +51,26 @@ pub fn derive_zru8(input: &DeriveInput) -> syn::Result<TokenStream> {
         }
     });
 
+    let try_from_map = variants_map.clone();
+
     Ok(quote::quote! {
+        impl From<#ident> for u8 {
+            fn from(value: #ident) -> Self {
+                value as u8
+            }
+        }
+
+        impl TryFrom<u8> for #ident {
+            type Error = crate::ZCodecError;
+
+            fn try_from(value: u8) -> Result<Self, Self::Error> {
+                match value {
+                    #(#try_from_map)*
+                    _ => Err(crate::ZCodecError::CouldNotParseField),
+                }
+            }
+        }
+
         impl crate::ZBodyLen for #ident {
             fn z_body_len(&self) -> usize {
                 <u64 as crate::ZLen>::z_len(&((*self as u8) as u64))

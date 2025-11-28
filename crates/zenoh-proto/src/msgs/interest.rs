@@ -1,4 +1,4 @@
-use crate::{exts::*, *};
+use crate::{exts::*, fields::*, *};
 
 impl InterestInner<'_> {
     const HEADER_SLOT_FULL: u8 = 0b1111_1111;
@@ -139,7 +139,7 @@ impl ZBodyLen for Interest<'_> {
 }
 
 impl ZBodyEncode for Interest<'_> {
-    fn z_body_encode(&self, w: &mut ZWriter) -> crate::ZResult<(), crate::ZCodecError> {
+    fn z_body_encode(&self, w: &mut crate::ZWriter) -> crate::ZResult<(), crate::ZCodecError> {
         <u32 as ZBodyEncode>::z_body_encode(&self.id, w)?;
 
         if self.mode != InterestMode::Final {
@@ -196,7 +196,7 @@ impl ZLen for Interest<'_> {
 }
 
 impl ZEncode for Interest<'_> {
-    fn z_encode(&self, w: &mut ZWriter) -> crate::ZResult<(), crate::ZCodecError> {
+    fn z_encode(&self, w: &mut crate::ZWriter) -> crate::ZResult<(), crate::ZCodecError> {
         let header = <Self as ZHeader>::z_header(self);
         <u8 as ZEncode>::z_encode(&header, w)?;
         <Self as ZBodyEncode>::z_body_encode(self, w)

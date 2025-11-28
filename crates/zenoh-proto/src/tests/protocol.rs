@@ -84,17 +84,6 @@ impl ZenohIdProto {
     }
 }
 
-impl Reliability {
-    #[cfg(test)]
-    pub fn rand(_: &mut ZWriter) -> Self {
-        if thread_rng().gen_bool(0.5) {
-            Reliability::Reliable
-        } else {
-            Reliability::BestEffort
-        }
-    }
-}
-
 impl Resolution {
     #[cfg(test)]
     pub fn rand() -> Self {
@@ -139,7 +128,7 @@ impl<'a> WireExpr<'a> {
     #[cfg(test)]
     pub(crate) fn rand(w: &mut crate::ZWriter<'a>) -> Self {
         let scope = thread_rng().r#gen();
-        let mapping = Mapping::rand();
+        let mapping = Mapping::rand(w);
 
         let suffix = if thread_rng().gen_bool(0.5) {
             let suffix =
@@ -185,8 +174,6 @@ impl<'a> Put<'a> {
     #[cfg(test)]
     pub(crate) fn rand(w: &mut ZWriter<'a>) -> Self {
         let timestamp = thread_rng().gen_bool(0.5).then_some({
-            use crate::core::ZenohIdProto;
-
             let time = uhlc::NTP64(thread_rng().r#gen());
             let id = uhlc::ID::try_from(ZenohIdProto::default().as_le_bytes()).unwrap();
             Timestamp::new(time, id)
@@ -270,7 +257,7 @@ impl<'a> Reply<'a> {
 
 impl EntityGlobalId {
     #[cfg(test)]
-    pub(crate) fn rand(w: &mut ZWriter) -> Self {
+    pub(crate) fn rand(w: &mut crate::ZWriter) -> Self {
         let zid = ZenohIdProto::rand(w);
         let eid: u32 = thread_rng().r#gen();
 
@@ -280,7 +267,7 @@ impl EntityGlobalId {
 
 impl SourceInfo {
     #[cfg(test)]
-    pub(crate) fn rand(w: &mut ZWriter) -> Self {
+    pub(crate) fn rand(w: &mut crate::ZWriter) -> Self {
         let id = EntityGlobalId::rand(w);
         let sn: u32 = thread_rng().r#gen();
 
@@ -348,16 +335,6 @@ impl QueryableInfo {
         Self { complete, distance }
     }
 }
-impl Mapping {
-    #[cfg(test)]
-    pub(crate) fn rand() -> Self {
-        if thread_rng().gen_bool(0.5) {
-            Mapping::Receiver
-        } else {
-            Mapping::Sender
-        }
-    }
-}
 
 impl<'a> Declare<'a> {
     #[cfg(test)]
@@ -375,8 +352,6 @@ impl<'a> Declare<'a> {
         };
 
         let timestamp = rand::thread_rng().gen_bool(0.5).then_some({
-            use crate::ZenohIdProto;
-
             let time = uhlc::NTP64(rand::thread_rng().r#gen());
             let id = uhlc::ID::try_from(ZenohIdProto::default().as_le_bytes()).unwrap();
             Timestamp::new(time, id)
@@ -510,8 +485,6 @@ impl<'a> Push<'a> {
         };
 
         let timestamp = thread_rng().gen_bool(0.5).then_some({
-            use crate::ZenohIdProto;
-
             let time = uhlc::NTP64(thread_rng().r#gen());
             let id = uhlc::ID::try_from(ZenohIdProto::default().as_le_bytes()).unwrap();
             Timestamp::new(time, id)
@@ -550,8 +523,6 @@ impl<'a> Request<'a> {
         };
 
         let timestamp = thread_rng().gen_bool(0.5).then_some({
-            use crate::ZenohIdProto;
-
             let time = uhlc::NTP64(thread_rng().r#gen());
             let id = uhlc::ID::try_from(ZenohIdProto::default().as_le_bytes()).unwrap();
             Timestamp::new(time, id)
@@ -570,7 +541,7 @@ impl<'a> Request<'a> {
         };
 
         trait RandDuration {
-            fn rand(w: &mut ZWriter) -> Self;
+            fn rand(w: &mut crate::ZWriter) -> Self;
         }
 
         impl RandDuration for Duration {
@@ -611,8 +582,6 @@ impl<'a> Response<'a> {
         };
 
         let timestamp = thread_rng().gen_bool(0.5).then_some({
-            use crate::ZenohIdProto;
-
             let time = uhlc::NTP64(thread_rng().r#gen());
             let id = uhlc::ID::try_from(ZenohIdProto::default().as_le_bytes()).unwrap();
             Timestamp::new(time, id)
@@ -637,7 +606,7 @@ impl<'a> Response<'a> {
 
 impl ResponseFinal {
     #[cfg(test)]
-    pub(crate) fn rand(w: &mut ZWriter) -> Self {
+    pub(crate) fn rand(w: &mut crate::ZWriter) -> Self {
         let rid = thread_rng().r#gen();
 
         let qos = if thread_rng().gen_bool(0.5) {
@@ -647,8 +616,6 @@ impl ResponseFinal {
         };
 
         let timestamp = thread_rng().gen_bool(0.5).then_some({
-            use crate::ZenohIdProto;
-
             let time = uhlc::NTP64(thread_rng().r#gen());
             let id = uhlc::ID::try_from(ZenohIdProto::default().as_le_bytes()).unwrap();
             Timestamp::new(time, id)
@@ -698,7 +665,7 @@ impl<'a> InterestInner<'a> {
 
 impl InterestExt {
     #[cfg(test)]
-    pub(crate) fn rand(w: &mut ZWriter) -> Self {
+    pub(crate) fn rand(w: &mut crate::ZWriter) -> Self {
         let qos = if thread_rng().gen_bool(0.5) {
             QoS::rand(w)
         } else {
@@ -706,8 +673,6 @@ impl InterestExt {
         };
 
         let timestamp = thread_rng().gen_bool(0.5).then_some({
-            use crate::ZenohIdProto;
-
             let time = uhlc::NTP64(thread_rng().r#gen());
             let id = uhlc::ID::try_from(ZenohIdProto::default().as_le_bytes()).unwrap();
             Timestamp::new(time, id)
@@ -780,6 +745,21 @@ impl<'a> MultiLink<'a> {
         Self { payload }
     }
 }
+
+impl<'a> MultiLinkSyn<'a> {
+    #[cfg(test)]
+    pub(crate) fn rand(w: &mut crate::ZWriter<'a>) -> Self {
+        let payload = w
+            .write_slot(thread_rng().gen_range(0..=64), |b: &mut [u8]| {
+                thread_rng().fill(b);
+                b.len()
+            })
+            .unwrap();
+
+        Self { payload }
+    }
+}
+
 impl Patch {
     #[cfg(test)]
     pub(crate) fn rand(_: &mut ZWriter) -> Self {
@@ -820,8 +800,8 @@ impl FrameHeader {
 
 impl InitIdentifier {
     #[cfg(test)]
-    pub(crate) fn rand(w: &mut ZWriter) -> Self {
-        let whatami = WhatAmI::rand();
+    pub(crate) fn rand(w: &mut crate::ZWriter) -> Self {
+        let whatami = WhatAmI::rand(w);
         let zid = ZenohIdProto::rand(w);
         Self { whatami, zid }
     }
@@ -839,11 +819,25 @@ impl InitResolution {
     }
 }
 
+impl QoSLink {
+    #[cfg(test)]
+    pub(crate) fn rand(_: &mut ZWriter) -> Self {
+        Self {
+            qos: thread_rng().r#gen(),
+        }
+    }
+}
+
 impl<'a> InitExt<'a> {
     #[cfg(test)]
     pub(crate) fn rand(w: &mut ZWriter<'a>) -> Self {
         let qos = if rand::thread_rng().gen_bool(0.5) {
             Some(HasQoS {})
+        } else {
+            None
+        };
+        let qos_link = if rand::thread_rng().gen_bool(0.5) {
+            Some(QoSLink::rand(w))
         } else {
             None
         };
@@ -875,6 +869,7 @@ impl<'a> InitExt<'a> {
 
         Self {
             qos,
+            qos_link,
             auth,
             mlink,
             lowlatency,
@@ -956,6 +951,18 @@ impl<'a> OpenExt<'a> {
             None
         };
 
+        let mlink_syn = if rand::thread_rng().gen_bool(0.5) {
+            Some(MultiLinkSyn::rand(w))
+        } else {
+            None
+        };
+
+        let mlink_ack = if rand::thread_rng().gen_bool(0.5) {
+            Some(HasMultiLinkAck {})
+        } else {
+            None
+        };
+
         let lowlatency = if rand::thread_rng().gen_bool(0.5) {
             Some(HasLowLatency {})
         } else {
@@ -971,6 +978,8 @@ impl<'a> OpenExt<'a> {
         OpenExt {
             qos,
             auth,
+            mlink_syn,
+            mlink_ack,
             lowlatency,
             compression,
         }

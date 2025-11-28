@@ -1,5 +1,3 @@
-use crate::{ZReader, ZWriter};
-
 mod array;
 mod bytes;
 mod str;
@@ -10,14 +8,14 @@ pub trait ZBodyLen {
 }
 
 pub trait ZBodyEncode {
-    fn z_body_encode(&self, w: &mut ZWriter) -> crate::ZResult<(), crate::ZCodecError>;
+    fn z_body_encode(&self, w: &mut crate::ZWriter) -> crate::ZResult<(), crate::ZCodecError>;
 }
 
 pub trait ZBodyDecode<'a>: Sized {
     type Ctx;
 
     fn z_body_decode(
-        r: &mut ZReader<'a>,
+        r: &mut crate::ZReader<'a>,
         ctx: Self::Ctx,
     ) -> crate::ZResult<Self, crate::ZCodecError>;
 }
@@ -31,11 +29,11 @@ pub trait ZLen: ZBodyLen {
 }
 
 pub trait ZEncode: ZBodyEncode {
-    fn z_encode(&self, w: &mut ZWriter) -> crate::ZResult<(), crate::ZCodecError>;
+    fn z_encode(&self, w: &mut crate::ZWriter) -> crate::ZResult<(), crate::ZCodecError>;
 }
 
 pub trait ZDecode<'a>: Sized + ZBodyDecode<'a> {
-    fn z_decode(r: &mut ZReader<'a>) -> crate::ZResult<Self, crate::ZCodecError>;
+    fn z_decode(r: &mut crate::ZReader<'a>) -> crate::ZResult<Self, crate::ZCodecError>;
 }
 
 pub trait ZExtCount {

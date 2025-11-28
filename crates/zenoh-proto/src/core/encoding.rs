@@ -1,8 +1,5 @@
-use crate::{
-    ZBodyDecode, ZBodyEncode, ZBodyLen, ZDecode, ZEncode, ZLen, ZReader, ZReaderExt, ZWriter,
-};
+use crate::*;
 
-use core::fmt::Debug;
 #[derive(Debug, PartialEq)]
 pub struct Encoding<'a> {
     pub id: u16,
@@ -39,7 +36,7 @@ impl ZBodyLen for Encoding<'_> {
 }
 
 impl ZBodyEncode for Encoding<'_> {
-    fn z_body_encode(&self, w: &mut ZWriter) -> crate::ZResult<(), crate::ZCodecError> {
+    fn z_body_encode(&self, w: &mut crate::ZWriter) -> crate::ZResult<(), crate::ZCodecError> {
         let mut id = (self.id as u32) << 1;
 
         if self.schema.is_some() {
@@ -60,7 +57,10 @@ impl ZBodyEncode for Encoding<'_> {
 impl<'a> ZBodyDecode<'a> for Encoding<'a> {
     type Ctx = ();
 
-    fn z_body_decode(r: &mut ZReader<'a>, _: ()) -> crate::ZResult<Self, crate::ZCodecError> {
+    fn z_body_decode(
+        r: &mut crate::ZReader<'a>,
+        _: (),
+    ) -> crate::ZResult<Self, crate::ZCodecError> {
         let id = <u32 as ZDecode>::z_decode(r)?;
 
         let has_schema = (id as u8) & Self::FLAG_S != 0;

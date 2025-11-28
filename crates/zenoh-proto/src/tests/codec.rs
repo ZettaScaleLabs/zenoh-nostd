@@ -1,6 +1,6 @@
 use criterion::Criterion;
 
-use crate::{exts::*, keyexpr, msgs::*, *};
+use crate::{exts::*, fields::*, keyexpr, msgs::*, *};
 
 #[test]
 #[ignore]

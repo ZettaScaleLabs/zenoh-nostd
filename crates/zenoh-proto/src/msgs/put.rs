@@ -1,4 +1,4 @@
-use crate::{exts::*, *};
+use crate::{exts::*, fields::*, *};
 
 #[derive(ZStruct, Debug, PartialEq)]
 #[zenoh(header = "Z|E|T|ID:5=0x1")]

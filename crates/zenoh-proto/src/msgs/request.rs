@@ -1,6 +1,6 @@
 use ::core::time::Duration;
 
-use crate::{exts::*, msgs::*, *};
+use crate::{exts::*, fields::*, msgs::*, *};
 
 #[derive(ZEnum, Debug, PartialEq)]
 pub enum RequestBody<'a> {

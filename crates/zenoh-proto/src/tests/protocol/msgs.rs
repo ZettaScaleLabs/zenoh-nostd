@@ -1,6 +1,6 @@
 use rand::{Rng, thread_rng};
 
-use crate::{exts::*, msgs::*, *};
+use crate::{exts::*, fields::*, msgs::*, *};
 
 const NUM_ITER: usize = 100;
 const MAX_PAYLOAD_SIZE: usize = 512;

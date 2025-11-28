@@ -1,4 +1,4 @@
-use crate::{exts::*, msgs::*, *};
+use crate::{exts::*, fields::*, msgs::*, *};
 
 pub struct BatchWriter<'a> {
     writer: ZWriter<'a>,
