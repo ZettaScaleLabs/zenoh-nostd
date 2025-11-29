@@ -181,7 +181,7 @@ pub(crate) async fn open_link<T: Platform>(
     tx: &mut [u8],
     rx: &mut [u8],
 ) -> ZResult<(Transport<T>, TransportConfig), crate::ZTransportError> {
-    let batch_size = link.mtu();
+    let batch_size = link.mtu().min(rx.len() as u16);
 
     let mut transport = Transport { link };
 
