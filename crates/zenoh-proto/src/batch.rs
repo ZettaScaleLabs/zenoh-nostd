@@ -29,6 +29,10 @@ pub enum ZMessage<'a> {
         frame: FrameHeader,
         body: Interest<'a>,
     },
+    InterestFinal {
+        frame: FrameHeader,
+        body: InterestFinal,
+    },
     Declare {
         frame: FrameHeader,
         body: Declare<'a>,
@@ -83,6 +87,7 @@ impl<'a> Iterator for ZBatchReader<'a> {
 
         let ack = header & 0b0010_0000 != 0;
         let net = self.frame.is_some();
+        let ifinal = header & 0b0110_0000 == 0;
 
         let body = match header & 0b0001_1111 {
             InitAck::ID if ack => ZMessage::InitAck(decode!(InitAck)),
@@ -120,6 +125,12 @@ impl<'a> Iterator for ZBatchReader<'a> {
                     .frame
                     .expect("Should be a frame. Something went wrong."),
                 body: decode!(ResponseFinal),
+            },
+            InterestFinal::ID if net && ifinal => ZMessage::InterestFinal {
+                frame: self
+                    .frame
+                    .expect("Should be a frame. Something went wrong."),
+                body: decode!(InterestFinal),
             },
             Interest::ID if net => ZMessage::Interest {
                 frame: self

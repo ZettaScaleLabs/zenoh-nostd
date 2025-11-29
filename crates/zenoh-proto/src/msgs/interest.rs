@@ -1,13 +1,5 @@
 use crate::{exts::*, fields::*, *};
 
-impl InterestInner<'_> {
-    const HEADER_SLOT_FULL: u8 = 0b1111_1111;
-}
-impl Interest<'_> {
-    const HEADER_BASE: u8 = 25u8;
-    pub const ID: u8 = 25u8;
-}
-
 #[repr(u8)]
 #[derive(ZRU8, Debug, Clone, Copy, PartialEq)]
 pub enum InterestMode {
@@ -38,17 +30,26 @@ pub struct InterestExt {
     pub nodeid: NodeId,
 }
 
-#[derive(Debug, PartialEq)]
-// #[zenoh(header = "Z|MODE:2|ID:5=0x19")]
+#[derive(ZStruct, Debug, PartialEq)]
+#[zenoh(header = "Z|MODE:2|ID:5=0x19")]
 pub struct Interest<'a> {
     pub id: u32,
-    // #[zenoh(header = MODE)]
+
+    #[zenoh(header = MODE)]
     pub mode: InterestMode,
 
-    // #[zenoh(headercond(MODE) != InterestMode::FINAL)]
     pub inner: InterestInner<'a>,
 
-    // #[zenoh(flatten)]
+    #[zenoh(flatten)]
+    pub ext: InterestExt,
+}
+
+#[derive(ZStruct, Debug, PartialEq)]
+#[zenoh(header = "Z|MODE:2=0x0|ID:5=0x19")]
+pub struct InterestFinal {
+    pub id: u32,
+
+    #[zenoh(flatten)]
     pub ext: InterestExt,
 }
 
@@ -107,93 +108,5 @@ impl InterestOptions {
 
     pub const fn aggregate(&self) -> bool {
         self.options & Self::AGGREGATE.options != 0
-    }
-}
-
-impl ZHeader for Interest<'_> {
-    fn z_header(&self) -> u8 {
-        let mut header: u8 = Self::HEADER_BASE;
-
-        header |= (self.mode as u8) << 5;
-        header |= <_ as ZHeader>::z_header(&self.ext);
-
-        header
-    }
-}
-
-impl ZBodyLen for Interest<'_> {
-    fn z_body_len(&self) -> usize {
-        <u32 as ZLen>::z_len(&self.id)
-            + if self.mode != InterestMode::Final {
-                <_ as ZLen>::z_len(&self.inner)
-            } else {
-                0usize
-            }
-            + self.ext.z_body_len()
-    }
-}
-
-impl ZBodyEncode for Interest<'_> {
-    fn z_body_encode(&self, w: &mut crate::ZWriter) -> crate::ZResult<(), crate::ZCodecError> {
-        <u32 as ZBodyEncode>::z_body_encode(&self.id, w)?;
-
-        if self.mode != InterestMode::Final {
-            <_ as ZEncode>::z_encode(&self.inner, w)?;
-        }
-
-        <_ as ZBodyEncode>::z_body_encode(&self.ext, w)?;
-
-        Ok(())
-    }
-}
-
-impl<'a> ZBodyDecode<'a> for Interest<'a> {
-    type Ctx = u8;
-
-    fn z_body_decode(
-        r: &mut crate::ZReader<'a>,
-        header: u8,
-    ) -> crate::ZResult<Self, crate::ZCodecError> {
-        let id = <u32 as ZDecode>::z_decode(r)?;
-
-        let mode = InterestMode::try_from((header >> 5) & 0b11)?;
-        let inner = if mode != InterestMode::Final {
-            <_ as ZDecode>::z_decode(r)?
-        } else {
-            InterestInner {
-                options: 0,
-                wire_expr: None,
-            }
-        };
-
-        let ext = <_ as ZBodyDecode>::z_body_decode(r, header)?;
-
-        Ok(Self {
-            id,
-            mode,
-            inner,
-            ext,
-        })
-    }
-}
-
-impl ZLen for Interest<'_> {
-    fn z_len(&self) -> usize {
-        1usize + <Self as ZBodyLen>::z_body_len(self)
-    }
-}
-
-impl ZEncode for Interest<'_> {
-    fn z_encode(&self, w: &mut crate::ZWriter) -> crate::ZResult<(), crate::ZCodecError> {
-        let header = <Self as ZHeader>::z_header(self);
-        <u8 as ZEncode>::z_encode(&header, w)?;
-        <Self as ZBodyEncode>::z_body_encode(self, w)
-    }
-}
-
-impl<'a> ZDecode<'a> for Interest<'a> {
-    fn z_decode(r: &mut crate::ZReader<'a>) -> crate::ZResult<Self, crate::ZCodecError> {
-        let header = <u8 as ZDecode>::z_decode(r)?;
-        <Self as ZBodyDecode>::z_body_decode(r, header)
     }
 }

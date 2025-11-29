@@ -65,11 +65,11 @@ impl<T: Platform + 'static> Session<T> {
             timestamp: None,
             nodeid: NodeId::DEFAULT,
             payload: PushBody::Put(Put {
+                payload: bytes,
                 timestamp: None,
                 encoding: Encoding::empty(),
                 sinfo: None,
                 attachment: None,
-                payload: bytes,
             }),
         };
 

@@ -48,6 +48,7 @@ pub fn parse(r#struct: &ZenohStruct) -> syn::Result<TokenStream> {
         Ok(quote::quote! {
             impl #impl_generics #ident #ty_generics #where_clause {
                 const HEADER_BASE: u8 = #base_header;
+                const HEADER_SLOT_FULL: u8 = 0b1111_1111;
 
                 #(#const_defs)*
             }

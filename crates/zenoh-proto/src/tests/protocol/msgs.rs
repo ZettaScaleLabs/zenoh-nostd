@@ -32,6 +32,7 @@ super::roundtrips!(
     DeclareBody,
     Declare,
     Interest,
+    InterestFinal,
     Push,
     Request,
     Response,
@@ -60,6 +61,7 @@ pub enum FrameBody<'a> {
     Response(Response<'a>),
     ResponseFinal(ResponseFinal),
     Interest(Interest<'a>),
+    InterestFinal(InterestFinal),
     Declare(Declare<'a>),
 }
 
@@ -73,6 +75,7 @@ impl<'a> FrameBody<'a> {
             (FrameBody::Response(x), ZMessage::Response { body: y, .. }) => x == y,
             (FrameBody::ResponseFinal(x), ZMessage::ResponseFinal { body: y, .. }) => x == y,
             (FrameBody::Interest(x), ZMessage::Interest { body: y, .. }) => x == y,
+            (FrameBody::InterestFinal(x), ZMessage::InterestFinal { body: y, .. }) => x == y,
             (FrameBody::Declare(x), ZMessage::Declare { body: y, .. }) => x == y,
             _ => false,
         }

@@ -6,6 +6,7 @@ use {
     rand::{
         Rng,
         distributions::{Alphanumeric, DistString},
+        seq::SliceRandom,
         thread_rng,
     },
 };
@@ -695,17 +696,16 @@ impl<'a> Interest<'a> {
     #[cfg(test)]
     pub(crate) fn rand(w: &mut ZWriter<'a>) -> Self {
         let id = thread_rng().r#gen();
-        let mode = InterestMode::rand(w);
+        let mode = [
+            InterestMode::Current,
+            InterestMode::CurrentFuture,
+            InterestMode::Future,
+        ]
+        .choose(&mut thread_rng())
+        .cloned()
+        .unwrap();
 
-        let inner = if mode != InterestMode::Final {
-            InterestInner::rand(w)
-        } else {
-            InterestInner {
-                options: 0,
-                wire_expr: None,
-            }
-        };
-
+        let inner = InterestInner::rand(w);
         let ext = InterestExt::rand(w);
 
         Self {
@@ -714,6 +714,16 @@ impl<'a> Interest<'a> {
             inner,
             ext,
         }
+    }
+}
+
+impl InterestFinal {
+    #[cfg(test)]
+    pub(crate) fn rand(w: &mut ZWriter) -> Self {
+        let id = thread_rng().r#gen();
+        let ext = InterestExt::rand(w);
+
+        Self { id, ext }
     }
 }
 
