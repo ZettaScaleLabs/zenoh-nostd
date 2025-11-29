@@ -9,11 +9,7 @@ use {
         frame::{FrameView, OpCode},
     },
     zenoh_nostd::{
-        ZResult,
-        platform::{
-            crate::ZConnectionError,
-            ws::{AbstractedWsRx, AbstractedWsStream, AbstractedWsTx},
-        },
+        platform::ws::{AbstractedWsRx, AbstractedWsStream, AbstractedWsTx},
         zbail,
     },
 };
@@ -63,25 +59,37 @@ impl AbstractedWsStream for WasmWsStream {
         (tx, rx)
     }
 
-    async fn write(&mut self, buffer: &[u8]) -> ZResult<usize, crate::ZConnectionError> {
+    async fn write(
+        &mut self,
+        buffer: &[u8],
+    ) -> zenoh_nostd::ZResult<usize, zenoh_nostd::ZConnectionError> {
         let mut tx = WasmWsTx {
             sink: &mut self.sink,
         };
         tx.write(buffer).await
     }
 
-    async fn write_all(&mut self, buffer: &[u8]) -> ZResult<(), crate::ZConnectionError> {
+    async fn write_all(
+        &mut self,
+        buffer: &[u8],
+    ) -> zenoh_nostd::ZResult<(), zenoh_nostd::ZConnectionError> {
         self.write(buffer).await.map(|_| ())
     }
 
-    async fn read(&mut self, buffer: &mut [u8]) -> ZResult<usize, crate::ZConnectionError> {
+    async fn read(
+        &mut self,
+        buffer: &mut [u8],
+    ) -> zenoh_nostd::ZResult<usize, zenoh_nostd::ZConnectionError> {
         let mut rx = WasmWsRx {
             stream: &mut self.stream,
         };
         rx.read(buffer).await
     }
 
-    async fn read_exact(&mut self, buffer: &mut [u8]) -> ZResult<(), crate::ZConnectionError> {
+    async fn read_exact(
+        &mut self,
+        buffer: &mut [u8],
+    ) -> zenoh_nostd::ZResult<(), zenoh_nostd::ZConnectionError> {
         let mut rx = WasmWsRx {
             stream: &mut self.stream,
         };
@@ -90,24 +98,33 @@ impl AbstractedWsStream for WasmWsStream {
 }
 
 impl AbstractedWsTx for WasmWsTx<'_> {
-    async fn write(&mut self, buffer: &[u8]) -> ZResult<usize, crate::ZConnectionError> {
+    async fn write(
+        &mut self,
+        buffer: &[u8],
+    ) -> zenoh_nostd::ZResult<usize, zenoh_nostd::ZConnectionError> {
         let item = FrameView::binary(buffer.to_vec());
         self.sink
             .send(item)
             .await
-            .map_err(|_| crate::ZConnectionError::CouldNotWrite)
+            .map_err(|_| zenoh_nostd::ZConnectionError::CouldNotWrite)
             .map(|_| buffer.len())
     }
 
-    async fn write_all(&mut self, buffer: &[u8]) -> ZResult<(), crate::ZConnectionError> {
+    async fn write_all(
+        &mut self,
+        buffer: &[u8],
+    ) -> zenoh_nostd::ZResult<(), zenoh_nostd::ZConnectionError> {
         self.write(buffer).await.map(|_| ())
     }
 }
 
 impl AbstractedWsRx for WasmWsRx<'_> {
-    async fn read(&mut self, buffer: &mut [u8]) -> ZResult<usize, crate::ZConnectionError> {
+    async fn read(
+        &mut self,
+        buffer: &mut [u8],
+    ) -> zenoh_nostd::ZResult<usize, zenoh_nostd::ZConnectionError> {
         let Some(Ok(frame)) = self.stream.next().await else {
-            return Err(crate::ZConnectionError::CouldNotRead);
+            return Err(zenoh_nostd::ZConnectionError::CouldNotRead);
         };
         match frame.opcode {
             OpCode::Binary => {
@@ -115,20 +132,23 @@ impl AbstractedWsRx for WasmWsRx<'_> {
                 buffer[..len].copy_from_slice(&frame.payload[..len]);
                 Ok(len)
             }
-            _ => zbail!(crate::ZConnectionError::CouldNotRead),
+            _ => zbail!(zenoh_nostd::ZConnectionError::CouldNotRead),
         }
     }
 
-    async fn read_exact(&mut self, buffer: &mut [u8]) -> ZResult<(), crate::ZConnectionError> {
+    async fn read_exact(
+        &mut self,
+        buffer: &mut [u8],
+    ) -> zenoh_nostd::ZResult<(), zenoh_nostd::ZConnectionError> {
         let Some(Ok(frame)) = self.stream.next().await else {
-            return Err(crate::ZConnectionError::CouldNotRead);
+            return Err(zenoh_nostd::ZConnectionError::CouldNotRead);
         };
         match (frame.opcode, frame.payload.len()) {
             (OpCode::Binary, len) if len == buffer.len() => {
                 buffer.copy_from_slice(&frame.payload);
                 Ok(())
             }
-            _ => zbail!(crate::ZConnectionError::CouldNotRead),
+            _ => zbail!(zenoh_nostd::ZConnectionError::CouldNotRead),
         }
     }
 }

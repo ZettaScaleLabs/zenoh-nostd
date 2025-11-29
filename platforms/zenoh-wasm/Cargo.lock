@@ -1517,7 +1517,6 @@ name = "zenoh-proto"
 version = "0.1.0"
 dependencies = [
  "uhlc",
- "web-sys",
  "zenoh-derive",
 ]
 

@@ -11,11 +11,10 @@ rust-version = "1.90.0"
 version = "0.1.0"
 
 [dependencies]
-zenoh-nostd = { version = "0.1.0", path = "../../crates/zenoh-nostd", features = ["web_console"] }
+zenoh-nostd = { version = "0.1.0", path = "../../crates/zenoh-nostd" }
 futures-util = "0.3"
 getrandom = { version = "0.2", features = ["std", "js"] }
 yawc = "0.2.7"
-
 
 [patch.crates-io.yawc]
 git = "https://github.com/infinitefield/yawc"

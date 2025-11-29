@@ -1,12 +1,6 @@
 use embassy_net::tcp::{TcpReader, TcpSocket, TcpWriter};
 use embedded_io_async::{Read, Write};
-use zenoh_nostd::{
-    ZResult,
-    platform::{
-        crate::ZConnectionError,
-        tcp::{AbstractedTcpRx, AbstractedTcpStream, AbstractedTcpTx},
-    },
-};
+use zenoh_nostd::platform::tcp::{AbstractedTcpRx, AbstractedTcpStream, AbstractedTcpTx};
 
 pub struct EmbassyTcpStream {
     pub socket: TcpSocket<'static>,
@@ -43,63 +37,87 @@ impl AbstractedTcpStream for EmbassyTcpStream {
         (tx, rx)
     }
 
-    async fn write(&mut self, buffer: &[u8]) -> ZResult<usize, crate::ZConnectionError> {
+    async fn write(
+        &mut self,
+        buffer: &[u8],
+    ) -> zenoh_nostd::ZResult<usize, zenoh_nostd::ZConnectionError> {
         self.socket
             .write(buffer)
             .await
-            .map_err(|_| crate::ZConnectionError::CouldNotWrite)
+            .map_err(|_| zenoh_nostd::ZConnectionError::CouldNotWrite)
     }
 
-    async fn write_all(&mut self, buffer: &[u8]) -> ZResult<(), crate::ZConnectionError> {
+    async fn write_all(
+        &mut self,
+        buffer: &[u8],
+    ) -> zenoh_nostd::ZResult<(), zenoh_nostd::ZConnectionError> {
         self.socket
             .write_all(buffer)
             .await
-            .map_err(|_| crate::ZConnectionError::CouldNotWrite)
+            .map_err(|_| zenoh_nostd::ZConnectionError::CouldNotWrite)
     }
 
-    async fn read(&mut self, buffer: &mut [u8]) -> ZResult<usize, crate::ZConnectionError> {
+    async fn read(
+        &mut self,
+        buffer: &mut [u8],
+    ) -> zenoh_nostd::ZResult<usize, zenoh_nostd::ZConnectionError> {
         self.socket
             .read(buffer)
             .await
-            .map_err(|_| crate::ZConnectionError::CouldNotRead)
+            .map_err(|_| zenoh_nostd::ZConnectionError::CouldNotRead)
     }
 
-    async fn read_exact(&mut self, buffer: &mut [u8]) -> ZResult<(), crate::ZConnectionError> {
+    async fn read_exact(
+        &mut self,
+        buffer: &mut [u8],
+    ) -> zenoh_nostd::ZResult<(), zenoh_nostd::ZConnectionError> {
         self.socket
             .read_exact(buffer)
             .await
-            .map_err(|_| crate::ZConnectionError::CouldNotRead)
+            .map_err(|_| zenoh_nostd::ZConnectionError::CouldNotRead)
     }
 }
 
 impl AbstractedTcpTx for EmbassyTcpTx<'_> {
-    async fn write(&mut self, buffer: &[u8]) -> ZResult<usize, crate::ZConnectionError> {
+    async fn write(
+        &mut self,
+        buffer: &[u8],
+    ) -> zenoh_nostd::ZResult<usize, zenoh_nostd::ZConnectionError> {
         self.socket
             .write(buffer)
             .await
-            .map_err(|_| crate::ZConnectionError::CouldNotWrite)
+            .map_err(|_| zenoh_nostd::ZConnectionError::CouldNotWrite)
     }
 
-    async fn write_all(&mut self, buffer: &[u8]) -> ZResult<(), crate::ZConnectionError> {
+    async fn write_all(
+        &mut self,
+        buffer: &[u8],
+    ) -> zenoh_nostd::ZResult<(), zenoh_nostd::ZConnectionError> {
         self.socket
             .write_all(buffer)
             .await
-            .map_err(|_| crate::ZConnectionError::CouldNotWrite)
+            .map_err(|_| zenoh_nostd::ZConnectionError::CouldNotWrite)
     }
 }
 
 impl AbstractedTcpRx for EmbassyTcpRx<'_> {
-    async fn read(&mut self, buffer: &mut [u8]) -> ZResult<usize, crate::ZConnectionError> {
+    async fn read(
+        &mut self,
+        buffer: &mut [u8],
+    ) -> zenoh_nostd::ZResult<usize, zenoh_nostd::ZConnectionError> {
         self.socket
             .read(buffer)
             .await
-            .map_err(|_| crate::ZConnectionError::CouldNotRead)
+            .map_err(|_| zenoh_nostd::ZConnectionError::CouldNotRead)
     }
 
-    async fn read_exact(&mut self, buffer: &mut [u8]) -> ZResult<(), crate::ZConnectionError> {
+    async fn read_exact(
+        &mut self,
+        buffer: &mut [u8],
+    ) -> zenoh_nostd::ZResult<(), zenoh_nostd::ZConnectionError> {
         self.socket
             .read_exact(buffer)
             .await
-            .map_err(|_| crate::ZConnectionError::CouldNotRead)
+            .map_err(|_| zenoh_nostd::ZConnectionError::CouldNotRead)
     }
 }
