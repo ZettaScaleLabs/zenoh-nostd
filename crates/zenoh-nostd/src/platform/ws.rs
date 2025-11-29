@@ -16,46 +16,46 @@ pub trait AbstractedWsStream {
     fn write(
         &mut self,
         buffer: &[u8],
-    ) -> impl core::future::Future<Output = ZResult<usize, crate::ZConnectionError>>;
+    ) -> impl ::core::future::Future<Output = ZResult<usize, crate::ZLinkError>>;
 
     fn write_all(
         &mut self,
         buffer: &[u8],
-    ) -> impl core::future::Future<Output = ZResult<(), crate::ZConnectionError>>;
+    ) -> impl ::core::future::Future<Output = ZResult<(), crate::ZLinkError>>;
 
     fn read(
         &mut self,
         buffer: &mut [u8],
-    ) -> impl core::future::Future<Output = ZResult<usize, crate::ZConnectionError>>;
+    ) -> impl ::core::future::Future<Output = ZResult<usize, crate::ZLinkError>>;
 
     fn read_exact(
         &mut self,
         buffer: &mut [u8],
-    ) -> impl core::future::Future<Output = ZResult<(), crate::ZConnectionError>>;
+    ) -> impl ::core::future::Future<Output = ZResult<(), crate::ZLinkError>>;
 }
 
 pub trait AbstractedWsTx {
     fn write(
         &mut self,
         buffer: &[u8],
-    ) -> impl core::future::Future<Output = ZResult<usize, crate::ZConnectionError>>;
+    ) -> impl ::core::future::Future<Output = ZResult<usize, crate::ZLinkError>>;
 
     fn write_all(
         &mut self,
         buffer: &[u8],
-    ) -> impl core::future::Future<Output = ZResult<(), crate::ZConnectionError>>;
+    ) -> impl ::core::future::Future<Output = ZResult<(), crate::ZLinkError>>;
 }
 
 pub trait AbstractedWsRx {
     fn read(
         &mut self,
         buffer: &mut [u8],
-    ) -> impl core::future::Future<Output = ZResult<usize, crate::ZConnectionError>>;
+    ) -> impl ::core::future::Future<Output = ZResult<usize, crate::ZLinkError>>;
 
     fn read_exact(
         &mut self,
         buffer: &mut [u8],
-    ) -> impl core::future::Future<Output = ZResult<(), crate::ZConnectionError>>;
+    ) -> impl ::core::future::Future<Output = ZResult<(), crate::ZLinkError>>;
 }
 
 pub struct DummyWsStream;
@@ -74,39 +74,39 @@ impl AbstractedWsStream for DummyWsStream {
         0
     }
 
-    async fn write(&mut self, _buffer: &[u8]) -> ZResult<usize, crate::ZConnectionError> {
-        Err(crate::ZConnectionError::CouldNotWrite)
+    async fn write(&mut self, _buffer: &[u8]) -> ZResult<usize, crate::ZLinkError> {
+        Err(crate::ZLinkError::CouldNotWrite)
     }
 
-    async fn write_all(&mut self, _buffer: &[u8]) -> ZResult<(), crate::ZConnectionError> {
-        Err(crate::ZConnectionError::CouldNotWrite)
+    async fn write_all(&mut self, _buffer: &[u8]) -> ZResult<(), crate::ZLinkError> {
+        Err(crate::ZLinkError::CouldNotWrite)
     }
 
-    async fn read(&mut self, _buffer: &mut [u8]) -> ZResult<usize, crate::ZConnectionError> {
-        Err(crate::ZConnectionError::CouldNotRead)
+    async fn read(&mut self, _buffer: &mut [u8]) -> ZResult<usize, crate::ZLinkError> {
+        Err(crate::ZLinkError::CouldNotRead)
     }
 
-    async fn read_exact(&mut self, _buffer: &mut [u8]) -> ZResult<(), crate::ZConnectionError> {
-        Err(crate::ZConnectionError::CouldNotRead)
+    async fn read_exact(&mut self, _buffer: &mut [u8]) -> ZResult<(), crate::ZLinkError> {
+        Err(crate::ZLinkError::CouldNotRead)
     }
 }
 
 impl AbstractedWsTx for DummyWsTx {
-    async fn write(&mut self, _buffer: &[u8]) -> ZResult<usize, crate::ZConnectionError> {
-        Err(crate::ZConnectionError::CouldNotWrite)
+    async fn write(&mut self, _buffer: &[u8]) -> ZResult<usize, crate::ZLinkError> {
+        Err(crate::ZLinkError::CouldNotWrite)
     }
 
-    async fn write_all(&mut self, _buffer: &[u8]) -> ZResult<(), crate::ZConnectionError> {
-        Err(crate::ZConnectionError::CouldNotWrite)
+    async fn write_all(&mut self, _buffer: &[u8]) -> ZResult<(), crate::ZLinkError> {
+        Err(crate::ZLinkError::CouldNotWrite)
     }
 }
 
 impl AbstractedWsRx for DummyWsRx {
-    async fn read(&mut self, _buffer: &mut [u8]) -> ZResult<usize, crate::ZConnectionError> {
-        Err(crate::ZConnectionError::CouldNotRead)
+    async fn read(&mut self, _buffer: &mut [u8]) -> ZResult<usize, crate::ZLinkError> {
+        Err(crate::ZLinkError::CouldNotRead)
     }
 
-    async fn read_exact(&mut self, _buffer: &mut [u8]) -> ZResult<(), crate::ZConnectionError> {
-        Err(crate::ZConnectionError::CouldNotRead)
+    async fn read_exact(&mut self, _buffer: &mut [u8]) -> ZResult<(), crate::ZLinkError> {
+        Err(crate::ZLinkError::CouldNotRead)
     }
 }

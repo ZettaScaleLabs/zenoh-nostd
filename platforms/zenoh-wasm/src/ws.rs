@@ -1,5 +1,5 @@
 use {
-    core::net::SocketAddr,
+    ::core::net::SocketAddr,
     futures_util::{
         SinkExt as _, StreamExt as _,
         stream::{SplitSink, SplitStream},

@@ -20,7 +20,7 @@ fn callback_1(sample: &ZSample) {
     zenoh_nostd::info!(
         "[Subscriber] Received Sample ('{}': '{:?}')",
         sample.keyexpr().as_str(),
-        core::str::from_utf8(sample.payload()).unwrap()
+        ::core::str::from_utf8(sample.payload()).unwrap()
     );
 }
 
@@ -30,7 +30,7 @@ async fn callback_2(subscriber: ZSubscriber<32, 128>) {
         zenoh_nostd::info!(
             "[Async Subscriber] Received Sample ('{}': '{:?}')",
             sample.keyexpr().as_str(),
-            core::str::from_utf8(sample.payload()).unwrap()
+            ::core::str::from_utf8(sample.payload()).unwrap()
         );
     }
 }
@@ -78,7 +78,7 @@ async fn entry(spawner: embassy_executor::Spawner) -> zenoh_nostd::ZResult<()> {
 #[cfg_attr(feature = "esp32s3", esp_rtos::main)]
 async fn main(spawner: embassy_executor::Spawner) {
     if let Err(e) = entry(spawner).await {
-        zenoh_nostd::error!("Error in main: {:?}", e);
+        zenoh_nostd::error!("Error in main: {}", e);
     }
 
     zenoh_nostd::info!("Exiting main");

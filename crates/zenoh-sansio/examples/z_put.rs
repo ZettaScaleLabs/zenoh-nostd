@@ -82,7 +82,7 @@ fn entry() -> ZResult<()> {
         zenoh_proto::info!(
             "[Publisher] Sent PUT ('{}': '{}')",
             ke.as_str(),
-            core::str::from_utf8(payload).unwrap()
+            ::core::str::from_utf8(payload).unwrap()
         );
 
         std::thread::sleep(std::time::Duration::from_secs(1));

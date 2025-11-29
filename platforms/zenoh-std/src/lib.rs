@@ -57,8 +57,8 @@ impl Platform for PlatformStd {
             .map_err(|_| zenoh_nostd::ZConnectionError::CouldNotGetAddrInfo)?
             .ip()
         {
-            core::net::IpAddr::V4(_) => 40,
-            core::net::IpAddr::V6(_) => 60,
+            ::core::net::IpAddr::V4(_) => 40,
+            ::core::net::IpAddr::V6(_) => 60,
         };
 
         #[allow(unused_mut)] // mut is not needed when target_family != unix

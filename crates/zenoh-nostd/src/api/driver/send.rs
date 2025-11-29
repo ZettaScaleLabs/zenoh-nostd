@@ -1,4 +1,4 @@
-use core::ops::DerefMut;
+use ::core::ops::DerefMut;
 
 use embassy_time::Instant;
 use zenoh_proto::{exts::*, fields::*, *};

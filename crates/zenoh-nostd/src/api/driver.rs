@@ -2,7 +2,7 @@ pub(crate) mod run;
 pub(crate) mod send;
 pub(crate) mod update;
 
-use core::ops::DerefMut;
+use ::core::ops::DerefMut;
 
 use embassy_sync::{blocking_mutex::raw::CriticalSectionRawMutex, mutex::Mutex};
 use embassy_time::Instant;

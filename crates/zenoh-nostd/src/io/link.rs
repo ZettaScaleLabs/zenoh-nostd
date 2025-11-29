@@ -1,4 +1,4 @@
-use core::{net::SocketAddr, str::FromStr};
+use ::core::{net::SocketAddr, str::FromStr};
 
 use zenoh_proto::{EndPoint, ZResult};
 

@@ -1,4 +1,4 @@
-use core::{
+use ::core::{
     future::poll_fn,
     task::{Context, Poll},
 };

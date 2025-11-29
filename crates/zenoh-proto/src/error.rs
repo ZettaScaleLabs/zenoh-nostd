@@ -1,6 +1,22 @@
 crate::declare_zerror! {
+    #[doc = "Errors related to zenoh bytes."]
+    enum ZBytesError {
+        #[doc = "Source buffer is empty."]
+        #[err = "source buffer is empty"]
+        SrcIsEmpty = 100,
+        #[doc = "Destination buffer is full."]
+        #[err = "destination buffer is full"]
+        DstIsFull = 101,
+        #[doc = "Destination buffer is too small."]
+        #[err = "destination buffer is too small"]
+        DstIsTooSmall = 102,
+        #[doc = "Source buffer is too small."]
+        #[err = "source buffer is too small"]
+        SrcIsTooSmall = 103,
+    }
+
     #[doc = "Errors related to zenoh codec."]
-    enum ZCodecError {
+    enum ZCodecError: ZBytesError {
         #[doc = "Could not complete a read operation."]
         #[err = "could not read"]
         CouldNotRead = 0,
@@ -76,7 +92,14 @@ crate::declare_zerror! {
     }
 
     #[doc = "Errors related to zenoh links."]
-    enum ZLinkError: ZConnectionError + ZCodecError + ZEndpointError {}
+    enum ZLinkError: ZConnectionError + ZCodecError + ZEndpointError {
+        #[doc = "Write operation failed."]
+        #[err = "write operation failed"]
+        WriteOperationFailed = 33,
+        #[doc = "Read operation failed."]
+        #[err = "read operation failed"]
+        ReadOperationFailed = 34,
+    }
 
     #[doc = "Errors related to zenoh transports."]
     enum ZTransportError: ZLinkError + ZCodecError {
@@ -113,7 +136,7 @@ crate::declare_zerror! {
     }
 }
 
-pub type ZResult<T, E = ZError> = core::result::Result<T, E>;
+pub type ZResult<T, E = ZError> = ::core::result::Result<T, E>;
 
 #[macro_export]
 macro_rules! zbail {

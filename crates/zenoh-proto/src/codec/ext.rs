@@ -68,14 +68,14 @@ pub const fn zext_header<'a, const ID: u8, const MANDATORY: bool, T: ZExt<'a>>(m
 
 pub fn zext_len<'a, T: ZExt<'a>>(x: &T) -> usize {
     1 + match T::KIND {
-        ZExtKind::Unit | ZExtKind::U64 => <T as ZLen>::z_len(x),
-        ZExtKind::ZStruct => <usize as ZLen>::z_len(&<T as ZLen>::z_len(x)) + <T as ZLen>::z_len(x),
+        ZExtKind::Unit | ZExtKind::U64 => x.z_len(),
+        ZExtKind::ZStruct => <usize as ZLen>::z_len(&x.z_len()) + x.z_len(),
     }
 }
 
 pub fn zext_encode<'a, T: ZExt<'a>, const ID: u8, const MANDATORY: bool>(
     x: &T,
-    w: &mut ZWriter,
+    w: &mut impl crate::ZWrite,
     more: bool,
 ) -> crate::ZResult<(), crate::ZCodecError> {
     let header: u8 = zext_header::<ID, MANDATORY, T>(more);
@@ -83,26 +83,29 @@ pub fn zext_encode<'a, T: ZExt<'a>, const ID: u8, const MANDATORY: bool>(
     <u8 as ZEncode>::z_encode(&header, w)?;
 
     if T::KIND == ZExtKind::ZStruct {
-        <usize as ZEncode>::z_encode(&<T as ZLen>::z_len(x), w)?;
+        <usize as ZEncode>::z_encode(&x.z_len(), w)?;
     }
 
     <T as ZEncode>::z_encode(x, w)
 }
 
 pub fn zext_decode<'a, T: ZExt<'a>>(
-    r: &mut crate::ZReader<'a>,
+    r: &mut impl crate::ZRead<'a>,
 ) -> crate::ZResult<T, crate::ZCodecError> {
     let _ = <u8 as ZDecode>::z_decode(r)?;
 
     if T::KIND == ZExtKind::ZStruct {
         let len = <usize as ZDecode>::z_decode(r)?;
-        <T as ZDecode>::z_decode(&mut <ZReader as ZReaderExt>::sub(r, len)?)
+        <T as ZDecode>::z_decode(&mut r.read_slice(len)?)
     } else {
         <T as ZDecode>::z_decode(r)
     }
 }
 
-pub fn skip_ext(r: &mut crate::ZReader, kind: ZExtKind) -> crate::ZResult<(), crate::ZCodecError> {
+pub fn skip_ext<'a>(
+    r: &mut impl crate::ZRead<'a>,
+    kind: ZExtKind,
+) -> crate::ZResult<(), crate::ZCodecError> {
     let _ = <u8 as ZDecode>::z_decode(r)?;
 
     match kind {
@@ -112,17 +115,17 @@ pub fn skip_ext(r: &mut crate::ZReader, kind: ZExtKind) -> crate::ZResult<(), cr
         }
         ZExtKind::ZStruct => {
             let len = <usize as ZDecode>::z_decode(r)?;
-            let _ = <ZReader as ZReaderExt>::sub(r, len)?;
+            let _ = r.read_slice(len)?;
         }
     }
 
     Ok(())
 }
 
-pub fn decode_ext_header(
-    r: &mut crate::ZReader,
+pub fn decode_ext_header<'a>(
+    r: &mut impl crate::ZRead<'a>,
 ) -> crate::ZResult<(u8, ZExtKind, bool, bool), crate::ZCodecError> {
-    let header = r.peek_u8()?;
+    let header = r.peek()?;
 
     let id = header & ID_MASK;
     let kind = ZExtKind::try_from(header & KIND_MASK)?;

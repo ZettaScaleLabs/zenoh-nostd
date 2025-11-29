@@ -1,4 +1,4 @@
-use core::time::Duration;
+use ::core::time::Duration;
 
 use embassy_futures::select::select;
 use embassy_time::Timer;
@@ -83,14 +83,14 @@ impl<T: Platform> Transport<T> {
         &mut self,
         tx: &mut [u8],
         sn: &mut u32,
-        mut writer: impl FnMut(&mut ZBatchWriter) -> ZResult<(), crate::ZCodecError>,
+        mut writer: impl FnMut(&mut ZBatchWriter<&mut [u8]>) -> ZResult<(), crate::ZCodecError>,
     ) -> ZResult<(), crate::ZTransportError> {
         let (mut batch, space) = if self.link.is_streamed() {
             let space = u16::MIN.to_le_bytes();
             tx[..space.len()].copy_from_slice(&space);
             (ZBatchWriter::new(&mut tx[space.len()..], *sn), space.len())
         } else {
-            (ZBatchWriter::new(tx, *sn), 0)
+            (ZBatchWriter::new(&mut tx[..], *sn), 0)
         };
 
         writer(&mut batch)?;
@@ -136,14 +136,14 @@ impl<'a, T: Platform> TransportTx<'a, T> {
         &mut self,
         tx: &mut [u8],
         sn: &mut u32,
-        mut writer: impl FnMut(&mut ZBatchWriter) -> ZResult<(), crate::ZCodecError>,
+        mut writer: impl FnMut(&mut ZBatchWriter<&mut [u8]>) -> ZResult<(), crate::ZCodecError>,
     ) -> ZResult<(), crate::ZTransportError> {
         let (mut batch, space) = if self.link.is_streamed() {
             let space = u16::MIN.to_le_bytes();
             tx[..space.len()].copy_from_slice(&space);
             (ZBatchWriter::new(&mut tx[space.len()..], *sn), space.len())
         } else {
-            (ZBatchWriter::new(tx, *sn), 0)
+            (ZBatchWriter::new(&mut tx[..], *sn), 0)
         };
 
         writer(&mut batch)?;

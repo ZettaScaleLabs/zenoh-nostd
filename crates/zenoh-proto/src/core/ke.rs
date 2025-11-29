@@ -1,4 +1,4 @@
-use core::ops::Deref;
+use ::core::ops::Deref;
 
 use crate::zbail;
 
@@ -109,7 +109,7 @@ impl keyexpr {
     }
 
     pub const fn from_str_unchecked(s: &str) -> &Self {
-        unsafe { core::mem::transmute(s) }
+        unsafe { ::core::mem::transmute(s) }
     }
 }
 
@@ -128,7 +128,7 @@ impl ::core::fmt::Display for keyexpr {
 impl Deref for keyexpr {
     type Target = str;
     fn deref(&self) -> &Self::Target {
-        unsafe { core::mem::transmute(self) }
+        unsafe { ::core::mem::transmute(self) }
     }
 }
 
@@ -171,6 +171,6 @@ impl<'a> TryFrom<&'a keyexpr> for &'a nonwild_keyexpr {
             zbail!(crate::ZKeyexprError::WildChunk);
         }
 
-        Ok(unsafe { core::mem::transmute::<&keyexpr, &nonwild_keyexpr>(v) })
+        Ok(unsafe { ::core::mem::transmute::<&keyexpr, &nonwild_keyexpr>(v) })
     }
 }

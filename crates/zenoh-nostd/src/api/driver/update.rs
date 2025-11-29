@@ -1,4 +1,4 @@
-use core::ops::DerefMut;
+use ::core::ops::DerefMut;
 
 use zenoh_proto::{msgs::*, *};
 

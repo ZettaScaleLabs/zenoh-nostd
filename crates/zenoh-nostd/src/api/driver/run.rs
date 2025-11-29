@@ -1,4 +1,4 @@
-use core::ops::{Deref, DerefMut};
+use ::core::ops::{Deref, DerefMut};
 
 use embassy_futures::select::select;
 use embassy_time::{Instant, Timer};

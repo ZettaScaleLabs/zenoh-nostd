@@ -31,7 +31,7 @@ impl ZBodyLen for Encoding<'_> {
 }
 
 impl ZBodyEncode for Encoding<'_> {
-    fn z_body_encode(&self, w: &mut crate::ZWriter) -> crate::ZResult<(), crate::ZCodecError> {
+    fn z_body_encode(&self, w: &mut impl crate::ZWrite) -> crate::ZResult<(), crate::ZCodecError> {
         let mut id = (self.id as u32) << 1;
 
         if self.schema.is_some() {
@@ -53,7 +53,7 @@ impl<'a> ZBodyDecode<'a> for Encoding<'a> {
     type Ctx = ();
 
     fn z_body_decode(
-        r: &mut crate::ZReader<'a>,
+        r: &mut impl crate::ZRead<'a>,
         _: (),
     ) -> crate::ZResult<Self, crate::ZCodecError> {
         let id = <u32 as ZDecode>::z_decode(r)?;
@@ -63,7 +63,7 @@ impl<'a> ZBodyDecode<'a> for Encoding<'a> {
 
         let schema = if has_schema {
             let len = <usize as ZDecode>::z_decode(r)?;
-            let schema: &[u8] = <&[u8] as ZDecode>::z_decode(&mut r.sub(len)?)?;
+            let schema: &[u8] = <&[u8] as ZDecode>::z_decode(&mut r.read_slice(len)?)?;
             Some(schema)
         } else {
             None

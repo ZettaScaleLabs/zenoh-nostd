@@ -47,18 +47,6 @@ pub fn derive_zenum(input: &DeriveInput) -> syn::Result<TokenStream> {
         <Self as crate::ZBodyDecode>::z_body_decode(r, header)
     };
 
-    let ids = variants.clone().map(|variant| {
-        quote::quote! {
-            #variant::ID,
-        }
-    });
-
-    let rand = variants.clone().map(|variant| {
-        quote::quote! {
-            <#variant>::ID => Self::#variant(<#variant>::rand(zbuf)),
-        }
-    });
-
     Ok(quote::quote! {
         impl #impl_generics crate::ZBodyLen for #ident #ty_generics #where_clause {
             fn z_body_len(&self) -> usize {
@@ -75,7 +63,7 @@ pub fn derive_zenum(input: &DeriveInput) -> syn::Result<TokenStream> {
         }
 
         impl #impl_generics crate::ZBodyEncode for #ident #ty_generics #where_clause {
-            fn z_body_encode(&self, w: &mut crate::ZWriter) -> crate::ZResult<(), crate::ZCodecError> {
+            fn z_body_encode(&self, w: &mut impl crate::ZWrite) -> crate::ZResult<(), crate::ZCodecError> {
                 match self {
                     #(#body_encode)*
                 }
@@ -83,7 +71,7 @@ pub fn derive_zenum(input: &DeriveInput) -> syn::Result<TokenStream> {
         }
 
         impl #impl_generics crate::ZEncode for #ident #ty_generics #where_clause {
-            fn z_encode(&self, w: &mut crate::ZWriter) -> crate::ZResult<(), crate::ZCodecError> {
+            fn z_encode(&self, w: &mut impl crate::ZWrite) -> crate::ZResult<(), crate::ZCodecError> {
                 match self {
                     #(#encode)*
                 }
@@ -93,7 +81,7 @@ pub fn derive_zenum(input: &DeriveInput) -> syn::Result<TokenStream> {
         impl<'a> crate::ZBodyDecode<'a> for #ident #ty_generics #where_clause {
             type Ctx = u8;
 
-            fn z_body_decode(r: &mut crate::ZReader<'a>, header: u8) -> crate::ZResult<Self, crate::ZCodecError> {
+            fn z_body_decode(r: &mut impl crate::ZRead<'a>, header: u8) -> crate::ZResult<Self, crate::ZCodecError> {
                 let id = header & 0b0001_1111;
                 match id {
                     #(#body_decode)*
@@ -103,22 +91,8 @@ pub fn derive_zenum(input: &DeriveInput) -> syn::Result<TokenStream> {
         }
 
         impl<'a> crate::ZDecode<'a> for #ident #ty_generics #where_clause {
-            fn z_decode(r: &mut crate::ZReader<'a>) -> crate::ZResult<Self, crate::ZCodecError> {
+            fn z_decode(r: &mut impl crate::ZRead<'a>) -> crate::ZResult<Self, crate::ZCodecError> {
                 #decode
-            }
-        }
-
-        impl #impl_generics #ident #ty_generics #where_clause {
-            #[cfg(test)]
-            pub(crate) fn rand(zbuf: &mut crate::ZWriter #ty_generics) -> Self {
-                use rand::seq::SliceRandom;
-                let mut rng = rand::thread_rng();
-                let choices = [#(#ids)*];
-
-                match *choices.choose(&mut rng).unwrap() {
-                    #(#rand)*
-                    _ => unreachable!(),
-                }
             }
         }
     })

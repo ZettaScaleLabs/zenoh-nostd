@@ -39,15 +39,15 @@ impl<T: AbstractedTcpStream> LinkTcp<T> {
     }
 
     pub(crate) async fn write_all(&mut self, buffer: &[u8]) -> ZResult<(), crate::ZLinkError> {
-        self.stream.write_all(buffer).await.map_err(|e| e.into())
+        self.stream.write_all(buffer).await.map_err(|e| e)
     }
 
     pub(crate) async fn read(&mut self, buffer: &mut [u8]) -> ZResult<usize, crate::ZLinkError> {
-        self.stream.read(buffer).await.map_err(|e| e.into())
+        self.stream.read(buffer).await.map_err(|e| e)
     }
 
     pub(crate) async fn read_exact(&mut self, buffer: &mut [u8]) -> ZResult<(), crate::ZLinkError> {
-        self.stream.read_exact(buffer).await.map_err(|e| e.into())
+        self.stream.read_exact(buffer).await.map_err(|e| e)
     }
 }
 
@@ -57,7 +57,7 @@ impl<T: AbstractedTcpTx> LinkTcpTx<T> {
     }
 
     pub(crate) async fn write_all(&mut self, buffer: &[u8]) -> ZResult<(), crate::ZLinkError> {
-        self.tx.write_all(buffer).await.map_err(|e| e.into())
+        self.tx.write_all(buffer).await.map_err(|e| e)
     }
 }
 
@@ -67,10 +67,10 @@ impl<T: AbstractedTcpRx> LinkTcpRx<T> {
     }
 
     pub(crate) async fn read(&mut self, buffer: &mut [u8]) -> ZResult<usize, crate::ZLinkError> {
-        self.rx.read(buffer).await.map_err(|e| e.into())
+        self.rx.read(buffer).await.map_err(|e| e)
     }
 
     pub(crate) async fn read_exact(&mut self, buffer: &mut [u8]) -> ZResult<(), crate::ZLinkError> {
-        self.rx.read_exact(buffer).await.map_err(|e| e.into())
+        self.rx.read_exact(buffer).await.map_err(|e| e)
     }
 }

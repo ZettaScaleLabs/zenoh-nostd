@@ -1,6 +1,6 @@
-use core::fmt::Debug;
+use ::core::fmt::Debug;
 
-use crate::{ZReaderExt, ZStruct, tests::r#struct::nested::Inner};
+use crate::{ZStruct, tests::r#struct::nested::Inner};
 
 #[derive(ZStruct, PartialEq, Debug)]
 struct ZBasic {
@@ -172,13 +172,11 @@ struct ZFlattenHeader<'a> {
 macro_rules! roundtrip {
     ($ty:ty, $value:expr) => {{
         let mut data = [0u8; 256];
-        let mut w = &mut data.as_mut_slice();
 
-        let len = <_ as $crate::ZLen>::z_len(&$value);
-        <_ as $crate::ZEncode>::z_encode(&$value, &mut w).unwrap();
+        let len = $crate::ZLen::z_len(&$value);
+        $crate::ZEncode::z_encode(&$value, &mut &mut data[..]).unwrap();
 
-        let mut r = data.as_slice();
-        let decoded = <$ty as $crate::ZDecode>::z_decode(&mut r.sub(len).unwrap()).unwrap();
+        let decoded = <$ty as $crate::ZDecode>::z_decode(&mut &data[..len]).unwrap();
 
         assert_eq!(decoded, $value);
     }};

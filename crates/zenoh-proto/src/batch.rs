@@ -39,21 +39,29 @@ pub enum ZMessage<'a> {
     },
 }
 
-pub struct ZBatchReader<'a> {
-    reader: ZReader<'a>,
+pub struct ZBatchReader<'a, T> {
+    reader: T,
+    _lt: ::core::marker::PhantomData<&'a ()>,
     frame: Option<FrameHeader>,
 }
 
-impl<'a> ZBatchReader<'a> {
-    pub fn new(reader: ZReader<'a>) -> Self {
+impl<'a, T> ZBatchReader<'a, T>
+where
+    T: crate::ZRead<'a>,
+{
+    pub fn new(reader: T) -> Self {
         Self {
             reader,
+            _lt: ::core::marker::PhantomData,
             frame: None,
         }
     }
 }
 
-impl<'a> Iterator for ZBatchReader<'a> {
+impl<'a, T> Iterator for ZBatchReader<'a, T>
+where
+    T: crate::ZRead<'a>,
+{
     type Item = ZMessage<'a>;
 
     fn next(&mut self) -> Option<Self::Item> {
@@ -61,7 +69,6 @@ impl<'a> Iterator for ZBatchReader<'a> {
             return None;
         }
 
-        let mark = self.reader.mark();
         let header = self
             .reader
             .read_u8()
@@ -71,14 +78,7 @@ impl<'a> Iterator for ZBatchReader<'a> {
             ($ty:ty) => {
                 match <$ty as $crate::ZBodyDecode>::z_body_decode(&mut self.reader, header) {
                     Ok(msg) => msg,
-                    Err(err) => {
-                        crate::error!(
-                            "Failed to decode message of type {}: {:?}",
-                            stringify!($ty),
-                            err
-                        );
-
-                        self.reader.rewind(mark);
+                    Err(_) => {
                         return None;
                     }
                 }
@@ -147,8 +147,6 @@ impl<'a> Iterator for ZBatchReader<'a> {
 
             _ => {
                 crate::error!("Unexpected message type: header={:#04x}", header);
-
-                self.reader.rewind(mark);
                 return None;
             }
         };
@@ -157,19 +155,24 @@ impl<'a> Iterator for ZBatchReader<'a> {
     }
 }
 
-pub struct ZBatchWriter<'a> {
-    writer: ZWriter<'a>,
+pub struct ZBatchWriter<'a, T> {
+    writer: T,
+    _lt: ::core::marker::PhantomData<&'a ()>,
     frame: Option<FrameHeader>,
     sn: u32,
 
     init: usize,
 }
 
-impl<'a> ZBatchWriter<'a> {
-    pub fn new(writer: ZWriter<'a>, sn: u32) -> Self {
-        let init = writer.len();
+impl<'a, T> ZBatchWriter<'a, T>
+where
+    T: crate::ZWrite,
+{
+    pub fn new(writer: T, sn: u32) -> Self {
+        let init = writer.remaining();
         Self {
             writer,
+            _lt: ::core::marker::PhantomData,
             frame: None,
             sn,
             init,
@@ -177,11 +180,11 @@ impl<'a> ZBatchWriter<'a> {
     }
 
     pub fn has_written(&self) -> bool {
-        self.init != self.writer.len()
+        self.init != self.writer.remaining()
     }
 
     pub fn finalize(self) -> (u32, usize) {
-        (self.sn, self.init - self.writer.len())
+        (self.sn, self.init - self.writer.remaining())
     }
 }
 
@@ -198,7 +201,10 @@ pub trait ZBatchUnframed<T: Unframed> {
     fn unframe(&mut self, x: &T) -> crate::ZResult<(), crate::ZCodecError>;
 }
 
-impl<'a, T: Unframed> ZBatchUnframed<T> for ZBatchWriter<'a> {
+impl<'a, T: Unframed, W> ZBatchUnframed<T> for ZBatchWriter<'a, W>
+where
+    W: crate::ZWrite,
+{
     fn unframe(&mut self, x: &T) -> crate::ZResult<(), crate::ZCodecError> {
         <_ as ZEncode>::z_encode(x, &mut self.writer)?;
         self.frame = None;
@@ -219,7 +225,10 @@ pub trait ZBatchFramed<T: Framed> {
     fn frame(&mut self, x: &T, r: Reliability, qos: QoS) -> crate::ZResult<(), crate::ZCodecError>;
 }
 
-impl<'a, T: Framed> ZBatchFramed<T> for ZBatchWriter<'a> {
+impl<'a, T: Framed, W> ZBatchFramed<T> for ZBatchWriter<'a, W>
+where
+    W: crate::ZWrite,
+{
     fn frame(&mut self, x: &T, r: Reliability, qos: QoS) -> crate::ZResult<(), crate::ZCodecError> {
         if self.frame.as_ref().map(|f| f.reliability) != Some(r) {
             <_ as ZEncode>::z_encode(

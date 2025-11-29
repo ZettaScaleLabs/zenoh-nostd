@@ -30,9 +30,9 @@ impl<T: Platform + 'static> Session<T> {
     ) -> ZResult<(Self, SessionDriver<T>)> {
         let transport = TransportMineConfig {
             mine_zid: ZenohIdProto::default(),
-            mine_lease: core::time::Duration::from_secs(20),
+            mine_lease: ::core::time::Duration::from_secs(20),
             keep_alive: 4,
-            open_timeout: core::time::Duration::from_secs(5),
+            open_timeout: ::core::time::Duration::from_secs(5),
         };
 
         let link = Link::new(&config.platform, endpoint).await?;

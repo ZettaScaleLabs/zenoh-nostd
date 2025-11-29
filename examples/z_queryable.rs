@@ -54,7 +54,7 @@ async fn entry(spawner: embassy_executor::Spawner) -> zenoh_nostd::ZResult<()> {
                 zenoh_nostd::info!(
                     "[Queryable] Received Query ('{}': '{:?}')",
                     query.keyexpr().as_str(),
-                    core::str::from_utf8(payload).unwrap()
+                    ::core::str::from_utf8(payload).unwrap()
                 );
             }
         }
@@ -74,7 +74,7 @@ async fn entry(spawner: embassy_executor::Spawner) -> zenoh_nostd::ZResult<()> {
 #[cfg_attr(feature = "esp32s3", esp_rtos::main)]
 async fn main(spawner: embassy_executor::Spawner) {
     if let Err(e) = entry(spawner).await {
-        zenoh_nostd::error!("Error in main: {:?}", e);
+        zenoh_nostd::error!("Error in main: {}", e);
     }
 
     zenoh_nostd::info!("Exiting main");

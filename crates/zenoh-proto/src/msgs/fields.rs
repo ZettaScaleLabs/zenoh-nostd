@@ -52,7 +52,7 @@ impl ZBodyLen for BatchSize {
 }
 
 impl ZBodyEncode for BatchSize {
-    fn z_body_encode(&self, w: &mut crate::ZWriter) -> crate::ZResult<(), crate::ZCodecError> {
+    fn z_body_encode(&self, w: &mut impl crate::ZWrite) -> crate::ZResult<(), crate::ZCodecError> {
         w.write(&self.0.to_le_bytes())?;
         Ok(())
     }
@@ -62,11 +62,11 @@ impl<'a> ZBodyDecode<'a> for BatchSize {
     type Ctx = ();
 
     fn z_body_decode(
-        r: &mut crate::ZReader<'_>,
+        r: &mut impl crate::ZRead<'a>,
         _: (),
     ) -> crate::ZResult<Self, crate::ZCodecError> {
         let mut bytes = u16::MAX.to_le_bytes();
-        r.read_into(&mut bytes)?;
+        r.read(&mut bytes)?;
         Ok(BatchSize(u16::from_le_bytes(bytes)))
     }
 }
@@ -118,7 +118,7 @@ impl ZBodyLen for ZenohIdProto {
 }
 
 impl ZBodyEncode for ZenohIdProto {
-    fn z_body_encode(&self, w: &mut crate::ZWriter) -> crate::ZResult<(), crate::ZCodecError> {
+    fn z_body_encode(&self, w: &mut impl crate::ZWrite) -> crate::ZResult<(), crate::ZCodecError> {
         let bytes = &self.as_le_bytes()[..self.size()];
         <&[u8] as ZEncode>::z_encode(&bytes, w)
     }
@@ -128,7 +128,7 @@ impl<'a> ZBodyDecode<'a> for ZenohIdProto {
     type Ctx = ();
 
     fn z_body_decode(
-        r: &mut crate::ZReader<'a>,
+        r: &mut impl crate::ZRead<'a>,
         _: (),
     ) -> crate::ZResult<Self, crate::ZCodecError> {
         let bytes = <&[u8] as ZDecode>::z_decode(r)?;
@@ -150,7 +150,7 @@ impl ZBodyLen for Timestamp {
 }
 
 impl ZBodyEncode for Timestamp {
-    fn z_body_encode(&self, w: &mut crate::ZWriter) -> crate::ZResult<(), crate::ZCodecError> {
+    fn z_body_encode(&self, w: &mut impl crate::ZWrite) -> crate::ZResult<(), crate::ZCodecError> {
         <u64 as ZEncode>::z_encode(&self.get_time().as_u64(), w)?;
         let bytes = &self.get_id().to_le_bytes()[..self.get_id().size()];
         <usize as ZEncode>::z_encode(&bytes.len(), w)?;
@@ -162,12 +162,12 @@ impl<'a> ZBodyDecode<'a> for Timestamp {
     type Ctx = ();
 
     fn z_body_decode(
-        r: &mut crate::ZReader<'a>,
+        r: &mut impl crate::ZRead<'a>,
         _: (),
     ) -> crate::ZResult<Self, crate::ZCodecError> {
         let time = NTP64(<u64 as ZDecode>::z_decode(r)?);
         let id_len = <usize as ZDecode>::z_decode(r)?;
-        let id_bytes = <&[u8] as ZDecode>::z_decode(&mut r.sub(id_len)?)?;
+        let id_bytes = <&[u8] as ZDecode>::z_decode(&mut r.read_slice(id_len)?)?;
         let id =
             uhlc::ID::try_from(id_bytes).map_err(|_| crate::ZCodecError::CouldNotParseField)?;
         Ok(Timestamp::new(time, id))

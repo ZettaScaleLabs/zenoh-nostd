@@ -21,7 +21,7 @@ bench filter="bench":
     cargo test -p zenoh-proto {{filter}} --profile=release -- --nocapture --ignored --test-threads=1
 
 std example:
-    RUST_LOG=debug cargo run --example {{example}} --features="std,log"
+    RUST_LOG=trace cargo run --example {{example}} --features="std,log"
 
 esp32s3 example:
     cargo +esp --config .cargo/config.esp32s3.toml run --example {{example}} --no-default-features --features="esp32s3,defmt"

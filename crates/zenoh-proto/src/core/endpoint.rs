@@ -1,4 +1,4 @@
-use core::{convert::TryFrom, fmt};
+use ::core::{convert::TryFrom, fmt};
 
 const PROTO_SEPARATOR: char = '/';
 const METADATA_SEPARATOR: char = '?';

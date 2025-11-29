@@ -1,7 +1,6 @@
 use crate::{exts::*, fields::*, msgs::*, *};
 
 use {
-    crate::ZWriterExt,
     ::core::time::Duration,
     rand::{
         Rng,
@@ -16,35 +15,32 @@ mod msgs;
 
 macro_rules! roundtrip {
     ($ty:ty) => {{
-        let mut rand_data = [0u8; MAX_PAYLOAD_SIZE * NUM_ITER];
-        let mut rand_writer = rand_data.as_mut_slice();
-
+        let mut rand = [0u8; MAX_PAYLOAD_SIZE];
         let mut data = [0u8; MAX_PAYLOAD_SIZE];
+
         for _ in 0..NUM_ITER {
-            let mut writer = data.as_mut_slice();
-            let value = <$ty>::rand(&mut rand_writer);
-            let len = <_ as $crate::ZLen>::z_len(&value);
-            <_ as $crate::ZEncode>::z_encode(&value, &mut writer).unwrap();
-            let mut reader = data.as_slice();
-            let ret = <$ty as $crate::ZDecode>::z_decode(
-                &mut <_ as $crate::ZReaderExt>::sub(&mut reader, len).unwrap(),
-            )
-            .unwrap();
+            let value = <$ty>::rand(&mut &mut rand[..]);
+
+            let len = $crate::ZLen::z_len(&value);
+            $crate::ZEncode::z_encode(&value, &mut &mut data[..]).unwrap();
+
+            let ret = <$ty as $crate::ZDecode>::z_decode(&mut &data[..len]).unwrap();
+
             assert_eq!(ret, value);
         }
     }};
 
     (ext, $ty:ty) => {{
-        let mut rand_data = [0u8; MAX_PAYLOAD_SIZE * NUM_ITER];
-        let mut rand_writer = rand_data.as_mut_slice();
-
+        let mut rand = [0u8; MAX_PAYLOAD_SIZE];
         let mut data = [0u8; MAX_PAYLOAD_SIZE];
+
         for _ in 0..NUM_ITER {
-            let mut writer = data.as_mut_slice();
-            let value = <$ty>::rand(&mut rand_writer);
-            $crate::zext_encode::<_, 0x1, true>(&value, &mut writer, false).unwrap();
-            let mut reader = data.as_slice();
-            let ret = $crate::zext_decode::<$ty>(&mut reader).unwrap();
+            let value = <$ty>::rand(&mut &mut rand[..]);
+
+            $crate::zext_encode::<_, 0x1, true>(&value, &mut &mut data[..], false).unwrap();
+
+            let ret = $crate::zext_decode::<$ty>(&mut &data[..]).unwrap();
+
             assert_eq!(ret, value);
         }
     }};
@@ -79,7 +75,7 @@ pub(crate) use roundtrips;
 
 impl ZenohIdProto {
     #[cfg(test)]
-    pub fn rand(_: &mut ZWriter) -> ZenohIdProto {
+    pub fn rand<'a>(_: &mut impl crate::ZStore<'a>) -> ZenohIdProto {
         ZenohIdProto(uhlc::ID::rand())
     }
 }
@@ -97,7 +93,7 @@ impl Resolution {
 
 impl<'a> Encoding<'a> {
     #[cfg(test)]
-    pub fn rand(w: &mut ZWriter<'a>) -> Self {
+    pub fn rand(w: &mut impl crate::ZStore<'a>) -> Self {
         use rand::Rng;
 
         let mut rng = rand::thread_rng();
@@ -107,15 +103,13 @@ impl<'a> Encoding<'a> {
 
         let id: u16 = rng.r#gen();
         let schema = if rng.gen_bool(0.5) {
-            use crate::ZWriterExt;
-
-            Some(
-                w.write_slot(rng.gen_range(MIN..MAX), |b: &mut [u8]| {
+            Some(unsafe {
+                w.store(rng.gen_range(MIN..MAX), |b: &mut [u8]| {
                     rng.fill(b);
                     b.len()
                 })
-                .unwrap(),
-            )
+                .unwrap()
+            })
         } else {
             None
         };
@@ -126,14 +120,14 @@ impl<'a> Encoding<'a> {
 
 impl<'a> WireExpr<'a> {
     #[cfg(test)]
-    pub(crate) fn rand(w: &mut crate::ZWriter<'a>) -> Self {
+    pub(crate) fn rand(w: &mut impl crate::ZStore<'a>) -> Self {
         let scope = thread_rng().r#gen();
         let mapping = Mapping::rand(w);
 
         let suffix = if thread_rng().gen_bool(0.5) {
             let suffix =
                 Alphanumeric.sample_string(&mut thread_rng(), thread_rng().gen_range(1..16));
-            w.write_str(&suffix).unwrap()
+            unsafe { w.store_str(&suffix).unwrap() }
         } else {
             ""
         };
@@ -147,7 +141,7 @@ impl<'a> WireExpr<'a> {
 }
 impl<'a> Err<'a> {
     #[cfg(test)]
-    pub(crate) fn rand(w: &mut ZWriter<'a>) -> Self {
+    pub(crate) fn rand(w: &mut impl crate::ZStore<'a>) -> Self {
         let encoding = if thread_rng().gen_bool(0.5) {
             Encoding::rand(w)
         } else {
@@ -155,12 +149,13 @@ impl<'a> Err<'a> {
         };
 
         let sinfo = thread_rng().gen_bool(0.5).then_some(SourceInfo::rand(w));
-        let payload = w
-            .write_slot(thread_rng().gen_range(0..=64), |b: &mut [u8]| {
+        let payload = unsafe {
+            w.store(thread_rng().gen_range(0..=64), |b: &mut [u8]| {
                 thread_rng().fill(b);
                 b.len()
             })
-            .unwrap();
+            .unwrap()
+        };
 
         Self {
             encoding,
@@ -172,7 +167,7 @@ impl<'a> Err<'a> {
 
 impl<'a> Put<'a> {
     #[cfg(test)]
-    pub(crate) fn rand(w: &mut ZWriter<'a>) -> Self {
+    pub(crate) fn rand(w: &mut impl crate::ZStore<'a>) -> Self {
         let timestamp = thread_rng().gen_bool(0.5).then_some({
             let time = uhlc::NTP64(thread_rng().r#gen());
             let id = uhlc::ID::try_from(ZenohIdProto::default().as_le_bytes()).unwrap();
@@ -187,12 +182,13 @@ impl<'a> Put<'a> {
 
         let sinfo = thread_rng().gen_bool(0.5).then_some(SourceInfo::rand(w));
         let attachment = thread_rng().gen_bool(0.5).then_some(Attachment::rand(w));
-        let payload = w
-            .write_slot(thread_rng().gen_range(1..=64), |b| {
+        let payload = unsafe {
+            w.store(thread_rng().gen_range(1..=64), |b| {
                 thread_rng().fill(b);
                 b.len()
             })
-            .unwrap();
+            .unwrap()
+        };
 
         Self {
             timestamp,
@@ -205,7 +201,7 @@ impl<'a> Put<'a> {
 }
 impl<'a> Query<'a> {
     #[cfg(test)]
-    pub(crate) fn rand(w: &mut ZWriter<'a>) -> Self {
+    pub(crate) fn rand(w: &mut impl crate::ZStore<'a>) -> Self {
         const MIN: usize = 1;
         const MAX: usize = 16;
 
@@ -218,7 +214,7 @@ impl<'a> Query<'a> {
         let parameters = if thread_rng().gen_bool(0.5) {
             let len = thread_rng().gen_range(MIN..MAX);
             let proto = Alphanumeric.sample_string(&mut thread_rng(), len);
-            w.write_str(proto.as_str()).unwrap()
+            unsafe { w.store_str(proto.as_str()).unwrap() }
         } else {
             ""
         };
@@ -237,9 +233,23 @@ impl<'a> Query<'a> {
     }
 }
 
+impl<'a> PushBody<'a> {
+    #[cfg(test)]
+    pub(crate) fn rand(w: &mut impl crate::ZStore<'a>) -> Self {
+        use rand::seq::SliceRandom;
+        let mut rng = rand::thread_rng();
+        let choices = [Put::ID];
+
+        match *choices.choose(&mut rng).unwrap() {
+            Put::ID => PushBody::Put(Put::rand(w)),
+            _ => unreachable!(),
+        }
+    }
+}
+
 impl<'a> Reply<'a> {
     #[cfg(test)]
-    pub(crate) fn rand(w: &mut ZWriter<'a>) -> Self {
+    pub(crate) fn rand(w: &mut impl crate::ZStore<'a>) -> Self {
         let payload = PushBody::rand(w);
 
         let consolidation = if thread_rng().gen_bool(0.5) {
@@ -257,7 +267,7 @@ impl<'a> Reply<'a> {
 
 impl EntityGlobalId {
     #[cfg(test)]
-    pub(crate) fn rand(w: &mut crate::ZWriter) -> Self {
+    pub(crate) fn rand<'a>(w: &mut impl crate::ZStore<'a>) -> Self {
         let zid = ZenohIdProto::rand(w);
         let eid: u32 = thread_rng().r#gen();
 
@@ -267,7 +277,7 @@ impl EntityGlobalId {
 
 impl SourceInfo {
     #[cfg(test)]
-    pub(crate) fn rand(w: &mut crate::ZWriter) -> Self {
+    pub(crate) fn rand<'a>(w: &mut impl crate::ZStore<'a>) -> Self {
         let id = EntityGlobalId::rand(w);
         let sn: u32 = thread_rng().r#gen();
 
@@ -277,14 +287,15 @@ impl SourceInfo {
 
 impl<'a> Value<'a> {
     #[cfg(test)]
-    pub(crate) fn rand(w: &mut ZWriter<'a>) -> Self {
+    pub(crate) fn rand(w: &mut impl crate::ZStore<'a>) -> Self {
         let encoding = Encoding::rand(w);
-        let payload = w
-            .write_slot(thread_rng().gen_range(0..=64), |b: &mut [u8]| {
+        let payload = unsafe {
+            w.store(thread_rng().gen_range(0..=64), |b: &mut [u8]| {
                 thread_rng().fill(b);
                 b.len()
             })
-            .unwrap();
+            .unwrap()
+        };
 
         Self { encoding, payload }
     }
@@ -292,13 +303,14 @@ impl<'a> Value<'a> {
 
 impl<'a> Attachment<'a> {
     #[cfg(test)]
-    pub(crate) fn rand(w: &mut ZWriter<'a>) -> Self {
-        let buffer = w
-            .write_slot(thread_rng().gen_range(0..=64), |b: &mut [u8]| {
+    pub(crate) fn rand(w: &mut impl crate::ZStore<'a>) -> Self {
+        let buffer = unsafe {
+            w.store(thread_rng().gen_range(0..=64), |b: &mut [u8]| {
                 thread_rng().fill(b);
                 b.len()
             })
-            .unwrap();
+            .unwrap()
+        };
 
         Self { buffer }
     }
@@ -306,14 +318,14 @@ impl<'a> Attachment<'a> {
 
 impl QoS {
     #[cfg(test)]
-    pub(crate) fn rand(_: &mut ZWriter) -> Self {
+    pub(crate) fn rand<'a>(_: &mut impl crate::ZStore<'a>) -> Self {
         let inner: u8 = thread_rng().r#gen();
         Self { inner }
     }
 }
 impl NodeId {
     #[cfg(test)]
-    pub(crate) fn rand(_: &mut ZWriter) -> Self {
+    pub(crate) fn rand<'a>(_: &mut impl crate::ZStore<'a>) -> Self {
         let node_id: u16 = thread_rng().r#gen();
         Self { node_id }
     }
@@ -321,7 +333,7 @@ impl NodeId {
 
 impl Budget {
     #[cfg(test)]
-    pub(crate) fn rand(_: &mut ZWriter) -> Self {
+    pub(crate) fn rand<'a>(_: &mut impl crate::ZStore<'a>) -> Self {
         let budget: u32 = thread_rng().r#gen();
         Self { budget }
     }
@@ -329,7 +341,7 @@ impl Budget {
 
 impl QueryableInfo {
     #[cfg(test)]
-    pub(crate) fn rand(_: &mut ZWriter) -> Self {
+    pub(crate) fn rand<'a>(_: &mut impl crate::ZStore<'a>) -> Self {
         let complete = thread_rng().gen_bool(0.5);
         let distance: u16 = thread_rng().r#gen();
         Self { complete, distance }
@@ -338,7 +350,7 @@ impl QueryableInfo {
 
 impl<'a> Declare<'a> {
     #[cfg(test)]
-    pub(crate) fn rand(w: &mut crate::ZWriter<'a>) -> Self {
+    pub(crate) fn rand(w: &mut impl crate::ZStore<'a>) -> Self {
         let id = if rand::thread_rng().gen_bool(0.5) {
             Some(rand::thread_rng().r#gen())
         } else {
@@ -377,7 +389,7 @@ impl<'a> Declare<'a> {
 
 impl<'a> DeclareKeyExpr<'a> {
     #[cfg(test)]
-    pub(crate) fn rand(w: &mut crate::ZWriter<'a>) -> Self {
+    pub(crate) fn rand(w: &mut impl crate::ZStore<'a>) -> Self {
         let id = rand::thread_rng().r#gen();
         let wire_expr = WireExpr::rand(w);
         Self { id, wire_expr }
@@ -386,7 +398,7 @@ impl<'a> DeclareKeyExpr<'a> {
 
 impl UndeclareKeyExpr {
     #[cfg(test)]
-    pub(crate) fn rand(_: &mut crate::ZWriter) -> Self {
+    pub(crate) fn rand<'a>(_: &mut impl crate::ZStore<'a>) -> Self {
         let id = rand::thread_rng().r#gen();
         Self { id }
     }
@@ -394,7 +406,7 @@ impl UndeclareKeyExpr {
 
 impl<'a> DeclareSubscriber<'a> {
     #[cfg(test)]
-    pub(crate) fn rand(w: &mut crate::ZWriter<'a>) -> Self {
+    pub(crate) fn rand(w: &mut impl crate::ZStore<'a>) -> Self {
         let id = rand::thread_rng().r#gen();
         let wire_expr = WireExpr::rand(w);
         Self { id, wire_expr }
@@ -403,7 +415,7 @@ impl<'a> DeclareSubscriber<'a> {
 
 impl<'a> UndeclareSubscriber<'a> {
     #[cfg(test)]
-    pub(crate) fn rand(w: &mut crate::ZWriter<'a>) -> Self {
+    pub(crate) fn rand(w: &mut impl crate::ZStore<'a>) -> Self {
         let id = rand::thread_rng().r#gen();
         let wire_expr = if rand::thread_rng().gen_bool(0.5) {
             Some(WireExpr::rand(w))
@@ -416,7 +428,7 @@ impl<'a> UndeclareSubscriber<'a> {
 
 impl<'a> DeclareQueryable<'a> {
     #[cfg(test)]
-    pub(crate) fn rand(w: &mut crate::ZWriter<'a>) -> Self {
+    pub(crate) fn rand(w: &mut impl crate::ZStore<'a>) -> Self {
         let id = rand::thread_rng().r#gen();
         let wire_expr = WireExpr::rand(w);
         let qinfo = if rand::thread_rng().gen_bool(0.5) {
@@ -434,7 +446,7 @@ impl<'a> DeclareQueryable<'a> {
 
 impl<'a> UndeclareQueryable<'a> {
     #[cfg(test)]
-    pub(crate) fn rand(w: &mut crate::ZWriter<'a>) -> Self {
+    pub(crate) fn rand(w: &mut impl crate::ZStore<'a>) -> Self {
         let id = rand::thread_rng().r#gen();
         let wire_expr = if rand::thread_rng().gen_bool(0.5) {
             Some(WireExpr::rand(w))
@@ -447,7 +459,7 @@ impl<'a> UndeclareQueryable<'a> {
 
 impl<'a> DeclareToken<'a> {
     #[cfg(test)]
-    pub(crate) fn rand(w: &mut crate::ZWriter<'a>) -> Self {
+    pub(crate) fn rand(w: &mut impl crate::ZStore<'a>) -> Self {
         let id = rand::thread_rng().r#gen();
         let wire_expr = WireExpr::rand(w);
         Self { id, wire_expr }
@@ -456,7 +468,7 @@ impl<'a> DeclareToken<'a> {
 
 impl<'a> UndeclareToken<'a> {
     #[cfg(test)]
-    pub(crate) fn rand(w: &mut crate::ZWriter<'a>) -> Self {
+    pub(crate) fn rand(w: &mut impl crate::ZStore<'a>) -> Self {
         let id = rand::thread_rng().r#gen();
         let wire_expr = if rand::thread_rng().gen_bool(0.5) {
             Some(WireExpr::rand(w))
@@ -469,14 +481,14 @@ impl<'a> UndeclareToken<'a> {
 
 impl DeclareFinal {
     #[cfg(test)]
-    pub(crate) fn rand(_: &mut crate::ZWriter) -> Self {
+    pub(crate) fn rand<'a>(_: &mut impl crate::ZStore<'a>) -> Self {
         Self {}
     }
 }
 
 impl<'a> Push<'a> {
     #[cfg(test)]
-    pub(crate) fn rand(w: &mut ZWriter<'a>) -> Self {
+    pub(crate) fn rand(w: &mut impl crate::ZStore<'a>) -> Self {
         let wire_expr = WireExpr::rand(w);
         let qos = if thread_rng().gen_bool(0.5) {
             QoS::rand(w)
@@ -508,9 +520,23 @@ impl<'a> Push<'a> {
     }
 }
 
+impl<'a> RequestBody<'a> {
+    #[cfg(test)]
+    pub(crate) fn rand(w: &mut impl crate::ZStore<'a>) -> Self {
+        use rand::seq::SliceRandom;
+        let mut rng = rand::thread_rng();
+        let choices = [Query::ID];
+
+        match *choices.choose(&mut rng).unwrap() {
+            Query::ID => RequestBody::Query(Query::rand(w)),
+            _ => unreachable!(),
+        }
+    }
+}
+
 impl<'a> Request<'a> {
     #[cfg(test)]
-    pub(crate) fn rand(w: &mut ZWriter<'a>) -> Self {
+    pub(crate) fn rand(w: &mut impl crate::ZStore<'a>) -> Self {
         use ::core::time::Duration;
 
         let id = thread_rng().r#gen();
@@ -541,11 +567,11 @@ impl<'a> Request<'a> {
         };
 
         trait RandDuration {
-            fn rand(w: &mut crate::ZWriter) -> Self;
+            fn rand<'a>(w: &mut impl crate::ZStore<'a>) -> Self;
         }
 
         impl RandDuration for Duration {
-            fn rand(_: &mut ZWriter) -> Self {
+            fn rand<'a>(_: &mut impl crate::ZStore<'a>) -> Self {
                 Duration::from_millis(thread_rng().gen_range(0..10_000))
             }
         }
@@ -569,9 +595,24 @@ impl<'a> Request<'a> {
     }
 }
 
+impl<'a> ResponseBody<'a> {
+    #[cfg(test)]
+    pub(crate) fn rand(w: &mut impl crate::ZStore<'a>) -> Self {
+        use rand::seq::SliceRandom;
+        let mut rng = rand::thread_rng();
+        let choices = [Reply::ID, Err::ID];
+
+        match *choices.choose(&mut rng).unwrap() {
+            Reply::ID => ResponseBody::Reply(Reply::rand(w)),
+            Err::ID => ResponseBody::Err(Err::rand(w)),
+            _ => unreachable!(),
+        }
+    }
+}
+
 impl<'a> Response<'a> {
     #[cfg(test)]
-    pub(crate) fn rand(w: &mut ZWriter<'a>) -> Self {
+    pub(crate) fn rand(w: &mut impl crate::ZStore<'a>) -> Self {
         let rid = thread_rng().r#gen();
         let wire_expr = WireExpr::rand(w);
 
@@ -606,7 +647,7 @@ impl<'a> Response<'a> {
 
 impl ResponseFinal {
     #[cfg(test)]
-    pub(crate) fn rand(w: &mut crate::ZWriter) -> Self {
+    pub(crate) fn rand<'a>(w: &mut impl crate::ZStore<'a>) -> Self {
         let rid = thread_rng().r#gen();
 
         let qos = if thread_rng().gen_bool(0.5) {
@@ -651,7 +692,7 @@ impl InterestOptions {
 
 impl<'a> InterestInner<'a> {
     #[cfg(test)]
-    pub(crate) fn rand(w: &mut ZWriter<'a>) -> Self {
+    pub(crate) fn rand(w: &mut impl crate::ZStore<'a>) -> Self {
         let options = InterestOptions::rand().options;
         let wire_expr = if thread_rng().gen_bool(0.5) {
             Some(WireExpr::rand(w))
@@ -665,7 +706,7 @@ impl<'a> InterestInner<'a> {
 
 impl<'a> Interest<'a> {
     #[cfg(test)]
-    pub(crate) fn rand(w: &mut ZWriter<'a>) -> Self {
+    pub(crate) fn rand(w: &mut impl crate::ZStore<'a>) -> Self {
         let id = thread_rng().r#gen();
         let mode = [
             InterestMode::Current,
@@ -708,7 +749,7 @@ impl<'a> Interest<'a> {
 
 impl InterestFinal {
     #[cfg(test)]
-    pub(crate) fn rand(w: &mut ZWriter) -> Self {
+    pub(crate) fn rand<'a>(w: &mut impl crate::ZStore<'a>) -> Self {
         let id = thread_rng().r#gen();
         let qos = if thread_rng().gen_bool(0.5) {
             QoS::rand(w)
@@ -739,13 +780,14 @@ impl InterestFinal {
 
 impl<'a> Auth<'a> {
     #[cfg(test)]
-    pub(crate) fn rand(w: &mut crate::ZWriter<'a>) -> Self {
-        let payload = w
-            .write_slot(thread_rng().gen_range(0..=64), |b: &mut [u8]| {
+    pub(crate) fn rand(w: &mut impl crate::ZStore<'a>) -> Self {
+        let payload = unsafe {
+            w.store(thread_rng().gen_range(0..=64), |b: &mut [u8]| {
                 thread_rng().fill(b);
                 b.len()
             })
-            .unwrap();
+            .unwrap()
+        };
 
         Self { payload }
     }
@@ -753,13 +795,14 @@ impl<'a> Auth<'a> {
 
 impl<'a> MultiLink<'a> {
     #[cfg(test)]
-    pub(crate) fn rand(w: &mut crate::ZWriter<'a>) -> Self {
-        let payload = w
-            .write_slot(thread_rng().gen_range(0..=64), |b: &mut [u8]| {
+    pub(crate) fn rand(w: &mut impl crate::ZStore<'a>) -> Self {
+        let payload = unsafe {
+            w.store(thread_rng().gen_range(0..=64), |b: &mut [u8]| {
                 thread_rng().fill(b);
                 b.len()
             })
-            .unwrap();
+            .unwrap()
+        };
 
         Self { payload }
     }
@@ -767,13 +810,14 @@ impl<'a> MultiLink<'a> {
 
 impl<'a> MultiLinkSyn<'a> {
     #[cfg(test)]
-    pub(crate) fn rand(w: &mut crate::ZWriter<'a>) -> Self {
-        let payload = w
-            .write_slot(thread_rng().gen_range(0..=64), |b: &mut [u8]| {
+    pub(crate) fn rand(w: &mut impl crate::ZStore<'a>) -> Self {
+        let payload = unsafe {
+            w.store(thread_rng().gen_range(0..=64), |b: &mut [u8]| {
                 thread_rng().fill(b);
                 b.len()
             })
-            .unwrap();
+            .unwrap()
+        };
 
         Self { payload }
     }
@@ -781,7 +825,7 @@ impl<'a> MultiLinkSyn<'a> {
 
 impl Patch {
     #[cfg(test)]
-    pub(crate) fn rand(_: &mut ZWriter) -> Self {
+    pub(crate) fn rand<'a>(_: &mut impl crate::ZStore<'a>) -> Self {
         Self {
             int: thread_rng().r#gen(),
         }
@@ -790,7 +834,7 @@ impl Patch {
 
 impl Close {
     #[cfg(test)]
-    pub(crate) fn rand(_: &mut ZWriter) -> Self {
+    pub(crate) fn rand<'a>(_: &mut impl crate::ZStore<'a>) -> Self {
         use rand::Rng;
         let mut rng = rand::thread_rng();
         let reason: u8 = rng.r#gen();
@@ -805,7 +849,7 @@ impl Close {
 
 impl FrameHeader {
     #[cfg(test)]
-    pub(crate) fn rand(w: &mut crate::ZWriter) -> Self {
+    pub(crate) fn rand<'a>(w: &mut impl crate::ZStore<'a>) -> Self {
         let reliability = Reliability::rand(w);
         let sn = rand::thread_rng().r#gen();
         let qos = QoS::rand(w);
@@ -819,7 +863,7 @@ impl FrameHeader {
 
 impl InitIdentifier {
     #[cfg(test)]
-    pub(crate) fn rand(w: &mut crate::ZWriter) -> Self {
+    pub(crate) fn rand<'a>(w: &mut impl crate::ZStore<'a>) -> Self {
         let whatami = WhatAmI::rand(w);
         let zid = ZenohIdProto::rand(w);
         Self { whatami, zid }
@@ -828,7 +872,7 @@ impl InitIdentifier {
 
 impl InitResolution {
     #[cfg(test)]
-    pub(crate) fn rand(_: &mut ZWriter) -> Self {
+    pub(crate) fn rand<'a>(_: &mut impl crate::ZStore<'a>) -> Self {
         let resolution = Resolution::rand();
         let batch_size = BatchSize(rand::thread_rng().r#gen());
         Self {
@@ -840,7 +884,7 @@ impl InitResolution {
 
 impl QoSLink {
     #[cfg(test)]
-    pub(crate) fn rand(_: &mut ZWriter) -> Self {
+    pub(crate) fn rand<'a>(_: &mut impl crate::ZStore<'a>) -> Self {
         Self {
             qos: thread_rng().r#gen(),
         }
@@ -849,7 +893,7 @@ impl QoSLink {
 
 impl<'a> InitSyn<'a> {
     #[cfg(test)]
-    pub(crate) fn rand(w: &mut ZWriter<'a>) -> Self {
+    pub(crate) fn rand(w: &mut impl crate::ZStore<'a>) -> Self {
         let version = rand::thread_rng().r#gen();
         let identifier = InitIdentifier::rand(w);
         let resolution = if rand::thread_rng().gen_bool(0.5) {
@@ -912,7 +956,7 @@ impl<'a> InitSyn<'a> {
 
 impl<'a> InitAck<'a> {
     #[cfg(test)]
-    pub(crate) fn rand(w: &mut ZWriter<'a>) -> Self {
+    pub(crate) fn rand(w: &mut impl crate::ZStore<'a>) -> Self {
         let version = rand::thread_rng().r#gen();
         let identifier = InitIdentifier::rand(w);
         let resolution = if rand::thread_rng().gen_bool(0.5) {
@@ -921,12 +965,14 @@ impl<'a> InitAck<'a> {
             InitResolution::default()
         };
         let cookie_len = rand::thread_rng().gen_range(0..16);
-        let cookie = w
-            .write_slot(cookie_len, |b: &mut [u8]| {
+        let cookie = unsafe {
+            w.store(cookie_len, |b: &mut [u8]| {
                 rand::thread_rng().fill(b);
                 b.len()
             })
-            .unwrap();
+            .unwrap()
+        };
+
         let qos = if rand::thread_rng().gen_bool(0.5) {
             Some(HasQoS {})
         } else {
@@ -981,22 +1027,24 @@ impl<'a> InitAck<'a> {
 
 impl KeepAlive {
     #[cfg(test)]
-    pub(crate) fn rand(_: &mut crate::ZWriter) -> Self {
+    pub(crate) fn rand<'a>(_: &mut impl crate::ZStore<'a>) -> Self {
         Self {}
     }
 }
 
 impl<'a> OpenSyn<'a> {
     #[cfg(test)]
-    pub(crate) fn rand(w: &mut crate::ZWriter<'a>) -> Self {
+    pub(crate) fn rand(w: &mut impl crate::ZStore<'a>) -> Self {
         let lease = Duration::from_secs(rand::thread_rng().gen_range(1..=3600));
         let sn: u32 = rand::thread_rng().r#gen();
-        let cookie = w
-            .write_slot(rand::thread_rng().gen_range(0..=64), |b: &mut [u8]| {
+        let cookie = unsafe {
+            w.store(rand::thread_rng().gen_range(0..=64), |b: &mut [u8]| {
                 rand::thread_rng().fill(b);
                 b.len()
             })
-            .unwrap();
+            .unwrap()
+        };
+
         let qos = if rand::thread_rng().gen_bool(0.5) {
             Some(HasQoS {})
         } else {
@@ -1049,7 +1097,7 @@ impl<'a> OpenSyn<'a> {
 
 impl<'a> OpenAck<'a> {
     #[cfg(test)]
-    pub(crate) fn rand(w: &mut crate::ZWriter<'a>) -> Self {
+    pub(crate) fn rand(w: &mut impl crate::ZStore<'a>) -> Self {
         let lease = Duration::from_secs(rand::thread_rng().gen_range(1..=3600));
         let sn: u32 = rand::thread_rng().r#gen();
         let qos = if rand::thread_rng().gen_bool(0.5) {

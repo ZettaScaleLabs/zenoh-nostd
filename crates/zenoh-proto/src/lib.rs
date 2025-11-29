@@ -10,6 +10,9 @@ pub mod logging;
 mod error;
 pub use error::*;
 
+mod bytes;
+pub use bytes::*;
+
 mod codec;
 pub(crate) use codec::*;
 

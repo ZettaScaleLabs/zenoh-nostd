@@ -59,7 +59,7 @@ impl ZBodyLen for Resolution {
 }
 
 impl ZBodyEncode for Resolution {
-    fn z_body_encode(&self, w: &mut crate::ZWriter) -> crate::ZResult<(), crate::ZCodecError> {
+    fn z_body_encode(&self, w: &mut impl crate::ZWrite) -> crate::ZResult<(), crate::ZCodecError> {
         <u8 as ZBodyEncode>::z_body_encode(&self.0, w)
     }
 }
@@ -68,11 +68,10 @@ impl<'a> ZBodyDecode<'a> for Resolution {
     type Ctx = ();
 
     fn z_body_decode(
-        r: &mut crate::ZReader<'_>,
+        r: &mut impl crate::ZRead<'a>,
         _: (),
     ) -> crate::ZResult<Self, crate::ZCodecError> {
-        let value = <u8 as crate::ZDecode>::z_decode(r)?;
-        Ok(Self(value))
+        Ok(Self(<u8 as crate::ZDecode>::z_decode(r)?))
     }
 }
 
