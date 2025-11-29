@@ -1,4 +1,4 @@
-use zenoh_proto::{exts::*, msgs::*, *};
+use zenoh_proto::{msgs::*, *};
 
 use crate::{SessionDriver, platform::Platform};
 
@@ -19,16 +19,11 @@ impl<T: Platform + 'static> ZPublisher<T> {
     pub async fn put(&self, bytes: &[u8]) -> zenoh_proto::ZResult<()> {
         let msg = Push {
             wire_expr: WireExpr::from(self.ke),
-            qos: QoS::DEFAULT,
-            timestamp: None,
-            nodeid: NodeId::DEFAULT,
             payload: PushBody::Put(Put {
-                timestamp: None,
-                encoding: Encoding::empty(),
-                sinfo: None,
-                attachment: None,
                 payload: bytes,
+                ..Default::default()
             }),
+            ..Default::default()
         };
 
         self.driver.send(msg).await

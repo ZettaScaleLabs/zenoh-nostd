@@ -2,7 +2,7 @@ use ::core::time::Duration;
 
 use crate::{fields::*, *};
 
-#[derive(ZExt, Debug, PartialEq)]
+#[derive(ZExt, Debug, PartialEq, Default)]
 #[zenoh(header = "ID:4|_:4")]
 pub struct EntityGlobalId {
     #[zenoh(size = header(ID))]
@@ -11,13 +11,13 @@ pub struct EntityGlobalId {
     pub eid: u32,
 }
 
-#[derive(ZExt, Debug, PartialEq)]
+#[derive(ZExt, Debug, PartialEq, Default)]
 pub struct SourceInfo {
     pub id: EntityGlobalId,
     pub sn: u32,
 }
 
-#[derive(ZExt, Debug, PartialEq)]
+#[derive(ZExt, Debug, PartialEq, Default)]
 pub struct Value<'a> {
     pub encoding: Encoding<'a>,
 
@@ -25,7 +25,7 @@ pub struct Value<'a> {
     pub payload: &'a [u8],
 }
 
-#[derive(ZExt, Debug, PartialEq)]
+#[derive(ZExt, Debug, PartialEq, Default)]
 pub struct Attachment<'a> {
     #[zenoh(size = remain)]
     pub buffer: &'a [u8],
@@ -36,13 +36,19 @@ pub struct QoS {
     pub inner: u8,
 }
 
+impl Default for QoS {
+    fn default() -> Self {
+        Self::new(Priority::Data, CongestionControl::Drop, false)
+    }
+}
+
 impl QoS {
     const D_FLAG: u8 = 0b00001000;
     const E_FLAG: u8 = 0b00010000;
 
-    pub const DEFAULT: Self = Self::new(Priority::DEFAULT, CongestionControl::DEFAULT, false);
-    pub const DECLARE: Self =
-        Self::new(Priority::DEFAULT, CongestionControl::DEFAULT_DECLARE, false);
+    pub const fn declare() -> Self {
+        Self::new(Priority::Data, CongestionControl::Block, false)
+    }
 
     pub const fn new(
         priority: Priority,
@@ -60,14 +66,10 @@ impl QoS {
     }
 }
 
-#[derive(ZExt, Debug, PartialEq)]
+#[derive(ZExt, Debug, PartialEq, Default)]
 pub struct NodeId {
     pub node_id: u16,
 }
-impl NodeId {
-    pub const DEFAULT: Self = Self { node_id: 0 };
-}
-
 #[repr(u8)]
 #[derive(ZRU8, Debug, Default, Clone, Copy, PartialEq)]
 pub enum QueryTarget {
@@ -77,11 +79,7 @@ pub enum QueryTarget {
     AllComplete = 2,
 }
 
-impl QueryTarget {
-    pub const DEFAULT: Self = Self::BestMatching;
-}
-
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Default)]
 pub struct QueryableInfo {
     pub complete: bool,
     pub distance: u16,
@@ -120,11 +118,6 @@ impl<'a> ZExt<'a> for QueryableInfo {
 }
 
 impl QueryableInfo {
-    pub const DEFAULT: Self = Self {
-        complete: false,
-        distance: 0,
-    };
-
     fn as_u64(&self) -> u64 {
         let mut flags: u8 = 0;
         if self.complete {
@@ -134,7 +127,7 @@ impl QueryableInfo {
     }
 }
 
-#[derive(ZExt, Debug, PartialEq)]
+#[derive(ZExt, Debug, PartialEq, Default)]
 pub struct Budget {
     pub budget: u32,
 }
@@ -211,42 +204,42 @@ impl<'a> ZExt<'a> for Duration {
     const KIND: ZExtKind = ZExtKind::U64;
 }
 
-#[derive(ZExt, Debug, PartialEq)]
+#[derive(ZExt, Debug, PartialEq, Default)]
 pub struct HasQoS {}
 
-#[derive(ZExt, Debug, PartialEq)]
+#[derive(ZExt, Debug, PartialEq, Default)]
 pub struct QoSLink {
     pub qos: u64,
 }
 
-#[derive(ZExt, Debug, PartialEq)]
+#[derive(ZExt, Debug, PartialEq, Default)]
 pub struct Auth<'a> {
     #[zenoh(size = remain)]
     pub payload: &'a [u8],
 }
 
-#[derive(ZExt, Debug, PartialEq)]
+#[derive(ZExt, Debug, PartialEq, Default)]
 pub struct MultiLink<'a> {
     #[zenoh(size = remain)]
     pub payload: &'a [u8],
 }
 
-#[derive(ZExt, Debug, PartialEq)]
+#[derive(ZExt, Debug, PartialEq, Default)]
 pub struct MultiLinkSyn<'a> {
     #[zenoh(size = remain)]
     pub payload: &'a [u8],
 }
 
-#[derive(ZExt, Debug, PartialEq)]
+#[derive(ZExt, Debug, PartialEq, Default)]
 pub struct HasMultiLinkAck {}
 
-#[derive(ZExt, Debug, PartialEq)]
+#[derive(ZExt, Debug, PartialEq, Default)]
 pub struct HasLowLatency {}
 
-#[derive(ZExt, Debug, PartialEq)]
+#[derive(ZExt, Debug, PartialEq, Default)]
 pub struct HasCompression {}
 
-#[derive(ZExt, Debug, PartialEq)]
+#[derive(ZExt, Debug, PartialEq, Default)]
 pub struct Patch {
     pub int: u8,
 }

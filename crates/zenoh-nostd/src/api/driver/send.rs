@@ -12,7 +12,7 @@ impl<T: Platform> SessionDriver<T> {
 
         tx.tx
             .send(tx.tx_zbuf, &mut tx.sn, |batch| {
-                batch.frame(&x, Reliability::Reliable, QoS::DEFAULT)
+                batch.frame(&x, Reliability::Reliable, QoS::default())
             })
             .await?;
 

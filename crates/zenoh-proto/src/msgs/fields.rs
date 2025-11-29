@@ -11,19 +11,11 @@ pub enum Reliability {
     Reliable = 1,
 }
 
-impl Reliability {
-    pub const DEFAULT: Self = Self::Reliable;
-}
-
 #[repr(u8)]
 #[derive(Debug, Default, PartialEq)]
 pub enum Priority {
     #[default]
     Data = 5,
-}
-
-impl Priority {
-    pub const DEFAULT: Self = Self::Data;
 }
 
 #[derive(Debug, Default, PartialEq)]
@@ -32,11 +24,6 @@ pub enum CongestionControl {
     #[default]
     Drop = 0,
     Block = 1,
-}
-
-impl CongestionControl {
-    pub const DEFAULT: Self = Self::Drop;
-    pub const DEFAULT_DECLARE: Self = Self::Block;
 }
 
 #[repr(u8)]
@@ -51,6 +38,12 @@ pub enum ConsolidationMode {
 
 #[derive(Debug, PartialEq)]
 pub struct BatchSize(pub u16);
+
+impl Default for BatchSize {
+    fn default() -> Self {
+        BatchSize(u16::MAX)
+    }
+}
 
 impl ZBodyLen for BatchSize {
     fn z_body_len(&self) -> usize {

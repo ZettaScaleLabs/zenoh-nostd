@@ -1,6 +1,6 @@
 use crate::*;
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Default)]
 pub struct Encoding<'a> {
     pub id: u16,
 
@@ -8,11 +8,6 @@ pub struct Encoding<'a> {
 }
 
 impl Encoding<'_> {
-    pub const DEFAULT: Self = Encoding {
-        id: 0,
-        schema: None,
-    };
-
     const FLAG_S: u8 = 0b0000_0001;
 
     pub const fn empty() -> Self {

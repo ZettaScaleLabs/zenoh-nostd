@@ -6,7 +6,13 @@ pub enum ResponseBody<'a> {
     Reply(Reply<'a>),
 }
 
-#[derive(ZStruct, Debug, PartialEq)]
+impl Default for ResponseBody<'_> {
+    fn default() -> Self {
+        ResponseBody::Err(Err::default())
+    }
+}
+
+#[derive(ZStruct, Debug, PartialEq, Default)]
 #[zenoh(header = "Z|M|N|ID:5=0x1b")]
 pub struct Response<'a> {
     pub rid: u32,
@@ -14,7 +20,7 @@ pub struct Response<'a> {
     #[zenoh(flatten, shift = 5)]
     pub wire_expr: WireExpr<'a>,
 
-    #[zenoh(ext = 0x1, default = QoS::DEFAULT)]
+    #[zenoh(ext = 0x1, default = QoS::default())]
     pub qos: QoS,
     #[zenoh(ext = 0x2)]
     pub timestamp: Option<Timestamp>,
@@ -24,12 +30,12 @@ pub struct Response<'a> {
     pub payload: ResponseBody<'a>,
 }
 
-#[derive(ZStruct, Debug, PartialEq)]
+#[derive(ZStruct, Debug, PartialEq, Default)]
 #[zenoh(header = "Z|_:2|ID:5=0x1a")]
 pub struct ResponseFinal {
     pub rid: u32,
 
-    #[zenoh(ext = 0x1, default = QoS::DEFAULT)]
+    #[zenoh(ext = 0x1, default = QoS::default())]
     pub qos: QoS,
     #[zenoh(ext = 0x2)]
     pub timestamp: Option<Timestamp>,

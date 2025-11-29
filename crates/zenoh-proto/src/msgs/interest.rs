@@ -1,15 +1,16 @@
 use crate::{exts::*, fields::*, *};
 
 #[repr(u8)]
-#[derive(ZRU8, Debug, Clone, Copy, PartialEq)]
+#[derive(ZRU8, Debug, Clone, Copy, PartialEq, Default)]
 pub enum InterestMode {
+    #[default]
     Final = 0b00,
     Current = 0b01,
     Future = 0b10,
     CurrentFuture = 0b11,
 }
 
-#[derive(ZStruct, Debug)]
+#[derive(ZStruct, Debug, Default)]
 #[zenoh(header = "A|M|N|R|T|Q|S|K")]
 pub struct InterestInner<'a> {
     #[zenoh(header = FULL)]
@@ -19,18 +20,7 @@ pub struct InterestInner<'a> {
     pub wire_expr: Option<WireExpr<'a>>,
 }
 
-#[derive(ZStruct, Debug, PartialEq)]
-#[zenoh(header = "Z|_:2|ID:5=0x19")]
-pub struct InterestExt {
-    #[zenoh(ext = 0x1, default = QoS::DEFAULT)]
-    pub qos: QoS,
-    #[zenoh(ext = 0x2)]
-    pub timestamp: Option<Timestamp>,
-    #[zenoh(ext = 0x3, default = NodeId::DEFAULT, mandatory)]
-    pub nodeid: NodeId,
-}
-
-#[derive(ZStruct, Debug, PartialEq)]
+#[derive(ZStruct, Debug, PartialEq, Default)]
 #[zenoh(header = "Z|MODE:2|ID:5=0x19")]
 pub struct Interest<'a> {
     pub id: u32,
@@ -40,17 +30,25 @@ pub struct Interest<'a> {
 
     pub inner: InterestInner<'a>,
 
-    #[zenoh(flatten)]
-    pub ext: InterestExt,
+    #[zenoh(ext = 0x1, default = QoS::default())]
+    pub qos: QoS,
+    #[zenoh(ext = 0x2)]
+    pub timestamp: Option<Timestamp>,
+    #[zenoh(ext = 0x3, default = NodeId::default(), mandatory)]
+    pub nodeid: NodeId,
 }
 
-#[derive(ZStruct, Debug, PartialEq)]
+#[derive(ZStruct, Debug, PartialEq, Default)]
 #[zenoh(header = "Z|MODE:2=0x0|ID:5=0x19")]
 pub struct InterestFinal {
     pub id: u32,
 
-    #[zenoh(flatten)]
-    pub ext: InterestExt,
+    #[zenoh(ext = 0x1, default = QoS::default())]
+    pub qos: QoS,
+    #[zenoh(ext = 0x2)]
+    pub timestamp: Option<Timestamp>,
+    #[zenoh(ext = 0x3, default = NodeId::default(), mandatory)]
+    pub nodeid: NodeId,
 }
 
 #[repr(transparent)]

@@ -3,6 +3,8 @@
 #[cfg(feature = "alloc")]
 extern crate alloc;
 
+pub const VERSION: u8 = 9;
+
 pub mod logging;
 
 mod error;

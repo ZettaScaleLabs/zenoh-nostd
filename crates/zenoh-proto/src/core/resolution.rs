@@ -21,12 +21,6 @@ pub enum Field {
 pub struct Resolution(pub(crate) u8);
 
 impl Resolution {
-    pub const DEFAULT: Self = {
-        let frame_sn = Bits::U32 as u8;
-        let request_id = (Bits::U32 as u8) << 2;
-        Self(frame_sn | request_id)
-    };
-
     pub const fn get(&self, field: Field) -> Bits {
         let value = (self.0 >> (field as u8)) & 0b11;
 
@@ -46,7 +40,9 @@ impl Resolution {
 }
 impl Default for Resolution {
     fn default() -> Self {
-        Self::DEFAULT
+        let frame_sn = Bits::U32 as u8;
+        let request_id = (Bits::U32 as u8) << 2;
+        Self(frame_sn | request_id)
     }
 }
 

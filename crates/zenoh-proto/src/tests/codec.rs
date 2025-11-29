@@ -1,6 +1,6 @@
 use criterion::Criterion;
 
-use crate::{exts::*, fields::*, keyexpr, msgs::*, *};
+use crate::{keyexpr, msgs::*, *};
 
 #[test]
 #[ignore]
@@ -41,24 +41,15 @@ fn bench_codec_encode_batch() {
     let mut c = Criterion::default().with_output_color(true);
 
     let mut data = [0u8; u16::MAX as usize];
-    let frame = FrameHeader {
-        reliability: Reliability::DEFAULT,
-        sn: 0,
-        qos: QoS::DEFAULT,
-    };
+    let frame = FrameHeader::default();
 
     let msg = Push {
         wire_expr: WireExpr::from(keyexpr::new("demo/example").unwrap()),
-        qos: QoS::DEFAULT,
-        timestamp: None,
-        nodeid: NodeId::DEFAULT,
         payload: PushBody::Put(Put {
-            timestamp: None,
-            encoding: Encoding::DEFAULT,
-            sinfo: None,
-            attachment: None,
             payload: &[0u8; 8],
+            ..Default::default()
         }),
+        ..Default::default()
     };
 
     c.bench_function("encode_batch", |b| {
@@ -76,24 +67,15 @@ fn bench_codec_decode_batch() {
     let mut c = Criterion::default().with_output_color(true);
 
     let mut data = [0u8; u16::MAX as usize];
-    let frame = FrameHeader {
-        reliability: Reliability::DEFAULT,
-        sn: 0,
-        qos: QoS::DEFAULT,
-    };
+    let frame = FrameHeader::default();
 
     let msg = Push {
         wire_expr: WireExpr::from(keyexpr::new("demo/example").unwrap()),
-        qos: QoS::DEFAULT,
-        timestamp: None,
-        nodeid: NodeId::DEFAULT,
         payload: PushBody::Put(Put {
-            timestamp: None,
-            encoding: Encoding::DEFAULT,
-            sinfo: None,
-            attachment: None,
             payload: &[0u8; 8],
+            ..Default::default()
         }),
+        ..Default::default()
     };
 
     let mut w = data.as_mut_slice();
