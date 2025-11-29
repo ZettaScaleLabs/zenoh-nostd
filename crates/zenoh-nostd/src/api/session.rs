@@ -61,16 +61,11 @@ impl<T: Platform + 'static> Session<T> {
     pub async fn put(&self, ke: &'static keyexpr, bytes: &[u8]) -> ZResult<()> {
         let msg = Push {
             wire_expr: WireExpr::from(ke),
-            qos: QoS::DEFAULT,
-            timestamp: None,
-            nodeid: NodeId::DEFAULT,
             payload: PushBody::Put(Put {
                 payload: bytes,
-                timestamp: None,
-                encoding: Encoding::empty(),
-                sinfo: None,
-                attachment: None,
+                ..Default::default()
             }),
+            ..Default::default()
         };
 
         self.driver.as_ref().unwrap().send(msg).await?;
@@ -93,11 +88,9 @@ impl<T: Platform + 'static> Session<T> {
         let id = *id;
 
         let msg = Declare {
-            id: None,
-            qos: QoS::DECLARE,
-            timestamp: None,
-            nodeid: NodeId::DEFAULT,
+            qos: QoS::declare(),
             body: DeclareBody::DeclareSubscriber(DeclareSubscriber { id, wire_expr: wke }),
+            ..Default::default()
         };
 
         self.driver.as_ref().unwrap().send(msg).await?;
@@ -144,15 +137,13 @@ impl<T: Platform + 'static> Session<T> {
         let id = *id;
 
         let msg = Declare {
-            id: None,
-            qos: QoS::DECLARE,
-            timestamp: None,
-            nodeid: NodeId::DEFAULT,
+            qos: QoS::declare(),
             body: DeclareBody::DeclareQueryable(DeclareQueryable {
                 id,
                 wire_expr: wke,
-                qinfo: QueryableInfo::DEFAULT,
+                ..Default::default()
             }),
+            ..Default::default()
         };
 
         self.driver.as_ref().unwrap().send(msg).await?;

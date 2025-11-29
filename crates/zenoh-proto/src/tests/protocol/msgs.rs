@@ -103,7 +103,7 @@ fn network_stream() {
 
     for msg in &messages {
         batch
-            .frame(msg, Reliability::Reliable, QoS::DEFAULT)
+            .frame(msg, Reliability::Reliable, QoS::default())
             .unwrap();
     }
 
@@ -140,7 +140,7 @@ fn transport_stream() {
     let mut batch = ZBatchWriter::new(&mut data, 0);
 
     for (r, msg) in &messages {
-        batch.frame(msg, *r, QoS::DEFAULT).unwrap();
+        batch.frame(msg, *r, QoS::default()).unwrap();
     }
 
     batch.unframe(&KeepAlive {}).unwrap();

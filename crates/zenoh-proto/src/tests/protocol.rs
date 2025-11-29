@@ -151,7 +151,7 @@ impl<'a> Err<'a> {
         let encoding = if thread_rng().gen_bool(0.5) {
             Encoding::rand(w)
         } else {
-            Encoding::DEFAULT
+            Encoding::default()
         };
 
         let sinfo = thread_rng().gen_bool(0.5).then_some(SourceInfo::rand(w));
@@ -182,7 +182,7 @@ impl<'a> Put<'a> {
         let encoding = if thread_rng().gen_bool(0.5) {
             Encoding::rand(w)
         } else {
-            Encoding::DEFAULT
+            Encoding::default()
         };
 
         let sinfo = thread_rng().gen_bool(0.5).then_some(SourceInfo::rand(w));
@@ -348,7 +348,7 @@ impl<'a> Declare<'a> {
         let qos = if rand::thread_rng().gen_bool(0.5) {
             QoS::rand(w)
         } else {
-            QoS::DEFAULT
+            QoS::default()
         };
 
         let timestamp = rand::thread_rng().gen_bool(0.5).then_some({
@@ -360,7 +360,7 @@ impl<'a> Declare<'a> {
         let nodeid = if rand::thread_rng().gen_bool(0.5) {
             NodeId::rand(w)
         } else {
-            NodeId::DEFAULT
+            NodeId::default()
         };
 
         let body = DeclareBody::DeclareKeyExpr(DeclareKeyExpr::rand(w));
@@ -422,7 +422,7 @@ impl<'a> DeclareQueryable<'a> {
         let qinfo = if rand::thread_rng().gen_bool(0.5) {
             QueryableInfo::rand(w)
         } else {
-            QueryableInfo::DEFAULT
+            QueryableInfo::default()
         };
         Self {
             id,
@@ -481,7 +481,7 @@ impl<'a> Push<'a> {
         let qos = if thread_rng().gen_bool(0.5) {
             QoS::rand(w)
         } else {
-            QoS::DEFAULT
+            QoS::default()
         };
 
         let timestamp = thread_rng().gen_bool(0.5).then_some({
@@ -493,7 +493,7 @@ impl<'a> Push<'a> {
         let nodeid = if thread_rng().gen_bool(0.5) {
             NodeId::rand(w)
         } else {
-            NodeId::DEFAULT
+            NodeId::default()
         };
 
         let payload = PushBody::rand(w);
@@ -519,7 +519,7 @@ impl<'a> Request<'a> {
         let qos = if thread_rng().gen_bool(0.5) {
             QoS::rand(w)
         } else {
-            QoS::DEFAULT
+            QoS::default()
         };
 
         let timestamp = thread_rng().gen_bool(0.5).then_some({
@@ -531,13 +531,13 @@ impl<'a> Request<'a> {
         let nodeid = if thread_rng().gen_bool(0.5) {
             NodeId::rand(w)
         } else {
-            NodeId::DEFAULT
+            NodeId::default()
         };
 
         let target = if thread_rng().gen_bool(0.5) {
             QueryTarget::rand(w)
         } else {
-            QueryTarget::DEFAULT
+            QueryTarget::default()
         };
 
         trait RandDuration {
@@ -578,7 +578,7 @@ impl<'a> Response<'a> {
         let qos = if thread_rng().gen_bool(0.5) {
             QoS::rand(w)
         } else {
-            QoS::DEFAULT
+            QoS::default()
         };
 
         let timestamp = thread_rng().gen_bool(0.5).then_some({
@@ -612,7 +612,7 @@ impl ResponseFinal {
         let qos = if thread_rng().gen_bool(0.5) {
             QoS::rand(w)
         } else {
-            QoS::DEFAULT
+            QoS::default()
         };
 
         let timestamp = thread_rng().gen_bool(0.5).then_some({
@@ -663,35 +663,6 @@ impl<'a> InterestInner<'a> {
     }
 }
 
-impl InterestExt {
-    #[cfg(test)]
-    pub(crate) fn rand(w: &mut crate::ZWriter) -> Self {
-        let qos = if thread_rng().gen_bool(0.5) {
-            QoS::rand(w)
-        } else {
-            QoS::DEFAULT
-        };
-
-        let timestamp = thread_rng().gen_bool(0.5).then_some({
-            let time = uhlc::NTP64(thread_rng().r#gen());
-            let id = uhlc::ID::try_from(ZenohIdProto::default().as_le_bytes()).unwrap();
-            Timestamp::new(time, id)
-        });
-
-        let nodeid = if thread_rng().gen_bool(0.5) {
-            NodeId::rand(w)
-        } else {
-            NodeId::DEFAULT
-        };
-
-        Self {
-            qos,
-            timestamp,
-            nodeid,
-        }
-    }
-}
-
 impl<'a> Interest<'a> {
     #[cfg(test)]
     pub(crate) fn rand(w: &mut ZWriter<'a>) -> Self {
@@ -706,13 +677,31 @@ impl<'a> Interest<'a> {
         .unwrap();
 
         let inner = InterestInner::rand(w);
-        let ext = InterestExt::rand(w);
+        let qos = if thread_rng().gen_bool(0.5) {
+            QoS::rand(w)
+        } else {
+            QoS::default()
+        };
+
+        let timestamp = thread_rng().gen_bool(0.5).then_some({
+            let time = uhlc::NTP64(thread_rng().r#gen());
+            let id = uhlc::ID::try_from(ZenohIdProto::default().as_le_bytes()).unwrap();
+            Timestamp::new(time, id)
+        });
+
+        let nodeid = if thread_rng().gen_bool(0.5) {
+            NodeId::rand(w)
+        } else {
+            NodeId::default()
+        };
 
         Self {
             id,
             mode,
             inner,
-            ext,
+            qos,
+            timestamp,
+            nodeid,
         }
     }
 }
@@ -721,9 +710,30 @@ impl InterestFinal {
     #[cfg(test)]
     pub(crate) fn rand(w: &mut ZWriter) -> Self {
         let id = thread_rng().r#gen();
-        let ext = InterestExt::rand(w);
+        let qos = if thread_rng().gen_bool(0.5) {
+            QoS::rand(w)
+        } else {
+            QoS::default()
+        };
 
-        Self { id, ext }
+        let timestamp = thread_rng().gen_bool(0.5).then_some({
+            let time = uhlc::NTP64(thread_rng().r#gen());
+            let id = uhlc::ID::try_from(ZenohIdProto::default().as_le_bytes()).unwrap();
+            Timestamp::new(time, id)
+        });
+
+        let nodeid = if thread_rng().gen_bool(0.5) {
+            NodeId::rand(w)
+        } else {
+            NodeId::default()
+        };
+
+        Self {
+            id,
+            qos,
+            timestamp,
+            nodeid,
+        }
     }
 }
 
@@ -837,9 +847,17 @@ impl QoSLink {
     }
 }
 
-impl<'a> InitExt<'a> {
+impl<'a> InitSyn<'a> {
     #[cfg(test)]
     pub(crate) fn rand(w: &mut ZWriter<'a>) -> Self {
+        let version = rand::thread_rng().r#gen();
+        let identifier = InitIdentifier::rand(w);
+        let resolution = if rand::thread_rng().gen_bool(0.5) {
+            InitResolution::rand(w)
+        } else {
+            InitResolution::default()
+        };
+
         let qos = if rand::thread_rng().gen_bool(0.5) {
             Some(HasQoS {})
         } else {
@@ -877,6 +895,10 @@ impl<'a> InitExt<'a> {
         };
 
         Self {
+            version,
+            identifier,
+            resolution,
+
             qos,
             qos_link,
             auth,
@@ -884,27 +906,6 @@ impl<'a> InitExt<'a> {
             lowlatency,
             compression,
             patch,
-        }
-    }
-}
-
-impl<'a> InitSyn<'a> {
-    #[cfg(test)]
-    pub(crate) fn rand(w: &mut ZWriter<'a>) -> Self {
-        let version = rand::thread_rng().r#gen();
-        let identifier = InitIdentifier::rand(w);
-        let resolution = if rand::thread_rng().gen_bool(0.5) {
-            InitResolution::rand(w)
-        } else {
-            InitResolution::DEFAULT
-        };
-        let ext = InitExt::rand(w);
-
-        Self {
-            version,
-            identifier,
-            resolution,
-            ext,
         }
     }
 }
@@ -917,7 +918,7 @@ impl<'a> InitAck<'a> {
         let resolution = if rand::thread_rng().gen_bool(0.5) {
             InitResolution::rand(w)
         } else {
-            InitResolution::DEFAULT
+            InitResolution::default()
         };
         let cookie_len = rand::thread_rng().gen_range(0..16);
         let cookie = w
@@ -926,14 +927,54 @@ impl<'a> InitAck<'a> {
                 b.len()
             })
             .unwrap();
-        let ext = InitExt::rand(w);
+        let qos = if rand::thread_rng().gen_bool(0.5) {
+            Some(HasQoS {})
+        } else {
+            None
+        };
+        let qos_link = if rand::thread_rng().gen_bool(0.5) {
+            Some(QoSLink::rand(w))
+        } else {
+            None
+        };
+        let auth = if rand::thread_rng().gen_bool(0.5) {
+            Some(Auth::rand(w))
+        } else {
+            None
+        };
+        let mlink = if rand::thread_rng().gen_bool(0.5) {
+            Some(MultiLink::rand(w))
+        } else {
+            None
+        };
+        let lowlatency = if rand::thread_rng().gen_bool(0.5) {
+            Some(HasLowLatency {})
+        } else {
+            None
+        };
+        let compression = if rand::thread_rng().gen_bool(0.5) {
+            Some(HasCompression {})
+        } else {
+            None
+        };
+        let patch = if rand::thread_rng().gen_bool(0.5) {
+            Patch::rand(w)
+        } else {
+            Patch::NONE
+        };
 
         Self {
             version,
             identifier,
             resolution,
             cookie,
-            ext,
+            qos,
+            qos_link,
+            auth,
+            mlink,
+            lowlatency,
+            compression,
+            patch,
         }
     }
 }
@@ -945,9 +986,17 @@ impl KeepAlive {
     }
 }
 
-impl<'a> OpenExt<'a> {
+impl<'a> OpenSyn<'a> {
     #[cfg(test)]
     pub(crate) fn rand(w: &mut crate::ZWriter<'a>) -> Self {
+        let lease = Duration::from_secs(rand::thread_rng().gen_range(1..=3600));
+        let sn: u32 = rand::thread_rng().r#gen();
+        let cookie = w
+            .write_slot(rand::thread_rng().gen_range(0..=64), |b: &mut [u8]| {
+                rand::thread_rng().fill(b);
+                b.len()
+            })
+            .unwrap();
         let qos = if rand::thread_rng().gen_bool(0.5) {
             Some(HasQoS {})
         } else {
@@ -984,7 +1033,10 @@ impl<'a> OpenExt<'a> {
             None
         };
 
-        OpenExt {
+        Self {
+            lease,
+            sn,
+            cookie,
             qos,
             auth,
             mlink_syn,
@@ -995,35 +1047,56 @@ impl<'a> OpenExt<'a> {
     }
 }
 
-impl<'a> OpenSyn<'a> {
-    #[cfg(test)]
-    pub(crate) fn rand(w: &mut crate::ZWriter<'a>) -> Self {
-        let lease = Duration::from_secs(rand::thread_rng().gen_range(1..=3600));
-        let sn: u32 = rand::thread_rng().r#gen();
-        let cookie = w
-            .write_slot(rand::thread_rng().gen_range(0..=64), |b: &mut [u8]| {
-                rand::thread_rng().fill(b);
-                b.len()
-            })
-            .unwrap();
-        let ext = OpenExt::rand(w);
-
-        Self {
-            lease,
-            sn,
-            cookie,
-            ext,
-        }
-    }
-}
-
 impl<'a> OpenAck<'a> {
     #[cfg(test)]
     pub(crate) fn rand(w: &mut crate::ZWriter<'a>) -> Self {
         let lease = Duration::from_secs(rand::thread_rng().gen_range(1..=3600));
         let sn: u32 = rand::thread_rng().r#gen();
-        let ext = OpenExt::rand(w);
+        let qos = if rand::thread_rng().gen_bool(0.5) {
+            Some(HasQoS {})
+        } else {
+            None
+        };
 
-        Self { lease, sn, ext }
+        let auth = if rand::thread_rng().gen_bool(0.5) {
+            Some(Auth::rand(w))
+        } else {
+            None
+        };
+
+        let mlink_syn = if rand::thread_rng().gen_bool(0.5) {
+            Some(MultiLinkSyn::rand(w))
+        } else {
+            None
+        };
+
+        let mlink_ack = if rand::thread_rng().gen_bool(0.5) {
+            Some(HasMultiLinkAck {})
+        } else {
+            None
+        };
+
+        let lowlatency = if rand::thread_rng().gen_bool(0.5) {
+            Some(HasLowLatency {})
+        } else {
+            None
+        };
+
+        let compression = if rand::thread_rng().gen_bool(0.5) {
+            Some(HasCompression {})
+        } else {
+            None
+        };
+
+        Self {
+            lease,
+            sn,
+            qos,
+            auth,
+            mlink_syn,
+            mlink_ack,
+            lowlatency,
+            compression,
+        }
     }
 }

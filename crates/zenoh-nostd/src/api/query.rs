@@ -1,7 +1,7 @@
 use core::str::FromStr;
 
 use heapless::{String, Vec};
-use zenoh_proto::{exts::*, fields::*, msgs::*, *};
+use zenoh_proto::{fields::*, msgs::*, *};
 
 use crate::{SessionDriver, platform::Platform};
 
@@ -127,19 +127,14 @@ impl<
         let response = Response {
             rid: self.rid,
             wire_expr: wke,
-            qos: QoS::DEFAULT,
-            timestamp: None,
-            respid: None,
             payload: ResponseBody::Reply(Reply {
                 consolidation: ConsolidationMode::None,
                 payload: PushBody::Put(Put {
                     payload,
-                    attachment: None,
-                    encoding: Encoding::DEFAULT,
-                    timestamp: None,
-                    sinfo: None,
+                    ..Default::default()
                 }),
             }),
+            ..Default::default()
         };
 
         self.driver.send(response).await
@@ -149,14 +144,11 @@ impl<
         let response = Response {
             rid: self.rid,
             wire_expr: WireExpr::from(self.keyexpr()),
-            qos: QoS::DEFAULT,
-            timestamp: None,
-            respid: None,
             payload: ResponseBody::Err(Err {
-                encoding: Encoding::DEFAULT,
-                sinfo: None,
                 payload,
+                ..Default::default()
             }),
+            ..Default::default()
         };
 
         self.driver.send(response).await
@@ -165,8 +157,7 @@ impl<
     pub async fn finalize(&self) -> ZResult<()> {
         let response = ResponseFinal {
             rid: self.rid,
-            qos: QoS::DEFAULT,
-            timestamp: None,
+            ..Default::default()
         };
 
         self.driver.send(response).await

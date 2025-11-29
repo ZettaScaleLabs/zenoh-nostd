@@ -8,7 +8,7 @@ pub enum Mapping {
     Sender = 1,
 }
 
-#[derive(ZExt, Debug, PartialEq)]
+#[derive(ZExt, Debug, PartialEq, Default)]
 #[zenoh(header = "_:6|M|N|")]
 pub struct WireExpr<'a> {
     pub scope: u16,

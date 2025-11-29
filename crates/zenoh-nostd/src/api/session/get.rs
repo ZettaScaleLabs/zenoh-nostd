@@ -74,18 +74,12 @@ impl<'a, T: Platform + 'static> GetBuilder<'a, T> {
                 consolidation: ConsolidationMode::None,
                 parameters: self.parameters.unwrap_or_default(),
                 body: self.payload.map(|p| Value {
-                    encoding: Encoding::DEFAULT,
                     payload: p,
+                    ..Default::default()
                 }),
-                attachment: None,
-                sinfo: None,
+                ..Default::default()
             }),
-            qos: QoS::DEFAULT,
-            timestamp: None,
-            nodeid: NodeId::DEFAULT,
-            budget: None,
-            timeout: None,
-            target: QueryTarget::DEFAULT,
+            ..Default::default()
         };
 
         self.session.driver.as_ref().unwrap().send(msg).await?;

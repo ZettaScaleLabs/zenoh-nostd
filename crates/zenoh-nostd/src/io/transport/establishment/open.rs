@@ -40,7 +40,7 @@ impl SendInitSynIn {
                 resolution: state.resolution,
                 batch_size: BatchSize(state.batch_size),
             },
-            ext: InitExt::DEFAULT,
+            ..Default::default()
         };
 
         transport
@@ -127,7 +127,7 @@ impl<'a> SendOpenSynIn<'a> {
             lease: self.mine_lease,
             sn: mine_initial_sn,
             cookie: self.other_cookie,
-            ext: OpenExt::DEFAULT,
+            ..Default::default()
         };
 
         transport
@@ -191,7 +191,7 @@ pub(crate) async fn open_link<T: Platform>(
     };
 
     let isyn_in = SendInitSynIn {
-        mine_version: 9,
+        mine_version: zenoh_proto::VERSION,
         mine_zid: config.mine_zid.clone(),
         mine_whatami: WhatAmI::Client,
     };
