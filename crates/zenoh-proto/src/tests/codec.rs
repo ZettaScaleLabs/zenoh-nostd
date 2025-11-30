@@ -14,21 +14,25 @@ fn bench_codec_u64() {
             let _ = <u64 as crate::ZDecode>::z_decode(&mut &data[..]).unwrap();
         })
     });
+
+    c.final_summary();
 }
 
 #[test]
 #[ignore]
-fn bench_codec_hello_world() {
+fn bench_codec_str() {
     let mut c = Criterion::default().with_output_color(true);
 
     let mut data = [0u8; 16];
-    c.bench_function("encode_hello_world", |b| {
+    c.bench_function("encode_str", |b| {
         b.iter(|| {
             let len = crate::ZLen::z_len(&"Hello, World!");
             crate::ZEncode::z_encode(&"Hello, World!", &mut &mut data[..]).unwrap();
             let _ = <&str as crate::ZDecode>::z_decode(&mut &data[..len]).unwrap();
         })
     });
+
+    c.final_summary();
 }
 
 #[test]
@@ -56,6 +60,8 @@ fn bench_codec_encode_batch() {
             while crate::ZEncode::z_encode(&msg, &mut w).is_ok() {}
         })
     });
+
+    c.final_summary();
 }
 
 #[test]
@@ -86,4 +92,6 @@ fn bench_codec_decode_batch() {
             while batch.next().is_some() {}
         })
     });
+
+    c.final_summary();
 }

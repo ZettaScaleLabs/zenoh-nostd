@@ -44,7 +44,7 @@ impl Stats {
     fn print_round(&self) {
         let elapsed = self.round_start.elapsed().as_micros() as f64 / 1_000_000.0;
         let throughput = (self.round_size as f64) / elapsed;
-        println!("{throughput} msg/s");
+        zenoh_nostd::info!("{throughput} msg/s");
     }
 }
 

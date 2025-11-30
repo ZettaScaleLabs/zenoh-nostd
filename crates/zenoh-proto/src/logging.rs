@@ -48,7 +48,6 @@ pub use defmt;
 #[macro_export]
 macro_rules! trace {
     ($($arg:tt)+) => {{
-        use $crate::logging::defmt;
         $crate::logging::defmt::trace!($($arg)+)
     }};
 }
@@ -57,7 +56,6 @@ macro_rules! trace {
 #[macro_export]
 macro_rules! debug {
     ($($arg:tt)+) => {{
-        use $crate::logging::defmt;
         $crate::logging::defmt::debug!($($arg)+)
     }};
 }
@@ -66,7 +64,6 @@ macro_rules! debug {
 #[macro_export]
 macro_rules! info {
     ($($arg:tt)+) => {{
-        use $crate::logging::defmt;
         $crate::logging::defmt::info!($($arg)+)
     }};
 }
@@ -75,7 +72,6 @@ macro_rules! info {
 #[macro_export]
 macro_rules! warn {
     ($($arg:tt)+) => {{
-        use $crate::logging::defmt;
         $crate::logging::defmt::warn!($($arg)+)
     }};
 }
@@ -84,7 +80,6 @@ macro_rules! warn {
 #[macro_export]
 macro_rules! error {
     ($($arg:tt)+) => {{
-        use $crate::logging::defmt;
         $crate::logging::defmt::error!($($arg)+)
     }};
 }

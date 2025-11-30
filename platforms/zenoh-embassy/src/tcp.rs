@@ -40,41 +40,41 @@ impl AbstractedTcpStream for EmbassyTcpStream {
     async fn write(
         &mut self,
         buffer: &[u8],
-    ) -> zenoh_nostd::ZResult<usize, zenoh_nostd::ZConnectionError> {
+    ) -> zenoh_nostd::ZResult<usize, zenoh_nostd::ZLinkError> {
         self.socket
             .write(buffer)
             .await
-            .map_err(|_| zenoh_nostd::ZConnectionError::CouldNotWrite)
+            .map_err(|_| zenoh_nostd::ZLinkError::CouldNotWrite)
     }
 
     async fn write_all(
         &mut self,
         buffer: &[u8],
-    ) -> zenoh_nostd::ZResult<(), zenoh_nostd::ZConnectionError> {
+    ) -> zenoh_nostd::ZResult<(), zenoh_nostd::ZLinkError> {
         self.socket
             .write_all(buffer)
             .await
-            .map_err(|_| zenoh_nostd::ZConnectionError::CouldNotWrite)
+            .map_err(|_| zenoh_nostd::ZLinkError::CouldNotWrite)
     }
 
     async fn read(
         &mut self,
         buffer: &mut [u8],
-    ) -> zenoh_nostd::ZResult<usize, zenoh_nostd::ZConnectionError> {
+    ) -> zenoh_nostd::ZResult<usize, zenoh_nostd::ZLinkError> {
         self.socket
             .read(buffer)
             .await
-            .map_err(|_| zenoh_nostd::ZConnectionError::CouldNotRead)
+            .map_err(|_| zenoh_nostd::ZLinkError::CouldNotRead)
     }
 
     async fn read_exact(
         &mut self,
         buffer: &mut [u8],
-    ) -> zenoh_nostd::ZResult<(), zenoh_nostd::ZConnectionError> {
+    ) -> zenoh_nostd::ZResult<(), zenoh_nostd::ZLinkError> {
         self.socket
             .read_exact(buffer)
             .await
-            .map_err(|_| zenoh_nostd::ZConnectionError::CouldNotRead)
+            .map_err(|_| zenoh_nostd::ZLinkError::CouldNotRead)
     }
 }
 
@@ -82,21 +82,21 @@ impl AbstractedTcpTx for EmbassyTcpTx<'_> {
     async fn write(
         &mut self,
         buffer: &[u8],
-    ) -> zenoh_nostd::ZResult<usize, zenoh_nostd::ZConnectionError> {
+    ) -> zenoh_nostd::ZResult<usize, zenoh_nostd::ZLinkError> {
         self.socket
             .write(buffer)
             .await
-            .map_err(|_| zenoh_nostd::ZConnectionError::CouldNotWrite)
+            .map_err(|_| zenoh_nostd::ZLinkError::CouldNotWrite)
     }
 
     async fn write_all(
         &mut self,
         buffer: &[u8],
-    ) -> zenoh_nostd::ZResult<(), zenoh_nostd::ZConnectionError> {
+    ) -> zenoh_nostd::ZResult<(), zenoh_nostd::ZLinkError> {
         self.socket
             .write_all(buffer)
             .await
-            .map_err(|_| zenoh_nostd::ZConnectionError::CouldNotWrite)
+            .map_err(|_| zenoh_nostd::ZLinkError::CouldNotWrite)
     }
 }
 
@@ -104,20 +104,20 @@ impl AbstractedTcpRx for EmbassyTcpRx<'_> {
     async fn read(
         &mut self,
         buffer: &mut [u8],
-    ) -> zenoh_nostd::ZResult<usize, zenoh_nostd::ZConnectionError> {
+    ) -> zenoh_nostd::ZResult<usize, zenoh_nostd::ZLinkError> {
         self.socket
             .read(buffer)
             .await
-            .map_err(|_| zenoh_nostd::ZConnectionError::CouldNotRead)
+            .map_err(|_| zenoh_nostd::ZLinkError::CouldNotRead)
     }
 
     async fn read_exact(
         &mut self,
         buffer: &mut [u8],
-    ) -> zenoh_nostd::ZResult<(), zenoh_nostd::ZConnectionError> {
+    ) -> zenoh_nostd::ZResult<(), zenoh_nostd::ZLinkError> {
         self.socket
             .read_exact(buffer)
             .await
-            .map_err(|_| zenoh_nostd::ZConnectionError::CouldNotRead)
+            .map_err(|_| zenoh_nostd::ZLinkError::CouldNotRead)
     }
 }
