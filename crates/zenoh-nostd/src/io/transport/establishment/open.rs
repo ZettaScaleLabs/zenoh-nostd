@@ -1,14 +1,11 @@
 use ::core::time::Duration;
 
-use crate::{
-    io::{
-        link::Link,
-        transport::{
-            Transport, TransportConfig, TransportMineConfig, TransportNegociatedConfig,
-            TransportOtherConfig, establishment::compute_sn,
-        },
+use crate::io::{
+    link::{Link, ZLink},
+    transport::{
+        Transport, TransportConfig, TransportMineConfig, TransportNegociatedConfig,
+        TransportOtherConfig, ZTransportRecv, ZTransportSend, establishment::compute_sn,
     },
-    platform::Platform,
 };
 use zenoh_proto::{exts::Patch, fields::*, msgs::*, zbail, *};
 
@@ -24,10 +21,10 @@ pub(crate) struct SendInitSynIn {
 }
 
 impl SendInitSynIn {
-    pub(crate) async fn send<T: Platform>(
+    pub(crate) async fn send(
         &self,
-        tx: &mut [u8],
-        transport: &mut Transport<T>,
+        tx: &mut impl AsMut<[u8]>,
+        transport: &mut impl ZTransportSend,
         state: &StateTransport,
     ) -> ZResult<(), crate::ZTransportError> {
         let msg = InitSyn {
@@ -45,7 +42,7 @@ impl SendInitSynIn {
         };
 
         transport
-            .send(tx, &mut 0, |batch| batch.unframe(&msg))
+            .send(tx.as_mut(), &mut 0, |batch| batch.unframe(&msg))
             .await
     }
 }
@@ -57,12 +54,12 @@ pub(crate) struct RecvInitAckOut<'a> {
 }
 
 impl<'a> RecvInitAckOut<'a> {
-    pub(crate) async fn recv<T: Platform>(
-        rx: &'a mut [u8],
-        transport: &mut Transport<T>,
+    pub(crate) async fn recv(
+        rx: &'a mut impl AsMut<[u8]>,
+        transport: &mut impl ZTransportRecv,
         state: &mut StateTransport,
     ) -> ZResult<Self, crate::ZTransportError> {
-        let reader = transport.recv(rx).await?;
+        let reader = transport.recv(rx.as_mut()).await?;
         let mut batch = ZBatchReader::new(reader);
         let init_ack = loop {
             match batch.next() {
@@ -116,10 +113,10 @@ pub(crate) struct SendOpenSynIn<'a> {
 }
 
 impl<'a> SendOpenSynIn<'a> {
-    pub(crate) async fn send<T: Platform>(
+    pub(crate) async fn send(
         &self,
-        tx: &mut [u8],
-        transport: &mut Transport<T>,
+        tx: &mut impl AsMut<[u8]>,
+        transport: &mut impl ZTransportSend,
         state: &StateTransport,
     ) -> ZResult<SendOpenSynOut, crate::ZTransportError> {
         let mine_initial_sn = compute_sn(&self.mine_zid, &self.other_zid, state.resolution);
@@ -132,7 +129,7 @@ impl<'a> SendOpenSynIn<'a> {
         };
 
         transport
-            .send(tx, &mut 0, |batch| batch.unframe(&msg))
+            .send(tx.as_mut(), &mut 0, |batch| batch.unframe(&msg))
             .await?;
 
         let output = SendOpenSynOut {
@@ -154,11 +151,11 @@ pub(crate) struct RecvOpenAckOut {
 }
 
 impl RecvOpenAckOut {
-    pub(crate) async fn recv<T: Platform>(
-        rx: &mut [u8],
-        transport: &mut Transport<T>,
+    pub(crate) async fn recv(
+        rx: &mut impl AsMut<[u8]>,
+        transport: &mut impl ZTransportRecv,
     ) -> ZResult<Self, crate::ZTransportError> {
-        let reader = transport.recv(rx).await?;
+        let reader = transport.recv(rx.as_mut()).await?;
         let mut batch = ZBatchReader::new(reader);
         let open_ack = loop {
             match batch.next() {
@@ -176,13 +173,13 @@ impl RecvOpenAckOut {
     }
 }
 
-pub(crate) async fn open_link<T: Platform>(
-    link: Link<T>,
+pub(crate) async fn open_link<T: ZLink>(
+    link: T,
     config: TransportMineConfig,
-    tx: &mut [u8],
-    rx: &mut [u8],
+    tx: &mut impl AsMut<[u8]>,
+    rx: &mut impl AsMut<[u8]>,
 ) -> ZResult<(Transport<T>, TransportConfig), crate::ZTransportError> {
-    let batch_size = link.mtu().min(rx.len() as u16);
+    let batch_size = link.mtu().min(rx.as_mut().len() as u16);
 
     let mut transport = Transport { link };
 
@@ -197,8 +194,8 @@ pub(crate) async fn open_link<T: Platform>(
         mine_whatami: WhatAmI::Client,
     };
 
-    isyn_in.send::<_>(tx, &mut transport, &state).await?;
-    let iack_out = RecvInitAckOut::recv::<_>(rx, &mut transport, &mut state).await?;
+    isyn_in.send(tx, &mut transport, &state).await?;
+    let iack_out = RecvInitAckOut::recv(rx, &mut transport, &mut state).await?;
 
     let other_zid = iack_out.other_zid.clone();
     let other_whatami = iack_out.other_whatami;
@@ -210,8 +207,8 @@ pub(crate) async fn open_link<T: Platform>(
         other_cookie: iack_out.other_cookie,
     };
 
-    let osyn_out = osyn_in.send::<_>(tx, &mut transport, &state).await?;
-    let oack_out = RecvOpenAckOut::recv::<_>(rx, &mut transport).await?;
+    let osyn_out = osyn_in.send(tx, &mut transport, &state).await?;
+    let oack_out = RecvOpenAckOut::recv(rx, &mut transport).await?;
 
     Ok((
         transport,

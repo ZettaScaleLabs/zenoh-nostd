@@ -21,7 +21,7 @@ pub(crate) trait ZLinkInfo {
     fn is_streamed(&self) -> bool;
 }
 
-pub(crate) trait ZLinkTx: ZLinkInfo {
+pub trait ZLinkTx: ZLinkInfo {
     fn write(
         &mut self,
         buffer: &[u8],
@@ -33,7 +33,7 @@ pub(crate) trait ZLinkTx: ZLinkInfo {
     ) -> impl ::core::future::Future<Output = crate::ZResult<(), crate::ZLinkError>>;
 }
 
-pub(crate) trait ZLinkRx: ZLinkInfo {
+pub trait ZLinkRx: ZLinkInfo {
     fn read(
         &mut self,
         buffer: &mut [u8],
@@ -45,7 +45,7 @@ pub(crate) trait ZLinkRx: ZLinkInfo {
     ) -> impl ::core::future::Future<Output = crate::ZResult<(), crate::ZLinkError>>;
 }
 
-pub(crate) trait ZLink: ZLinkInfo + ZLinkTx + ZLinkRx {
+pub trait ZLink: ZLinkInfo + ZLinkTx + ZLinkRx {
     type Tx<'a>: ZLinkTx
     where
         Self: 'a;
@@ -57,7 +57,7 @@ pub(crate) trait ZLink: ZLinkInfo + ZLinkTx + ZLinkRx {
     fn split(&mut self) -> (Self::Tx<'_>, Self::Rx<'_>);
 }
 
-pub(crate) enum LinkTx<'a, T: ZPlatform>
+pub enum LinkTx<'a, T: ZPlatform>
 where
     T: 'a,
 {
@@ -65,7 +65,7 @@ where
     LinkWsTx(LinkWsTx<<T::ZWsStream as crate::platform::ws::ZWsStream>::Tx<'a>>),
 }
 
-pub(crate) enum LinkRx<'a, T: ZPlatform>
+pub enum LinkRx<'a, T: ZPlatform>
 where
     T: 'a,
 {
