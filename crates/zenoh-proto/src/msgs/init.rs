@@ -36,7 +36,7 @@ pub struct InitSyn<'a> {
     pub lowlatency: Option<HasLowLatency>,
     #[zenoh(ext = 0x6)]
     pub compression: Option<HasCompression>,
-    #[zenoh(ext = 0x7, default = Patch::NONE)]
+    #[zenoh(ext = 0x7, default = Patch::none())]
     pub patch: Patch,
 }
 
@@ -64,6 +64,6 @@ pub struct InitAck<'a> {
     pub lowlatency: Option<HasLowLatency>,
     #[zenoh(ext = 0x6)]
     pub compression: Option<HasCompression>,
-    #[zenoh(ext = 0x7, default = Patch::NONE)]
+    #[zenoh(ext = 0x7, default = Patch::none())]
     pub patch: Patch,
 }

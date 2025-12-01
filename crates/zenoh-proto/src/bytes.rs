@@ -160,6 +160,42 @@ impl ZWrite for &mut [u8] {
     }
 }
 
+#[cfg(feature = "alloc")]
+impl ZWrite for alloc::vec::Vec<u8> {
+    fn remaining(&self) -> usize {
+        usize::MAX - self.len()
+    }
+
+    fn write_u8(&mut self, value: u8) -> crate::ZResult<(), crate::ZBytesError> {
+        self.push(value);
+        Ok(())
+    }
+
+    fn write(&mut self, src: &'_ [u8]) -> crate::ZResult<usize, crate::ZBytesError> {
+        self.extend_from_slice(src);
+        Ok(src.len())
+    }
+
+    fn write_slot(
+        &mut self,
+        len: usize,
+        writer: impl FnOnce(&mut [u8]) -> usize,
+    ) -> crate::ZResult<usize, crate::ZBytesError> {
+        self.reserve(len);
+        let s = {
+            let slice = &mut *self.spare_capacity_mut();
+            unsafe { slice.get_unchecked_mut(..len) }
+        };
+
+        let written =
+            unsafe { writer(&mut *(s as *mut [::core::mem::MaybeUninit<u8>] as *mut [u8])) };
+
+        unsafe { self.set_len(self.len() + written) };
+
+        Ok(written)
+    }
+}
+
 #[cfg(test)]
 pub struct SliceMark<'a> {
     ptr: *const u8,
@@ -179,7 +215,26 @@ impl<'a> ZStore<'a> for &'a mut [u8] {
     }
 
     unsafe fn slice(&self, mark: &Self::Mark) -> &'a [u8] {
-        unsafe { ::core::slice::from_raw_parts_mut(mark.ptr as *mut u8, mark.len) }
+        unsafe { ::core::slice::from_raw_parts(mark.ptr as *mut u8, mark.len) }
+    }
+}
+
+#[cfg(test)]
+#[cfg(feature = "alloc")]
+impl<'a> ZStore<'a> for alloc::vec::Vec<u8> {
+    type Mark = usize;
+    fn mark(&self) -> Self::Mark {
+        self.len()
+    }
+
+    /// # Safety
+    /// This function is unsafe because it returns a slice that may outlive the vector it was created from and
+    /// may lead to undefined behavior if the vector is modified or dropped while the slice is still in use.
+    ///
+    /// In this specific testing context, it is assumed that the vector will live long enough for the slice to be valid,
+    /// and that the vector will always be extended or modified in a way that does not invalidate the slice.
+    unsafe fn slice(&self, mark: &Self::Mark) -> &'a [u8] {
+        unsafe { ::core::mem::transmute(self.get_unchecked(*mark..)) }
     }
 }
 

@@ -28,6 +28,27 @@ macro_rules! roundtrip {
 
             assert_eq!(ret, value);
         }
+
+        #[cfg(feature = "alloc")]
+        {
+            // Because random data generation uses the `ZStore` unsafe trait, we need
+            // to avoid reallocation during the test to keep pointers valid.
+            let mut rand = alloc::vec::Vec::with_capacity(MAX_PAYLOAD_SIZE);
+            let mut data = alloc::vec::Vec::new();
+
+            for _ in 0..NUM_ITER {
+                rand.clear();
+                data.clear();
+
+                let value = <$ty>::rand(&mut rand);
+
+                $crate::ZEncode::z_encode(&value, &mut data).unwrap();
+
+                let ret = <$ty as $crate::ZDecode>::z_decode(&mut &data[..]).unwrap();
+
+                assert_eq!(ret, value);
+            }
+        }
     }};
 
     (ext, $ty:ty) => {{
@@ -42,6 +63,27 @@ macro_rules! roundtrip {
             let ret = $crate::zext_decode::<$ty>(&mut &data[..]).unwrap();
 
             assert_eq!(ret, value);
+        }
+
+        #[cfg(feature = "alloc")]
+        {
+            // Because random data generation uses the `ZStore` unsafe trait, we need
+            // to avoid reallocation during the test to keep pointers valid.
+            let mut rand = alloc::vec::Vec::with_capacity(MAX_PAYLOAD_SIZE);
+            let mut data = alloc::vec::Vec::new();
+
+            for _ in 0..NUM_ITER {
+                rand.clear();
+                data.clear();
+
+                let value = <$ty>::rand(&mut rand);
+
+                $crate::zext_encode::<_, 0x1, true>(&value, &mut data, false).unwrap();
+
+                let ret = $crate::zext_decode::<$ty>(&mut &data[..]).unwrap();
+
+                assert_eq!(ret, value);
+            }
         }
     }};
 }
@@ -935,7 +977,7 @@ impl<'a> InitSyn<'a> {
         let patch = if rand::thread_rng().gen_bool(0.5) {
             Patch::rand(w)
         } else {
-            Patch::NONE
+            Patch::none()
         };
 
         Self {
@@ -1006,7 +1048,7 @@ impl<'a> InitAck<'a> {
         let patch = if rand::thread_rng().gen_bool(0.5) {
             Patch::rand(w)
         } else {
-            Patch::NONE
+            Patch::none()
         };
 
         Self {

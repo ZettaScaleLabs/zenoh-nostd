@@ -74,7 +74,7 @@ async fn entry(spawner: embassy_executor::Spawner) -> zenoh_nostd::result::ZResu
                 MAX_QUERIES: 2,
                 MAX_QUERYABLES: 2
         ),
-        EndPoint::try_from(CONNECT.unwrap_or("tcp/127.0.0.1:7447"))?
+        EndPoint::try_from("tcp/127.0.0.1:7447")?
     );
 
     let ke = keyexpr::new("demo/example")?;
@@ -195,13 +195,18 @@ zenoh-nostd/            # Git repository root
 │           └── z_sub.rs        # Example without io (example with tcp)
 │
 ├── examples/
-│   ├── z_get.rs        # Example with io
-│   ├── z_ping.rs       # Example with io
-│   ├── z_pong.rs       # Example with io
-│   ├── z_pub.rs        # Example with io
-│   ├── z_put.rs        # Example with io
-│   ├── z_queryable.rs  # Example with io
-│   └── z_sub.rs        # Example with io
+│   ├── web/
+│   │   └── index.html  # File to test wasm example
+│   │
+│   ├── z_get.rs        # Example with std/wasm/embassy io
+│   ├── z_ping.rs       # Example with std/wasm/embassy io
+│   ├── z_pong.rs       # Example with std/wasm/embassy io
+│   ├── z_pub.rs        # Example with std/wasm/embassy io
+│   ├── z_pub_thr.rs    # Example with std/wasm/embassy io
+│   ├── z_put.rs        # Example with std/wasm/embassy io
+│   ├── z_queryable.rs  # Example with std/wasm/embassy io
+│   ├── z_sub.rs        # Example with std/wasm/embassy io
+│   └── z_sub_thr.rs    # Example with std/wasm/embassy io
 │
 ├── platforms/          # Platform-specific implementations
 │   ├── zenoh-embassy/  # Embassy platforms (no_std)

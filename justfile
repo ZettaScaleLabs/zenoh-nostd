@@ -15,10 +15,10 @@ loc-proto:
     tokei --files crates/zenoh-proto crates/zenoh-derive/src/codec* --exclude crates/zenoh-proto/src/tests*
 
 test filter="":
-    cargo test {{filter}} -p zenoh-proto
+    cargo test {{filter}} -p zenoh-proto --features=alloc
 
 bench filter="bench":
-    cargo test -p zenoh-proto {{filter}} --profile=release -- --nocapture --ignored --test-threads=1
+    cargo test -p zenoh-proto {{filter}} --features=alloc --profile=release -- --nocapture --ignored --test-threads=1
 
 std example:
     RUST_LOG=debug cargo run --example {{example}} --features="std,log"

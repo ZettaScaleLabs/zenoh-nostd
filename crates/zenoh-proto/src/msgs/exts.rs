@@ -245,6 +245,11 @@ pub struct Patch {
 }
 
 impl Patch {
-    pub const NONE: Self = Self { int: 0 };
-    pub const CURRENT: Self = Self { int: 1 };
+    pub fn none() -> Self {
+        Self { int: 0 }
+    }
+
+    pub fn current() -> Self {
+        Self { int: 1 }
+    }
 }

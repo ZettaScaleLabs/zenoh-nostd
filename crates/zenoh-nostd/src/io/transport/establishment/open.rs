@@ -10,7 +10,7 @@ use crate::{
     },
     platform::Platform,
 };
-use zenoh_proto::{fields::*, msgs::*, zbail, *};
+use zenoh_proto::{exts::Patch, fields::*, msgs::*, zbail, *};
 
 pub(crate) struct StateTransport {
     pub(crate) batch_size: u16,
@@ -40,6 +40,7 @@ impl SendInitSynIn {
                 resolution: state.resolution,
                 batch_size: BatchSize(state.batch_size),
             },
+            patch: Patch::current(),
             ..Default::default()
         };
 
