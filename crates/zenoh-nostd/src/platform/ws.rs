@@ -1,40 +1,20 @@
 use zenoh_proto::ZResult;
 
-pub trait AbstractedWsStream {
-    type Tx<'a>: AbstractedWsTx
+pub trait ZWsStream: ZWsTx + ZWsRx {
+    type Tx<'a>: ZWsTx
     where
         Self: 'a;
 
-    type Rx<'a>: AbstractedWsRx
+    type Rx<'a>: ZWsRx
     where
         Self: 'a;
 
     fn split(&mut self) -> (Self::Tx<'_>, Self::Rx<'_>);
 
     fn mtu(&self) -> u16;
-
-    fn write(
-        &mut self,
-        buffer: &[u8],
-    ) -> impl ::core::future::Future<Output = ZResult<usize, crate::ZLinkError>>;
-
-    fn write_all(
-        &mut self,
-        buffer: &[u8],
-    ) -> impl ::core::future::Future<Output = ZResult<(), crate::ZLinkError>>;
-
-    fn read(
-        &mut self,
-        buffer: &mut [u8],
-    ) -> impl ::core::future::Future<Output = ZResult<usize, crate::ZLinkError>>;
-
-    fn read_exact(
-        &mut self,
-        buffer: &mut [u8],
-    ) -> impl ::core::future::Future<Output = ZResult<(), crate::ZLinkError>>;
 }
 
-pub trait AbstractedWsTx {
+pub trait ZWsTx {
     fn write(
         &mut self,
         buffer: &[u8],
@@ -46,7 +26,7 @@ pub trait AbstractedWsTx {
     ) -> impl ::core::future::Future<Output = ZResult<(), crate::ZLinkError>>;
 }
 
-pub trait AbstractedWsRx {
+pub trait ZWsRx {
     fn read(
         &mut self,
         buffer: &mut [u8],
@@ -62,7 +42,7 @@ pub struct DummyWsStream;
 pub struct DummyWsTx;
 pub struct DummyWsRx;
 
-impl AbstractedWsStream for DummyWsStream {
+impl ZWsStream for DummyWsStream {
     type Tx<'a> = DummyWsTx;
     type Rx<'a> = DummyWsRx;
 
@@ -73,7 +53,9 @@ impl AbstractedWsStream for DummyWsStream {
     fn mtu(&self) -> u16 {
         0
     }
+}
 
+impl ZWsTx for DummyWsStream {
     async fn write(&mut self, _buffer: &[u8]) -> ZResult<usize, crate::ZLinkError> {
         Err(crate::ZLinkError::CouldNotWrite)
     }
@@ -81,7 +63,19 @@ impl AbstractedWsStream for DummyWsStream {
     async fn write_all(&mut self, _buffer: &[u8]) -> ZResult<(), crate::ZLinkError> {
         Err(crate::ZLinkError::CouldNotWrite)
     }
+}
 
+impl ZWsTx for DummyWsTx {
+    async fn write(&mut self, _buffer: &[u8]) -> ZResult<usize, crate::ZLinkError> {
+        Err(crate::ZLinkError::CouldNotWrite)
+    }
+
+    async fn write_all(&mut self, _buffer: &[u8]) -> ZResult<(), crate::ZLinkError> {
+        Err(crate::ZLinkError::CouldNotWrite)
+    }
+}
+
+impl ZWsRx for DummyWsStream {
     async fn read(&mut self, _buffer: &mut [u8]) -> ZResult<usize, crate::ZLinkError> {
         Err(crate::ZLinkError::CouldNotRead)
     }
@@ -90,18 +84,7 @@ impl AbstractedWsStream for DummyWsStream {
         Err(crate::ZLinkError::CouldNotRead)
     }
 }
-
-impl AbstractedWsTx for DummyWsTx {
-    async fn write(&mut self, _buffer: &[u8]) -> ZResult<usize, crate::ZLinkError> {
-        Err(crate::ZLinkError::CouldNotWrite)
-    }
-
-    async fn write_all(&mut self, _buffer: &[u8]) -> ZResult<(), crate::ZLinkError> {
-        Err(crate::ZLinkError::CouldNotWrite)
-    }
-}
-
-impl AbstractedWsRx for DummyWsRx {
+impl ZWsRx for DummyWsRx {
     async fn read(&mut self, _buffer: &mut [u8]) -> ZResult<usize, crate::ZLinkError> {
         Err(crate::ZLinkError::CouldNotRead)
     }

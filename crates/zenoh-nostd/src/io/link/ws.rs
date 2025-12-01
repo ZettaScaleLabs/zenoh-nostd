@@ -1,76 +1,35 @@
-use {
-    crate::platform::ws::{AbstractedWsRx, AbstractedWsStream, AbstractedWsTx},
-    zenoh_proto::ZResult,
+use crate::{
+    io::link::{ZLink, ZLinkInfo, ZLinkRx, ZLinkTx},
+    platform::ws::{ZWsRx, ZWsStream, ZWsTx},
 };
 
-pub(crate) struct LinkWs<T: AbstractedWsStream> {
-    stream: T,
-    mtu: u16,
-}
+super::macros::define_link!(LinkWs, ZWsStream, stream, true, both);
+super::macros::define_link!(LinkWsTx, ZWsTx, tx, true, tx);
+super::macros::define_link!(LinkWsRx, ZWsRx, rx, true, rx);
 
-pub(crate) struct LinkWsTx<T: AbstractedWsTx> {
-    tx: T,
-}
-
-pub(crate) struct LinkWsRx<T: AbstractedWsRx> {
-    rx: T,
-}
-
-impl<T: AbstractedWsStream> LinkWs<T> {
+impl<T: ZWsStream> LinkWs<T> {
     pub(crate) fn new(stream: T) -> Self {
         let mtu = stream.mtu();
 
         Self { stream, mtu }
     }
+}
 
-    pub(crate) fn split(&mut self) -> (LinkWsTx<T::Tx<'_>>, LinkWsRx<T::Rx<'_>>) {
+impl<T: ZWsStream> ZLink for LinkWs<T> {
+    type Tx<'a>
+        = LinkWsTx<T::Tx<'a>>
+    where
+        Self: 'a;
+
+    type Rx<'a>
+        = LinkWsRx<T::Rx<'a>>
+    where
+        Self: 'a;
+
+    fn split(&mut self) -> (LinkWsTx<T::Tx<'_>>, LinkWsRx<T::Rx<'_>>) {
         let (tx, rx) = self.stream.split();
-        let tx = LinkWsTx { tx };
-        let rx = LinkWsRx { rx };
+        let tx = LinkWsTx { tx, mtu: self.mtu };
+        let rx = LinkWsRx { rx, mtu: self.mtu };
         (tx, rx)
-    }
-
-    pub(crate) fn mtu(&self) -> u16 {
-        self.mtu
-    }
-
-    pub(crate) fn is_streamed(&self) -> bool {
-        false
-    }
-
-    pub(crate) async fn write_all(&mut self, buffer: &[u8]) -> ZResult<(), crate::ZLinkError> {
-        self.stream.write_all(buffer).await
-    }
-
-    pub(crate) async fn read(&mut self, buffer: &mut [u8]) -> ZResult<usize, crate::ZLinkError> {
-        self.stream.read(buffer).await
-    }
-
-    pub(crate) async fn read_exact(&mut self, buffer: &mut [u8]) -> ZResult<(), crate::ZLinkError> {
-        self.stream.read_exact(buffer).await
-    }
-}
-
-impl<T: AbstractedWsTx> LinkWsTx<T> {
-    pub(crate) fn is_streamed(&self) -> bool {
-        false
-    }
-
-    pub(crate) async fn write_all(&mut self, buffer: &[u8]) -> ZResult<(), crate::ZLinkError> {
-        self.tx.write_all(buffer).await
-    }
-}
-
-impl<T: AbstractedWsRx> LinkWsRx<T> {
-    pub(crate) fn is_streamed(&self) -> bool {
-        false
-    }
-
-    pub(crate) async fn read(&mut self, buffer: &mut [u8]) -> ZResult<usize, crate::ZLinkError> {
-        self.rx.read(buffer).await
-    }
-
-    pub(crate) async fn read_exact(&mut self, buffer: &mut [u8]) -> ZResult<(), crate::ZLinkError> {
-        self.rx.read_exact(buffer).await
     }
 }

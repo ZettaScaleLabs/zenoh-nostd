@@ -5,13 +5,13 @@ use zenoh_proto::{exts::*, fields::*, *};
 
 use crate::{api::driver::SessionDriver, platform::Platform};
 
-impl<T: Platform> SessionDriver<T> {
+impl<T: Platform, TX: AsMut<[u8]>> SessionDriver<T, TX> {
     pub(crate) async fn send(&'static self, x: impl Framed) -> ZResult<()> {
         let mut tx_guard = self.tx.lock().await;
         let tx = tx_guard.deref_mut();
 
         tx.tx
-            .send(tx.tx_zbuf, &mut tx.sn, |batch| {
+            .send(tx.tx_zbuf.as_mut(), &mut tx.sn, |batch| {
                 batch.frame(&x, Reliability::Reliable, QoS::default())
             })
             .await?;

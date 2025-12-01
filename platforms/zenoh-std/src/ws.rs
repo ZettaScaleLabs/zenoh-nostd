@@ -12,7 +12,7 @@ use {
     },
     zenoh_nostd::{
         ZResult,
-        platform::ws::{AbstractedWsRx, AbstractedWsStream, AbstractedWsTx},
+        platform::ws::{ZWsRx, ZWsStream, ZWsTx},
         zbail,
     },
 };
@@ -62,7 +62,7 @@ pub struct StdWsRx<'a> {
     pub read_buffer: &'a mut Vector<u8>,
 }
 
-impl AbstractedWsStream for StdWsStream {
+impl ZWsStream for StdWsStream {
     type Tx<'a> = StdWsTx<'a>;
     type Rx<'a> = StdWsRx<'a>;
 
@@ -82,7 +82,9 @@ impl AbstractedWsStream for StdWsStream {
         };
         (tx, rx)
     }
+}
 
+impl ZWsTx for StdWsStream {
     async fn write(&mut self, buffer: &[u8]) -> ZResult<usize, zenoh_nostd::ZLinkError> {
         let mut tx = StdWsTx {
             sink: &mut self.sink,
@@ -95,21 +97,9 @@ impl AbstractedWsStream for StdWsStream {
     async fn write_all(&mut self, buffer: &[u8]) -> ZResult<(), zenoh_nostd::ZLinkError> {
         self.write(buffer).await.map(|_| ())
     }
-
-    async fn read(&mut self, buffer: &mut [u8]) -> ZResult<usize, zenoh_nostd::ZLinkError> {
-        let mut rx = StdWsRx {
-            stream: &mut self.stream,
-            read_buffer: &mut self.read_buffer,
-        };
-        rx.read(buffer).await
-    }
-
-    async fn read_exact(&mut self, buffer: &mut [u8]) -> ZResult<(), zenoh_nostd::ZLinkError> {
-        self.read(buffer).await.map(|_| ())
-    }
 }
 
-impl AbstractedWsTx for StdWsTx<'_> {
+impl ZWsTx for StdWsTx<'_> {
     async fn write(&mut self, buffer: &[u8]) -> ZResult<usize, zenoh_nostd::ZLinkError> {
         self.write_buffer.clear();
         self.write_buffer
@@ -134,7 +124,21 @@ impl AbstractedWsTx for StdWsTx<'_> {
     }
 }
 
-impl AbstractedWsRx for StdWsRx<'_> {
+impl ZWsRx for StdWsStream {
+    async fn read(&mut self, buffer: &mut [u8]) -> ZResult<usize, zenoh_nostd::ZLinkError> {
+        let mut rx = StdWsRx {
+            stream: &mut self.stream,
+            read_buffer: &mut self.read_buffer,
+        };
+        rx.read(buffer).await
+    }
+
+    async fn read_exact(&mut self, buffer: &mut [u8]) -> ZResult<(), zenoh_nostd::ZLinkError> {
+        self.read(buffer).await.map(|_| ())
+    }
+}
+
+impl ZWsRx for StdWsRx<'_> {
     async fn read(&mut self, buffer: &mut [u8]) -> ZResult<usize, zenoh_nostd::ZLinkError> {
         self.read_buffer.clear();
         let Ok(frame) = self

@@ -2,7 +2,7 @@ use futures_lite::{AsyncReadExt, AsyncWriteExt};
 
 use zenoh_nostd::{
     ZResult,
-    platform::tcp::{AbstractedTcpRx, AbstractedTcpStream, AbstractedTcpTx},
+    platform::tcp::{ZTcpRx, ZTcpStream, ZTcpTx},
 };
 
 pub struct StdTcpStream {
@@ -25,7 +25,7 @@ pub struct StdTcpRx {
     pub stream: async_net::TcpStream,
 }
 
-impl AbstractedTcpStream for StdTcpStream {
+impl ZTcpStream for StdTcpStream {
     type Tx<'a> = StdTcpTx;
     type Rx<'a> = StdTcpRx;
 
@@ -42,7 +42,9 @@ impl AbstractedTcpStream for StdTcpStream {
         };
         (tx, rx)
     }
+}
 
+impl ZTcpTx for StdTcpStream {
     async fn write(&mut self, buffer: &[u8]) -> ZResult<usize, zenoh_nostd::ZLinkError> {
         self.stream.write(buffer).await.map_err(|e| {
             zenoh_nostd::error!(
@@ -72,7 +74,41 @@ impl AbstractedTcpStream for StdTcpStream {
             zenoh_nostd::ZLinkError::WriteOperationFailed
         })
     }
+}
 
+impl ZTcpTx for StdTcpTx {
+    async fn write(&mut self, buffer: &[u8]) -> ZResult<usize, zenoh_nostd::ZLinkError> {
+        self.stream.write(buffer).await.map_err(|e| {
+            zenoh_nostd::error!(
+                "write ({}:{}:{}) failed with buffer len {}: {:?}",
+                file!(),
+                line!(),
+                column!(),
+                buffer.len(),
+                e
+            );
+
+            zenoh_nostd::ZLinkError::WriteOperationFailed
+        })
+    }
+
+    async fn write_all(&mut self, buffer: &[u8]) -> ZResult<(), zenoh_nostd::ZLinkError> {
+        self.stream.write_all(buffer).await.map_err(|e| {
+            zenoh_nostd::error!(
+                "write_all ({}:{}:{}) failed with buffer len {}: {:?}",
+                file!(),
+                line!(),
+                column!(),
+                buffer.len(),
+                e
+            );
+
+            zenoh_nostd::ZLinkError::WriteOperationFailed
+        })
+    }
+}
+
+impl ZTcpRx for StdTcpStream {
     async fn read(&mut self, buffer: &mut [u8]) -> ZResult<usize, zenoh_nostd::ZLinkError> {
         self.stream.read(buffer).await.map_err(|e| {
             zenoh_nostd::error!(
@@ -83,7 +119,8 @@ impl AbstractedTcpStream for StdTcpStream {
                 buffer.len(),
                 e
             );
-            zenoh_nostd::ZLinkError::ReadOperationFailed
+
+            zenoh_nostd::ZLinkError::WriteOperationFailed
         })
     }
 
@@ -97,44 +134,13 @@ impl AbstractedTcpStream for StdTcpStream {
                 buffer.len(),
                 e
             );
-            zenoh_nostd::ZLinkError::ReadOperationFailed
-        })
-    }
-}
-
-impl AbstractedTcpTx for StdTcpTx {
-    async fn write(&mut self, buffer: &[u8]) -> ZResult<usize, zenoh_nostd::ZLinkError> {
-        self.stream.write(buffer).await.map_err(|e| {
-            zenoh_nostd::error!(
-                "write ({}:{}:{}) failed with buffer len {}: {:?}",
-                file!(),
-                line!(),
-                column!(),
-                buffer.len(),
-                e
-            );
-
-            zenoh_nostd::ZLinkError::WriteOperationFailed
-        })
-    }
-
-    async fn write_all(&mut self, buffer: &[u8]) -> ZResult<(), zenoh_nostd::ZLinkError> {
-        self.stream.write_all(buffer).await.map_err(|e| {
-            zenoh_nostd::error!(
-                "write_all ({}:{}:{}) failed with buffer len {}: {:?}",
-                file!(),
-                line!(),
-                column!(),
-                buffer.len(),
-                e
-            );
 
             zenoh_nostd::ZLinkError::WriteOperationFailed
         })
     }
 }
 
-impl AbstractedTcpRx for StdTcpRx {
+impl ZTcpRx for StdTcpRx {
     async fn read(&mut self, buffer: &mut [u8]) -> ZResult<usize, zenoh_nostd::ZLinkError> {
         self.stream.read(buffer).await.map_err(|e| {
             zenoh_nostd::error!(

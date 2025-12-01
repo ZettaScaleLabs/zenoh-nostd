@@ -5,11 +5,11 @@ use embassy_time::Timer;
 use zenoh_proto::{fields::*, *};
 
 use crate::{
-    io::link::{Link, LinkRx, LinkTx},
-    platform::Platform,
+    io::link::{Link, LinkRx, LinkTx, ZLink, ZLinkRx, ZLinkTx},
+    platform::ZPlatform,
 };
 
-pub(crate) mod establishment;
+// pub(crate) mod establishment;
 
 pub(crate) struct TransportMineConfig {
     pub(crate) mine_zid: ZenohIdProto,
@@ -41,147 +41,148 @@ pub(crate) struct TransportConfig {
     pub(crate) negociated_config: TransportNegociatedConfig,
 }
 
-pub struct Transport<T: Platform> {
-    link: Link<T>,
+pub struct Transport<T: ZLink> {
+    link: T,
 }
 
-pub(crate) struct TransportTx<'a, T: Platform> {
-    link: LinkTx<'a, T>,
+pub(crate) struct TransportTx<T: ZLinkTx> {
+    tx: T,
 }
 
-pub(crate) struct TransportRx<'a, T: Platform> {
-    link: LinkRx<'a, T>,
+pub(crate) struct TransportRx<T: ZLinkRx> {
+    rx: T,
 }
 
-impl<T: Platform> Transport<T> {
+impl<T: ZLink> Transport<T> {
     pub(crate) async fn open(
-        link: Link<T>,
+        link: T,
         config: TransportMineConfig,
         tx: &mut [u8],
         rx: &mut [u8],
     ) -> ZResult<(Self, TransportConfig), crate::ZTransportError> {
-        match select(
-            Timer::after(config.open_timeout.try_into().unwrap()),
-            async { establishment::open::open_link(link, config, tx, rx).await },
-        )
-        .await
-        {
-            embassy_futures::select::Either::First(_) => {
-                zbail!(crate::ZTransportError::Timeout);
-            }
-            embassy_futures::select::Either::Second(res) => res,
-        }
+        // match select(
+        //     Timer::after(config.open_timeout.try_into().unwrap()),
+        //     async { establishment::open::open_link(link, config, tx, rx).await },
+        // )
+        // .await
+        // {
+        //     embassy_futures::select::Either::First(_) => {
+        //         zbail!(crate::ZTransportError::Timeout);
+        //     }
+        //     embassy_futures::select::Either::Second(res) => res,
+        // }
+        Err(crate::ZTransportError::CouldNotConnect)
     }
 
-    pub(crate) fn split(&mut self) -> (TransportTx<'_, T>, TransportRx<'_, T>) {
+    pub(crate) fn split(&mut self) -> (TransportTx<T::Tx<'_>>, TransportRx<T::Rx<'_>>) {
         let (link_tx, link_rx) = self.link.split();
 
-        (TransportTx { link: link_tx }, TransportRx { link: link_rx })
+        (TransportTx { tx: link_tx }, TransportRx { rx: link_rx })
     }
 
-    pub(crate) async fn send(
-        &mut self,
-        tx: &mut [u8],
-        sn: &mut u32,
-        mut writer: impl FnMut(&mut ZBatchWriter<&mut [u8]>) -> ZResult<(), crate::ZCodecError>,
-    ) -> ZResult<(), crate::ZTransportError> {
-        let (mut batch, space) = if self.link.is_streamed() {
-            let space = u16::MIN.to_le_bytes();
-            tx[..space.len()].copy_from_slice(&space);
-            (ZBatchWriter::new(&mut tx[space.len()..], *sn), space.len())
-        } else {
-            (ZBatchWriter::new(&mut tx[..], *sn), 0)
-        };
+    // pub(crate) async fn send(
+    //     &mut self,
+    //     tx: &mut [u8],
+    //     sn: &mut u32,
+    //     mut writer: impl FnMut(&mut ZBatchWriter<&mut [u8]>) -> ZResult<(), crate::ZCodecError>,
+    // ) -> ZResult<(), crate::ZTransportError> {
+    //     let (mut batch, space) = if self.link.is_streamed() {
+    //         let space = u16::MIN.to_le_bytes();
+    //         tx[..space.len()].copy_from_slice(&space);
+    //         (ZBatchWriter::new(&mut tx[space.len()..], *sn), space.len())
+    //     } else {
+    //         (ZBatchWriter::new(&mut tx[..], *sn), 0)
+    //     };
 
-        writer(&mut batch)?;
+    //     writer(&mut batch)?;
 
-        let (next_sn, payload_len) = batch.finalize();
-        *sn = next_sn;
+    //     let (next_sn, payload_len) = batch.finalize();
+    //     *sn = next_sn;
 
-        if self.link.is_streamed() {
-            let len_bytes = (payload_len as u16).to_le_bytes();
-            tx[..space].copy_from_slice(&len_bytes);
-        }
+    //     if self.link.is_streamed() {
+    //         let len_bytes = (payload_len as u16).to_le_bytes();
+    //         tx[..space].copy_from_slice(&len_bytes);
+    //     }
 
-        self.link
-            .write_all(&tx[..payload_len + space])
-            .await
-            .map_err(|e| e.into())
-    }
+    //     self.link
+    //         .write_all(&tx[..payload_len + space])
+    //         .await
+    //         .map_err(|e| e.into())
+    // }
 
-    pub(crate) async fn recv<'a>(
-        &mut self,
-        rx: &'a mut [u8],
-    ) -> ZResult<&'a [u8], crate::ZTransportError> {
-        let n = if self.link.is_streamed() {
-            let mut len = u16::MIN.to_le_bytes();
-            self.link.read_exact(&mut len).await?;
-            let l = u16::from_le_bytes(len) as usize;
+    // pub(crate) async fn recv<'a>(
+    //     &mut self,
+    //     rx: &'a mut [u8],
+    // ) -> ZResult<&'a [u8], crate::ZTransportError> {
+    //     let n = if self.link.is_streamed() {
+    //         let mut len = u16::MIN.to_le_bytes();
+    //         self.link.read_exact(&mut len).await?;
+    //         let l = u16::from_le_bytes(len) as usize;
 
-            self.link.read_exact(&mut rx[..l]).await?;
+    //         self.link.read_exact(&mut rx[..l]).await?;
 
-            l
-        } else {
-            self.link.read(rx.as_mut()).await?
-        };
+    //         l
+    //     } else {
+    //         self.link.read(rx.as_mut()).await?
+    //     };
 
-        let slice: &'a [u8] = &rx[..n];
+    //     let slice: &'a [u8] = &rx[..n];
 
-        Ok(slice)
-    }
+    //     Ok(slice)
+    // }
 }
 
-impl<'a, T: Platform> TransportTx<'a, T> {
-    pub(crate) async fn send(
-        &mut self,
-        tx: &mut [u8],
-        sn: &mut u32,
-        mut writer: impl FnMut(&mut ZBatchWriter<&mut [u8]>) -> ZResult<(), crate::ZCodecError>,
-    ) -> ZResult<(), crate::ZTransportError> {
-        let (mut batch, space) = if self.link.is_streamed() {
-            let space = u16::MIN.to_le_bytes();
-            tx[..space.len()].copy_from_slice(&space);
-            (ZBatchWriter::new(&mut tx[space.len()..], *sn), space.len())
-        } else {
-            (ZBatchWriter::new(&mut tx[..], *sn), 0)
-        };
+// impl<'a, T: Platform> TransportTx<'a, T> {
+//     pub(crate) async fn send(
+//         &mut self,
+//         tx: &mut [u8],
+//         sn: &mut u32,
+//         mut writer: impl FnMut(&mut ZBatchWriter<&mut [u8]>) -> ZResult<(), crate::ZCodecError>,
+//     ) -> ZResult<(), crate::ZTransportError> {
+//         let (mut batch, space) = if self.link.is_streamed() {
+//             let space = u16::MIN.to_le_bytes();
+//             tx[..space.len()].copy_from_slice(&space);
+//             (ZBatchWriter::new(&mut tx[space.len()..], *sn), space.len())
+//         } else {
+//             (ZBatchWriter::new(&mut tx[..], *sn), 0)
+//         };
 
-        writer(&mut batch)?;
+//         writer(&mut batch)?;
 
-        let (next_sn, payload_len) = batch.finalize();
-        *sn = next_sn;
+//         let (next_sn, payload_len) = batch.finalize();
+//         *sn = next_sn;
 
-        if self.link.is_streamed() {
-            let len_bytes = (payload_len as u16).to_le_bytes();
-            tx[..space].copy_from_slice(&len_bytes);
-        }
+//         if self.link.is_streamed() {
+//             let len_bytes = (payload_len as u16).to_le_bytes();
+//             tx[..space].copy_from_slice(&len_bytes);
+//         }
 
-        self.link
-            .write_all(&tx[..payload_len + space])
-            .await
-            .map_err(|e| e.into())
-    }
-}
+//         self.link
+//             .write_all(&tx[..payload_len + space])
+//             .await
+//             .map_err(|e| e.into())
+//     }
+// }
 
-impl<'a, T: Platform> TransportRx<'a, T> {
-    pub(crate) async fn recv<'b>(
-        &mut self,
-        rx: &'b mut [u8],
-    ) -> ZResult<&'b [u8], crate::ZTransportError> {
-        let n = if self.link.is_streamed() {
-            let mut len = u16::MIN.to_le_bytes();
-            self.link.read_exact(&mut len).await?;
-            let l = u16::from_le_bytes(len) as usize;
+// impl<'a, T: Platform> TransportRx<'a, T> {
+//     pub(crate) async fn recv<'b>(
+//         &mut self,
+//         rx: &'b mut [u8],
+//     ) -> ZResult<&'b [u8], crate::ZTransportError> {
+//         let n = if self.link.is_streamed() {
+//             let mut len = u16::MIN.to_le_bytes();
+//             self.link.read_exact(&mut len).await?;
+//             let l = u16::from_le_bytes(len) as usize;
 
-            self.link.read_exact(&mut rx[..l]).await?;
+//             self.link.read_exact(&mut rx[..l]).await?;
 
-            l
-        } else {
-            self.link.read(rx.as_mut()).await?
-        };
+//             l
+//         } else {
+//             self.link.read(rx.as_mut()).await?
+//         };
 
-        let slice: &'b [u8] = &rx[..n];
+//         let slice: &'b [u8] = &rx[..n];
 
-        Ok(slice)
-    }
-}
+//         Ok(slice)
+//     }
+// }

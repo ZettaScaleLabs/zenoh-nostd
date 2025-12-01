@@ -6,7 +6,7 @@ use zenoh_proto::{ZBatchUnframed, ZError, ZResult, msgs::KeepAlive};
 
 use crate::{api::driver::SessionDriver, platform::Platform};
 
-impl<T: Platform> SessionDriver<T> {
+impl<T: Platform, TX: AsMut<[u8]>> SessionDriver<T, TX> {
     pub async fn run(&'static self) -> ZResult<()> {
         let mut rx_guard = self.rx.lock().await;
         let rx = rx_guard.deref_mut();
@@ -51,7 +51,9 @@ impl<T: Platform> SessionDriver<T> {
                         zenoh_proto::trace!("Sending KeepAlive");
 
                         tx.tx
-                            .send(tx.tx_zbuf, &mut 0, |batch| batch.unframe(&KeepAlive {}))
+                            .send(tx.tx_zbuf.as_mut(), &mut 0, |batch| {
+                                batch.unframe(&KeepAlive {})
+                            })
                             .await?;
 
                         tx.next_keepalive = Instant::now() + keep_alive_timeout.try_into().unwrap();

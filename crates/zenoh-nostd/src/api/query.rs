@@ -5,18 +5,18 @@ use zenoh_proto::{fields::*, msgs::*, *};
 
 use crate::{SessionDriver, platform::Platform};
 
-pub struct ZQuery<'a, T: Platform + 'static> {
+pub struct ZQuery<'a, T: Platform + 'static, TX: AsMut<[u8]> + 'static> {
     rid: u32,
-    driver: &'static SessionDriver<T>,
+    driver: &'static SessionDriver<T, TX>,
     keyexpr: &'a keyexpr,
     parameters: Option<&'a str>,
     payload: Option<&'a [u8]>,
 }
 
-impl<'a, T: Platform + 'static> ZQuery<'a, T> {
+impl<'a, T: Platform + 'static, TX: AsMut<[u8]> + 'static> ZQuery<'a, T, TX> {
     pub(crate) fn new(
         rid: u32,
-        driver: &'static SessionDriver<T>,
+        driver: &'static SessionDriver<T, TX>,
         keyexpr: &'a keyexpr,
         parameters: Option<&'a str>,
         payload: Option<&'a [u8]>,

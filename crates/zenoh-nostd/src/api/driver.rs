@@ -17,8 +17,8 @@ use crate::{
     subscriber::callback::{ZSubscriberCallback, ZSubscriberCallbacks},
 };
 
-pub struct TxState<T: Platform + 'static> {
-    tx_zbuf: &'static mut [u8],
+pub struct TxState<T: Platform + 'static, TX: AsMut<[u8]>> {
+    tx_zbuf: TX,
     tx: TransportTx<'static, T>,
     sn: u32,
 
@@ -42,10 +42,10 @@ pub struct QueryableState<T: Platform + 'static> {
     callbacks: &'static mut dyn ZQueryableCallbacks<T>,
 }
 
-pub struct SessionDriver<T: Platform + 'static> {
+pub struct SessionDriver<T: Platform + 'static, TX: AsMut<[u8]>> {
     config: TransportConfig,
 
-    tx: Mutex<CriticalSectionRawMutex, TxState<T>>,
+    tx: Mutex<CriticalSectionRawMutex, TxState<T, TX>>,
     rx: Mutex<CriticalSectionRawMutex, RxState<T>>,
 
     subscribers: Mutex<CriticalSectionRawMutex, SubscriberState>,
@@ -53,15 +53,15 @@ pub struct SessionDriver<T: Platform + 'static> {
     queryables: Mutex<CriticalSectionRawMutex, QueryableState<T>>,
 }
 
-impl<T: Platform> SessionDriver<T> {
+impl<T: Platform, TX: AsMut<[u8]>> SessionDriver<T, TX> {
     pub(crate) fn new(
         config: TransportConfig,
-        tx: (&'static mut [u8], TransportTx<'static, T>),
+        tx: (TX, TransportTx<'static, T>),
         rx: (&'static mut [u8], TransportRx<'static, T>),
         subscribers: &'static mut dyn ZSubscriberCallbacks,
         replies: &'static mut dyn ZRepliesCallbacks,
         queryables: &'static mut dyn ZQueryableCallbacks<T>,
-    ) -> SessionDriver<T> {
+    ) -> Self {
         SessionDriver {
             tx: Mutex::new(TxState {
                 tx_zbuf: tx.0,

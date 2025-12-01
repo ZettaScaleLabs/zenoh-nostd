@@ -2,13 +2,13 @@ use zenoh_proto::{msgs::*, *};
 
 use crate::{SessionDriver, platform::Platform};
 
-pub struct ZPublisher<T: Platform + 'static> {
+pub struct ZPublisher<T: Platform + 'static, TX: AsMut<[u8]> + 'static> {
     ke: &'static keyexpr,
-    driver: &'static SessionDriver<T>,
+    driver: &'static SessionDriver<T, TX>,
 }
 
-impl<T: Platform + 'static> ZPublisher<T> {
-    pub(crate) fn new(ke: &'static keyexpr, driver: &'static SessionDriver<T>) -> Self {
+impl<T: Platform + 'static, TX: AsMut<[u8]>> ZPublisher<T, TX> {
+    pub(crate) fn new(ke: &'static keyexpr, driver: &'static SessionDriver<T, TX>) -> Self {
         Self { ke, driver }
     }
 

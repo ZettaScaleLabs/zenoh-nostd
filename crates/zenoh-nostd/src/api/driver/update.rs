@@ -8,7 +8,7 @@ use crate::{
     platform::Platform,
 };
 
-impl<T: Platform> SessionDriver<T> {
+impl<T: Platform, TX: AsMut<[u8]>> SessionDriver<T, TX> {
     pub(crate) async fn internal_update<'a>(&'static self, reader: &'a [u8]) -> ZResult<()> {
         let batch = ZBatchReader::new(reader);
 
