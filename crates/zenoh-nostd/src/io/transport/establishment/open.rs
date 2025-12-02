@@ -1,7 +1,7 @@
 use ::core::time::Duration;
 
 use crate::io::{
-    link::{Link, ZLink},
+    link::ZLink,
     transport::{
         Transport, TransportConfig, TransportMineConfig, TransportNegociatedConfig,
         TransportOtherConfig, ZTransportRecv, ZTransportSend, establishment::compute_sn,
@@ -203,7 +203,14 @@ pub(crate) async fn open_link<T: ZLink>(
     let osyn_in = SendOpenSynIn {
         mine_zid: config.mine_zid.clone(),
         other_zid: iack_out.other_zid,
-        mine_lease: config.mine_lease,
+        mine_lease: config.mine_lease.try_into().map_err(|e| {
+            crate::error!(
+                "could not parse mine_lease duration {:?}: {:?}",
+                config.mine_lease,
+                e
+            );
+            ZTransportError::CouldNotParseField
+        })?,
         other_cookie: iack_out.other_cookie,
     };
 
@@ -218,7 +225,14 @@ pub(crate) async fn open_link<T: ZLink>(
                 other_zid,
                 other_whatami,
                 other_sn: osyn_out.mine_sn,
-                other_lease: oack_out.other_lease,
+                other_lease: oack_out.other_lease.try_into().map_err(|e| {
+                    crate::error!(
+                        "could not parse other_lease duration {:?}: {:?}",
+                        oack_out.other_lease,
+                        e
+                    );
+                    ZTransportError::CouldNotParseField
+                })?,
             },
             negociated_config: TransportNegociatedConfig {
                 mine_sn: osyn_out.mine_sn,

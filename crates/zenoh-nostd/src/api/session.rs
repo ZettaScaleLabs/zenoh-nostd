@@ -1,159 +1,147 @@
-use embassy_sync::{
-    blocking_mutex::raw::CriticalSectionRawMutex, channel::DynamicReceiver, mutex::Mutex,
-};
-use zenoh_proto::{exts::*, fields::*, msgs::*, *};
+use embassy_time::{Duration, Instant};
+use zenoh_proto::EndPoint;
 
 use crate::{
-    ZOwnedQuery, ZPublisher, ZQueryable, ZQueryableCallback, ZReply,
-    api::{ZConfig, driver::SessionDriver, sample::ZOwnedSample, subscriber::ZSubscriber},
     io::{
-        link::Link,
-        transport::{Transport, TransportMineConfig},
+        link::{Link, LinkRx, LinkTx},
+        transport::{
+            Transport, TransportConfig, TransportMineConfig, TransportRx, TransportTx, ZTransport,
+        },
     },
-    platform::Platform,
-    session::get::GetBuilder,
-    subscriber::callback::ZSubscriberCallback,
+    platform::ZPlatform,
 };
 
-pub mod get;
+use driver::ZDriver;
 
-static NEXT_ID: Mutex<CriticalSectionRawMutex, u32> = Mutex::new(0);
+pub(crate) mod driver;
+pub use driver::{Driver, DriverRx, DriverTx};
 
-pub struct Session<T: Platform + 'static> {
-    driver: Option<&'static SessionDriver<T>>,
+mod put;
+mod run;
+
+#[macro_export]
+macro_rules! zimport_types {
+    (
+        PLATFORM: $platform:ty,
+        TX_BUF: $tx_buf:ty,
+        RX_BUF: $rx_buf:ty
+    ) => {
+        type Config = $crate::Config<$platform, $tx_buf, $rx_buf>;
+        type Resources<'a> = $crate::SessionResources<'a, $platform, $tx_buf, $rx_buf>;
+        type Session<'a> = $crate::Session<
+            'a,
+            $crate::Driver<
+                $crate::DriverTx<$tx_buf, $crate::TransportTx<$crate::LinkTx<'a, $platform>>>,
+                $crate::DriverRx<$rx_buf, $crate::TransportRx<$crate::LinkRx<'a, $platform>>>,
+            >,
+        >;
+    };
 }
 
-impl<T: Platform + 'static> Session<T> {
-    pub async fn new<S1>(
-        config: ZConfig<T, S1>,
-        endpoint: EndPoint<'_>,
-    ) -> ZResult<(Self, SessionDriver<T>)> {
-        let transport = TransportMineConfig {
-            mine_zid: ZenohIdProto::default(),
-            mine_lease: ::core::time::Duration::from_secs(20),
-            keep_alive: 4,
-            open_timeout: ::core::time::Duration::from_secs(5),
+pub struct Config<P: ZPlatform, TxBuf: AsMut<[u8]>, RxBuf: AsMut<[u8]>> {
+    pub platform: P,
+    pub tx_buf: TxBuf,
+    pub rx_buf: RxBuf,
+}
+
+pub enum SessionResources<'a, P: ZPlatform, TxBuf: AsMut<[u8]>, RxBuf: AsMut<[u8]>> {
+    Uninitialized,
+    Initialized {
+        transport: Transport<Link<P>>,
+        driver: Option<
+            Driver<
+                DriverTx<TxBuf, TransportTx<LinkTx<'a, P>>>,
+                DriverRx<RxBuf, TransportRx<LinkRx<'a, P>>>,
+            >,
+        >,
+    },
+}
+
+impl<'a, P: ZPlatform, TxBuf: AsMut<[u8]>, RxBuf: AsMut<[u8]>>
+    SessionResources<'a, P, TxBuf, RxBuf>
+{
+    pub(crate) fn init(
+        &'a mut self,
+        config: Config<P, TxBuf, RxBuf>,
+        transport: Transport<Link<P>>,
+        tconfig: TransportConfig,
+    ) -> &'a Driver<
+        DriverTx<TxBuf, TransportTx<LinkTx<'a, P>>>,
+        DriverRx<RxBuf, TransportRx<LinkRx<'a, P>>>,
+    > {
+        *self = SessionResources::Initialized {
+            transport,
+            driver: None,
         };
 
-        let link = Link::new(&config.platform, endpoint).await?;
-        let (transport, tconfig) =
-            Transport::open(link, transport, config.tx_zbuf, config.rx_zbuf).await?;
+        if let SessionResources::Initialized { transport, driver } = self {
+            let (tx, rx) = transport.split();
+            let (tx, rx) = (
+                DriverTx {
+                    tx_buf: config.tx_buf,
+                    tx,
+                    sn: tconfig.negociated_config.mine_sn,
+                    next_keepalive: Instant::now(),
+                    config: tconfig.mine_config.clone(),
+                },
+                DriverRx {
+                    rx_buf: config.rx_buf,
+                    rx,
+                    last_read: Instant::now(),
+                    config: tconfig.other_config.clone(),
+                },
+            );
 
-        let (tx, rx) = config.transport.init(transport).split();
-
-        Ok((
-            Self { driver: None },
-            SessionDriver::new(
-                tconfig,
-                (config.tx_zbuf, tx),
-                (config.rx_zbuf, rx),
-                config.subscribers,
-                config.replies,
-                config.queryables,
-            ),
-        ))
-    }
-
-    pub fn set_driver(&mut self, driver: &'static SessionDriver<T>) {
-        self.driver = Some(driver);
-    }
-
-    pub async fn put(&self, ke: &'static keyexpr, bytes: &[u8]) -> ZResult<()> {
-        let msg = Push {
-            wire_expr: WireExpr::from(ke),
-            payload: PushBody::Put(Put {
-                payload: bytes,
-                ..Default::default()
-            }),
-            ..Default::default()
-        };
-
-        self.driver.as_ref().unwrap().send(msg).await?;
-
-        Ok(())
-    }
-
-    pub async fn declare_subscriber<const KE: usize, const PL: usize>(
-        &self,
-        ke: &'static keyexpr,
-        config: (
-            ZSubscriberCallback,
-            Option<DynamicReceiver<'static, ZOwnedSample<KE, PL>>>,
-        ),
-    ) -> ZResult<ZSubscriber<KE, PL>> {
-        let wke = WireExpr::from(ke);
-
-        let mut id = NEXT_ID.lock().await;
-        *id += 1;
-        let id = *id;
-
-        let msg = Declare {
-            qos: QoS::declare(),
-            body: DeclareBody::DeclareSubscriber(DeclareSubscriber { id, wire_expr: wke }),
-            ..Default::default()
-        };
-
-        self.driver.as_ref().unwrap().send(msg).await?;
-
-        let is_async = config.0.is_async();
-
-        self.driver
-            .as_ref()
-            .unwrap()
-            .register_subscriber_callback(id, ke, config.0)
-            .await?;
-
-        if is_async {
-            Ok(ZSubscriber::new_async(id, ke, config.1.unwrap()))
+            let d = Driver::new(tx, rx);
+            *driver = Some(d);
+            driver.as_ref().expect("Driver just set")
         } else {
-            Ok(ZSubscriber::new_sync(id, ke))
+            unreachable!()
         }
     }
+}
 
-    pub fn declare_publisher(&self, ke: &'static keyexpr) -> ZPublisher<T> {
-        ZPublisher::new(ke, self.driver.as_ref().unwrap())
+pub struct Session<'a, T: ZDriver> {
+    pub(crate) driver: &'a T,
+}
+
+impl<'a, T: ZDriver> Clone for Session<'a, T> {
+    fn clone(&self) -> Self {
+        Session {
+            driver: self.driver,
+        }
     }
+}
 
-    pub fn get(&self, ke: &'static keyexpr, callback: fn(&ZReply<'_>)) -> GetBuilder<'_, T> {
-        GetBuilder::new(self, ke, callback)
-    }
+pub async fn open<'a, P: ZPlatform, TxBuf: AsMut<[u8]>, RxBuf: AsMut<[u8]>>(
+    resources: &'a mut SessionResources<'a, P, TxBuf, RxBuf>,
+    mut config: Config<P, TxBuf, RxBuf>,
+    endpoint: EndPoint<'_>,
+) -> crate::ZResult<
+    Session<
+        'a,
+        Driver<
+            DriverTx<TxBuf, TransportTx<LinkTx<'a, P>>>,
+            DriverRx<RxBuf, TransportRx<LinkRx<'a, P>>>,
+        >,
+    >,
+> {
+    let link = Link::new(&config.platform, endpoint).await?;
 
-    pub async fn declare_queryable<
-        const MAX_KEYEXPR: usize,
-        const MAX_PARAMETERS: usize,
-        const MAX_PAYLOAD: usize,
-    >(
-        &self,
-        ke: &'static keyexpr,
-        config: (
-            ZQueryableCallback<T>,
-            DynamicReceiver<'static, ZOwnedQuery<T, MAX_KEYEXPR, MAX_PARAMETERS, MAX_PAYLOAD>>,
-        ),
-    ) -> ZResult<ZQueryable<T, MAX_KEYEXPR, MAX_PARAMETERS, MAX_PAYLOAD>> {
-        let wke = WireExpr::from(ke);
+    let (transport, tconfig) = Transport::open(
+        link,
+        TransportMineConfig {
+            mine_zid: Default::default(),
+            mine_lease: Duration::from_secs(20),
+            keep_alive: 4,
+            open_timeout: Duration::from_secs(5),
+        },
+        &mut config.tx_buf,
+        &mut config.rx_buf,
+    )
+    .await?;
 
-        let mut id = NEXT_ID.lock().await;
-        *id += 1;
-        let id = *id;
+    let driver = resources.init(config, transport, tconfig);
 
-        let msg = Declare {
-            qos: QoS::declare(),
-            body: DeclareBody::DeclareQueryable(DeclareQueryable {
-                id,
-                wire_expr: wke,
-                ..Default::default()
-            }),
-            ..Default::default()
-        };
-
-        self.driver.as_ref().unwrap().send(msg).await?;
-
-        self.driver
-            .as_ref()
-            .unwrap()
-            .register_queryable_callback(id, ke, config.0)
-            .await?;
-
-        Ok(ZQueryable::new(ke, config.1))
-    }
+    Ok(Session { driver })
 }

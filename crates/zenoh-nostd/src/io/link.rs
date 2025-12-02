@@ -15,7 +15,7 @@ pub(crate) mod macros;
 pub(crate) mod tcp;
 pub(crate) mod ws;
 
-pub(crate) trait ZLinkInfo {
+pub trait ZLinkInfo {
     fn mtu(&self) -> u16;
 
     fn is_streamed(&self) -> bool;
@@ -73,7 +73,7 @@ where
     LinkWsRx(LinkWsRx<<T::ZWsStream as crate::platform::ws::ZWsStream>::Rx<'a>>),
 }
 
-pub(crate) enum Link<T: ZPlatform> {
+pub enum Link<T: ZPlatform> {
     LinkTcp(LinkTcp<T::ZTcpStream>),
     LinkWs(LinkWs<T::ZWsStream>),
 }
