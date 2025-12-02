@@ -5,5 +5,4 @@ pub mod platform;
 
 pub(crate) mod io;
 
-pub use zenoh_proto::error::*;
-pub(crate) use zenoh_proto::*;
+pub use zenoh_proto::{EndPoint, debug, error, error::*, info, keyexpr, trace, warn, zbail};

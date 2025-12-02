@@ -7,40 +7,40 @@ use crate::{
     platform::ZPlatform,
 };
 
-pub(crate) mod establishment;
+pub mod establishment;
 
 #[derive(Clone)]
-pub(crate) struct TransportMineConfig {
-    pub(crate) mine_zid: ZenohIdProto,
-    pub(crate) mine_lease: Duration,
+pub struct TransportMineConfig {
+    pub mine_zid: ZenohIdProto,
+    pub mine_lease: Duration,
 
-    pub(crate) keep_alive: usize,
-    pub(crate) open_timeout: Duration,
+    pub keep_alive: usize,
+    pub open_timeout: Duration,
 }
 
 #[allow(dead_code)]
 #[derive(Clone)]
-pub(crate) struct TransportOtherConfig {
-    pub(crate) other_whatami: WhatAmI,
-    pub(crate) other_zid: ZenohIdProto,
-    pub(crate) other_sn: u32,
-    pub(crate) other_lease: Duration,
+pub struct TransportOtherConfig {
+    pub other_whatami: WhatAmI,
+    pub other_zid: ZenohIdProto,
+    pub other_sn: u32,
+    pub other_lease: Duration,
 }
 
 #[allow(dead_code)]
 #[derive(Clone)]
-pub(crate) struct TransportNegociatedConfig {
-    pub(crate) mine_sn: u32,
+pub struct TransportNegociatedConfig {
+    pub mine_sn: u32,
 
-    pub(crate) resolution: Resolution,
-    pub(crate) batch_size: u16,
+    pub resolution: Resolution,
+    pub batch_size: u16,
 }
 
 #[derive(Clone)]
-pub(crate) struct TransportConfig {
-    pub(crate) mine_config: TransportMineConfig,
-    pub(crate) other_config: TransportOtherConfig,
-    pub(crate) negociated_config: TransportNegociatedConfig,
+pub struct TransportConfig {
+    pub mine_config: TransportMineConfig,
+    pub other_config: TransportOtherConfig,
+    pub negociated_config: TransportNegociatedConfig,
 }
 
 pub struct Transport<Platform>

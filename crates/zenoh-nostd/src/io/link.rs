@@ -20,6 +20,7 @@ pub trait ZLinkInfo {
 }
 
 pub trait ZLinkTx: ZLinkInfo {
+    #[allow(unused)]
     fn write(
         &mut self,
         buffer: &[u8],

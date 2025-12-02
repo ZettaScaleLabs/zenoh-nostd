@@ -10,10 +10,7 @@ use embassy_time::{Instant, Timer};
 use zenoh_proto::msgs::KeepAlive;
 
 use crate::{
-    io::transport::{
-        TransportMineConfig, TransportOtherConfig, TransportRx, TransportTx, ZTransportRx,
-        ZTransportTx,
-    },
+    io::transport::{TransportMineConfig, TransportOtherConfig, TransportRx, TransportTx},
     platform::ZPlatform,
 };
 
@@ -49,10 +46,7 @@ impl<Tx, Rx> Driver<Tx, Rx> {
 }
 
 impl<TxBuf, RxBuf, Platform>
-    super::Driver<
-        DriverTx<TxBuf, TransportTx<'_, Platform>>,
-        DriverRx<RxBuf, TransportRx<'_, Platform>>,
-    >
+    Driver<DriverTx<TxBuf, TransportTx<'_, Platform>>, DriverRx<RxBuf, TransportRx<'_, Platform>>>
 where
     TxBuf: AsMut<[u8]>,
     RxBuf: AsMut<[u8]>,

@@ -11,7 +11,6 @@ use {
         },
     },
     zenoh_nostd::{
-        ZResult,
         platform::ws::{ZWebSocket, ZWsRx, ZWsTx},
         zbail,
     },

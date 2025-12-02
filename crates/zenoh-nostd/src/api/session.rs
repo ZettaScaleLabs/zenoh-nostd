@@ -2,17 +2,15 @@ use embassy_time::{Duration, Instant};
 use zenoh_proto::EndPoint;
 
 use crate::{
+    api::driver::{Driver, DriverRx, DriverTx},
     io::{
-        link::{Link, LinkRx, LinkTx},
-        transport::{
-            Transport, TransportConfig, TransportMineConfig, TransportRx, TransportTx, ZTransport,
-        },
+        link::Link,
+        transport::{Transport, TransportConfig, TransportMineConfig, TransportRx, TransportTx},
     },
     platform::ZPlatform,
 };
 
 pub(crate) mod driver;
-pub use driver::{Driver, DriverRx, DriverTx};
 
 mod put;
 mod run;
@@ -21,51 +19,71 @@ mod run;
 macro_rules! zimport_types {
     (
         PLATFORM: $platform:ty,
-        TX_BUF: $tx_buf:ty,
-        RX_BUF: $rx_buf:ty
+        TX: $txbuf:ty,
+        RX: $rxbuf:ty
     ) => {
-        type Config = $crate::Config<$platform, $tx_buf, $rx_buf>;
-        type Resources<'a> = $crate::SessionResources<'a, $platform, $tx_buf, $rx_buf>;
-        type Session<'a> = $crate::Session<
-            'a,
-            $crate::Driver<
-                $crate::DriverTx<$tx_buf, $crate::TransportTx<$crate::LinkTx<'a, $platform>>>,
-                $crate::DriverRx<$rx_buf, $crate::TransportRx<$crate::LinkRx<'a, $platform>>>,
-            >,
-        >;
+        type Config = $crate::api::Config<$platform, $txbuf, $rxbuf>;
+        type Resources<'a> = $crate::api::UserResources<'a, $platform, $txbuf, $rxbuf>;
+        type Session<'a> = $crate::api::UserSession<'a, $platform, $txbuf, $rxbuf>;
     };
 }
 
-pub struct Config<P: ZPlatform, TxBuf: AsMut<[u8]>, RxBuf: AsMut<[u8]>> {
-    pub platform: P,
-    pub tx_buf: TxBuf,
-    pub rx_buf: RxBuf,
+pub type UserSession<'a, Platform, TxBuf, RxBuf> = Session<
+    'a,
+    Driver<DriverTx<TxBuf, TransportTx<'a, Platform>>, DriverRx<RxBuf, TransportRx<'a, Platform>>>,
+>;
+
+pub type UserResources<'a, Platform, TxBuf, RxBuf> = SessionResources<
+    Platform,
+    Driver<DriverTx<TxBuf, TransportTx<'a, Platform>>, DriverRx<RxBuf, TransportRx<'a, Platform>>>,
+>;
+
+pub struct Config<Platform, TxBuf, RxBuf> {
+    platform: Platform,
+    tx: TxBuf,
+    rx: RxBuf,
 }
 
-pub enum SessionResources<'a, P: ZPlatform, TxBuf: AsMut<[u8]>, RxBuf: AsMut<[u8]>> {
+impl<Platform, TxBuf, RxBuf> Config<Platform, TxBuf, RxBuf> {
+    pub fn new(platform: Platform, tx_buf: TxBuf, rx_buf: RxBuf) -> Self {
+        Self {
+            platform,
+            tx: tx_buf,
+            rx: rx_buf,
+        }
+    }
+}
+
+pub enum SessionResources<Platform, Driver>
+where
+    Platform: ZPlatform,
+{
     Uninitialized,
     Initialized {
-        transport: Transport<Link<P>>,
-        driver: Option<
-            Driver<
-                DriverTx<TxBuf, TransportTx<LinkTx<'a, P>>>,
-                DriverRx<RxBuf, TransportRx<LinkRx<'a, P>>>,
-            >,
-        >,
+        transport: Transport<Platform>,
+        driver: Option<Driver>,
     },
 }
 
-impl<'a, P: ZPlatform, TxBuf: AsMut<[u8]>, RxBuf: AsMut<[u8]>>
-    SessionResources<'a, P, TxBuf, RxBuf>
+impl<'a, Platform, TxBuf, RxBuf>
+    SessionResources<
+        Platform,
+        Driver<
+            DriverTx<TxBuf, TransportTx<'a, Platform>>,
+            DriverRx<RxBuf, TransportRx<'a, Platform>>,
+        >,
+    >
+where
+    Platform: ZPlatform,
 {
     pub(crate) fn init(
         &'a mut self,
-        config: Config<P, TxBuf, RxBuf>,
-        transport: Transport<Link<P>>,
+        config: Config<Platform, TxBuf, RxBuf>,
+        transport: Transport<Platform>,
         tconfig: TransportConfig,
     ) -> &'a Driver<
-        DriverTx<TxBuf, TransportTx<LinkTx<'a, P>>>,
-        DriverRx<RxBuf, TransportRx<LinkRx<'a, P>>>,
+        DriverTx<TxBuf, TransportTx<'a, Platform>>,
+        DriverRx<RxBuf, TransportRx<'a, Platform>>,
     > {
         *self = SessionResources::Initialized {
             transport,
@@ -76,14 +94,14 @@ impl<'a, P: ZPlatform, TxBuf: AsMut<[u8]>, RxBuf: AsMut<[u8]>>
             let (tx, rx) = transport.split();
             let (tx, rx) = (
                 DriverTx {
-                    tx_buf: config.tx_buf,
+                    tx_buf: config.tx,
                     tx,
                     sn: tconfig.negociated_config.mine_sn,
                     next_keepalive: Instant::now(),
                     config: tconfig.mine_config.clone(),
                 },
                 DriverRx {
-                    rx_buf: config.rx_buf,
+                    rx_buf: config.rx,
                     rx,
                     last_read: Instant::now(),
                     config: tconfig.other_config.clone(),
@@ -99,11 +117,11 @@ impl<'a, P: ZPlatform, TxBuf: AsMut<[u8]>, RxBuf: AsMut<[u8]>>
     }
 }
 
-pub struct Session<'a, T: ZDriver> {
-    pub(crate) driver: &'a T,
+pub struct Session<'a, Driver> {
+    pub(crate) driver: &'a Driver,
 }
 
-impl<'a, T: ZDriver> Clone for Session<'a, T> {
+impl<'a, Driver> Clone for Session<'a, Driver> {
     fn clone(&self) -> Self {
         Session {
             driver: self.driver,
@@ -111,19 +129,30 @@ impl<'a, T: ZDriver> Clone for Session<'a, T> {
     }
 }
 
-pub async fn open<'a, P: ZPlatform, TxBuf: AsMut<[u8]>, RxBuf: AsMut<[u8]>>(
-    resources: &'a mut SessionResources<'a, P, TxBuf, RxBuf>,
-    mut config: Config<P, TxBuf, RxBuf>,
+pub async fn open<'a, Platform, TxBuf, RxBuf>(
+    resources: &'a mut SessionResources<
+        Platform,
+        Driver<
+            DriverTx<TxBuf, TransportTx<'a, Platform>>,
+            DriverRx<RxBuf, TransportRx<'a, Platform>>,
+        >,
+    >,
+    mut config: Config<Platform, TxBuf, RxBuf>,
     endpoint: EndPoint<'_>,
 ) -> crate::ZResult<
     Session<
         'a,
         Driver<
-            DriverTx<TxBuf, TransportTx<LinkTx<'a, P>>>,
-            DriverRx<RxBuf, TransportRx<LinkRx<'a, P>>>,
+            DriverTx<TxBuf, TransportTx<'a, Platform>>,
+            DriverRx<RxBuf, TransportRx<'a, Platform>>,
         >,
     >,
-> {
+>
+where
+    Platform: ZPlatform,
+    TxBuf: AsMut<[u8]>,
+    RxBuf: AsMut<[u8]>,
+{
     let link = Link::new(&config.platform, endpoint).await?;
 
     let (transport, tconfig) = Transport::open(
@@ -134,12 +163,12 @@ pub async fn open<'a, P: ZPlatform, TxBuf: AsMut<[u8]>, RxBuf: AsMut<[u8]>>(
             keep_alive: 4,
             open_timeout: Duration::from_secs(5),
         },
-        &mut config.tx_buf,
-        &mut config.rx_buf,
+        &mut config.tx,
+        &mut config.rx,
     )
     .await?;
 
-    let driver = resources.init(config, transport, tconfig);
-
-    Ok(Session { driver })
+    Ok(Session {
+        driver: resources.init(config, transport, tconfig),
+    })
 }

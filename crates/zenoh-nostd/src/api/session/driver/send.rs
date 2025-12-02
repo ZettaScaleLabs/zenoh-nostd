@@ -1,10 +1,9 @@
-use core::ops::DerefMut;
+use ::core::ops::DerefMut;
 
 use embassy_time::Instant;
 use zenoh_proto::{exts::*, fields::*, *};
 
 use crate::{
-    api::DriverTx,
     io::transport::{TransportTx, ZTransportTx},
     platform::ZPlatform,
 };
@@ -49,7 +48,7 @@ where
     }
 }
 
-impl<TxBuf, Platform, Rx> super::Driver<DriverTx<TxBuf, TransportTx<'_, Platform>>, Rx>
+impl<TxBuf, Platform, Rx> super::Driver<super::DriverTx<TxBuf, TransportTx<'_, Platform>>, Rx>
 where
     TxBuf: AsMut<[u8]>,
     Platform: ZPlatform,

@@ -3543,13 +3543,11 @@ dependencies = [
 name = "zenoh-nostd"
 version = "0.1.0"
 dependencies = [
- "embassy-executor",
  "embassy-futures",
  "embassy-sync 0.7.2",
  "embassy-time",
  "heapless 0.8.0",
  "sha3",
- "static_cell",
  "zenoh-proto",
 ]
 

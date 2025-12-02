@@ -3,9 +3,18 @@ use zenoh_proto::{
     msgs::{Push, PushBody, Put},
 };
 
-use crate::{Session, driver::ZDriver};
+use crate::{
+    api::driver::{Driver, DriverTx},
+    io::transport::TransportTx,
+    platform::ZPlatform,
+};
 
-impl<T: ZDriver> Session<'_, T> {
+impl<'a, Platform, TxBuf, Rx>
+    super::Session<'a, Driver<DriverTx<TxBuf, TransportTx<'a, Platform>>, Rx>>
+where
+    Platform: ZPlatform,
+    TxBuf: AsMut<[u8]>,
+{
     pub async fn put(&self, ke: &keyexpr, bytes: &[u8]) -> crate::ZResult<()> {
         let msg = Push {
             wire_expr: WireExpr::from(ke),
