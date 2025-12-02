@@ -45,7 +45,7 @@ impl ZTcpStream for StdTcpStream {
 }
 
 impl ZTcpTx for StdTcpStream {
-    async fn write(&mut self, buffer: &[u8]) -> ZResult<usize, zenoh_nostd::ZLinkError> {
+    async fn write(&mut self, buffer: &[u8]) -> crate::ZResult<usize, zenoh_nostd::ZLinkError> {
         self.stream.write(buffer).await.map_err(|e| {
             zenoh_nostd::error!(
                 "write ({}:{}:{}) failed with buffer len {}: {:?}",
@@ -60,7 +60,7 @@ impl ZTcpTx for StdTcpStream {
         })
     }
 
-    async fn write_all(&mut self, buffer: &[u8]) -> ZResult<(), zenoh_nostd::ZLinkError> {
+    async fn write_all(&mut self, buffer: &[u8]) -> crate::ZResult<(), zenoh_nostd::ZLinkError> {
         self.stream.write_all(buffer).await.map_err(|e| {
             zenoh_nostd::error!(
                 "write_all ({}:{}:{}) failed with buffer len {}: {:?}",
@@ -77,7 +77,7 @@ impl ZTcpTx for StdTcpStream {
 }
 
 impl ZTcpTx for StdTcpTx {
-    async fn write(&mut self, buffer: &[u8]) -> ZResult<usize, zenoh_nostd::ZLinkError> {
+    async fn write(&mut self, buffer: &[u8]) -> crate::ZResult<usize, zenoh_nostd::ZLinkError> {
         self.stream.write(buffer).await.map_err(|e| {
             zenoh_nostd::error!(
                 "write ({}:{}:{}) failed with buffer len {}: {:?}",
@@ -92,7 +92,7 @@ impl ZTcpTx for StdTcpTx {
         })
     }
 
-    async fn write_all(&mut self, buffer: &[u8]) -> ZResult<(), zenoh_nostd::ZLinkError> {
+    async fn write_all(&mut self, buffer: &[u8]) -> crate::ZResult<(), zenoh_nostd::ZLinkError> {
         self.stream.write_all(buffer).await.map_err(|e| {
             zenoh_nostd::error!(
                 "write_all ({}:{}:{}) failed with buffer len {}: {:?}",
@@ -109,7 +109,7 @@ impl ZTcpTx for StdTcpTx {
 }
 
 impl ZTcpRx for StdTcpStream {
-    async fn read(&mut self, buffer: &mut [u8]) -> ZResult<usize, zenoh_nostd::ZLinkError> {
+    async fn read(&mut self, buffer: &mut [u8]) -> crate::ZResult<usize, zenoh_nostd::ZLinkError> {
         self.stream.read(buffer).await.map_err(|e| {
             zenoh_nostd::error!(
                 "read ({}:{}:{}) failed with buffer len {}: {:?}",
@@ -124,7 +124,10 @@ impl ZTcpRx for StdTcpStream {
         })
     }
 
-    async fn read_exact(&mut self, buffer: &mut [u8]) -> ZResult<(), zenoh_nostd::ZLinkError> {
+    async fn read_exact(
+        &mut self,
+        buffer: &mut [u8],
+    ) -> crate::ZResult<(), zenoh_nostd::ZLinkError> {
         self.stream.read_exact(buffer).await.map_err(|e| {
             zenoh_nostd::error!(
                 "read_exact ({}:{}:{}) failed with buffer len {}: {:?}",
@@ -141,7 +144,7 @@ impl ZTcpRx for StdTcpStream {
 }
 
 impl ZTcpRx for StdTcpRx {
-    async fn read(&mut self, buffer: &mut [u8]) -> ZResult<usize, zenoh_nostd::ZLinkError> {
+    async fn read(&mut self, buffer: &mut [u8]) -> crate::ZResult<usize, zenoh_nostd::ZLinkError> {
         self.stream.read(buffer).await.map_err(|e| {
             zenoh_nostd::error!(
                 "read ({}:{}:{}) failed with buffer len {}: {:?}",
@@ -156,7 +159,10 @@ impl ZTcpRx for StdTcpRx {
         })
     }
 
-    async fn read_exact(&mut self, buffer: &mut [u8]) -> ZResult<(), zenoh_nostd::ZLinkError> {
+    async fn read_exact(
+        &mut self,
+        buffer: &mut [u8],
+    ) -> crate::ZResult<(), zenoh_nostd::ZLinkError> {
         self.stream.read_exact(buffer).await.map_err(|e| {
             zenoh_nostd::error!(
                 "read_exact ({}:{}:{}) failed with buffer len {}: {:?}",

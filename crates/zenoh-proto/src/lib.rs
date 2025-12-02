@@ -7,8 +7,8 @@ pub const VERSION: u8 = 9;
 
 pub mod logging;
 
-mod error;
-pub use error::*;
+pub mod error;
+pub(crate) use error::*;
 
 mod bytes;
 pub use bytes::*;

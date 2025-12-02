@@ -39,14 +39,14 @@ impl<
 
     pub async fn recv(
         &self,
-    ) -> zenoh_proto::ZResult<ZOwnedQuery<T, MAX_KEYEXPR, MAX_PARAMETERS, MAX_PAYLOAD>> {
+    ) -> crate::ZResult<ZOwnedQuery<T, MAX_KEYEXPR, MAX_PARAMETERS, MAX_PAYLOAD>> {
         Ok(self.inner.receive().await)
     }
 }
 
 pub trait ZQueryableAsyncCallback<T: Platform + 'static> {
     fn poll_ready_to_send(&self, cx: &mut ::core::task::Context<'_>) -> ::core::task::Poll<()>;
-    fn call(&self, query: ZQuery<T>) -> zenoh_proto::ZResult<()>;
+    fn call(&self, query: ZQuery<T>) -> crate::ZResult<()>;
 }
 
 pub struct ZQueryableCallback<T: Platform + 'static>(&'static dyn ZQueryableAsyncCallback<T>);
@@ -56,7 +56,7 @@ impl<T: Platform + 'static> ZQueryableCallback<T> {
         Self(f)
     }
 
-    pub(crate) async fn call(&self, query: ZQuery<'_, T>) -> zenoh_proto::ZResult<()> {
+    pub(crate) async fn call(&self, query: ZQuery<'_, T>) -> crate::ZResult<()> {
         use ::core::future::poll_fn;
 
         poll_fn(|cx| self.0.poll_ready_to_send(cx)).await;
@@ -73,7 +73,7 @@ impl<T: Platform + 'static, const L: usize, const KE: usize, const PM: usize, co
         self.poll_ready_to_send(cx)
     }
 
-    fn call(&self, query: ZQuery<'_, T>) -> ZResult<()> {
+    fn call(&self, query: ZQuery<'_, T>) -> crate::ZResult<()> {
         let query = query.into_owned()?;
 
         match self.try_send(query) {
@@ -91,7 +91,7 @@ pub trait ZQueryableCallbacks<T: Platform + 'static> {
         id: u32,
         ke: &'static keyexpr,
         callback: ZQueryableCallback<T>,
-    ) -> ZResult<()>;
+    ) -> crate::ZResult<()>;
     fn intersects(&self, id: &u32, ke: &'_ keyexpr) -> bool;
     fn iter(&self) -> IndexMapIter<'_, u32, ZQueryableCallback<T>>;
 }
@@ -124,7 +124,7 @@ impl<T: Platform + 'static, const N: usize> ZQueryableCallbacks<T>
         id: u32,
         ke: &'static keyexpr,
         callback: ZQueryableCallback<T>,
-    ) -> ZResult<()> {
+    ) -> crate::ZResult<()> {
         if self.lookup.contains_key(&id) {
             zbail!(ZError::CallbackAlreadySet)
         }

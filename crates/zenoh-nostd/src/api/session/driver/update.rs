@@ -1,14 +1,12 @@
-use zenoh_proto::{ZBatchReader, ZMessage};
+use zenoh_proto::{BatchReader, Message};
 
-use crate::driver::{Driver, ZDriverRx, ZDriverTx};
-
-impl<Tx: ZDriverTx, Rx: ZDriverRx> Driver<Tx, Rx> {
-    pub(crate) async fn update(&self, reader: &[u8]) -> zenoh_proto::ZResult<()> {
-        let batch = ZBatchReader::new(reader);
+impl<Tx, Rx> super::Driver<Tx, Rx> {
+    pub async fn update(&self, reader: &[u8]) -> crate::ZResult<()> {
+        let batch = BatchReader::new(reader);
 
         for msg in batch {
             match msg {
-                ZMessage::KeepAlive(_) => {
+                Message::KeepAlive(_) => {
                     zenoh_proto::trace!("Received KeepAlive");
                 }
                 _ => {}
@@ -24,7 +22,7 @@ impl<Tx: ZDriverTx, Rx: ZDriverRx> Driver<Tx, Rx> {
 // use crate::{Driver, io::transport::ZTransportSend};
 
 // impl<TxBuf: AsMut<[u8]>, Tx: ZTransportSend> Driver<TxBuf, Tx> {
-//     pub(crate) async fn internal_update<'a>(&'static self, reader: &'a [u8]) -> ZResult<()> {
+//     pub(crate) async fn internal_update<'a>(&'static self, reader: &'a [u8]) -> crate::ZResult<()> {
 //         let batch = ZBatchReader::new(reader);
 
 //         for msg in batch {

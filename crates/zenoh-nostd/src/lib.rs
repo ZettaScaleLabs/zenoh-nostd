@@ -1,14 +1,9 @@
 #![cfg_attr(not(any(feature = "log", feature = "web_console")), no_std)]
 
-mod api;
-pub use api::*;
-
-pub(crate) mod io;
-pub use io::{
-    link::{LinkRx, LinkTx},
-    transport::{TransportRx, TransportTx},
-};
-
+pub mod api;
 pub mod platform;
 
-pub use zenoh_proto::*;
+pub(crate) mod io;
+
+pub use zenoh_proto::error::*;
+pub(crate) use zenoh_proto::*;

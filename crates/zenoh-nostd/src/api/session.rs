@@ -11,8 +11,6 @@ use crate::{
     platform::ZPlatform,
 };
 
-use driver::ZDriver;
-
 pub(crate) mod driver;
 pub use driver::{Driver, DriverRx, DriverTx};
 

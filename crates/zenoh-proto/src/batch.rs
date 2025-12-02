@@ -1,7 +1,7 @@
 use crate::{exts::*, fields::*, msgs::*, *};
 
 #[derive(Debug, PartialEq)]
-pub enum ZMessage<'a> {
+pub enum Message<'a> {
     Close(Close),
     InitSyn(InitSyn<'a>),
     InitAck(InitAck<'a>),
@@ -39,13 +39,13 @@ pub enum ZMessage<'a> {
     },
 }
 
-pub struct ZBatchReader<'a, T> {
+pub struct BatchReader<'a, T> {
     reader: T,
     _lt: ::core::marker::PhantomData<&'a ()>,
     frame: Option<FrameHeader>,
 }
 
-impl<'a, T> ZBatchReader<'a, T>
+impl<'a, T> BatchReader<'a, T>
 where
     T: crate::ZRead<'a>,
 {
@@ -58,11 +58,11 @@ where
     }
 }
 
-impl<'a, T> Iterator for ZBatchReader<'a, T>
+impl<'a, T> Iterator for BatchReader<'a, T>
 where
     T: crate::ZRead<'a>,
 {
-    type Item = ZMessage<'a>;
+    type Item = Message<'a>;
 
     fn next(&mut self) -> Option<Self::Item> {
         if !self.reader.can_read() {
@@ -90,55 +90,55 @@ where
         let ifinal = header & 0b0110_0000 == 0;
 
         let body = match header & 0b0001_1111 {
-            InitAck::ID if ack => ZMessage::InitAck(decode!(InitAck)),
-            InitSyn::ID => ZMessage::InitSyn(decode!(InitSyn)),
-            OpenAck::ID if ack => ZMessage::OpenAck(decode!(OpenAck)),
-            OpenSyn::ID => ZMessage::OpenSyn(decode!(OpenSyn)),
-            Close::ID => ZMessage::Close(decode!(Close)),
-            KeepAlive::ID => ZMessage::KeepAlive(decode!(KeepAlive)),
+            InitAck::ID if ack => Message::InitAck(decode!(InitAck)),
+            InitSyn::ID => Message::InitSyn(decode!(InitSyn)),
+            OpenAck::ID if ack => Message::OpenAck(decode!(OpenAck)),
+            OpenSyn::ID => Message::OpenSyn(decode!(OpenSyn)),
+            Close::ID => Message::Close(decode!(Close)),
+            KeepAlive::ID => Message::KeepAlive(decode!(KeepAlive)),
 
             FrameHeader::ID => {
                 let frame = decode!(FrameHeader);
                 self.frame = Some(frame);
                 return self.next();
             }
-            Push::ID if net => ZMessage::Push {
+            Push::ID if net => Message::Push {
                 frame: self
                     .frame
                     .expect("Should be a frame. Something went wrong."),
                 body: decode!(Push),
             },
-            Request::ID if net => ZMessage::Request {
+            Request::ID if net => Message::Request {
                 frame: self
                     .frame
                     .expect("Should be a frame. Something went wrong."),
                 body: decode!(Request),
             },
-            Response::ID if net => ZMessage::Response {
+            Response::ID if net => Message::Response {
                 frame: self
                     .frame
                     .expect("Should be a frame. Something went wrong."),
                 body: decode!(Response),
             },
-            ResponseFinal::ID if net => ZMessage::ResponseFinal {
+            ResponseFinal::ID if net => Message::ResponseFinal {
                 frame: self
                     .frame
                     .expect("Should be a frame. Something went wrong."),
                 body: decode!(ResponseFinal),
             },
-            InterestFinal::ID if net && ifinal => ZMessage::InterestFinal {
+            InterestFinal::ID if net && ifinal => Message::InterestFinal {
                 frame: self
                     .frame
                     .expect("Should be a frame. Something went wrong."),
                 body: decode!(InterestFinal),
             },
-            Interest::ID if net => ZMessage::Interest {
+            Interest::ID if net => Message::Interest {
                 frame: self
                     .frame
                     .expect("Should be a frame. Something went wrong."),
                 body: decode!(Interest),
             },
-            Declare::ID if net => ZMessage::Declare {
+            Declare::ID if net => Message::Declare {
                 frame: self
                     .frame
                     .expect("Should be a frame. Something went wrong."),
@@ -155,7 +155,7 @@ where
     }
 }
 
-pub struct ZBatchWriter<'a, T> {
+pub struct BatchWriter<'a, T> {
     writer: T,
     _lt: ::core::marker::PhantomData<&'a ()>,
     frame: Option<FrameHeader>,
@@ -164,7 +164,7 @@ pub struct ZBatchWriter<'a, T> {
     init: usize,
 }
 
-impl<'a, T> ZBatchWriter<'a, T>
+impl<'a, T> BatchWriter<'a, T>
 where
     T: crate::ZWrite,
 {
@@ -188,48 +188,45 @@ where
     }
 }
 
-pub trait Unframed: ZEncode {}
+pub trait ZUnframed: ZEncode {}
 
-impl Unframed for InitSyn<'_> {}
-impl Unframed for InitAck<'_> {}
-impl Unframed for OpenSyn<'_> {}
-impl Unframed for OpenAck<'_> {}
-impl Unframed for KeepAlive {}
-impl Unframed for Close {}
+impl ZUnframed for InitSyn<'_> {}
+impl ZUnframed for InitAck<'_> {}
+impl ZUnframed for OpenSyn<'_> {}
+impl ZUnframed for OpenAck<'_> {}
+impl ZUnframed for KeepAlive {}
+impl ZUnframed for Close {}
 
-pub trait ZBatchUnframed<T: Unframed> {
-    fn unframe(&mut self, x: &T) -> crate::ZResult<(), crate::ZCodecError>;
-}
-
-impl<'a, T: Unframed, W> ZBatchUnframed<T> for ZBatchWriter<'a, W>
+impl<'a, W> BatchWriter<'a, W>
 where
     W: crate::ZWrite,
 {
-    fn unframe(&mut self, x: &T) -> crate::ZResult<(), crate::ZCodecError> {
+    pub fn unframe(&mut self, x: &impl ZUnframed) -> crate::ZResult<(), crate::ZCodecError> {
         <_ as ZEncode>::z_encode(x, &mut self.writer)?;
         self.frame = None;
         Ok(())
     }
 }
 
-pub trait Framed: ZEncode {}
+pub trait ZFramed: ZEncode {}
 
-impl Framed for Push<'_> {}
-impl Framed for Request<'_> {}
-impl Framed for Response<'_> {}
-impl Framed for ResponseFinal {}
-impl Framed for Interest<'_> {}
-impl Framed for Declare<'_> {}
+impl ZFramed for Push<'_> {}
+impl ZFramed for Request<'_> {}
+impl ZFramed for Response<'_> {}
+impl ZFramed for ResponseFinal {}
+impl ZFramed for Interest<'_> {}
+impl ZFramed for Declare<'_> {}
 
-pub trait ZBatchFramed<T: Framed> {
-    fn frame(&mut self, x: &T, r: Reliability, qos: QoS) -> crate::ZResult<(), crate::ZCodecError>;
-}
-
-impl<'a, T: Framed, W> ZBatchFramed<T> for ZBatchWriter<'a, W>
+impl<'a, W> BatchWriter<'a, W>
 where
     W: crate::ZWrite,
 {
-    fn frame(&mut self, x: &T, r: Reliability, qos: QoS) -> crate::ZResult<(), crate::ZCodecError> {
+    pub fn frame(
+        &mut self,
+        x: &impl ZFramed,
+        r: Reliability,
+        qos: QoS,
+    ) -> crate::ZResult<(), crate::ZCodecError> {
         if self.frame.as_ref().map(|f| f.reliability) != Some(r) {
             <_ as ZEncode>::z_encode(
                 &FrameHeader {

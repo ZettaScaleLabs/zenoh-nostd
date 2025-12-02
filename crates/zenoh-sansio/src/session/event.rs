@@ -33,11 +33,11 @@ impl Event<'_> {
 }
 
 pub trait EventAccumulator<'a> {
-    fn push(&mut self, event: Event<'a>) -> ZResult<(), ()>;
+    fn push(&mut self, event: Event<'a>) -> crate::ZResult<(), ()>;
 }
 
 impl<'a> EventAccumulator<'a> for &mut [Event<'a>] {
-    fn push(&mut self, event: Event<'a>) -> ZResult<(), ()> {
+    fn push(&mut self, event: Event<'a>) -> crate::ZResult<(), ()> {
         if self.is_empty() {
             Err(())
         } else {

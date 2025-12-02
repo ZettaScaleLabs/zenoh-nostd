@@ -48,7 +48,7 @@ pub(super) fn negotiate_sn(
 pub(super) fn negotiate_resolution(
     mine_resolution: &Resolution,
     other_resolution: &Resolution,
-) -> ZResult<Resolution, ZSessionError> {
+) -> crate::ZResult<Resolution, ZSessionError> {
     let mut res = Resolution::default();
 
     let i_fsn_res = other_resolution.get(Field::FrameSN);
@@ -75,14 +75,14 @@ pub(super) fn negotiate_resolution(
 pub(super) fn negotiate_batch_size(
     mine_batch_size: u16,
     other_batch_size: u16,
-) -> ZResult<u16, ZSessionError> {
+) -> crate::ZResult<u16, ZSessionError> {
     Ok(core::cmp::min(mine_batch_size, other_batch_size))
 }
 
 pub(super) fn handle_init_ack<'a>(
     mine: MineConfig,
     ack: InitAck<'a>,
-) -> ZResult<(SessionState, Event<'a>), ZSessionError> {
+) -> crate::ZResult<(SessionState, Event<'a>), ZSessionError> {
     let other_zid = ack.identifier.zid.clone();
     let mine_lease = mine.mine_lease.clone();
 

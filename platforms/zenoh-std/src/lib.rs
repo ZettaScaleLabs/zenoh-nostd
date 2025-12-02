@@ -11,12 +11,12 @@ pub struct PlatformStd;
 
 impl ZPlatform for PlatformStd {
     type ZTcpStream = tcp::StdTcpStream;
-    type ZWsStream = ws::StdWsStream;
+    type ZWebSocket = ws::StdWsStream;
 
     async fn new_websocket_stream(
         &self,
         addr: &std::net::SocketAddr,
-    ) -> ZResult<Self::ZWsStream, zenoh_nostd::ZConnectionError> {
+    ) -> crate::ZResult<Self::ZWebSocket, zenoh_nostd::ZConnectionError> {
         let uri = Uri::new(format!("ws://{}", addr));
 
         let tcp_stream = TcpStream::connect(uri.hostname_with_implied_port())
@@ -47,7 +47,7 @@ impl ZPlatform for PlatformStd {
     async fn new_tcp_stream(
         &self,
         addr: &core::net::SocketAddr,
-    ) -> ZResult<Self::ZTcpStream, zenoh_nostd::ZConnectionError> {
+    ) -> crate::ZResult<Self::ZTcpStream, zenoh_nostd::ZConnectionError> {
         let socket = TcpStream::connect(addr)
             .await
             .map_err(|_| zenoh_nostd::ZConnectionError::CouldNotConnect)?;

@@ -159,7 +159,7 @@ fn bench_codec_decode_batch_array() {
     let len = u16::MAX as usize - w.len();
     c.bench_function("decode_batch_array", |b| {
         b.iter(|| {
-            let mut batch = ZBatchReader::new(&data[..len]);
+            let mut batch = BatchReader::new(&data[..len]);
             while batch.next().is_some() {}
         })
     });
@@ -194,7 +194,7 @@ fn bench_codec_decode_batch_vec() {
 
     c.bench_function("decode_batch_array", |b| {
         b.iter(|| {
-            let mut batch = ZBatchReader::new(&data[..]);
+            let mut batch = BatchReader::new(&data[..]);
             while batch.next().is_some() {}
         })
     });

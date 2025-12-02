@@ -61,7 +61,7 @@ pub enum FrameBody<'a> {
     Declare(Declare<'a>),
 }
 
-impl Framed for FrameBody<'_> {}
+impl ZFramed for FrameBody<'_> {}
 
 impl<'a> FrameBody<'a> {
     pub(crate) fn rand(w: &mut impl crate::ZStore<'a>) -> Self {
@@ -93,15 +93,15 @@ impl<'a> FrameBody<'a> {
         }
     }
 
-    pub fn is(&self, x: &ZMessage<'a>) -> bool {
+    pub fn is(&self, x: &Message<'a>) -> bool {
         match (self, x) {
-            (FrameBody::Push(x), ZMessage::Push { body: y, .. }) => x == y,
-            (FrameBody::Request(x), ZMessage::Request { body: y, .. }) => x == y,
-            (FrameBody::Response(x), ZMessage::Response { body: y, .. }) => x == y,
-            (FrameBody::ResponseFinal(x), ZMessage::ResponseFinal { body: y, .. }) => x == y,
-            (FrameBody::Interest(x), ZMessage::Interest { body: y, .. }) => x == y,
-            (FrameBody::InterestFinal(x), ZMessage::InterestFinal { body: y, .. }) => x == y,
-            (FrameBody::Declare(x), ZMessage::Declare { body: y, .. }) => x == y,
+            (FrameBody::Push(x), Message::Push { body: y, .. }) => x == y,
+            (FrameBody::Request(x), Message::Request { body: y, .. }) => x == y,
+            (FrameBody::Response(x), Message::Response { body: y, .. }) => x == y,
+            (FrameBody::ResponseFinal(x), Message::ResponseFinal { body: y, .. }) => x == y,
+            (FrameBody::Interest(x), Message::Interest { body: y, .. }) => x == y,
+            (FrameBody::InterestFinal(x), Message::InterestFinal { body: y, .. }) => x == y,
+            (FrameBody::Declare(x), Message::Declare { body: y, .. }) => x == y,
             _ => false,
         }
     }
@@ -124,7 +124,7 @@ fn network_stream() {
     };
 
     let mut data = [0u8; MAX_PAYLOAD_SIZE * NUM_ITER];
-    let mut batch = ZBatchWriter::new(&mut data[..], 0);
+    let mut batch = BatchWriter::new(&mut data[..], 0);
 
     for msg in &messages {
         batch
@@ -133,7 +133,7 @@ fn network_stream() {
     }
 
     let (_, len) = batch.finalize();
-    let batch = ZBatchReader::new(&data[..len]);
+    let batch = BatchReader::new(&data[..len]);
 
     for msg in batch {
         let actual = messages.pop_front().unwrap();
@@ -158,7 +158,7 @@ fn transport_stream() {
     };
 
     let mut data = [0u8; MAX_PAYLOAD_SIZE * NUM_ITER];
-    let mut batch = ZBatchWriter::new(&mut data[..], 0);
+    let mut batch = BatchWriter::new(&mut data[..], 0);
 
     for (r, msg) in &messages {
         batch.frame(msg, *r, QoS::default()).unwrap();
@@ -167,7 +167,7 @@ fn transport_stream() {
     batch.unframe(&KeepAlive {}).unwrap();
 
     let (_, len) = batch.finalize();
-    let batch = ZBatchReader::new(&data[..len]);
+    let batch = BatchReader::new(&data[..len]);
 
     let mut got_keepalive = false;
     for msg in batch {
@@ -180,7 +180,7 @@ fn transport_stream() {
         }
 
         match msg {
-            ZMessage::KeepAlive(_) => {
+            Message::KeepAlive(_) => {
                 got_keepalive = true;
             }
             _ => panic!("First messages should be Frames, and last a KeepAlive"),

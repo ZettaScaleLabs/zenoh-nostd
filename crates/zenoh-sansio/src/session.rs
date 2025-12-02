@@ -123,7 +123,7 @@ impl Session {
         tx: &mut [u8],
         events: impl Iterator<Item = Event<'a>>,
         mut out: impl FnMut(&[u8]) -> ::core::result::Result<(), E>,
-    ) -> ZResult<()> {
+    ) -> crate::ZResult<()> {
         let mut batch = Batch::new(
             &mut tx[..],
             match &self.state {

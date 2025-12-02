@@ -45,7 +45,7 @@ impl<const MAX_KEYEXPR: usize, const MAX_PAYLOAD: usize> ZSubscriber<MAX_KEYEXPR
         self.ke
     }
 
-    pub async fn recv(&self) -> ZResult<ZOwnedSample<MAX_KEYEXPR, MAX_PAYLOAD>> {
+    pub async fn recv(&self) -> crate::ZResult<ZOwnedSample<MAX_KEYEXPR, MAX_PAYLOAD>> {
         match &self.inner {
             ZSubscriberInner::Sync => Err(ZError::CouldNotRecvFromChannel),
             ZSubscriberInner::Async(rx) => Ok(rx.receive().await),

@@ -1,4 +1,4 @@
-use zenoh_proto::ZResult;
+use crate::ZResult;
 
 // type NetworkMessage = u8;
 // const QUERY: NetworkMessage = 0;
@@ -68,7 +68,7 @@ use zenoh_proto::ZResult;
 //     })
 // }
 
-fn entry() -> ZResult<()> {
+fn entry() -> crate::ZResult<()> {
     Ok(())
 }
 

@@ -16,7 +16,7 @@ impl<T: Platform + 'static, TX: AsMut<[u8]>> ZPublisher<T, TX> {
         self.ke
     }
 
-    pub async fn put(&self, bytes: &[u8]) -> zenoh_proto::ZResult<()> {
+    pub async fn put(&self, bytes: &[u8]) -> crate::ZResult<()> {
         let msg = Push {
             wire_expr: WireExpr::from(self.ke),
             payload: PushBody::Put(Put {

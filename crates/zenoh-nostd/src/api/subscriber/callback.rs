@@ -11,7 +11,7 @@ use crate::api::sample::{ZOwnedSample, ZSample};
 
 pub trait ZSubscriberAsyncCallback {
     fn poll_ready_to_send(&self, cx: &mut Context<'_>) -> Poll<()>;
-    fn call(&self, sample: ZSample<'_>) -> ZResult<()>;
+    fn call(&self, sample: ZSample<'_>) -> crate::ZResult<()>;
 }
 
 pub(crate) enum ZSubscriberCallbackInner {
@@ -34,7 +34,7 @@ impl ZSubscriberCallback {
         matches!(self.0, ZSubscriberCallbackInner::Async(_))
     }
 
-    pub(crate) async fn call(&self, sample: ZSample<'_>) -> ZResult<()> {
+    pub(crate) async fn call(&self, sample: ZSample<'_>) -> crate::ZResult<()> {
         match self.0 {
             ZSubscriberCallbackInner::Sync(f) => {
                 f(&sample);
@@ -56,7 +56,7 @@ impl<const L: usize, const KE: usize, const PL: usize> ZSubscriberAsyncCallback
         self.poll_ready_to_send(cx)
     }
 
-    fn call(&self, sample: ZSample<'_>) -> ZResult<()> {
+    fn call(&self, sample: ZSample<'_>) -> crate::ZResult<()> {
         let sample = sample.into_owned()?;
 
         self.try_send(sample)
@@ -72,7 +72,7 @@ pub trait ZSubscriberCallbacks {
         id: u32,
         ke: &'static keyexpr,
         callback: ZSubscriberCallback,
-    ) -> ZResult<()>;
+    ) -> crate::ZResult<()>;
     fn intersects(&self, id: &u32, ke: &'_ keyexpr) -> bool;
     fn iter(&self) -> IndexMapIter<'_, u32, ZSubscriberCallback>;
 }
@@ -103,7 +103,7 @@ impl<const N: usize> ZSubscriberCallbacks for ZSubscriberCallbackStorage<N> {
         id: u32,
         ke: &'static keyexpr,
         callback: ZSubscriberCallback,
-    ) -> ZResult<()> {
+    ) -> crate::ZResult<()> {
         if self.lookup.contains_key(&id) {
             zbail!(ZError::CallbackAlreadySet)
         }

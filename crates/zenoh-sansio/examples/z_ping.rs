@@ -1,6 +1,6 @@
-use zenoh_proto::ZResult;
+use crate::ZResult;
 
-fn entry() -> ZResult<()> {
+fn entry() -> crate::ZResult<()> {
     Ok(())
 }
 

@@ -27,7 +27,12 @@ impl ZRepliesCallback {
 }
 
 pub trait ZRepliesCallbacks {
-    fn insert(&mut self, id: u32, ke: &'static keyexpr, callback: ZRepliesCallback) -> ZResult<()>;
+    fn insert(
+        &mut self,
+        id: u32,
+        ke: &'static keyexpr,
+        callback: ZRepliesCallback,
+    ) -> crate::ZResult<()>;
     fn intersects(&self, id: &u32, ke: &'_ keyexpr) -> bool;
     fn iter(&self) -> IndexMapIter<'_, u32, ZRepliesCallback>;
 
@@ -57,7 +62,12 @@ impl<const N: usize> ZRepliesCallbackStorage<N> {
 }
 
 impl<const N: usize> ZRepliesCallbacks for ZRepliesCallbackStorage<N> {
-    fn insert(&mut self, id: u32, ke: &'static keyexpr, callback: ZRepliesCallback) -> ZResult<()> {
+    fn insert(
+        &mut self,
+        id: u32,
+        ke: &'static keyexpr,
+        callback: ZRepliesCallback,
+    ) -> crate::ZResult<()> {
         if self.lookup.contains_key(&id) {
             zbail!(ZError::CallbackAlreadySet)
         }

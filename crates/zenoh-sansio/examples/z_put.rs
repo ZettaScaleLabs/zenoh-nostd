@@ -7,7 +7,7 @@ use std::{
 use zenoh_proto::{ZError, ZResult, keyexpr};
 use zenoh_sansio::event::Event;
 
-fn entry() -> ZResult<()> {
+fn entry() -> crate::ZResult<()> {
     env_logger::init();
 
     zenoh_proto::info!("zenoh-sansio z_put example");
@@ -100,7 +100,7 @@ fn main() {
     }
 }
 
-fn tcp_write(tcp: &mut TcpStream, buffer: &[u8]) -> ZResult<()> {
+fn tcp_write(tcp: &mut TcpStream, buffer: &[u8]) -> crate::ZResult<()> {
     tcp.write_all(&(buffer.len() as u16).to_le_bytes())
         .map_err(|_| ZError::TxError)
         .map(|_| ())?;
@@ -110,7 +110,7 @@ fn tcp_write(tcp: &mut TcpStream, buffer: &[u8]) -> ZResult<()> {
         .map(|_| ())
 }
 
-fn tcp_read(tcp: &mut TcpStream, buffer: &mut [u8]) -> ZResult<usize> {
+fn tcp_read(tcp: &mut TcpStream, buffer: &mut [u8]) -> crate::ZResult<usize> {
     let mut len = [0u8; 2];
     tcp.read_exact(&mut len).map_err(|_| ZError::InvalidRx)?;
     let n = u16::from_le_bytes(len) as usize;

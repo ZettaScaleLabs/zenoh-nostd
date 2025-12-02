@@ -17,7 +17,7 @@ impl Session {
         mut bytes: &'a [u8],
         time: Duration,
         mut events: T,
-    ) -> ZResult<
+    ) -> crate::ZResult<
         ZResult<
             impl Iterator<Item = Event<'a>> + use<'a, T>,
             impl Iterator<Item = Event<'a>> + use<'a, T>,

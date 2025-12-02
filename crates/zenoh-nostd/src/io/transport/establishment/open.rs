@@ -1,13 +1,16 @@
 use ::core::time::Duration;
 
-use crate::io::{
-    link::ZLink,
-    transport::{
-        Transport, TransportConfig, TransportMineConfig, TransportNegociatedConfig,
-        TransportOtherConfig, ZTransportRecv, ZTransportSend, establishment::compute_sn,
+use crate::{
+    io::{
+        link::{Link, ZLinkInfo},
+        transport::{
+            Transport, TransportConfig, TransportMineConfig, TransportNegociatedConfig,
+            TransportOtherConfig, ZTransportRx, ZTransportTx, establishment::compute_sn,
+        },
     },
+    platform::ZPlatform,
 };
-use zenoh_proto::{exts::Patch, fields::*, msgs::*, zbail, *};
+use zenoh_proto::{error::ZTransportError, exts::Patch, fields::*, msgs::*, zbail, *};
 
 pub(crate) struct StateTransport {
     pub(crate) batch_size: u16,
@@ -24,9 +27,9 @@ impl SendInitSynIn {
     pub(crate) async fn send(
         &self,
         tx: &mut impl AsMut<[u8]>,
-        transport: &mut impl ZTransportSend,
+        transport: &mut impl ZTransportTx,
         state: &StateTransport,
-    ) -> ZResult<(), crate::ZTransportError> {
+    ) -> crate::ZResult<(), crate::ZTransportError> {
         let msg = InitSyn {
             version: self.mine_version,
             identifier: InitIdentifier {
@@ -56,14 +59,14 @@ pub(crate) struct RecvInitAckOut<'a> {
 impl<'a> RecvInitAckOut<'a> {
     pub(crate) async fn recv(
         rx: &'a mut impl AsMut<[u8]>,
-        transport: &mut impl ZTransportRecv,
+        transport: &mut impl ZTransportRx,
         state: &mut StateTransport,
-    ) -> ZResult<Self, crate::ZTransportError> {
+    ) -> crate::ZResult<Self, crate::ZTransportError> {
         let reader = transport.recv(rx.as_mut()).await?;
-        let mut batch = ZBatchReader::new(reader);
+        let mut batch = BatchReader::new(reader);
         let init_ack = loop {
             match batch.next() {
-                Some(ZMessage::InitAck(i)) => break i,
+                Some(Message::InitAck(i)) => break i,
                 Some(_) => continue,
                 None => zbail!(crate::ZTransportError::InvalidRx),
             }
@@ -116,9 +119,9 @@ impl<'a> SendOpenSynIn<'a> {
     pub(crate) async fn send(
         &self,
         tx: &mut impl AsMut<[u8]>,
-        transport: &mut impl ZTransportSend,
+        transport: &mut impl ZTransportTx,
         state: &StateTransport,
-    ) -> ZResult<SendOpenSynOut, crate::ZTransportError> {
+    ) -> crate::ZResult<SendOpenSynOut, crate::ZTransportError> {
         let mine_initial_sn = compute_sn(&self.mine_zid, &self.other_zid, state.resolution);
 
         let msg = OpenSyn {
@@ -153,13 +156,13 @@ pub(crate) struct RecvOpenAckOut {
 impl RecvOpenAckOut {
     pub(crate) async fn recv(
         rx: &mut impl AsMut<[u8]>,
-        transport: &mut impl ZTransportRecv,
-    ) -> ZResult<Self, crate::ZTransportError> {
+        transport: &mut impl ZTransportRx,
+    ) -> crate::ZResult<Self, crate::ZTransportError> {
         let reader = transport.recv(rx.as_mut()).await?;
-        let mut batch = ZBatchReader::new(reader);
+        let mut batch = BatchReader::new(reader);
         let open_ack = loop {
             match batch.next() {
-                Some(ZMessage::OpenAck(i)) => break i,
+                Some(Message::OpenAck(i)) => break i,
                 Some(_) => continue,
                 None => zbail!(crate::ZTransportError::InvalidRx),
             }
@@ -173,12 +176,12 @@ impl RecvOpenAckOut {
     }
 }
 
-pub(crate) async fn open_link<T: ZLink>(
-    link: T,
+pub(crate) async fn open_link<Platform: ZPlatform>(
+    link: Link<Platform>,
     config: TransportMineConfig,
     tx: &mut impl AsMut<[u8]>,
     rx: &mut impl AsMut<[u8]>,
-) -> ZResult<(Transport<T>, TransportConfig), crate::ZTransportError> {
+) -> crate::ZResult<(Transport<Platform>, TransportConfig), crate::ZTransportError> {
     let batch_size = link.mtu().min(rx.as_mut().len() as u16);
 
     let mut transport = Transport { link };

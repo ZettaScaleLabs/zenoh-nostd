@@ -1,6 +1,6 @@
-use zenoh_proto::ZResult;
+use crate::ZResult;
 
-pub trait ZWsStream: ZWsTx + ZWsRx {
+pub trait ZWebSocket: ZWsTx + ZWsRx {
     type Tx<'a>: ZWsTx
     where
         Self: 'a;
@@ -42,7 +42,7 @@ pub struct DummyWsStream;
 pub struct DummyWsTx;
 pub struct DummyWsRx;
 
-impl ZWsStream for DummyWsStream {
+impl ZWebSocket for DummyWsStream {
     type Tx<'a> = DummyWsTx;
     type Rx<'a> = DummyWsRx;
 
@@ -56,40 +56,40 @@ impl ZWsStream for DummyWsStream {
 }
 
 impl ZWsTx for DummyWsStream {
-    async fn write(&mut self, _buffer: &[u8]) -> ZResult<usize, crate::ZLinkError> {
+    async fn write(&mut self, _buffer: &[u8]) -> crate::ZResult<usize, crate::ZLinkError> {
         Err(crate::ZLinkError::CouldNotWrite)
     }
 
-    async fn write_all(&mut self, _buffer: &[u8]) -> ZResult<(), crate::ZLinkError> {
+    async fn write_all(&mut self, _buffer: &[u8]) -> crate::ZResult<(), crate::ZLinkError> {
         Err(crate::ZLinkError::CouldNotWrite)
     }
 }
 
 impl ZWsTx for DummyWsTx {
-    async fn write(&mut self, _buffer: &[u8]) -> ZResult<usize, crate::ZLinkError> {
+    async fn write(&mut self, _buffer: &[u8]) -> crate::ZResult<usize, crate::ZLinkError> {
         Err(crate::ZLinkError::CouldNotWrite)
     }
 
-    async fn write_all(&mut self, _buffer: &[u8]) -> ZResult<(), crate::ZLinkError> {
+    async fn write_all(&mut self, _buffer: &[u8]) -> crate::ZResult<(), crate::ZLinkError> {
         Err(crate::ZLinkError::CouldNotWrite)
     }
 }
 
 impl ZWsRx for DummyWsStream {
-    async fn read(&mut self, _buffer: &mut [u8]) -> ZResult<usize, crate::ZLinkError> {
+    async fn read(&mut self, _buffer: &mut [u8]) -> crate::ZResult<usize, crate::ZLinkError> {
         Err(crate::ZLinkError::CouldNotRead)
     }
 
-    async fn read_exact(&mut self, _buffer: &mut [u8]) -> ZResult<(), crate::ZLinkError> {
+    async fn read_exact(&mut self, _buffer: &mut [u8]) -> crate::ZResult<(), crate::ZLinkError> {
         Err(crate::ZLinkError::CouldNotRead)
     }
 }
 impl ZWsRx for DummyWsRx {
-    async fn read(&mut self, _buffer: &mut [u8]) -> ZResult<usize, crate::ZLinkError> {
+    async fn read(&mut self, _buffer: &mut [u8]) -> crate::ZResult<usize, crate::ZLinkError> {
         Err(crate::ZLinkError::CouldNotRead)
     }
 
-    async fn read_exact(&mut self, _buffer: &mut [u8]) -> ZResult<(), crate::ZLinkError> {
+    async fn read_exact(&mut self, _buffer: &mut [u8]) -> crate::ZResult<(), crate::ZLinkError> {
         Err(crate::ZLinkError::CouldNotRead)
     }
 }

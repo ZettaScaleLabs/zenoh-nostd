@@ -1,13 +1,20 @@
+use core::ops::DerefMut;
+
 use embassy_time::Instant;
 use zenoh_proto::{exts::*, fields::*, *};
 
 use crate::{
-    driver::{DriverTx, ZDriverTx},
-    io::transport::ZTransportSend,
+    api::DriverTx,
+    io::transport::{TransportTx, ZTransportTx},
+    platform::ZPlatform,
 };
 
-impl<TxBuf: AsMut<[u8]>, Tx: ZTransportSend> ZDriverTx for DriverTx<TxBuf, Tx> {
-    async fn frame(&mut self, x: impl Framed) -> ZResult<()> {
+impl<TxBuf, Platform> super::DriverTx<TxBuf, TransportTx<'_, Platform>>
+where
+    TxBuf: AsMut<[u8]>,
+    Platform: ZPlatform,
+{
+    pub async fn frame(&mut self, x: impl ZFramed) -> crate::ZResult<()> {
         self.tx
             .send(self.tx_buf.as_mut(), &mut self.sn, |batch| {
                 batch.frame(&x, Reliability::Reliable, QoS::default())
@@ -22,7 +29,7 @@ impl<TxBuf: AsMut<[u8]>, Tx: ZTransportSend> ZDriverTx for DriverTx<TxBuf, Tx> {
         Ok(())
     }
 
-    async fn unframe(&mut self, x: impl Unframed) -> ZResult<()> {
+    pub async fn unframe(&mut self, x: impl ZUnframed) -> crate::ZResult<()> {
         self.tx
             .send(self.tx_buf.as_mut(), &mut self.sn, |batch| {
                 batch.unframe(&x)
@@ -37,7 +44,20 @@ impl<TxBuf: AsMut<[u8]>, Tx: ZTransportSend> ZDriverTx for DriverTx<TxBuf, Tx> {
         Ok(())
     }
 
-    fn next_keepalive(&self) -> Instant {
+    pub fn next_keepalive(&self) -> Instant {
         self.next_keepalive
+    }
+}
+
+impl<TxBuf, Platform, Rx> super::Driver<DriverTx<TxBuf, TransportTx<'_, Platform>>, Rx>
+where
+    TxBuf: AsMut<[u8]>,
+    Platform: ZPlatform,
+{
+    pub async fn send(&self, x: impl ZFramed) -> crate::ZResult<()> {
+        let mut tx_guard = self.tx.lock().await;
+        let tx = tx_guard.deref_mut();
+
+        tx.frame(x).await
     }
 }

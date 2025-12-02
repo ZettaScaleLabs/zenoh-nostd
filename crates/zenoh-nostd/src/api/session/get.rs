@@ -45,7 +45,7 @@ impl<'a, T: Platform + 'static> GetBuilder<'a, T> {
         self
     }
 
-    pub async fn send(self) -> ZResult<()> {
+    pub async fn send(self) -> crate::ZResult<()> {
         let wke = WireExpr::from(self.ke);
 
         let mut id = NEXT_ID.lock().await;

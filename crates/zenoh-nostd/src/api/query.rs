@@ -48,7 +48,7 @@ impl<'a, T: Platform + 'static, TX: AsMut<[u8]> + 'static> ZQuery<'a, T, TX> {
         const MAX_PAYLOAD: usize,
     >(
         self,
-    ) -> ZResult<ZOwnedQuery<T, MAX_KEYEXPR, MAX_PARAMETERS, MAX_PAYLOAD>> {
+    ) -> crate::ZResult<ZOwnedQuery<T, MAX_KEYEXPR, MAX_PARAMETERS, MAX_PAYLOAD>> {
         Ok(ZOwnedQuery::new(
             self.rid,
             self.driver,
@@ -121,7 +121,7 @@ impl<
         self.payload.as_deref()
     }
 
-    pub async fn reply(&self, ke: &'static keyexpr, payload: &[u8]) -> ZResult<()> {
+    pub async fn reply(&self, ke: &'static keyexpr, payload: &[u8]) -> crate::ZResult<()> {
         let wke = WireExpr::from(ke);
 
         let response = Response {
@@ -140,7 +140,7 @@ impl<
         self.driver.send(response).await
     }
 
-    pub async fn err(&self, payload: &[u8]) -> ZResult<()> {
+    pub async fn err(&self, payload: &[u8]) -> crate::ZResult<()> {
         let response = Response {
             rid: self.rid,
             wire_expr: WireExpr::from(self.keyexpr()),
@@ -154,7 +154,7 @@ impl<
         self.driver.send(response).await
     }
 
-    pub async fn finalize(&self) -> ZResult<()> {
+    pub async fn finalize(&self) -> crate::ZResult<()> {
         let response = ResponseFinal {
             rid: self.rid,
             ..Default::default()

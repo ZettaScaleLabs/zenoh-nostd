@@ -1,20 +1,23 @@
 use embassy_futures::select::{Either, select};
 use embassy_time::Timer;
-use zenoh_proto::ZError;
 
 use crate::{
-    driver::{DriverRx, ZDriverRx},
-    io::transport::ZTransportRecv,
+    io::transport::{TransportRx, ZTransportRx},
+    platform::ZPlatform,
 };
 
-impl<RxBuf: AsMut<[u8]>, Rx: ZTransportRecv> ZDriverRx for DriverRx<RxBuf, Rx> {
-    async fn recv(&mut self) -> crate::ZResult<&[u8]> {
+impl<RxBuf, Platform> super::DriverRx<RxBuf, TransportRx<'_, Platform>>
+where
+    RxBuf: AsMut<[u8]>,
+    Platform: ZPlatform,
+{
+    pub async fn recv(&mut self) -> crate::ZResult<&[u8]> {
         let read_lease = Timer::at(self.last_read + self.config.other_lease);
 
         match select(read_lease, self.rx.recv(self.rx_buf.as_mut())).await {
             Either::First(_) => {
-                zenoh_proto::warn!("Connection closed by peer");
-                return Err(ZError::ConnectionClosed);
+                crate::warn!("Connection closed by peer");
+                return Err(crate::ZError::ConnectionClosed);
             }
             Either::Second(msg) => match msg {
                 Ok(msg) => {
@@ -22,8 +25,8 @@ impl<RxBuf: AsMut<[u8]>, Rx: ZTransportRecv> ZDriverRx for DriverRx<RxBuf, Rx> {
                     Ok(msg)
                 }
                 Err(e) => {
-                    zenoh_proto::warn!("Could not read from connection: {:?}", e);
-                    Err(ZError::CouldNotRead)
+                    crate::warn!("Could not read from connection: {:?}", e);
+                    Err(crate::ZError::CouldNotRead)
                 }
             },
         }

@@ -7,13 +7,11 @@ use crate::{
         tcp::{LinkTcp, LinkTcpRx, LinkTcpTx},
         ws::{LinkWs, LinkWsRx, LinkWsTx},
     },
-    platform::ZPlatform,
+    platform::{ZPlatform, tcp::ZTcpStream, ws::ZWebSocket},
 };
 
-pub(crate) mod macros;
-
-pub(crate) mod tcp;
-pub(crate) mod ws;
+pub mod tcp;
+pub mod ws;
 
 pub trait ZLinkInfo {
     fn mtu(&self) -> u16;
@@ -57,28 +55,38 @@ pub trait ZLink: ZLinkInfo + ZLinkTx + ZLinkRx {
     fn split(&mut self) -> (Self::Tx<'_>, Self::Rx<'_>);
 }
 
-pub enum LinkTx<'a, T: ZPlatform>
+pub enum LinkTx<'a, Platform>
 where
-    T: 'a,
+    Platform: ZPlatform + 'a,
 {
-    LinkTcpTx(LinkTcpTx<<T::ZTcpStream as crate::platform::tcp::ZTcpStream>::Tx<'a>>),
-    LinkWsTx(LinkWsTx<<T::ZWsStream as crate::platform::ws::ZWsStream>::Tx<'a>>),
+    LinkTcpTx(LinkTcpTx<<Platform::ZTcpStream as ZTcpStream>::Tx<'a>>),
+    LinkWsTx(LinkWsTx<<Platform::ZWebSocket as ZWebSocket>::Tx<'a>>),
 }
 
-pub enum LinkRx<'a, T: ZPlatform>
+pub enum LinkRx<'a, Platform>
 where
-    T: 'a,
+    Platform: ZPlatform + 'a,
 {
-    LinkTcpRx(LinkTcpRx<<T::ZTcpStream as crate::platform::tcp::ZTcpStream>::Rx<'a>>),
-    LinkWsRx(LinkWsRx<<T::ZWsStream as crate::platform::ws::ZWsStream>::Rx<'a>>),
+    LinkTcpRx(LinkTcpRx<<Platform::ZTcpStream as ZTcpStream>::Rx<'a>>),
+    LinkWsRx(LinkWsRx<<Platform::ZWebSocket as ZWebSocket>::Rx<'a>>),
 }
 
-pub enum Link<T: ZPlatform> {
-    LinkTcp(LinkTcp<T::ZTcpStream>),
-    LinkWs(LinkWs<T::ZWsStream>),
+pub enum Link<Platform>
+where
+    Platform: ZPlatform,
+{
+    LinkTcp(LinkTcp<Platform::ZTcpStream>),
+    LinkWs(LinkWs<Platform::ZWebSocket>),
 }
 
-impl<T: ZPlatform> ZLinkInfo for Link<T> {
+//
+// ─── IMPL ZLinkInfo ─────────────────────────────────────────────────────────────
+//
+
+impl<Platform> ZLinkInfo for Link<Platform>
+where
+    Platform: ZPlatform,
+{
     fn mtu(&self) -> u16 {
         match self {
             Self::LinkTcp(tcp) => tcp.mtu(),
@@ -94,7 +102,10 @@ impl<T: ZPlatform> ZLinkInfo for Link<T> {
     }
 }
 
-impl<T: ZPlatform> ZLinkInfo for LinkTx<'_, T> {
+impl<'a, Platform> ZLinkInfo for LinkTx<'a, Platform>
+where
+    Platform: ZPlatform + 'a,
+{
     fn mtu(&self) -> u16 {
         match self {
             Self::LinkTcpTx(tcp) => tcp.mtu(),
@@ -110,7 +121,10 @@ impl<T: ZPlatform> ZLinkInfo for LinkTx<'_, T> {
     }
 }
 
-impl<T: ZPlatform> ZLinkInfo for LinkRx<'_, T> {
+impl<'a, Platform> ZLinkInfo for LinkRx<'a, Platform>
+where
+    Platform: ZPlatform + 'a,
+{
     fn mtu(&self) -> u16 {
         match self {
             Self::LinkTcpRx(tcp) => tcp.mtu(),
@@ -126,7 +140,14 @@ impl<T: ZPlatform> ZLinkInfo for LinkRx<'_, T> {
     }
 }
 
-impl<T: ZPlatform> ZLinkTx for Link<T> {
+//
+// ─── IMPL ZLinkTx ───────────────────────────────────────────────────────────────
+//
+
+impl<Platform> ZLinkTx for Link<Platform>
+where
+    Platform: ZPlatform,
+{
     async fn write(&mut self, buffer: &[u8]) -> crate::ZResult<usize, crate::ZLinkError> {
         match self {
             Self::LinkTcp(tcp) => tcp.write(buffer).await,
@@ -142,7 +163,10 @@ impl<T: ZPlatform> ZLinkTx for Link<T> {
     }
 }
 
-impl<T: ZPlatform> ZLinkTx for LinkTx<'_, T> {
+impl<'a, Platform> ZLinkTx for LinkTx<'a, Platform>
+where
+    Platform: ZPlatform + 'a,
+{
     async fn write(&mut self, buffer: &[u8]) -> crate::ZResult<usize, crate::ZLinkError> {
         match self {
             Self::LinkTcpTx(tcp) => tcp.write(buffer).await,
@@ -158,7 +182,14 @@ impl<T: ZPlatform> ZLinkTx for LinkTx<'_, T> {
     }
 }
 
-impl<T: ZPlatform> ZLinkRx for Link<T> {
+//
+// ─── IMPL ZLinkRx ───────────────────────────────────────────────────────────────
+//
+
+impl<Platform> ZLinkRx for Link<Platform>
+where
+    Platform: ZPlatform,
+{
     async fn read(&mut self, buffer: &mut [u8]) -> crate::ZResult<usize, crate::ZLinkError> {
         match self {
             Self::LinkTcp(tcp) => tcp.read(buffer).await,
@@ -174,7 +205,10 @@ impl<T: ZPlatform> ZLinkRx for Link<T> {
     }
 }
 
-impl<T: ZPlatform> ZLinkRx for LinkRx<'_, T> {
+impl<'a, Platform> ZLinkRx for LinkRx<'a, Platform>
+where
+    Platform: ZPlatform + 'a,
+{
     async fn read(&mut self, buffer: &mut [u8]) -> crate::ZResult<usize, crate::ZLinkError> {
         match self {
             Self::LinkTcpRx(tcp) => tcp.read(buffer).await,
@@ -190,18 +224,25 @@ impl<T: ZPlatform> ZLinkRx for LinkRx<'_, T> {
     }
 }
 
-impl<T: ZPlatform> ZLink for Link<T> {
+//
+// ─── IMPL ZLink ────────────────────────────────────────────────────────────────
+//
+
+impl<Platform> ZLink for Link<Platform>
+where
+    Platform: ZPlatform,
+{
     type Tx<'a>
-        = LinkTx<'a, T>
+        = LinkTx<'a, Platform>
     where
         Self: 'a;
 
     type Rx<'a>
-        = LinkRx<'a, T>
+        = LinkRx<'a, Platform>
     where
         Self: 'a;
 
-    fn split(&mut self) -> (LinkTx<'_, T>, LinkRx<'_, T>) {
+    fn split(&mut self) -> (LinkTx<'_, Platform>, LinkRx<'_, Platform>) {
         match self {
             Self::LinkTcp(tcp) => {
                 let (tx, rx) = tcp.split();
@@ -215,9 +256,12 @@ impl<T: ZPlatform> ZLink for Link<T> {
     }
 }
 
-impl<T: ZPlatform> Link<T> {
+impl<Platform> Link<Platform>
+where
+    Platform: ZPlatform,
+{
     pub(crate) async fn new(
-        platform: &T,
+        platform: &Platform,
         endpoint: EndPoint<'_>,
     ) -> crate::ZResult<Self, crate::ZLinkError> {
         let protocol = endpoint.protocol();
