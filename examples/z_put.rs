@@ -3,7 +3,22 @@
 #![cfg_attr(feature = "wasm", no_main)]
 
 use zenoh_examples::*;
-use zenoh_nostd::{EndPoint, keyexpr};
+use zenoh_nostd::{api::*, *};
+
+zimport_types!(
+    PLATFORM: Platform,
+    TX: [u8; 512],
+    RX: [u8; 512],
+
+    MAX_KEYEXPR_LEN: 64,
+    MAX_PARAMETERS_LEN: 128,
+    MAX_PAYLOAD_LEN: 512,
+
+    MAX_QUEUED: 8,
+    MAX_CALLBACKS: 8,
+
+    MAX_SUBSCRIBERS: 8,
+);
 
 const CONNECT: &str = match option_env!("CONNECT") {
     Some(v) => v,
@@ -23,21 +38,18 @@ async fn entry(spawner: embassy_executor::Spawner) -> zenoh_nostd::ZResult<()> {
     zenoh_nostd::info!("zenoh-nostd z_put example");
 
     let platform = init_platform(&spawner).await;
-    let config = zenoh_nostd::zconfig!(
-            Platform: (spawner, platform),
-            TX: 512,
-            RX: 512,
-            MAX_SUBSCRIBERS: 2,
-            MAX_QUERIES: 2,
-            MAX_QUERYABLES: 2
-    );
+    let config = Config::new(platform, [0u8; 512], [0u8; 512]);
 
-    let session = zenoh_nostd::open!(config, EndPoint::try_from(CONNECT)?);
+    let mut resources = Resources::new();
+    let session =
+        zenoh_nostd::api::open(&mut resources, config, EndPoint::try_from(CONNECT)?).await?;
+
+    // In this example we don't care about maintaining the session alive, so we directly run the put operation here.
 
     let ke = keyexpr::new("demo/example")?;
     let payload = b"Hello, from no-std!";
 
-    session.put(ke, payload).await?;
+    session.put(ke, payload).finish().await?;
 
     zenoh_nostd::info!(
         "[Put] Sent PUT ('{}': '{}')",

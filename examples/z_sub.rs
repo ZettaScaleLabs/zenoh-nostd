@@ -3,7 +3,22 @@
 #![cfg_attr(feature = "wasm", no_main)]
 
 use zenoh_examples::*;
-use zenoh_nostd::{EndPoint, ZSample, ZSubscriber, keyexpr, zsubscriber};
+use zenoh_nostd::{api::*, *};
+
+zimport_types!(
+    PLATFORM: Platform,
+    TX: [u8; 512],
+    RX: [u8; 512],
+
+    MAX_KEYEXPR_LEN: 64,
+    MAX_PARAMETERS_LEN: 128,
+    MAX_PAYLOAD_LEN: 512,
+
+    MAX_QUEUED: 8,
+    MAX_CALLBACKS: 8,
+
+    MAX_SUBSCRIBERS: 8,
+);
 
 const CONNECT: &str = match option_env!("CONNECT") {
     Some(v) => v,
@@ -16,7 +31,7 @@ const CONNECT: &str = match option_env!("CONNECT") {
     }
 };
 
-fn callback_1(sample: &ZSample) {
+fn callback_1(sample: &Sample) {
     zenoh_nostd::info!(
         "[Subscriber] Received Sample ('{}': '{:?}')",
         sample.keyexpr().as_str(),
@@ -25,8 +40,8 @@ fn callback_1(sample: &ZSample) {
 }
 
 #[embassy_executor::task]
-async fn callback_2(subscriber: ZSubscriber<32, 128>) {
-    while let Ok(sample) = subscriber.recv().await {
+async fn callback_2(mut subscriber: Subscriber<'static>) {
+    while let Some(sample) = subscriber.recv().await {
         zenoh_nostd::info!(
             "[Async Subscriber] Received Sample ('{}': '{:?}')",
             sample.keyexpr().as_str(),
@@ -42,35 +57,39 @@ async fn entry(spawner: embassy_executor::Spawner) -> zenoh_nostd::ZResult<()> {
     zenoh_nostd::info!("zenoh-nostd z_sub example");
 
     let platform = init_platform(&spawner).await;
-    let config = zenoh_nostd::zconfig!(
-            Platform: (spawner, platform),
-            TX: 512,
-            RX: 512,
-            MAX_SUBSCRIBERS: 2,
-            MAX_QUERIES: 2,
-            MAX_QUERYABLES: 2
-    );
+    let config = Config::new(platform, [0u8; 512], [0u8; 512]);
 
-    let session = zenoh_nostd::open!(config, EndPoint::try_from(CONNECT)?);
+    let mut resources = Resources::new();
+    let cb1 = resources.subscriber_sync(callback_1).await?;
+    let cb2 = resources.subscriber_async().await?;
+
+    let session =
+        zenoh_nostd::api::open(&mut resources, config, EndPoint::try_from(CONNECT)?).await?;
+
+    // In this example we care about maintaining the session alive, we then have two choices:
+    //  1) Spawn a new task to run the `session.run()` in background, but it requires the `resources` to be `static`.
+    //  2) Use `select` or `join` to run both the session and the subscriber in the same task.
+    // Here we use the second approach. For a demonstration of the first approach, see the `z_queryable` example.
 
     let ke = keyexpr::new("demo/example/**")?;
 
-    let _sync_sub = session
-        .declare_subscriber(ke, zsubscriber!(callback_1))
-        .await?;
+    let _ = session.declare_subscriber(ke, cb1).finish().await?;
+    let mut subscriber = session.declare_subscriber(ke, cb2).finish().await?;
 
-    let async_sub = session
-        .declare_subscriber(
-            ke,
-            zsubscriber!(QUEUE_SIZE: 8, MAX_KEYEXPR: 32, MAX_PAYLOAD: 128),
-        )
-        .await?;
+    embassy_futures::select::select(session.run(), async {
+        loop {
+            while let Some(sample) = subscriber.recv().await {
+                zenoh_nostd::info!(
+                    "[Async Subscriber] Received Sample ('{}': '{:?}')",
+                    sample.keyexpr().as_str(),
+                    ::core::str::from_utf8(sample.payload()).unwrap()
+                );
+            }
+        }
+    })
+    .await;
 
-    spawner.spawn(callback_2(async_sub)).unwrap();
-
-    loop {
-        embassy_time::Timer::after(embassy_time::Duration::from_secs(1)).await;
-    }
+    Ok(())
 }
 
 #[cfg_attr(feature = "std", embassy_executor::main)]

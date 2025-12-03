@@ -15,7 +15,7 @@ use zenoh_proto::EndPoint;
 
 mod put;
 mod run;
-mod sub;
+pub mod sub;
 
 #[macro_export]
 macro_rules! zimport_types {
@@ -64,6 +64,8 @@ macro_rules! zimport_types {
                 $max_subscribers,
             >,
         >;
+
+        type Subscriber<'a> = $crate::api::sub::Subscriber<'a, $max_keyexpr_len, $max_payload_len>;
     };
 }
 

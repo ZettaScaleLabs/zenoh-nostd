@@ -32,7 +32,7 @@ pub struct SessionResources<
         MAX_CALLBACKS,
     >,
 
-    pub subscribers: Mutex<FnvIndexMap<&'static keyexpr, CallbackId, MAX_SUBSCRIBERS>>,
+    pub subscribers: Mutex<FnvIndexMap<(u32, &'static keyexpr), CallbackId, MAX_SUBSCRIBERS>>,
 }
 
 impl<
@@ -91,7 +91,7 @@ impl<
         let id = self.next_id().await;
         let mut self_subscribers = self.subscribers.lock().await;
         self_subscribers
-            .insert(ke, cb)
+            .insert((id, ke), cb)
             .map_err(|_| crate::ZError::CapacityExceeded)?;
         Ok(id)
     }

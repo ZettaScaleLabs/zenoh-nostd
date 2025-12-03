@@ -149,7 +149,7 @@ where
         Ok(Subscriber {
             id,
             ke: self.ke,
-            inner: self.resources.subscriber_receiver(id),
+            inner: self.resources.subscriber_receiver(self.callback),
         })
     }
 }

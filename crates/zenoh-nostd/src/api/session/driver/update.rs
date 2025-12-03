@@ -60,7 +60,7 @@ where
 
                     let matching_callbacks = cb
                         .iter()
-                        .filter_map(|(k, v)| if k.intersects(ke) { Some(v) } else { None })
+                        .filter_map(|((_, k), v)| if k.intersects(ke) { Some(v) } else { None })
                         .filter_map(|cb_id| resources.callbacks.get(cb_id));
 
                     for callback in matching_callbacks {
