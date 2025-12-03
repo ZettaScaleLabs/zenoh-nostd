@@ -1,6 +1,6 @@
 use crate::platform::ZPlatform;
 
-impl<'a, Platform, TxBuf, RxBuf> super::Session<'a, Platform, TxBuf, RxBuf>
+impl<'a, Platform, TxBuf, RxBuf> super::PublicSession<'a, Platform, TxBuf, RxBuf>
 where
     Platform: ZPlatform,
     TxBuf: AsMut<[u8]>,

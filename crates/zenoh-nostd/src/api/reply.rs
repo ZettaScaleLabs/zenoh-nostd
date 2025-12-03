@@ -1,4 +1,4 @@
-use crate::ZSample;
+use crate::api::ZSample;
 
 pub enum ZReply<'a> {
     Ok(ZSample<'a>),

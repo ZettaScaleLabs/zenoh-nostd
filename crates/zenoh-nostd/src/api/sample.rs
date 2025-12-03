@@ -1,7 +1,7 @@
 use ::core::str::FromStr;
 
 use heapless::{String, Vec};
-use zenoh_proto::{ZError, ZResult, keyexpr};
+use zenoh_proto::keyexpr;
 
 pub struct ZSample<'a> {
     keyexpr: &'a keyexpr,
@@ -20,13 +20,18 @@ impl<'a> ZSample<'a> {
     pub fn payload(&self) -> &'a [u8] {
         self.payload
     }
+}
 
-    pub(crate) fn into_owned<const KE: usize, const PL: usize>(
-        self,
-    ) -> crate::ZResult<ZOwnedSample<KE, PL>> {
+impl<const MAX_KEYEXPR: usize, const MAX_PAYLOAD: usize> TryFrom<ZSample<'_>>
+    for ZOwnedSample<MAX_KEYEXPR, MAX_PAYLOAD>
+{
+    type Error = crate::ZError;
+
+    fn try_from(value: ZSample<'_>) -> Result<Self, Self::Error> {
         Ok(ZOwnedSample::new(
-            String::from_str(self.keyexpr.as_str()).map_err(|_| ZError::CapacityExceeded)?,
-            Vec::from_slice(self.payload).map_err(|_| ZError::CapacityExceeded)?,
+            String::from_str(value.keyexpr.as_str())
+                .map_err(|_| crate::ZError::CapacityExceeded)?,
+            Vec::from_slice(value.payload).map_err(|_| crate::ZError::CapacityExceeded)?,
         ))
     }
 }

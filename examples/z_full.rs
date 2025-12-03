@@ -1,13 +1,28 @@
 use embassy_time::Timer;
 
 use static_cell::StaticCell;
-use zenoh_nostd::{api::*, *};
+use zenoh_nostd::{
+    api::{PublicResources, *},
+    *,
+};
 use zenoh_std::PlatformStd;
 
 zimport_types!(
     PLATFORM: PlatformStd,
     TX: [u8; 512],
-    RX: [u8; 512]
+    RX: [u8; 512],
+
+    MAX_KEYEXPR: 32,
+    MAX_QUEUED: 8,
+
+    MAX_KEYEXPR_LEN: 64,
+    MAX_PARAMETERS_LEN: 128,
+    MAX_PAYLOAD_LEN: 512,
+
+    MAX_SUBSCRIPTIONS: 8,
+
+    MAX_QUERIES: 8,
+    MAX_QUERYABLES: 8,
 );
 
 #[embassy_executor::main]
@@ -17,8 +32,10 @@ async fn main(spawner: embassy_executor::Spawner) {
     let config = Config::new(PlatformStd {}, [0u8; 512], [0u8; 512]);
 
     static RESOURCES: StaticCell<Resources> = StaticCell::new();
+    let mut resources = PublicResources::new();
+
     let session = zenoh_nostd::api::open(
-        RESOURCES.init(Resources::new()),
+        RESOURCES.init(resources),
         config,
         EndPoint::try_from("tcp/127.0.0.1:7447").unwrap(),
     )

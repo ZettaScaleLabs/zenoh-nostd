@@ -1,8 +1,13 @@
+use embassy_sync::{blocking_mutex::raw::NoopRawMutex, channel::Channel};
 use embassy_time::{Duration, Instant};
-use zenoh_proto::EndPoint;
+use heapless::FnvIndexMap;
+use zenoh_proto::{EndPoint, keyexpr};
 
 use crate::{
-    api::driver::{Driver, DriverRx, DriverTx},
+    api::{
+        Callback, ZOwnedSample, ZSample,
+        driver::{Driver, DriverRx, DriverTx},
+    },
     io::{
         link::Link,
         transport::{Transport, TransportConfig, TransportMineConfig},
@@ -11,6 +16,8 @@ use crate::{
 };
 
 pub(crate) mod driver;
+mod resources;
+pub use resources::*;
 
 mod put;
 mod run;
@@ -20,21 +27,48 @@ macro_rules! zimport_types {
     (
         PLATFORM: $platform:ty,
         TX: $txbuf:ty,
-        RX: $rxbuf:ty
+        RX: $rxbuf:ty,
+
+        MAX_KEYEXPR: $max_keyexpr:expr,
+        MAX_QUEUED: $max_queued:expr,
+
+        MAX_KEYEXPR_LEN: $max_keyexpr_len:expr,
+        MAX_PARAMETERS_LEN: $max_parameters_len:expr,
+        MAX_PAYLOAD_LEN: $max_payload_len:expr,
+
+        MAX_SUBSCRIPTIONS: $max_subscriptions:expr,
+
+        MAX_QUERIES: $max_queries:expr,
+        MAX_QUERYABLES: $max_queryables:expr,
     ) => {
-        type Config = $crate::api::Config<$platform, $txbuf, $rxbuf>;
-        type Resources<'a> = $crate::api::Resources<'a, $platform, $txbuf, $rxbuf>;
-        type Session<'a> = $crate::api::Session<'a, $platform, $txbuf, $rxbuf>;
+        type Config = $crate::api::PublicConfig<$platform, $txbuf, $rxbuf>;
+        type Resources<'a> = $crate::api::PublicResources<
+            'a,
+            $platform,
+            $txbuf,
+            $rxbuf,
+            $crate::api::SessionResources<
+                $max_keyexpr,
+                $max_queued,
+                $max_keyexpr_len,
+                $max_parameters_len,
+                $max_payload_len,
+                $max_subscriptions,
+                $max_queries,
+                $max_queryables,
+            >,
+        >;
+        type Session<'a> = $crate::api::PublicSession<'a, $platform, $txbuf, $rxbuf>;
     };
 }
 
-pub struct Config<Platform, TxBuf, RxBuf> {
+pub struct PublicConfig<Platform, TxBuf, RxBuf> {
     platform: Platform,
     tx: TxBuf,
     rx: RxBuf,
 }
 
-impl<Platform, TxBuf, RxBuf> Config<Platform, TxBuf, RxBuf> {
+impl<Platform, TxBuf, RxBuf> PublicConfig<Platform, TxBuf, RxBuf> {
     pub fn new(platform: Platform, tx_buf: TxBuf, rx_buf: RxBuf) -> Self {
         Self {
             platform,
@@ -44,83 +78,29 @@ impl<Platform, TxBuf, RxBuf> Config<Platform, TxBuf, RxBuf> {
     }
 }
 
-pub struct Resources<'a, Platform, TxBuf, RxBuf>
-where
-    Platform: ZPlatform,
-{
-    transport: Option<Transport<Platform>>,
-    driver: Option<Driver<'a, Platform, TxBuf, RxBuf>>,
-}
-
-impl<'a, Platform, TxBuf, RxBuf> Resources<'a, Platform, TxBuf, RxBuf>
-where
-    Platform: ZPlatform,
-{
-    pub fn new() -> Self {
-        Self {
-            transport: None,
-            driver: None,
-        }
-    }
-
-    pub(crate) fn init(
-        &'a mut self,
-        config: Config<Platform, TxBuf, RxBuf>,
-        transport: Transport<Platform>,
-        tconfig: TransportConfig,
-    ) -> &'a Driver<'a, Platform, TxBuf, RxBuf> {
-        let Self {
-            transport: t,
-            driver: d,
-        } = self;
-
-        *t = Some(transport);
-        let (tx, rx) = t.as_mut().expect("Transport just set").split();
-        let (tx, rx) = (
-            DriverTx {
-                tx_buf: config.tx,
-                tx,
-                sn: tconfig.negociated_config.mine_sn,
-                next_keepalive: Instant::now(),
-                config: tconfig.mine_config.clone(),
-            },
-            DriverRx {
-                rx_buf: config.rx,
-                rx,
-                last_read: Instant::now(),
-                config: tconfig.other_config.clone(),
-            },
-        );
-
-        let driver = Driver::new(tx, rx);
-        *d = Some(driver);
-        d.as_ref().expect("Driver just set")
-    }
-}
-
-pub struct Session<'a, Platform, TxBuf, RxBuf>
+pub struct PublicSession<'a, Platform, TxBuf, RxBuf>
 where
     Platform: ZPlatform,
 {
     pub(crate) driver: &'a Driver<'a, Platform, TxBuf, RxBuf>,
 }
 
-impl<'a, Platform, TxBuf, RxBuf> Clone for Session<'a, Platform, TxBuf, RxBuf>
+impl<'a, Platform, TxBuf, RxBuf> Clone for PublicSession<'a, Platform, TxBuf, RxBuf>
 where
     Platform: ZPlatform,
 {
     fn clone(&self) -> Self {
-        Session {
+        PublicSession {
             driver: self.driver,
         }
     }
 }
 
-pub async fn open<'a, Platform, TxBuf, RxBuf>(
-    resources: &'a mut Resources<'a, Platform, TxBuf, RxBuf>,
-    mut config: Config<Platform, TxBuf, RxBuf>,
+pub async fn open<'a, Platform, TxBuf, RxBuf, SessionResources>(
+    resources: &'a mut PublicResources<'a, Platform, TxBuf, RxBuf, SessionResources>,
+    mut config: PublicConfig<Platform, TxBuf, RxBuf>,
     endpoint: EndPoint<'_>,
-) -> crate::ZResult<Session<'a, Platform, TxBuf, RxBuf>>
+) -> crate::ZResult<PublicSession<'a, Platform, TxBuf, RxBuf>>
 where
     Platform: ZPlatform,
     TxBuf: AsMut<[u8]>,
@@ -141,7 +121,7 @@ where
     )
     .await?;
 
-    Ok(Session {
+    Ok(PublicSession {
         driver: resources.init(config, transport, tconfig),
     })
 }
