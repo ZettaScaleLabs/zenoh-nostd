@@ -3,15 +3,12 @@ use ::core::ops::DerefMut;
 use embassy_time::Instant;
 use zenoh_proto::{exts::*, fields::*, *};
 
-use crate::{
-    io::transport::{TransportTx, ZTransportTx},
-    platform::ZPlatform,
-};
+use crate::{io::transport::ZTransportTx, platform::ZPlatform};
 
-impl<TxBuf, Platform> super::DriverTx<TxBuf, TransportTx<'_, Platform>>
+impl<'a, Platform, TxBuf> super::DriverTx<'a, Platform, TxBuf>
 where
-    TxBuf: AsMut<[u8]>,
     Platform: ZPlatform,
+    TxBuf: AsMut<[u8]>,
 {
     pub async fn frame(&mut self, x: impl ZFramed) -> crate::ZResult<()> {
         self.tx
@@ -48,7 +45,7 @@ where
     }
 }
 
-impl<TxBuf, Platform, Rx> super::Driver<super::DriverTx<TxBuf, TransportTx<'_, Platform>>, Rx>
+impl<'a, Platform, TxBuf, RxBuf> super::Driver<'a, Platform, TxBuf, RxBuf>
 where
     TxBuf: AsMut<[u8]>,
     Platform: ZPlatform,

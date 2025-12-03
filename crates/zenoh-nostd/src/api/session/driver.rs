@@ -14,30 +14,45 @@ use crate::{
     platform::ZPlatform,
 };
 
-pub struct DriverTx<TxBuf, Tx> {
+pub struct DriverTx<'a, Platform, TxBuf>
+where
+    Platform: ZPlatform,
+{
     pub(crate) tx_buf: TxBuf,
-    pub(crate) tx: Tx,
+    pub(crate) tx: TransportTx<'a, Platform>,
     pub(crate) sn: u32,
 
     pub(crate) next_keepalive: Instant,
     pub(crate) config: TransportMineConfig,
 }
 
-pub struct DriverRx<RxBuf, Rx> {
+pub struct DriverRx<'a, Platform, RxBuf>
+where
+    Platform: ZPlatform,
+{
     pub(crate) rx_buf: RxBuf,
-    pub(crate) rx: Rx,
+    pub(crate) rx: TransportRx<'a, Platform>,
 
     pub(crate) last_read: Instant,
     pub(crate) config: TransportOtherConfig,
 }
 
-pub struct Driver<Tx, Rx> {
-    pub(crate) tx: Mutex<NoopRawMutex, Tx>,
-    pub(crate) rx: Mutex<NoopRawMutex, Rx>,
+pub struct Driver<'a, Platform, TxBuf, RxBuf>
+where
+    Platform: ZPlatform,
+{
+    pub(crate) tx: Mutex<NoopRawMutex, DriverTx<'a, Platform, TxBuf>>,
+    pub(crate) rx: Mutex<NoopRawMutex, DriverRx<'a, Platform, RxBuf>>,
 }
 
-impl<Tx, Rx> Driver<Tx, Rx> {
-    pub(crate) fn new(tx: Tx, rx: Rx) -> Self {
+impl<'a, Platform, TxBuf, RxBuf> Driver<'a, Platform, TxBuf, RxBuf>
+where
+    Platform: ZPlatform,
+{
+    pub(crate) fn new(
+        tx: DriverTx<'a, Platform, TxBuf>,
+        rx: DriverRx<'a, Platform, RxBuf>,
+    ) -> Self {
         Self {
             tx: Mutex::new(tx),
             rx: Mutex::new(rx),
@@ -45,12 +60,11 @@ impl<Tx, Rx> Driver<Tx, Rx> {
     }
 }
 
-impl<TxBuf, RxBuf, Platform>
-    Driver<DriverTx<TxBuf, TransportTx<'_, Platform>>, DriverRx<RxBuf, TransportRx<'_, Platform>>>
+impl<'a, Platform, TxBuf, RxBuf> Driver<'a, Platform, TxBuf, RxBuf>
 where
+    Platform: ZPlatform,
     TxBuf: AsMut<[u8]>,
     RxBuf: AsMut<[u8]>,
-    Platform: ZPlatform,
 {
     pub async fn run(&self) -> crate::ZResult<()> {
         let mut rx_guard = self.rx.lock().await;

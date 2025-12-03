@@ -1,17 +1,6 @@
-use crate::{
-    api::driver::{Driver, DriverRx, DriverTx},
-    io::transport::{TransportRx, TransportTx},
-    platform::ZPlatform,
-};
+use crate::platform::ZPlatform;
 
-impl<'a, Platform, TxBuf, RxBuf>
-    super::Session<
-        'a,
-        Driver<
-            DriverTx<TxBuf, TransportTx<'a, Platform>>,
-            DriverRx<RxBuf, TransportRx<'a, Platform>>,
-        >,
-    >
+impl<'a, Platform, TxBuf, RxBuf> super::Session<'a, Platform, TxBuf, RxBuf>
 where
     Platform: ZPlatform,
     TxBuf: AsMut<[u8]>,

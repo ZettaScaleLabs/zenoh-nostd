@@ -1,6 +1,11 @@
 use zenoh_proto::{BatchReader, Message};
 
-impl<Tx, Rx> super::Driver<Tx, Rx> {
+use crate::platform::ZPlatform;
+
+impl<'a, Platform, TxBux, RxBux> super::Driver<'a, Platform, TxBux, RxBux>
+where
+    Platform: ZPlatform,
+{
     pub async fn update(&self, reader: &[u8]) -> crate::ZResult<()> {
         let batch = BatchReader::new(reader);
 

@@ -5,7 +5,7 @@ use crate::{
     api::driver::{Driver, DriverRx, DriverTx},
     io::{
         link::Link,
-        transport::{Transport, TransportConfig, TransportMineConfig, TransportRx, TransportTx},
+        transport::{Transport, TransportConfig, TransportMineConfig},
     },
     platform::ZPlatform,
 };
@@ -23,20 +23,10 @@ macro_rules! zimport_types {
         RX: $rxbuf:ty
     ) => {
         type Config = $crate::api::Config<$platform, $txbuf, $rxbuf>;
-        type Resources<'a> = $crate::api::UserResources<'a, $platform, $txbuf, $rxbuf>;
-        type Session<'a> = $crate::api::UserSession<'a, $platform, $txbuf, $rxbuf>;
+        type Resources<'a> = $crate::api::Resources<'a, $platform, $txbuf, $rxbuf>;
+        type Session<'a> = $crate::api::Session<'a, $platform, $txbuf, $rxbuf>;
     };
 }
-
-pub type UserSession<'a, Platform, TxBuf, RxBuf> = Session<
-    'a,
-    Driver<DriverTx<TxBuf, TransportTx<'a, Platform>>, DriverRx<RxBuf, TransportRx<'a, Platform>>>,
->;
-
-pub type UserResources<'a, Platform, TxBuf, RxBuf> = SessionResources<
-    Platform,
-    Driver<DriverTx<TxBuf, TransportTx<'a, Platform>>, DriverRx<RxBuf, TransportRx<'a, Platform>>>,
->;
 
 pub struct Config<Platform, TxBuf, RxBuf> {
     platform: Platform,
@@ -54,74 +44,71 @@ impl<Platform, TxBuf, RxBuf> Config<Platform, TxBuf, RxBuf> {
     }
 }
 
-pub enum SessionResources<Platform, Driver>
+pub struct Resources<'a, Platform, TxBuf, RxBuf>
 where
     Platform: ZPlatform,
 {
-    Uninitialized,
-    Initialized {
-        transport: Transport<Platform>,
-        driver: Option<Driver>,
-    },
+    transport: Option<Transport<Platform>>,
+    driver: Option<Driver<'a, Platform, TxBuf, RxBuf>>,
 }
 
-impl<'a, Platform, TxBuf, RxBuf>
-    SessionResources<
-        Platform,
-        Driver<
-            DriverTx<TxBuf, TransportTx<'a, Platform>>,
-            DriverRx<RxBuf, TransportRx<'a, Platform>>,
-        >,
-    >
+impl<'a, Platform, TxBuf, RxBuf> Resources<'a, Platform, TxBuf, RxBuf>
 where
     Platform: ZPlatform,
 {
+    pub fn new() -> Self {
+        Self {
+            transport: None,
+            driver: None,
+        }
+    }
+
     pub(crate) fn init(
         &'a mut self,
         config: Config<Platform, TxBuf, RxBuf>,
         transport: Transport<Platform>,
         tconfig: TransportConfig,
-    ) -> &'a Driver<
-        DriverTx<TxBuf, TransportTx<'a, Platform>>,
-        DriverRx<RxBuf, TransportRx<'a, Platform>>,
-    > {
-        *self = SessionResources::Initialized {
-            transport,
-            driver: None,
-        };
+    ) -> &'a Driver<'a, Platform, TxBuf, RxBuf> {
+        let Self {
+            transport: t,
+            driver: d,
+        } = self;
 
-        if let SessionResources::Initialized { transport, driver } = self {
-            let (tx, rx) = transport.split();
-            let (tx, rx) = (
-                DriverTx {
-                    tx_buf: config.tx,
-                    tx,
-                    sn: tconfig.negociated_config.mine_sn,
-                    next_keepalive: Instant::now(),
-                    config: tconfig.mine_config.clone(),
-                },
-                DriverRx {
-                    rx_buf: config.rx,
-                    rx,
-                    last_read: Instant::now(),
-                    config: tconfig.other_config.clone(),
-                },
-            );
+        *t = Some(transport);
+        let (tx, rx) = t.as_mut().expect("Transport just set").split();
+        let (tx, rx) = (
+            DriverTx {
+                tx_buf: config.tx,
+                tx,
+                sn: tconfig.negociated_config.mine_sn,
+                next_keepalive: Instant::now(),
+                config: tconfig.mine_config.clone(),
+            },
+            DriverRx {
+                rx_buf: config.rx,
+                rx,
+                last_read: Instant::now(),
+                config: tconfig.other_config.clone(),
+            },
+        );
 
-            let d = Driver::new(tx, rx);
-            *driver = Some(d);
-            driver.as_ref().expect("Driver just set")
-        } else {
-            unreachable!()
-        }
+        let driver = Driver::new(tx, rx);
+        *d = Some(driver);
+        d.as_ref().expect("Driver just set")
     }
 }
 
-pub struct Session<'a, Driver> {
-    pub(crate) driver: &'a Driver,
+pub struct Session<'a, Platform, TxBuf, RxBuf>
+where
+    Platform: ZPlatform,
+{
+    pub(crate) driver: &'a Driver<'a, Platform, TxBuf, RxBuf>,
 }
 
-impl<'a, Driver> Clone for Session<'a, Driver> {
+impl<'a, Platform, TxBuf, RxBuf> Clone for Session<'a, Platform, TxBuf, RxBuf>
+where
+    Platform: ZPlatform,
+{
     fn clone(&self) -> Self {
         Session {
             driver: self.driver,
@@ -130,24 +117,10 @@ impl<'a, Driver> Clone for Session<'a, Driver> {
 }
 
 pub async fn open<'a, Platform, TxBuf, RxBuf>(
-    resources: &'a mut SessionResources<
-        Platform,
-        Driver<
-            DriverTx<TxBuf, TransportTx<'a, Platform>>,
-            DriverRx<RxBuf, TransportRx<'a, Platform>>,
-        >,
-    >,
+    resources: &'a mut Resources<'a, Platform, TxBuf, RxBuf>,
     mut config: Config<Platform, TxBuf, RxBuf>,
     endpoint: EndPoint<'_>,
-) -> crate::ZResult<
-    Session<
-        'a,
-        Driver<
-            DriverTx<TxBuf, TransportTx<'a, Platform>>,
-            DriverRx<RxBuf, TransportRx<'a, Platform>>,
-        >,
-    >,
->
+) -> crate::ZResult<Session<'a, Platform, TxBuf, RxBuf>>
 where
     Platform: ZPlatform,
     TxBuf: AsMut<[u8]>,

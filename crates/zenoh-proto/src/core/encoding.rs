@@ -10,9 +10,16 @@ pub struct Encoding<'a> {
 impl Encoding<'_> {
     const FLAG_S: u8 = 0b0000_0001;
 
-    pub const fn empty() -> Self {
+    pub const fn bytes() -> Self {
         Self {
             id: 0,
+            schema: None,
+        }
+    }
+
+    pub const fn string() -> Self {
+        Self {
+            id: 1,
             schema: None,
         }
     }

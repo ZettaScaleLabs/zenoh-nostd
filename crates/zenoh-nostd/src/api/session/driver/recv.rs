@@ -1,12 +1,9 @@
 use embassy_futures::select::{Either, select};
 use embassy_time::Timer;
 
-use crate::{
-    io::transport::{TransportRx, ZTransportRx},
-    platform::ZPlatform,
-};
+use crate::{io::transport::ZTransportRx, platform::ZPlatform};
 
-impl<RxBuf, Platform> super::DriverRx<RxBuf, TransportRx<'_, Platform>>
+impl<'a, Platform, RxBuf> super::DriverRx<'a, Platform, RxBuf>
 where
     RxBuf: AsMut<[u8]>,
     Platform: ZPlatform,

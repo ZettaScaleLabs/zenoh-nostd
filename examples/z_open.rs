@@ -1,7 +1,7 @@
 use embassy_time::Timer;
 
 use static_cell::StaticCell;
-use zenoh_nostd::*;
+use zenoh_nostd::{api::*, *};
 use zenoh_std::PlatformStd;
 
 zimport_types!(
@@ -18,7 +18,7 @@ async fn main(spawner: embassy_executor::Spawner) {
 
     static RESOURCES: StaticCell<Resources> = StaticCell::new();
     let session = zenoh_nostd::api::open(
-        RESOURCES.init(Resources::Uninitialized),
+        RESOURCES.init(Resources::new()),
         config,
         EndPoint::try_from("tcp/127.0.0.1:7447").unwrap(),
     )
@@ -31,7 +31,13 @@ async fn main(spawner: embassy_executor::Spawner) {
     let payload = b"Hello, from no-std!";
 
     loop {
-        session.put(ke, payload).await.unwrap();
+        session
+            .put(ke, payload)
+            .attachment(b"z_open example")
+            .encoding(Encoding::bytes())
+            .finish()
+            .await
+            .unwrap();
 
         zenoh_nostd::info!(
             "[Put] Sent PUT ('{}': '{}')",

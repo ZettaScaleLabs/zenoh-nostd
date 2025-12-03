@@ -4,10 +4,10 @@
 
 <h1 align="center">zenoh-nostd</h1>
 <p align="center">
-  <strong>Zero Network Overhead. No std. No alloc. Pure Rust.</strong>
+  <strong>Zero Network Overhead. Async. No std. No alloc. Pure Rust.</strong>
 </p>
 <p align="center">
-  <code>bare-metal</code> • <code>no_std</code> • <code>zenoh</code>
+  <code>async</code> • <code>bare-metal</code> • <code>no_std</code> • <code>zenoh</code>
 </p>
 <a href="https://cla-assistant.io/ZettaScaleLabs/zenoh-nostd"><img src="https://cla-assistant.io/readme/badge/ZettaScaleLabs/zenoh-nostd" alt="CLA assistant" /></a>
 
@@ -17,8 +17,7 @@
 
 ⚠️ This project is in early development.
 
-**zenoh-nostd** is a Rust-native, `#![no_std]`, `no_alloc` library that provides a **zero-overhead network abstraction layer** for
-ultra-constrained and bare-metal environments. In other terms you can run this *bare metal* on your favourite microcontroller.
+**zenoh-nostd** is a Rust-native, `async`, `#![no_std]`, `no_alloc` library that provides a **zero-overhead network abstraction layer** for ultra-constrained and bare-metal environments. In other terms you can run this *bare metal* on your favourite microcontroller.
 
 > ⚡ Built on the <a href="https://github.com/eclipse-zenoh/zenoh">Zenoh protocol</a>, but stripped to the bone for minimalism and raw performance.
 
@@ -31,6 +30,7 @@ ultra-constrained and bare-metal environments. In other terms you can run this *
 - **Deterministic**: No heap, no surprises.
 - **Safe Rust**: Entirely memory-safe.
 - **Testable**: Supports both embedded and native testing environments.
+- **Embassy Integration**: Seamlessly integrates with the Embassy async runtime for embedded systems.
 
 ---
 
