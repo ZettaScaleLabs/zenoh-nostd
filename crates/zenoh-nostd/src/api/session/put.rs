@@ -78,7 +78,8 @@ where
     }
 }
 
-impl<'a, Platform, TxBuf, RxBuf> super::PublicSession<'a, Platform, TxBuf, RxBuf>
+impl<'a, Platform, TxBuf, RxBuf, SessionResources>
+    super::PublicSession<'a, Platform, TxBuf, RxBuf, SessionResources>
 where
     Platform: ZPlatform,
     TxBuf: AsMut<[u8]>,

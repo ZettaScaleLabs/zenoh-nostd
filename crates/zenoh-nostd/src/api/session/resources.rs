@@ -1,94 +1,107 @@
-use embassy_sync::{blocking_mutex::raw::NoopRawMutex, channel::Channel, mutex::Mutex};
+use embassy_sync::{blocking_mutex::raw::NoopRawMutex, channel::DynamicReceiver};
 use embassy_time::Instant;
 use heapless::FnvIndexMap;
 use zenoh_proto::keyexpr;
 
 use crate::{
     api::{
-        Callback, PublicConfig, ZOwnedSample, ZSample,
+        Callback, OwnedSample, PublicConfig, Sample,
         driver::{Driver, DriverRx, DriverTx},
     },
     io::transport::{Transport, TransportConfig},
     platform::ZPlatform,
 };
 
+pub type CallbackId = u32;
+
+type Mutex<T> = embassy_sync::mutex::Mutex<NoopRawMutex, T>;
+
 pub struct SessionResources<
-    const MAX_KEYEXPR: usize,
-    const MAX_QUEUED: usize,
     const MAX_KEYEXPR_LEN: usize,
     const MAX_PARAMETERS_LEN: usize,
     const MAX_PAYLOAD_LEN: usize,
-    const MAX_SUBSCRIPTIONS: usize,
-    const MAX_QUERIES: usize,
-    const MAX_QUERYABLES: usize,
+    const MAX_QUEUED: usize,
+    const MAX_CALLBACKS: usize,
+    const MAX_SUBSCRIBERS: usize,
 > {
-    keyexpr_lt: FnvIndexMap<&'static keyexpr, u32, MAX_KEYEXPR>,
+    next: Mutex<u32>,
 
-    next: u32,
-
-    subscriptions: FnvIndexMap<
-        u32,
-        Callback<fn(&ZSample), ZOwnedSample<MAX_KEYEXPR_LEN, MAX_PAYLOAD_LEN>, MAX_QUEUED>,
-        MAX_SUBSCRIPTIONS,
+    pub callbacks: FnvIndexMap<
+        CallbackId,
+        Callback<MAX_KEYEXPR_LEN, MAX_PARAMETERS_LEN, MAX_PAYLOAD_LEN, MAX_QUEUED>,
+        MAX_CALLBACKS,
     >,
+
+    pub subscribers: Mutex<FnvIndexMap<&'static keyexpr, CallbackId, MAX_SUBSCRIBERS>>,
 }
 
 impl<
-    const MAX_KEYEXPR: usize,
-    const MAX_QUEUED: usize,
     const MAX_KEYEXPR_LEN: usize,
     const MAX_PARAMETERS_LEN: usize,
     const MAX_PAYLOAD_LEN: usize,
-    const MAX_SUBSCRIPTIONS: usize,
-    const MAX_QUERIES: usize,
-    const MAX_QUERYABLES: usize,
+    const MAX_QUEUED: usize,
+    const MAX_CALLBACKS: usize,
+    const MAX_SUBSCRIBERS: usize,
 >
     SessionResources<
-        MAX_KEYEXPR,
-        MAX_QUEUED,
         MAX_KEYEXPR_LEN,
         MAX_PARAMETERS_LEN,
         MAX_PAYLOAD_LEN,
-        MAX_SUBSCRIPTIONS,
-        MAX_QUERIES,
-        MAX_QUERYABLES,
+        MAX_QUEUED,
+        MAX_CALLBACKS,
+        MAX_SUBSCRIBERS,
     >
 {
     pub fn new() -> Self {
         Self {
-            keyexpr_lt: FnvIndexMap::new(),
-            next: 0,
-            subscriptions: FnvIndexMap::new(),
+            next: Mutex::new(0),
+            callbacks: FnvIndexMap::new(),
+            subscribers: Mutex::new(FnvIndexMap::new()),
         }
     }
 
-    pub fn next_id(&mut self) -> u32 {
-        let id = self.next;
-        self.next = self.next.wrapping_add(1);
+    pub async fn next_id(&self) -> CallbackId {
+        let mut next = self.next.lock().await;
+        let id = *next;
+        *next = next.wrapping_add(1);
         id
     }
 
-    pub fn register_sync_subscriber(&mut self, callback: fn(&ZSample)) -> crate::ZResult<u32> {
-        let id = self.next_id();
-        self.subscriptions
-            .insert(id, Callback::new_sync(callback))
+    pub async fn subscriber_sync(&mut self, v: fn(&Sample)) -> crate::ZResult<CallbackId> {
+        let id = self.next_id().await;
+        self.callbacks
+            .insert(id, Callback::new_sync_subscriber(v))
             .map_err(|_| crate::ZError::CapacityExceeded)?;
         Ok(id)
     }
 
-    pub fn register_async_subscriber(&mut self) -> crate::ZResult<u32> {
-        let id = self.next_id();
-        self.subscriptions
-            .insert(
-                id,
-                Callback::new_async(Channel::<
-                    NoopRawMutex,
-                    ZOwnedSample<MAX_KEYEXPR_LEN, MAX_PAYLOAD_LEN>,
-                    MAX_QUEUED,
-                >::new()),
-            )
+    pub async fn subscriber(&mut self) -> crate::ZResult<CallbackId> {
+        let id = self.next_id().await;
+        self.callbacks
+            .insert(id, Callback::new_async_subscriber())
             .map_err(|_| crate::ZError::CapacityExceeded)?;
         Ok(id)
+    }
+
+    pub async fn register_subscriber(
+        &self,
+        ke: &'static keyexpr,
+        cb: CallbackId,
+    ) -> crate::ZResult<u32> {
+        let id = self.next_id().await;
+        let mut self_subscribers = self.subscribers.lock().await;
+        self_subscribers
+            .insert(ke, cb)
+            .map_err(|_| crate::ZError::CapacityExceeded)?;
+        Ok(id)
+    }
+
+    pub fn subscriber_receiver<'a>(
+        &'a self,
+        cb: CallbackId,
+    ) -> Option<DynamicReceiver<'a, OwnedSample<MAX_KEYEXPR_LEN, MAX_PAYLOAD_LEN>>> {
+        let callback = self.callbacks.get(&cb)?;
+        callback.subscriber_receiver()
     }
 }
 
@@ -106,14 +119,12 @@ impl<
     Platform,
     TxBuf,
     RxBuf,
-    const MAX_KEYEXPR: usize,
-    const MAX_QUEUED: usize,
     const MAX_KEYEXPR_LEN: usize,
     const MAX_PARAMETERS_LEN: usize,
     const MAX_PAYLOAD_LEN: usize,
-    const MAX_SUBSCRIPTIONS: usize,
-    const MAX_QUERIES: usize,
-    const MAX_QUERYABLES: usize,
+    const MAX_QUEUED: usize,
+    const MAX_CALLBACKS: usize,
+    const MAX_SUBSCRIBERS: usize,
 >
     PublicResources<
         'a,
@@ -121,14 +132,12 @@ impl<
         TxBuf,
         RxBuf,
         SessionResources<
-            MAX_KEYEXPR,
-            MAX_QUEUED,
             MAX_KEYEXPR_LEN,
             MAX_PARAMETERS_LEN,
             MAX_PAYLOAD_LEN,
-            MAX_SUBSCRIPTIONS,
-            MAX_QUERIES,
-            MAX_QUERYABLES,
+            MAX_QUEUED,
+            MAX_CALLBACKS,
+            MAX_SUBSCRIBERS,
         >,
     >
 where
@@ -140,6 +149,14 @@ where
             driver: None,
             session_resources: SessionResources::new(),
         }
+    }
+
+    pub async fn subscriber_sync(&mut self, v: fn(&Sample)) -> crate::ZResult<CallbackId> {
+        self.session_resources.subscriber_sync(v).await
+    }
+
+    pub async fn subscriber_async(&mut self) -> crate::ZResult<CallbackId> {
+        self.session_resources.subscriber().await
     }
 }
 
@@ -153,11 +170,11 @@ where
         config: PublicConfig<Platform, TxBuf, RxBuf>,
         transport: Transport<Platform>,
         tconfig: TransportConfig,
-    ) -> &'a Driver<'a, Platform, TxBuf, RxBuf> {
+    ) -> (&'a Driver<'a, Platform, TxBuf, RxBuf>, &'a SessionResources) {
         let Self {
             transport: t,
             driver: d,
-            ..
+            session_resources: sr,
         } = self;
 
         *t = Some(transport);
@@ -180,6 +197,6 @@ where
 
         let driver = Driver::new(tx, rx);
         *d = Some(driver);
-        d.as_ref().expect("Driver just set")
+        (d.as_ref().expect("Driver just set"), sr)
     }
 }

@@ -1,36 +1,46 @@
-use embassy_sync::{blocking_mutex::raw::NoopRawMutex, channel::Channel};
+use embassy_sync::{
+    blocking_mutex::raw::NoopRawMutex,
+    channel::{Channel, DynamicReceiver},
+};
 
-pub(crate) enum Callback<T, G, const N: usize> {
-    Sync(T),
-    Async(Channel<NoopRawMutex, G, N>),
+use crate::api::{OwnedSample, Sample};
+
+pub enum Callback<
+    const MAX_KEYEXPR_LEN: usize,
+    const MAX_PARAMETERS_LEN: usize,
+    const MAX_PAYLOAD_LEN: usize,
+    const MAX_QUEUED: usize,
+> {
+    SyncSubscriber(fn(&Sample)),
+    AsyncSubscriber(
+        Channel<NoopRawMutex, OwnedSample<MAX_KEYEXPR_LEN, MAX_PAYLOAD_LEN>, MAX_QUEUED>,
+    ),
 }
 
-impl<T, G, const N: usize> Callback<T, G, N> {
-    pub(crate) fn new_sync(cb: T) -> Self {
-        Self::Sync(cb)
+impl<const K: usize, const P: usize, const L: usize, const Q: usize> Callback<K, P, L, Q> {
+    pub(crate) fn new_sync_subscriber(cb: fn(&Sample)) -> Self {
+        Self::SyncSubscriber(cb)
     }
 
-    pub(crate) fn new_async(sender: Channel<NoopRawMutex, G, N>) -> Self {
-        Self::Async(sender)
+    pub(crate) fn new_async_subscriber() -> Self {
+        Self::AsyncSubscriber(Channel::new())
     }
-}
 
-pub(crate) trait ZCallback<Arg> {
-    fn call(&self, msg: Arg) -> impl ::core::future::Future<Output = crate::ZResult<()>>;
-}
-
-impl<Arg, G, const N: usize> ZCallback<Arg> for Callback<fn(&Arg), G, N>
-where
-    G: TryFrom<Arg, Error = crate::ZError>,
-{
-    async fn call(&self, msg: Arg) -> crate::ZResult<()> {
+    pub(crate) fn subscriber_receiver(&self) -> Option<DynamicReceiver<'_, OwnedSample<K, L>>> {
         match self {
-            Callback::Sync(cb) => {
+            Callback::SyncSubscriber(_) => None,
+            Callback::AsyncSubscriber(channel) => Some(channel.dyn_receiver()),
+        }
+    }
+
+    pub(crate) async fn call_subscriber(&self, msg: Sample<'_>) -> crate::ZResult<()> {
+        match self {
+            Callback::SyncSubscriber(cb) => {
                 cb(&msg);
                 Ok(())
             }
-            Callback::Async(sender) => {
-                let owned_msg = G::try_from(msg)?;
+            Callback::AsyncSubscriber(sender) => {
+                let owned_msg = OwnedSample::try_from(msg)?;
                 sender.send(owned_msg).await;
                 Ok(())
             }

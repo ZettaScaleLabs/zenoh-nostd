@@ -1,26 +1,21 @@
-use embassy_sync::{blocking_mutex::raw::NoopRawMutex, channel::Channel};
-use embassy_time::{Duration, Instant};
-use heapless::FnvIndexMap;
-use zenoh_proto::{EndPoint, keyexpr};
-
 use crate::{
-    api::{
-        Callback, ZOwnedSample, ZSample,
-        driver::{Driver, DriverRx, DriverTx},
-    },
+    api::driver::Driver,
     io::{
         link::Link,
-        transport::{Transport, TransportConfig, TransportMineConfig},
+        transport::{Transport, TransportMineConfig},
     },
     platform::ZPlatform,
 };
+use embassy_time::Duration;
 
 pub(crate) mod driver;
 mod resources;
 pub use resources::*;
+use zenoh_proto::EndPoint;
 
 mod put;
 mod run;
+mod sub;
 
 #[macro_export]
 macro_rules! zimport_types {
@@ -29,36 +24,46 @@ macro_rules! zimport_types {
         TX: $txbuf:ty,
         RX: $rxbuf:ty,
 
-        MAX_KEYEXPR: $max_keyexpr:expr,
-        MAX_QUEUED: $max_queued:expr,
-
         MAX_KEYEXPR_LEN: $max_keyexpr_len:expr,
         MAX_PARAMETERS_LEN: $max_parameters_len:expr,
         MAX_PAYLOAD_LEN: $max_payload_len:expr,
 
-        MAX_SUBSCRIPTIONS: $max_subscriptions:expr,
+        MAX_QUEUED: $max_queued:expr,
+        MAX_CALLBACKS: $max_callbacks:expr,
 
-        MAX_QUERIES: $max_queries:expr,
-        MAX_QUERYABLES: $max_queryables:expr,
+        MAX_SUBSCRIBERS: $max_subscribers:expr,
     ) => {
         type Config = $crate::api::PublicConfig<$platform, $txbuf, $rxbuf>;
+
         type Resources<'a> = $crate::api::PublicResources<
             'a,
             $platform,
             $txbuf,
             $rxbuf,
             $crate::api::SessionResources<
-                $max_keyexpr,
-                $max_queued,
                 $max_keyexpr_len,
                 $max_parameters_len,
                 $max_payload_len,
-                $max_subscriptions,
-                $max_queries,
-                $max_queryables,
+                $max_queued,
+                $max_callbacks,
+                $max_subscribers,
             >,
         >;
-        type Session<'a> = $crate::api::PublicSession<'a, $platform, $txbuf, $rxbuf>;
+
+        type Session<'a> = $crate::api::PublicSession<
+            'a,
+            $platform,
+            $txbuf,
+            $rxbuf,
+            $crate::api::SessionResources<
+                $max_keyexpr_len,
+                $max_parameters_len,
+                $max_payload_len,
+                $max_queued,
+                $max_callbacks,
+                $max_subscribers,
+            >,
+        >;
     };
 }
 
@@ -78,20 +83,23 @@ impl<Platform, TxBuf, RxBuf> PublicConfig<Platform, TxBuf, RxBuf> {
     }
 }
 
-pub struct PublicSession<'a, Platform, TxBuf, RxBuf>
+pub struct PublicSession<'a, Platform, TxBuf, RxBuf, Resources>
 where
     Platform: ZPlatform,
 {
     pub(crate) driver: &'a Driver<'a, Platform, TxBuf, RxBuf>,
+    pub(crate) resources: &'a Resources,
 }
 
-impl<'a, Platform, TxBuf, RxBuf> Clone for PublicSession<'a, Platform, TxBuf, RxBuf>
+impl<'a, Platform, TxBuf, RxBuf, Resources> Clone
+    for PublicSession<'a, Platform, TxBuf, RxBuf, Resources>
 where
     Platform: ZPlatform,
 {
     fn clone(&self) -> Self {
         PublicSession {
             driver: self.driver,
+            resources: self.resources,
         }
     }
 }
@@ -100,7 +108,7 @@ pub async fn open<'a, Platform, TxBuf, RxBuf, SessionResources>(
     resources: &'a mut PublicResources<'a, Platform, TxBuf, RxBuf, SessionResources>,
     mut config: PublicConfig<Platform, TxBuf, RxBuf>,
     endpoint: EndPoint<'_>,
-) -> crate::ZResult<PublicSession<'a, Platform, TxBuf, RxBuf>>
+) -> crate::ZResult<PublicSession<'a, Platform, TxBuf, RxBuf, SessionResources>>
 where
     Platform: ZPlatform,
     TxBuf: AsMut<[u8]>,
@@ -121,7 +129,7 @@ where
     )
     .await?;
 
-    Ok(PublicSession {
-        driver: resources.init(config, transport, tconfig),
-    })
+    let (driver, resources) = resources.init(config, transport, tconfig);
+
+    Ok(PublicSession { driver, resources })
 }

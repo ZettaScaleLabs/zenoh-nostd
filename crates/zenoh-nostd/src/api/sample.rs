@@ -3,14 +3,14 @@ use ::core::str::FromStr;
 use heapless::{String, Vec};
 use zenoh_proto::keyexpr;
 
-pub struct ZSample<'a> {
+pub struct Sample<'a> {
     keyexpr: &'a keyexpr,
     payload: &'a [u8],
 }
 
-impl<'a> ZSample<'a> {
-    pub(crate) fn new(keyexpr: &'a keyexpr, payload: &'a [u8]) -> ZSample<'a> {
-        ZSample { keyexpr, payload }
+impl<'a> Sample<'a> {
+    pub(crate) fn new(keyexpr: &'a keyexpr, payload: &'a [u8]) -> Sample<'a> {
+        Sample { keyexpr, payload }
     }
 
     pub fn keyexpr(&self) -> &'a keyexpr {
@@ -22,13 +22,13 @@ impl<'a> ZSample<'a> {
     }
 }
 
-impl<const MAX_KEYEXPR: usize, const MAX_PAYLOAD: usize> TryFrom<ZSample<'_>>
-    for ZOwnedSample<MAX_KEYEXPR, MAX_PAYLOAD>
+impl<const MAX_KEYEXPR: usize, const MAX_PAYLOAD: usize> TryFrom<Sample<'_>>
+    for OwnedSample<MAX_KEYEXPR, MAX_PAYLOAD>
 {
     type Error = crate::ZError;
 
-    fn try_from(value: ZSample<'_>) -> Result<Self, Self::Error> {
-        Ok(ZOwnedSample::new(
+    fn try_from(value: Sample<'_>) -> Result<Self, Self::Error> {
+        Ok(OwnedSample::new(
             String::from_str(value.keyexpr.as_str())
                 .map_err(|_| crate::ZError::CapacityExceeded)?,
             Vec::from_slice(value.payload).map_err(|_| crate::ZError::CapacityExceeded)?,
@@ -37,17 +37,17 @@ impl<const MAX_KEYEXPR: usize, const MAX_PAYLOAD: usize> TryFrom<ZSample<'_>>
 }
 
 #[derive(Debug)]
-pub struct ZOwnedSample<const MAX_KEYEXPR: usize, const MAX_PAYLOAD: usize> {
+pub struct OwnedSample<const MAX_KEYEXPR: usize, const MAX_PAYLOAD: usize> {
     keyexpr: String<MAX_KEYEXPR>,
     payload: Vec<u8, MAX_PAYLOAD>,
 }
 
-impl<const MAX_KEYEXPR: usize, const MAX_PAYLOAD: usize> ZOwnedSample<MAX_KEYEXPR, MAX_PAYLOAD> {
+impl<const MAX_KEYEXPR: usize, const MAX_PAYLOAD: usize> OwnedSample<MAX_KEYEXPR, MAX_PAYLOAD> {
     pub(crate) fn new(
         keyexpr: String<MAX_KEYEXPR>,
         payload: Vec<u8, MAX_PAYLOAD>,
-    ) -> ZOwnedSample<MAX_KEYEXPR, MAX_PAYLOAD> {
-        ZOwnedSample { keyexpr, payload }
+    ) -> OwnedSample<MAX_KEYEXPR, MAX_PAYLOAD> {
+        OwnedSample { keyexpr, payload }
     }
 
     pub fn keyexpr(&self) -> &keyexpr {

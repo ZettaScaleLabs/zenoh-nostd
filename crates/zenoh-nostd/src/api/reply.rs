@@ -1,6 +1,6 @@
-use crate::api::ZSample;
+use crate::api::Sample;
 
 pub enum ZReply<'a> {
-    Ok(ZSample<'a>),
-    Err(ZSample<'a>),
+    Ok(Sample<'a>),
+    Err(Sample<'a>),
 }

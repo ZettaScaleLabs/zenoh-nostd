@@ -10,6 +10,7 @@ use embassy_time::{Instant, Timer};
 use zenoh_proto::msgs::KeepAlive;
 
 use crate::{
+    api::SessionResources,
     io::transport::{TransportMineConfig, TransportOtherConfig, TransportRx, TransportTx},
     platform::ZPlatform,
 };
@@ -66,7 +67,24 @@ where
     TxBuf: AsMut<[u8]>,
     RxBuf: AsMut<[u8]>,
 {
-    pub async fn run(&self) -> crate::ZResult<()> {
+    pub async fn run<
+        const MAX_KEYEXPR_LEN: usize,
+        const MAX_PARAMETERS_LEN: usize,
+        const MAX_PAYLOAD_LEN: usize,
+        const MAX_QUEUED: usize,
+        const MAX_CALLBACKS: usize,
+        const MAX_SUBSCRIBERS: usize,
+    >(
+        &self,
+        resources: &SessionResources<
+            MAX_KEYEXPR_LEN,
+            MAX_PARAMETERS_LEN,
+            MAX_PAYLOAD_LEN,
+            MAX_QUEUED,
+            MAX_CALLBACKS,
+            MAX_SUBSCRIBERS,
+        >,
+    ) -> crate::ZResult<()> {
         let mut rx_guard = self.rx.lock().await;
         let rx = rx_guard.deref_mut();
 
@@ -88,7 +106,7 @@ where
                     }
                 }
                 Either::Second(msg) => {
-                    self.update(msg?).await?;
+                    self.update(msg?, resources).await?;
                 }
             }
         }
