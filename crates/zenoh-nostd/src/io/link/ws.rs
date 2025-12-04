@@ -35,10 +35,10 @@ impl<Stream> ZLinkTx for LinkWs<Stream>
 where
     Stream: ZWebSocket,
 {
-    async fn write(&mut self, buffer: &[u8]) -> crate::ZResult<usize, crate::ZLinkError> {
+    async fn write(&mut self, buffer: &[u8]) -> core::result::Result<usize, crate::LinkError> {
         self.stream.write(buffer).await
     }
-    async fn write_all(&mut self, buffer: &[u8]) -> crate::ZResult<(), crate::ZLinkError> {
+    async fn write_all(&mut self, buffer: &[u8]) -> core::result::Result<(), crate::LinkError> {
         self.stream.write_all(buffer).await
     }
 }
@@ -47,10 +47,13 @@ impl<Stream> ZLinkRx for LinkWs<Stream>
 where
     Stream: ZWebSocket,
 {
-    async fn read(&mut self, buffer: &mut [u8]) -> crate::ZResult<usize, crate::ZLinkError> {
+    async fn read(&mut self, buffer: &mut [u8]) -> core::result::Result<usize, crate::LinkError> {
         self.stream.read(buffer).await
     }
-    async fn read_exact(&mut self, buffer: &mut [u8]) -> crate::ZResult<(), crate::ZLinkError> {
+    async fn read_exact(
+        &mut self,
+        buffer: &mut [u8],
+    ) -> core::result::Result<(), crate::LinkError> {
         self.stream.read_exact(buffer).await
     }
 }
@@ -98,10 +101,10 @@ impl<Tx> ZLinkTx for LinkWsTx<Tx>
 where
     Tx: ZWsTx,
 {
-    async fn write(&mut self, buffer: &[u8]) -> crate::ZResult<usize, crate::ZLinkError> {
+    async fn write(&mut self, buffer: &[u8]) -> core::result::Result<usize, crate::LinkError> {
         self.tx.write(buffer).await
     }
-    async fn write_all(&mut self, buffer: &[u8]) -> crate::ZResult<(), crate::ZLinkError> {
+    async fn write_all(&mut self, buffer: &[u8]) -> core::result::Result<(), crate::LinkError> {
         self.tx.write_all(buffer).await
     }
 }
@@ -127,10 +130,13 @@ impl<Rx> ZLinkRx for LinkWsRx<Rx>
 where
     Rx: ZWsRx,
 {
-    async fn read(&mut self, buffer: &mut [u8]) -> crate::ZResult<usize, crate::ZLinkError> {
+    async fn read(&mut self, buffer: &mut [u8]) -> core::result::Result<usize, crate::LinkError> {
         self.rx.read(buffer).await
     }
-    async fn read_exact(&mut self, buffer: &mut [u8]) -> crate::ZResult<(), crate::ZLinkError> {
+    async fn read_exact(
+        &mut self,
+        buffer: &mut [u8],
+    ) -> core::result::Result<(), crate::LinkError> {
         self.rx.read_exact(buffer).await
     }
 }

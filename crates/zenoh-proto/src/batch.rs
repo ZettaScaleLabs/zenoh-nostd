@@ -41,7 +41,7 @@ pub enum Message<'a> {
 
 pub struct BatchReader<'a, T> {
     reader: T,
-    _lt: ::core::marker::PhantomData<&'a ()>,
+    _lt: core::marker::PhantomData<&'a ()>,
     frame: Option<FrameHeader>,
 }
 
@@ -52,7 +52,7 @@ where
     pub fn new(reader: T) -> Self {
         Self {
             reader,
-            _lt: ::core::marker::PhantomData,
+            _lt: core::marker::PhantomData,
             frame: None,
         }
     }
@@ -78,7 +78,14 @@ where
             ($ty:ty) => {
                 match <$ty as $crate::ZBodyDecode>::z_body_decode(&mut self.reader, header) {
                     Ok(msg) => msg,
-                    Err(_) => {
+                    Err(e) => {
+                        crate::error!(
+                            "Failed to decode message of type {}: {}. Skipping the rest of the message - {}",
+                            core::any::type_name::<$ty>(),
+                            e,
+                            crate::zctx!()
+                        );
+
                         return None;
                     }
                 }
@@ -146,7 +153,11 @@ where
             },
 
             _ => {
-                crate::error!("Unexpected message type: header={:#04x}", header);
+                crate::error!(
+                    "Unrecognized message header: {:08b}. Skipping the rest of the message - {}",
+                    header,
+                    crate::zctx!()
+                );
                 return None;
             }
         };
@@ -157,7 +168,7 @@ where
 
 pub struct BatchWriter<'a, T> {
     writer: T,
-    _lt: ::core::marker::PhantomData<&'a ()>,
+    _lt: core::marker::PhantomData<&'a ()>,
     frame: Option<FrameHeader>,
     sn: u32,
 
@@ -172,7 +183,7 @@ where
         let init = writer.remaining();
         Self {
             writer,
-            _lt: ::core::marker::PhantomData,
+            _lt: core::marker::PhantomData,
             frame: None,
             sn,
             init,
@@ -201,7 +212,7 @@ impl<'a, W> BatchWriter<'a, W>
 where
     W: crate::ZWrite,
 {
-    pub fn unframe(&mut self, x: &impl ZUnframed) -> crate::ZResult<(), crate::ZCodecError> {
+    pub fn unframe(&mut self, x: &impl ZUnframed) -> core::result::Result<(), crate::CodecError> {
         <_ as ZEncode>::z_encode(x, &mut self.writer)?;
         self.frame = None;
         Ok(())
@@ -226,7 +237,7 @@ where
         x: &impl ZFramed,
         r: Reliability,
         qos: QoS,
-    ) -> crate::ZResult<(), crate::ZCodecError> {
+    ) -> core::result::Result<(), crate::CodecError> {
         if self.frame.as_ref().map(|f| f.reliability) != Some(r) {
             <_ as ZEncode>::z_encode(
                 &FrameHeader {

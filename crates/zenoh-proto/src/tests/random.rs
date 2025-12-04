@@ -1,7 +1,7 @@
-use crate::{exts::*, fields::*, msgs::*, *};
+use crate::{exts::*, fields::*, msgs::*};
 
 use {
-    ::core::time::Duration,
+    core::time::Duration,
     rand::{
         Rng,
         distributions::{Alphanumeric, DistString},
@@ -9,111 +9,6 @@ use {
         thread_rng,
     },
 };
-
-mod ke;
-mod msgs;
-
-macro_rules! roundtrip {
-    ($ty:ty) => {{
-        let mut rand = [0u8; MAX_PAYLOAD_SIZE];
-        let mut data = [0u8; MAX_PAYLOAD_SIZE];
-
-        for _ in 0..NUM_ITER {
-            let value = <$ty>::rand(&mut &mut rand[..]);
-
-            let len = $crate::ZLen::z_len(&value);
-            $crate::ZEncode::z_encode(&value, &mut &mut data[..]).unwrap();
-
-            let ret = <$ty as $crate::ZDecode>::z_decode(&mut &data[..len]).unwrap();
-
-            assert_eq!(ret, value);
-        }
-
-        #[cfg(feature = "alloc")]
-        {
-            // Because random data generation uses the `ZStore` unsafe trait, we need
-            // to avoid reallocation during the test to keep pointers valid.
-            let mut rand = alloc::vec::Vec::with_capacity(MAX_PAYLOAD_SIZE);
-            let mut data = alloc::vec::Vec::new();
-
-            for _ in 0..NUM_ITER {
-                rand.clear();
-                data.clear();
-
-                let value = <$ty>::rand(&mut rand);
-
-                $crate::ZEncode::z_encode(&value, &mut data).unwrap();
-
-                let ret = <$ty as $crate::ZDecode>::z_decode(&mut &data[..]).unwrap();
-
-                assert_eq!(ret, value);
-            }
-        }
-    }};
-
-    (ext, $ty:ty) => {{
-        let mut rand = [0u8; MAX_PAYLOAD_SIZE];
-        let mut data = [0u8; MAX_PAYLOAD_SIZE];
-
-        for _ in 0..NUM_ITER {
-            let value = <$ty>::rand(&mut &mut rand[..]);
-
-            $crate::zext_encode::<_, 0x1, true>(&value, &mut &mut data[..], false).unwrap();
-
-            let ret = $crate::zext_decode::<$ty>(&mut &data[..]).unwrap();
-
-            assert_eq!(ret, value);
-        }
-
-        #[cfg(feature = "alloc")]
-        {
-            // Because random data generation uses the `ZStore` unsafe trait, we need
-            // to avoid reallocation during the test to keep pointers valid.
-            let mut rand = alloc::vec::Vec::with_capacity(MAX_PAYLOAD_SIZE);
-            let mut data = alloc::vec::Vec::new();
-
-            for _ in 0..NUM_ITER {
-                rand.clear();
-                data.clear();
-
-                let value = <$ty>::rand(&mut rand);
-
-                $crate::zext_encode::<_, 0x1, true>(&value, &mut data, false).unwrap();
-
-                let ret = $crate::zext_decode::<$ty>(&mut &data[..]).unwrap();
-
-                assert_eq!(ret, value);
-            }
-        }
-    }};
-}
-pub(crate) use roundtrip;
-
-macro_rules! roundtrips {
-    (ext, $namespace:ident, $($ty:ty),* $(,)?) => {
-        $(
-            paste::paste! {
-                #[test]
-                fn [<$namespace _proto_ext_ $ty:lower>]() {
-                    $crate::tests::protocol::roundtrip!(ext, $ty);
-                }
-            }
-        )*
-    };
-
-    ($namespace:ident, $($ty:ty),* $(,)?) => {
-        $(
-            paste::paste! {
-                #[test]
-                fn [<$namespace _proto_ $ty:lower>]() {
-                    $crate::tests::protocol::roundtrip!($ty);
-                }
-            }
-        )*
-    };
-}
-
-pub(crate) use roundtrips;
 
 impl ZenohIdProto {
     #[cfg(test)]
@@ -579,7 +474,7 @@ impl<'a> RequestBody<'a> {
 impl<'a> Request<'a> {
     #[cfg(test)]
     pub(crate) fn rand(w: &mut impl crate::ZStore<'a>) -> Self {
-        use ::core::time::Duration;
+        use core::time::Duration;
 
         let id = thread_rng().r#gen();
         let wire_expr = WireExpr::rand(w);

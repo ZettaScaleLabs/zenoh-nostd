@@ -63,7 +63,7 @@ pub fn derive_zenum(input: &DeriveInput) -> syn::Result<TokenStream> {
         }
 
         impl #impl_generics crate::ZBodyEncode for #ident #ty_generics #where_clause {
-            fn z_body_encode(&self, w: &mut impl crate::ZWrite) -> crate::ZResult<(), crate::ZCodecError> {
+            fn z_body_encode(&self, w: &mut impl crate::ZWrite) -> core::result::Result<(), crate::CodecError> {
                 match self {
                     #(#body_encode)*
                 }
@@ -71,7 +71,7 @@ pub fn derive_zenum(input: &DeriveInput) -> syn::Result<TokenStream> {
         }
 
         impl #impl_generics crate::ZEncode for #ident #ty_generics #where_clause {
-            fn z_encode(&self, w: &mut impl crate::ZWrite) -> crate::ZResult<(), crate::ZCodecError> {
+            fn z_encode(&self, w: &mut impl crate::ZWrite) -> core::result::Result<(), crate::CodecError> {
                 match self {
                     #(#encode)*
                 }
@@ -81,17 +81,17 @@ pub fn derive_zenum(input: &DeriveInput) -> syn::Result<TokenStream> {
         impl<'a> crate::ZBodyDecode<'a> for #ident #ty_generics #where_clause {
             type Ctx = u8;
 
-            fn z_body_decode(r: &mut impl crate::ZRead<'a>, header: u8) -> crate::ZResult<Self, crate::ZCodecError> {
+            fn z_body_decode(r: &mut impl crate::ZRead<'a>, header: u8) -> core::result::Result<Self, crate::CodecError> {
                 let id = header & 0b0001_1111;
                 match id {
                     #(#body_decode)*
-                    _ => Err(crate::ZCodecError::CouldNotParseHeader),
+                    _ => Err(crate::CodecError::CouldNotParseHeader),
                 }
             }
         }
 
         impl<'a> crate::ZDecode<'a> for #ident #ty_generics #where_clause {
-            fn z_decode(r: &mut impl crate::ZRead<'a>) -> crate::ZResult<Self, crate::ZCodecError> {
+            fn z_decode(r: &mut impl crate::ZRead<'a>) -> core::result::Result<Self, crate::CodecError> {
                 #decode
             }
         }

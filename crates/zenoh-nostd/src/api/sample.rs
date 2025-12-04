@@ -1,4 +1,4 @@
-use ::core::str::FromStr;
+use core::str::FromStr;
 
 use heapless::{String, Vec};
 use zenoh_proto::keyexpr;
@@ -25,13 +25,13 @@ impl<'a> Sample<'a> {
 impl<const MAX_KEYEXPR: usize, const MAX_PAYLOAD: usize> TryFrom<Sample<'_>>
     for OwnedSample<MAX_KEYEXPR, MAX_PAYLOAD>
 {
-    type Error = crate::ZError;
+    type Error = crate::Error;
 
     fn try_from(value: Sample<'_>) -> Result<Self, Self::Error> {
         Ok(OwnedSample::new(
             String::from_str(value.keyexpr.as_str())
-                .map_err(|_| crate::ZError::CapacityExceeded)?,
-            Vec::from_slice(value.payload).map_err(|_| crate::ZError::CapacityExceeded)?,
+                .map_err(|_| crate::CollectionError::CollectionIsFull)?,
+            Vec::from_slice(value.payload).map_err(|_| crate::CollectionError::CollectionIsFull)?,
         ))
     }
 }

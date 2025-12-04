@@ -1,10 +1,19 @@
-use crate::keyexpr;
+use crate::{KeyexprError, keyexpr};
 
 fn intersect(left: &str, right: &str) -> bool {
     let left = keyexpr::new(left).unwrap();
     let right = keyexpr::new(right).unwrap();
 
     left.intersects(right)
+}
+
+fn err(ke: &str, err: KeyexprError) -> bool {
+    let ke = keyexpr::new(ke);
+    matches!(ke, Err(e) if e == err)
+}
+
+fn ok(ke: &str) -> bool {
+    keyexpr::new(ke).is_ok()
 }
 
 #[test]
@@ -73,4 +82,40 @@ fn keyexpr_intersect() {
     assert!(intersect("@a/**/@c/**/@b", "@a/@c/**/@b"));
     assert!(intersect("@a/**/@c/@b", "@a/@c/**/@b"));
     assert!(!intersect("@a/**/@b", "@a/**/@c/**/@b"));
+}
+
+#[test]
+fn keyexpr_validation() {
+    assert!(err("", KeyexprError::EmptyChunk));
+    assert!(err("/demo/example/test", KeyexprError::EmptyChunk));
+    assert!(err("demo/example/test/", KeyexprError::EmptyChunk));
+    assert!(err("demo/$*/test", KeyexprError::LoneDollarStar));
+    assert!(err("demo/$*", KeyexprError::LoneDollarStar));
+    assert!(err(
+        "demo/**/*/test",
+        KeyexprError::SingleStarAfterDoubleStar
+    ));
+    assert!(err(
+        "demo/**/**/test",
+        KeyexprError::DoubleStarAfterDoubleStar
+    ));
+    assert!(err("demo//test", KeyexprError::EmptyChunk));
+    assert!(err("demo/exam*ple/test", KeyexprError::StarInChunk));
+    assert!(err("demo/example$*$/test", KeyexprError::DollarAfterDollar));
+    assert!(err(
+        "demo/example$*$*/test",
+        KeyexprError::DollarAfterDollar
+    ));
+    assert!(err("demo/example#/test", KeyexprError::SharpOrQMark));
+    assert!(err("demo/example?/test", KeyexprError::SharpOrQMark));
+    assert!(err("demo/$/test", KeyexprError::UnboundDollar));
+
+    assert!(ok("demo/example/test"));
+    assert!(ok("demo/*"));
+    assert!(ok("demo/**"));
+    assert!(ok("demo/*/*/test"));
+    assert!(ok("demo/*/**/test"));
+    assert!(ok("demo/example$*/test"));
+    assert!(ok("demo/example$*-$*/test"));
+    assert!(ok("demo/example$*"));
 }

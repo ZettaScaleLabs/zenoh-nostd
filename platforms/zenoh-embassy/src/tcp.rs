@@ -44,7 +44,7 @@ impl AbstractedTcpStream for EmbassyTcpStream {
         self.socket
             .write(buffer)
             .await
-            .map_err(|_| zenoh_nostd::ZLinkError::CouldNotWrite)
+            .map_err(|_| zenoh_nostd::ZLinkError::LinkTxFailed)
     }
 
     async fn write_all(
@@ -54,7 +54,7 @@ impl AbstractedTcpStream for EmbassyTcpStream {
         self.socket
             .write_all(buffer)
             .await
-            .map_err(|_| zenoh_nostd::ZLinkError::CouldNotWrite)
+            .map_err(|_| zenoh_nostd::ZLinkError::LinkTxFailed)
     }
 
     async fn read(
@@ -64,7 +64,7 @@ impl AbstractedTcpStream for EmbassyTcpStream {
         self.socket
             .read(buffer)
             .await
-            .map_err(|_| zenoh_nostd::ZLinkError::CouldNotRead)
+            .map_err(|_| zenoh_nostd::ZLinkError::LinkRxFailed)
     }
 
     async fn read_exact(
@@ -74,7 +74,7 @@ impl AbstractedTcpStream for EmbassyTcpStream {
         self.socket
             .read_exact(buffer)
             .await
-            .map_err(|_| zenoh_nostd::ZLinkError::CouldNotRead)
+            .map_err(|_| zenoh_nostd::ZLinkError::LinkRxFailed)
     }
 }
 
@@ -86,7 +86,7 @@ impl AbstractedTcpTx for EmbassyTcpTx<'_> {
         self.socket
             .write(buffer)
             .await
-            .map_err(|_| zenoh_nostd::ZLinkError::CouldNotWrite)
+            .map_err(|_| zenoh_nostd::ZLinkError::LinkTxFailed)
     }
 
     async fn write_all(
@@ -96,7 +96,7 @@ impl AbstractedTcpTx for EmbassyTcpTx<'_> {
         self.socket
             .write_all(buffer)
             .await
-            .map_err(|_| zenoh_nostd::ZLinkError::CouldNotWrite)
+            .map_err(|_| zenoh_nostd::ZLinkError::LinkTxFailed)
     }
 }
 
@@ -108,7 +108,7 @@ impl AbstractedTcpRx for EmbassyTcpRx<'_> {
         self.socket
             .read(buffer)
             .await
-            .map_err(|_| zenoh_nostd::ZLinkError::CouldNotRead)
+            .map_err(|_| zenoh_nostd::ZLinkError::LinkRxFailed)
     }
 
     async fn read_exact(
@@ -118,6 +118,6 @@ impl AbstractedTcpRx for EmbassyTcpRx<'_> {
         self.socket
             .read_exact(buffer)
             .await
-            .map_err(|_| zenoh_nostd::ZLinkError::CouldNotRead)
+            .map_err(|_| zenoh_nostd::ZLinkError::LinkRxFailed)
     }
 }

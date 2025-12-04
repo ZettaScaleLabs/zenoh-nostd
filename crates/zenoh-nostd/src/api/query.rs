@@ -1,4 +1,4 @@
-use ::core::str::FromStr;
+use core::str::FromStr;
 
 use heapless::{String, Vec};
 use zenoh_proto::{fields::*, msgs::*, *};
@@ -53,10 +53,10 @@ impl<'a, T: Platform + 'static, TX: AsMut<[u8]> + 'static> ZQuery<'a, T, TX> {
             self.rid,
             self.driver,
             String::from_str(self.keyexpr.as_str())
-                .map_err(|_| zenoh_proto::ZError::CapacityExceeded)?,
+                .map_err(|_| zenoh_proto::Error::CapacityExceeded)?,
             match self.parameters {
                 Some(params) => Some(
-                    String::from_str(params).map_err(|_| zenoh_proto::ZError::CapacityExceeded)?,
+                    String::from_str(params).map_err(|_| zenoh_proto::Error::CapacityExceeded)?,
                 ),
                 None => None,
             },
@@ -64,7 +64,7 @@ impl<'a, T: Platform + 'static, TX: AsMut<[u8]> + 'static> ZQuery<'a, T, TX> {
                 Some(payload) => {
                     let mut vec: Vec<u8, MAX_PAYLOAD> = Vec::new();
                     vec.extend_from_slice(payload)
-                        .map_err(|_| zenoh_proto::ZError::CapacityExceeded)?;
+                        .map_err(|_| zenoh_proto::Error::CapacityExceeded)?;
                     Some(vec)
                 }
                 None => None,

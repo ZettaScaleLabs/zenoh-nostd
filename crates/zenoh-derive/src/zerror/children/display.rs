@@ -21,8 +21,8 @@ pub fn impl_display(error_enum: &ErrorEnum, input: &DeclaredErrors) -> TokenStre
     );
 
     quote::quote! {
-        impl ::core::fmt::Display for #name {
-            fn fmt(&self, f: &mut ::core::fmt::Formatter<'_>) -> ::core::fmt::Result {
+        impl core::fmt::Display for #name {
+            fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
                 match self {
                     #(#variants)*
                     _ => Ok(())

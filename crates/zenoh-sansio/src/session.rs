@@ -1,4 +1,4 @@
-use ::core::{fmt::Debug, time::Duration};
+use core::{fmt::Debug, time::Duration};
 
 use zenoh_proto::{
     crate::ZCodecError,
@@ -122,7 +122,7 @@ impl Session {
         &mut self,
         tx: &mut [u8],
         events: impl Iterator<Item = Event<'a>>,
-        mut out: impl FnMut(&[u8]) -> ::core::result::Result<(), E>,
+        mut out: impl FnMut(&[u8]) -> core::result::Result<(), E>,
     ) -> crate::ZResult<()> {
         let mut batch = Batch::new(
             &mut tx[..],

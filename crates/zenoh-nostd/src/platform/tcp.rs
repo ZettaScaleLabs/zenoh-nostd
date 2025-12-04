@@ -1,5 +1,3 @@
-use crate::ZResult;
-
 pub trait ZTcpStream: ZTcpTx + ZTcpRx {
     type Tx<'a>: ZTcpTx
     where
@@ -18,24 +16,24 @@ pub trait ZTcpTx {
     fn write(
         &mut self,
         buffer: &[u8],
-    ) -> impl ::core::future::Future<Output = ZResult<usize, crate::ZLinkError>>;
+    ) -> impl core::future::Future<Output = core::result::Result<usize, crate::LinkError>>;
 
     fn write_all(
         &mut self,
         buffer: &[u8],
-    ) -> impl ::core::future::Future<Output = ZResult<(), crate::ZLinkError>>;
+    ) -> impl core::future::Future<Output = core::result::Result<(), crate::LinkError>>;
 }
 
 pub trait ZTcpRx {
     fn read(
         &mut self,
         buffer: &mut [u8],
-    ) -> impl ::core::future::Future<Output = ZResult<usize, crate::ZLinkError>>;
+    ) -> impl core::future::Future<Output = core::result::Result<usize, crate::LinkError>>;
 
     fn read_exact(
         &mut self,
         buffer: &mut [u8],
-    ) -> impl ::core::future::Future<Output = ZResult<(), crate::ZLinkError>>;
+    ) -> impl core::future::Future<Output = core::result::Result<(), crate::LinkError>>;
 }
 
 pub struct DummyTcpStream;
@@ -56,41 +54,47 @@ impl ZTcpStream for DummyTcpStream {
 }
 
 impl ZTcpTx for DummyTcpStream {
-    async fn write(&mut self, _buffer: &[u8]) -> crate::ZResult<usize, crate::ZLinkError> {
-        Err(crate::ZLinkError::CouldNotWrite)
+    async fn write(&mut self, _buffer: &[u8]) -> core::result::Result<usize, crate::LinkError> {
+        Err(crate::LinkError::LinkTxFailed)
     }
 
-    async fn write_all(&mut self, _buffer: &[u8]) -> crate::ZResult<(), crate::ZLinkError> {
-        Err(crate::ZLinkError::CouldNotWrite)
+    async fn write_all(&mut self, _buffer: &[u8]) -> core::result::Result<(), crate::LinkError> {
+        Err(crate::LinkError::LinkTxFailed)
     }
 }
 
 impl ZTcpTx for DummyTcpTx {
-    async fn write(&mut self, _buffer: &[u8]) -> crate::ZResult<usize, crate::ZLinkError> {
-        Err(crate::ZLinkError::CouldNotWrite)
+    async fn write(&mut self, _buffer: &[u8]) -> core::result::Result<usize, crate::LinkError> {
+        Err(crate::LinkError::LinkTxFailed)
     }
 
-    async fn write_all(&mut self, _buffer: &[u8]) -> crate::ZResult<(), crate::ZLinkError> {
-        Err(crate::ZLinkError::CouldNotWrite)
+    async fn write_all(&mut self, _buffer: &[u8]) -> core::result::Result<(), crate::LinkError> {
+        Err(crate::LinkError::LinkTxFailed)
     }
 }
 
 impl ZTcpRx for DummyTcpStream {
-    async fn read(&mut self, _buffer: &mut [u8]) -> crate::ZResult<usize, crate::ZLinkError> {
-        Err(crate::ZLinkError::CouldNotRead)
+    async fn read(&mut self, _buffer: &mut [u8]) -> core::result::Result<usize, crate::LinkError> {
+        Err(crate::LinkError::LinkRxFailed)
     }
 
-    async fn read_exact(&mut self, _buffer: &mut [u8]) -> crate::ZResult<(), crate::ZLinkError> {
-        Err(crate::ZLinkError::CouldNotRead)
+    async fn read_exact(
+        &mut self,
+        _buffer: &mut [u8],
+    ) -> core::result::Result<(), crate::LinkError> {
+        Err(crate::LinkError::LinkRxFailed)
     }
 }
 
 impl ZTcpRx for DummyTcpRx {
-    async fn read(&mut self, _buffer: &mut [u8]) -> crate::ZResult<usize, crate::ZLinkError> {
-        Err(crate::ZLinkError::CouldNotRead)
+    async fn read(&mut self, _buffer: &mut [u8]) -> core::result::Result<usize, crate::LinkError> {
+        Err(crate::LinkError::LinkRxFailed)
     }
 
-    async fn read_exact(&mut self, _buffer: &mut [u8]) -> crate::ZResult<(), crate::ZLinkError> {
-        Err(crate::ZLinkError::CouldNotRead)
+    async fn read_exact(
+        &mut self,
+        _buffer: &mut [u8],
+    ) -> core::result::Result<(), crate::LinkError> {
+        Err(crate::LinkError::LinkRxFailed)
     }
 }

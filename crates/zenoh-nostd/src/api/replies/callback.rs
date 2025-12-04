@@ -1,6 +1,6 @@
 use embassy_time::Instant;
 use heapless::{FnvIndexMap, IndexMapIter};
-use zenoh_proto::{ZError, ZResult, keyexpr, zbail};
+use zenoh_proto::{Error, ZResult, keyexpr, zbail};
 
 use crate::ZReply;
 
@@ -69,16 +69,16 @@ impl<const N: usize> ZRepliesCallbacks for ZRepliesCallbackStorage<N> {
         callback: ZRepliesCallback,
     ) -> crate::ZResult<()> {
         if self.lookup.contains_key(&id) {
-            zbail!(ZError::CallbackAlreadySet)
+            zbail!(Error::CallbackAlreadySet)
         }
 
         self.lookup
             .insert(id, ke)
-            .map_err(|_| ZError::CapacityExceeded)?;
+            .map_err(|_| Error::CapacityExceeded)?;
 
         self.callbacks
             .insert(id, callback)
-            .map_err(|_| ZError::CapacityExceeded)
+            .map_err(|_| Error::CapacityExceeded)
             .map(|_| ())
     }
 

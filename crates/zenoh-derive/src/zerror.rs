@@ -28,7 +28,7 @@ pub fn declare_zerror(input: &DeclaredErrors) -> syn::Result<TokenStream> {
             let code = variant.code;
 
             quote::quote! {
-                ZError::#name => write!(f, "[{}({})]: {}", stringify!(#ename), #code, #err),
+                Error::#name => write!(f, "[{}({})]: {}", stringify!(#ename), #code, #err),
             }
         })
     });
@@ -39,12 +39,12 @@ pub fn declare_zerror(input: &DeclaredErrors) -> syn::Result<TokenStream> {
         #[doc = "Base error enum for Zenoh. It contains all possible error codes."]
         #[repr(u8)]
         #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-        pub enum ZError {
+        pub enum Error {
             #(#variants_declare)*
         }
 
-        impl ::core::fmt::Display for ZError {
-            fn fmt(&self, f: &mut ::core::fmt::Formatter<'_>) -> ::core::fmt::Result {
+        impl core::fmt::Display for Error {
+            fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
                 match self {
                     #(#variants_display)*
                     _ => Ok(())
@@ -52,10 +52,10 @@ pub fn declare_zerror(input: &DeclaredErrors) -> syn::Result<TokenStream> {
             }
         }
 
-        impl ::core::error::Error for ZError {}
+        impl core::error::Error for Error {}
 
         #[cfg(feature = "defmt")]
-        impl defmt::Format for ZError {
+        impl defmt::Format for Error {
             fn format(&self, f: defmt::Formatter) {
                 defmt::write!(f, "{}", defmt::Display2Format(self));
             }

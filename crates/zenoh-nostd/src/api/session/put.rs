@@ -1,10 +1,4 @@
-use zenoh_proto::{
-    Encoding, WireExpr,
-    exts::Attachment,
-    fields::Timestamp,
-    keyexpr,
-    msgs::{Push, PushBody, Put},
-};
+use zenoh_proto::{exts::*, fields::*, msgs::*, *};
 
 use crate::{api::driver::Driver, platform::ZPlatform};
 

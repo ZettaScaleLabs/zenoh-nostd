@@ -2,13 +2,112 @@ use rand::{Rng, thread_rng};
 
 use crate::{exts::*, fields::*, msgs::*, *};
 
+macro_rules! roundtrip {
+    ($ty:ty) => {{
+        let mut rand = [0u8; MAX_PAYLOAD_SIZE];
+        let mut data = [0u8; MAX_PAYLOAD_SIZE];
+
+        for _ in 0..NUM_ITER {
+            let value = <$ty>::rand(&mut &mut rand[..]);
+
+            let len = $crate::ZLen::z_len(&value);
+            $crate::ZEncode::z_encode(&value, &mut &mut data[..]).unwrap();
+
+            let ret = <$ty as $crate::ZDecode>::z_decode(&mut &data[..len]).unwrap();
+
+            assert_eq!(ret, value);
+        }
+
+        #[cfg(feature = "alloc")]
+        {
+            // Because random data generation uses the `ZStore` unsafe trait, we need
+            // to avoid reallocation during the test to keep pointers valid.
+            let mut rand = alloc::vec::Vec::with_capacity(MAX_PAYLOAD_SIZE);
+            let mut data = alloc::vec::Vec::new();
+
+            for _ in 0..NUM_ITER {
+                rand.clear();
+                data.clear();
+
+                let value = <$ty>::rand(&mut rand);
+
+                $crate::ZEncode::z_encode(&value, &mut data).unwrap();
+
+                let ret = <$ty as $crate::ZDecode>::z_decode(&mut &data[..]).unwrap();
+
+                assert_eq!(ret, value);
+            }
+        }
+    }};
+
+    (ext, $ty:ty) => {{
+        let mut rand = [0u8; MAX_PAYLOAD_SIZE];
+        let mut data = [0u8; MAX_PAYLOAD_SIZE];
+
+        for _ in 0..NUM_ITER {
+            let value = <$ty>::rand(&mut &mut rand[..]);
+
+            $crate::zext_encode::<_, 0x1, true>(&value, &mut &mut data[..], false).unwrap();
+
+            let ret = $crate::zext_decode::<$ty>(&mut &data[..]).unwrap();
+
+            assert_eq!(ret, value);
+        }
+
+        #[cfg(feature = "alloc")]
+        {
+            // Because random data generation uses the `ZStore` unsafe trait, we need
+            // to avoid reallocation during the test to keep pointers valid.
+            let mut rand = alloc::vec::Vec::with_capacity(MAX_PAYLOAD_SIZE);
+            let mut data = alloc::vec::Vec::new();
+
+            for _ in 0..NUM_ITER {
+                rand.clear();
+                data.clear();
+
+                let value = <$ty>::rand(&mut rand);
+
+                $crate::zext_encode::<_, 0x1, true>(&value, &mut data, false).unwrap();
+
+                let ret = $crate::zext_decode::<$ty>(&mut &data[..]).unwrap();
+
+                assert_eq!(ret, value);
+            }
+        }
+    }};
+}
+
+macro_rules! roundtrips {
+    (ext, $namespace:ident, $($ty:ty),* $(,)?) => {
+        $(
+            paste::paste! {
+                #[test]
+                fn [<$namespace _proto_ext_ $ty:lower>]() {
+                    roundtrip!(ext, $ty);
+                }
+            }
+        )*
+    };
+
+    ($namespace:ident, $($ty:ty),* $(,)?) => {
+        $(
+            paste::paste! {
+                #[test]
+                fn [<$namespace _proto_ $ty:lower>]() {
+                    roundtrip!($ty);
+                }
+            }
+        )*
+    };
+}
+
 const NUM_ITER: usize = 100;
 const MAX_PAYLOAD_SIZE: usize = 512;
 
-super::roundtrips!(ext, zenoh, EntityGlobalId, SourceInfo, Value, Attachment);
-super::roundtrips!(zenoh, Err, Put, Query, Reply,);
+roundtrips!(ext, zenoh, EntityGlobalId, SourceInfo, Value, Attachment);
+roundtrips!(zenoh, Err, Put, Query, Reply,);
 
-super::roundtrips!(
+roundtrips!(
     ext,
     network,
     QoS,
@@ -18,7 +117,7 @@ super::roundtrips!(
     QueryableInfo
 );
 
-super::roundtrips!(
+roundtrips!(
     network,
     DeclareKeyExpr,
     UndeclareKeyExpr,
@@ -38,8 +137,8 @@ super::roundtrips!(
     ResponseFinal,
 );
 
-super::roundtrips!(ext, transport, Auth, Patch);
-super::roundtrips!(
+roundtrips!(ext, transport, Auth, Patch);
+roundtrips!(
     transport,
     Close,
     FrameHeader,

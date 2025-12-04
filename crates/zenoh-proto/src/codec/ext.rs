@@ -17,14 +17,14 @@ impl From<ZExtKind> for u8 {
 }
 
 impl TryFrom<u8> for ZExtKind {
-    type Error = crate::ZCodecError;
+    type Error = crate::CodecError;
 
-    fn try_from(value: u8) -> crate::ZResult<Self, crate::ZCodecError> {
+    fn try_from(value: u8) -> core::result::Result<Self, crate::CodecError> {
         match value & KIND_MASK {
             0b0000_0000 => Ok(ZExtKind::Unit),
             0b0010_0000 => Ok(ZExtKind::U64),
             0b0100_0000 => Ok(ZExtKind::ZStruct),
-            _ => Err(crate::ZCodecError::CouldNotParseHeader),
+            _ => Err(crate::CodecError::CouldNotParseHeader),
         }
     }
 }
@@ -77,7 +77,7 @@ pub fn zext_encode<'a, T: ZExt<'a>, const ID: u8, const MANDATORY: bool>(
     x: &T,
     w: &mut impl crate::ZWrite,
     more: bool,
-) -> crate::ZResult<(), crate::ZCodecError> {
+) -> core::result::Result<(), crate::CodecError> {
     let header: u8 = zext_header::<ID, MANDATORY, T>(more);
 
     <u8 as ZEncode>::z_encode(&header, w)?;
@@ -91,7 +91,7 @@ pub fn zext_encode<'a, T: ZExt<'a>, const ID: u8, const MANDATORY: bool>(
 
 pub fn zext_decode<'a, T: ZExt<'a>>(
     r: &mut impl crate::ZRead<'a>,
-) -> crate::ZResult<T, crate::ZCodecError> {
+) -> core::result::Result<T, crate::CodecError> {
     let _ = <u8 as ZDecode>::z_decode(r)?;
 
     if T::KIND == ZExtKind::ZStruct {
@@ -105,7 +105,7 @@ pub fn zext_decode<'a, T: ZExt<'a>>(
 pub fn skip_ext<'a>(
     r: &mut impl crate::ZRead<'a>,
     kind: ZExtKind,
-) -> crate::ZResult<(), crate::ZCodecError> {
+) -> core::result::Result<(), crate::CodecError> {
     let _ = <u8 as ZDecode>::z_decode(r)?;
 
     match kind {
@@ -124,7 +124,7 @@ pub fn skip_ext<'a>(
 
 pub fn decode_ext_header<'a>(
     r: &mut impl crate::ZRead<'a>,
-) -> crate::ZResult<(u8, ZExtKind, bool, bool), crate::ZCodecError> {
+) -> core::result::Result<(u8, ZExtKind, bool, bool), crate::CodecError> {
     let header = r.peek()?;
 
     let id = header & ID_MASK;

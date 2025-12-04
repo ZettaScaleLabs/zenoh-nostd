@@ -3,7 +3,7 @@ use zenoh_proto::{
     msgs::{Push, PushBody},
 };
 
-use ::core::ops::DerefMut;
+use core::ops::DerefMut;
 
 use crate::{
     api::{Sample, SessionResources},

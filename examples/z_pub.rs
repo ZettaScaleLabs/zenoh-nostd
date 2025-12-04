@@ -43,7 +43,7 @@ async fn entry(spawner: embassy_executor::Spawner) -> zenoh_nostd::ZResult<()> {
         zenoh_nostd::info!(
             "[Publisher] Sent PUT ('{}': '{}')",
             publisher.keyexpr().as_str(),
-            ::core::str::from_utf8(payload).unwrap()
+            core::str::from_utf8(payload).unwrap()
         );
 
         embassy_time::Timer::after(embassy_time::Duration::from_secs(1)).await;

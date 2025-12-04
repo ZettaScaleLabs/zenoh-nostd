@@ -71,7 +71,7 @@ impl<
         let id = self.next_id().await;
         self.callbacks
             .insert(id, Callback::new_sync_subscriber(v))
-            .map_err(|_| crate::ZError::CapacityExceeded)?;
+            .map_err(|_| crate::CollectionError::CollectionIsFull)?;
         Ok(id)
     }
 
@@ -79,7 +79,7 @@ impl<
         let id = self.next_id().await;
         self.callbacks
             .insert(id, Callback::new_async_subscriber())
-            .map_err(|_| crate::ZError::CapacityExceeded)?;
+            .map_err(|_| crate::CollectionError::CollectionIsFull)?;
         Ok(id)
     }
 
@@ -92,7 +92,7 @@ impl<
         let mut self_subscribers = self.subscribers.lock().await;
         self_subscribers
             .insert((id, ke), cb)
-            .map_err(|_| crate::ZError::CapacityExceeded)?;
+            .map_err(|_| crate::CollectionError::CollectionIsFull)?;
         Ok(id)
     }
 

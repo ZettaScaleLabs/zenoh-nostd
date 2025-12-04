@@ -40,10 +40,10 @@ pub fn declare_children(input: &DeclaredErrors) -> TokenStream {
 
         let variants = map_variants(error_enum, input, |_, error_variant: &ErrorVariant| {
             let name = &error_variant.name;
-            let doc = format!("See [`ZError::{}`]", name);
+            let doc = format!("See [`Error::{}`]", name);
             quote::quote! {
                 #[doc = #doc]
-                #name = ZError:: #name as u8,
+                #name = Error:: #name as u8,
             }
         });
 
@@ -62,7 +62,7 @@ pub fn declare_children(input: &DeclaredErrors) -> TokenStream {
 
             #display
 
-            impl ::core::error::Error for #name {}
+            impl core::error::Error for #name {}
 
 
             #[cfg(feature = "defmt")]

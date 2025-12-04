@@ -1,5 +1,3 @@
-use ::core::time::Duration;
-
 use crate::{
     io::{
         link::{Link, ZLinkInfo},
@@ -10,7 +8,8 @@ use crate::{
     },
     platform::ZPlatform,
 };
-use zenoh_proto::{error::ZTransportError, exts::Patch, fields::*, msgs::*, zbail, *};
+use embassy_time::Duration;
+use zenoh_proto::{exts::Patch, fields::*, msgs::*, zbail, *};
 
 pub(crate) struct StateTransport {
     pub(crate) batch_size: u16,
@@ -29,7 +28,7 @@ impl SendInitSynIn {
         tx: &mut impl AsMut<[u8]>,
         transport: &mut impl ZTransportTx,
         state: &StateTransport,
-    ) -> crate::ZResult<(), crate::ZTransportError> {
+    ) -> core::result::Result<(), crate::TransportError> {
         let msg = InitSyn {
             version: self.mine_version,
             identifier: InitIdentifier {
@@ -61,14 +60,14 @@ impl<'a> RecvInitAckOut<'a> {
         rx: &'a mut impl AsMut<[u8]>,
         transport: &mut impl ZTransportRx,
         state: &mut StateTransport,
-    ) -> crate::ZResult<Self, crate::ZTransportError> {
+    ) -> core::result::Result<Self, crate::TransportError> {
         let reader = transport.recv(rx.as_mut()).await?;
         let mut batch = BatchReader::new(reader);
         let init_ack = loop {
             match batch.next() {
                 Some(Message::InitAck(i)) => break i,
                 Some(_) => continue,
-                None => zbail!(crate::ZTransportError::InvalidRx),
+                None => zbail!(crate::TransportError::InvalidRx),
             }
         };
 
@@ -79,7 +78,7 @@ impl<'a> RecvInitAckOut<'a> {
             let m_fsn_res = state.resolution.get(Field::FrameSN);
 
             if i_fsn_res > m_fsn_res {
-                zbail!(crate::ZTransportError::InvalidRx);
+                zbail!(crate::TransportError::InvalidRx);
             }
 
             res.set(Field::FrameSN, i_fsn_res);
@@ -88,7 +87,7 @@ impl<'a> RecvInitAckOut<'a> {
             let m_rid_res = state.resolution.get(Field::RequestID);
 
             if i_rid_res > m_rid_res {
-                zbail!(crate::ZTransportError::InvalidRx);
+                zbail!(crate::TransportError::InvalidRx);
             }
 
             res.set(Field::RequestID, i_rid_res);
@@ -121,18 +120,21 @@ impl<'a> SendOpenSynIn<'a> {
         tx: &mut impl AsMut<[u8]>,
         transport: &mut impl ZTransportTx,
         state: &StateTransport,
-    ) -> crate::ZResult<SendOpenSynOut, crate::ZTransportError> {
+    ) -> core::result::Result<SendOpenSynOut, crate::TransportError> {
         let mine_initial_sn = compute_sn(&self.mine_zid, &self.other_zid, state.resolution);
 
         let msg = OpenSyn {
-            lease: self.mine_lease,
+            lease: self.mine_lease.into(),
             sn: mine_initial_sn,
             cookie: self.other_cookie,
             ..Default::default()
         };
 
         transport
-            .send(tx.as_mut(), &mut 0, |batch| batch.unframe(&msg))
+            .send(tx.as_mut(), &mut 0, |batch| {
+                batch.unframe(&msg)?;
+                Ok(())
+            })
             .await?;
 
         let output = SendOpenSynOut {
@@ -157,19 +159,22 @@ impl RecvOpenAckOut {
     pub(crate) async fn recv(
         rx: &mut impl AsMut<[u8]>,
         transport: &mut impl ZTransportRx,
-    ) -> crate::ZResult<Self, crate::ZTransportError> {
+    ) -> core::result::Result<Self, crate::TransportError> {
         let reader = transport.recv(rx.as_mut()).await?;
         let mut batch = BatchReader::new(reader);
         let open_ack = loop {
             match batch.next() {
                 Some(Message::OpenAck(i)) => break i,
                 Some(_) => continue,
-                None => zbail!(crate::ZTransportError::InvalidRx),
+                None => zbail!(crate::TransportError::InvalidRx),
             }
         };
         let output = RecvOpenAckOut {
             other_sn: open_ack.sn,
-            other_lease: open_ack.lease,
+            other_lease: open_ack
+                .lease
+                .try_into()
+                .expect("Duration conversion failed"),
         };
 
         Ok(output)
@@ -181,7 +186,7 @@ pub(crate) async fn open_link<Platform: ZPlatform>(
     config: TransportMineConfig,
     tx: &mut impl AsMut<[u8]>,
     rx: &mut impl AsMut<[u8]>,
-) -> crate::ZResult<(Transport<Platform>, TransportConfig), crate::ZTransportError> {
+) -> core::result::Result<(Transport<Platform>, TransportConfig), crate::TransportError> {
     let batch_size = link.mtu().min(rx.as_mut().len() as u16);
 
     let mut transport = Transport { link };
@@ -206,14 +211,7 @@ pub(crate) async fn open_link<Platform: ZPlatform>(
     let osyn_in = SendOpenSynIn {
         mine_zid: config.mine_zid.clone(),
         other_zid: iack_out.other_zid,
-        mine_lease: config.mine_lease.try_into().map_err(|e| {
-            crate::error!(
-                "could not parse mine_lease duration {:?}: {:?}",
-                config.mine_lease,
-                e
-            );
-            ZTransportError::CouldNotParseField
-        })?,
+        mine_lease: config.mine_lease,
         other_cookie: iack_out.other_cookie,
     };
 
@@ -228,14 +226,10 @@ pub(crate) async fn open_link<Platform: ZPlatform>(
                 other_zid,
                 other_whatami,
                 other_sn: osyn_out.mine_sn,
-                other_lease: oack_out.other_lease.try_into().map_err(|e| {
-                    crate::error!(
-                        "could not parse other_lease duration {:?}: {:?}",
-                        oack_out.other_lease,
-                        e
-                    );
-                    ZTransportError::CouldNotParseField
-                })?,
+                other_lease: oack_out
+                    .other_lease
+                    .try_into()
+                    .expect("Duration conversion failed"),
             },
             negociated_config: TransportNegociatedConfig {
                 mine_sn: osyn_out.mine_sn,

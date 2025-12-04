@@ -14,17 +14,14 @@ where
         match select(read_lease, self.rx.recv(self.rx_buf.as_mut())).await {
             Either::First(_) => {
                 crate::warn!("Connection closed by peer");
-                return Err(crate::ZError::ConnectionClosed);
+                crate::zbail!(crate::TransportError::LeaseTimeout);
             }
             Either::Second(msg) => match msg {
                 Ok(msg) => {
                     self.last_read = embassy_time::Instant::now();
                     Ok(msg)
                 }
-                Err(e) => {
-                    crate::warn!("Could not read from connection: {:?}", e);
-                    Err(crate::ZError::CouldNotRead)
-                }
+                Err(e) => crate::zbail!(e),
             },
         }
     }

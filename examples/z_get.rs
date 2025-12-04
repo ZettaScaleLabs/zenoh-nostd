@@ -22,14 +22,14 @@ fn callback(reply: &ZReply) {
             zenoh_nostd::info!(
                 "[Query] Received OK Reply ('{}': '{:?}')",
                 reply.keyexpr().as_str(),
-                ::core::str::from_utf8(reply.payload()).unwrap()
+                core::str::from_utf8(reply.payload()).unwrap()
             );
         }
         ZReply::Err(reply) => {
             zenoh_nostd::error!(
                 "[Query] Received ERR Reply ('{}': '{:?}')",
                 reply.keyexpr().as_str(),
-                ::core::str::from_utf8(reply.payload()).unwrap()
+                core::str::from_utf8(reply.payload()).unwrap()
             );
         }
     }

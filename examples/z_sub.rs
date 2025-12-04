@@ -35,7 +35,7 @@ fn callback_1(sample: &Sample) {
     zenoh_nostd::info!(
         "[Subscriber] Received Sample ('{}': '{:?}')",
         sample.keyexpr().as_str(),
-        ::core::str::from_utf8(sample.payload()).unwrap()
+        core::str::from_utf8(sample.payload()).unwrap()
     );
 }
 
@@ -45,7 +45,7 @@ async fn callback_2(mut subscriber: Subscriber<'static>) {
         zenoh_nostd::info!(
             "[Async Subscriber] Received Sample ('{}': '{:?}')",
             sample.keyexpr().as_str(),
-            ::core::str::from_utf8(sample.payload()).unwrap()
+            core::str::from_utf8(sample.payload()).unwrap()
         );
     }
 }
@@ -82,7 +82,7 @@ async fn entry(spawner: embassy_executor::Spawner) -> zenoh_nostd::ZResult<()> {
                 zenoh_nostd::info!(
                     "[Async Subscriber] Received Sample ('{}': '{:?}')",
                     sample.keyexpr().as_str(),
-                    ::core::str::from_utf8(sample.payload()).unwrap()
+                    core::str::from_utf8(sample.payload()).unwrap()
                 );
             }
         }

@@ -1,5 +1,5 @@
 use crate::{
-    api::driver::Driver,
+    api::{EndPoint, driver::Driver},
     io::{
         link::Link,
         transport::{Transport, TransportMineConfig},
@@ -11,7 +11,6 @@ use embassy_time::Duration;
 pub(crate) mod driver;
 mod resources;
 pub use resources::*;
-use zenoh_proto::EndPoint;
 
 mod put;
 mod run;

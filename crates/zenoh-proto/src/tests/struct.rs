@@ -1,4 +1,4 @@
-use ::core::fmt::Debug;
+use core::fmt::Debug;
 
 use crate::{ZStruct, tests::r#struct::nested::Inner};
 

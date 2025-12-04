@@ -1,5 +1,5 @@
 use {
-    ::core::net::SocketAddr,
+    core::net::SocketAddr,
     futures_util::{
         SinkExt as _, StreamExt as _,
         stream::{SplitSink, SplitStream},
@@ -106,7 +106,7 @@ impl AbstractedWsTx for WasmWsTx<'_> {
         self.sink
             .send(item)
             .await
-            .map_err(|_| zenoh_nostd::ZLinkError::CouldNotWrite)
+            .map_err(|_| zenoh_nostd::ZLinkError::LinkTxFailed)
             .map(|_| buffer.len())
     }
 
@@ -124,7 +124,7 @@ impl AbstractedWsRx for WasmWsRx<'_> {
         buffer: &mut [u8],
     ) -> zenoh_nostd::ZResult<usize, zenoh_nostd::ZLinkError> {
         let Some(Ok(frame)) = self.stream.next().await else {
-            return Err(zenoh_nostd::ZLinkError::CouldNotRead);
+            return Err(zenoh_nostd::ZLinkError::LinkRxFailed);
         };
         match frame.opcode {
             OpCode::Binary => {
@@ -132,7 +132,7 @@ impl AbstractedWsRx for WasmWsRx<'_> {
                 buffer[..len].copy_from_slice(&frame.payload[..len]);
                 Ok(len)
             }
-            _ => zbail!(zenoh_nostd::ZLinkError::CouldNotRead),
+            _ => zbail!(zenoh_nostd::ZLinkError::LinkRxFailed),
         }
     }
 
@@ -141,14 +141,14 @@ impl AbstractedWsRx for WasmWsRx<'_> {
         buffer: &mut [u8],
     ) -> zenoh_nostd::ZResult<(), zenoh_nostd::ZLinkError> {
         let Some(Ok(frame)) = self.stream.next().await else {
-            return Err(zenoh_nostd::ZLinkError::CouldNotRead);
+            return Err(zenoh_nostd::ZLinkError::LinkRxFailed);
         };
         match (frame.opcode, frame.payload.len()) {
             (OpCode::Binary, len) if len == buffer.len() => {
                 buffer.copy_from_slice(&frame.payload);
                 Ok(())
             }
-            _ => zbail!(zenoh_nostd::ZLinkError::CouldNotRead),
+            _ => zbail!(zenoh_nostd::ZLinkError::LinkRxFailed),
         }
     }
 }

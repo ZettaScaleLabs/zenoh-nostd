@@ -1,16 +1,24 @@
 pub trait ZWrite {
     fn remaining(&self) -> usize;
 
-    fn write(&mut self, src: &'_ [u8]) -> crate::ZResult<usize, crate::ZBytesError>;
+    fn write(&mut self, src: &'_ [u8]) -> core::result::Result<usize, crate::BytesError>;
 
-    fn write_u8(&mut self, value: u8) -> crate::ZResult<(), crate::ZBytesError>;
+    fn write_u8(&mut self, value: u8) -> core::result::Result<(), crate::BytesError>;
 
-    fn write_exact(&mut self, src: &'_ [u8]) -> crate::ZResult<(), crate::ZBytesError> {
+    fn write_exact(&mut self, src: &'_ [u8]) -> core::result::Result<(), crate::BytesError> {
         let len = src.len();
         let written = self.write(src)?;
         if written < len {
-            return Err(crate::ZBytesError::DstIsTooSmall);
+            crate::error!(
+                "dst (len: {}) is too small to write exact {} bytes - {}",
+                self.remaining(),
+                len,
+                crate::zctx!()
+            );
+
+            crate::zbail!(crate::BytesError::DstIsTooSmall);
         }
+
         Ok(())
     }
 
@@ -18,7 +26,7 @@ pub trait ZWrite {
         &mut self,
         len: usize,
         writer: impl FnOnce(&mut [u8]) -> usize,
-    ) -> crate::ZResult<usize, crate::ZBytesError>;
+    ) -> core::result::Result<usize, crate::BytesError>;
 }
 
 #[cfg(test)]
@@ -32,13 +40,13 @@ pub trait ZStore<'a>: ZWrite {
         &mut self,
         len: usize,
         data: impl FnOnce(&mut [u8]) -> usize,
-    ) -> crate::ZResult<&'a [u8], crate::ZBytesError> {
+    ) -> core::result::Result<&'a [u8], crate::BytesError> {
         let mark = self.mark();
         let written = self.write_slot(len, data)?;
         Ok(unsafe { &self.slice(&mark)[..written] })
     }
 
-    unsafe fn store_str(&mut self, s: &str) -> crate::ZResult<&'a str, crate::ZBytesError> {
+    unsafe fn store_str(&mut self, s: &str) -> core::result::Result<&'a str, crate::BytesError> {
         let bytes = s.as_bytes();
         let slot = unsafe {
             self.store(bytes.len(), |buf| {
@@ -54,16 +62,16 @@ pub trait ZStore<'a>: ZWrite {
 
 pub trait ZRead<'a> {
     fn remaining(&self) -> usize;
-    fn peek(&self) -> crate::ZResult<u8, crate::ZBytesError>;
-    fn read_slice(&mut self, len: usize) -> crate::ZResult<&'a [u8], crate::ZBytesError>;
+    fn peek(&self) -> core::result::Result<u8, crate::BytesError>;
+    fn read_slice(&mut self, len: usize) -> core::result::Result<&'a [u8], crate::BytesError>;
 
     fn can_read(&self) -> bool {
         self.remaining().gt(&0)
     }
 
-    fn read_u8(&mut self) -> crate::ZResult<u8, crate::ZBytesError>;
+    fn read_u8(&mut self) -> core::result::Result<u8, crate::BytesError>;
 
-    fn read(&mut self, dst: &'_ mut [u8]) -> crate::ZResult<usize, crate::ZBytesError> {
+    fn read(&mut self, dst: &'_ mut [u8]) -> core::result::Result<usize, crate::BytesError> {
         let len = dst.len().min(self.remaining());
         let bytes = self.read_slice(len)?;
 
@@ -74,21 +82,22 @@ pub trait ZRead<'a> {
         Ok(len)
     }
 
-    fn read_exact(&mut self, dst: &'_ mut [u8]) -> crate::ZResult<(), crate::ZBytesError> {
+    fn read_exact(&mut self, dst: &'_ mut [u8]) -> core::result::Result<(), crate::BytesError> {
         let len = dst.len();
         if self.remaining() < len {
             crate::trace!(
-                "read_exact ({}:{}:{}): src (len: {}) is too small to fill dst (len: {})",
-                file!(),
-                line!(),
-                column!(),
+                "src (len: {}) is too small to read exact {} bytes - {}",
                 self.remaining(),
-                len
+                len,
+                crate::zctx!()
             );
-            return Err(crate::ZBytesError::SrcIsTooSmall);
+
+            crate::zbail!(crate::BytesError::SrcIsTooSmall);
         }
+
         let bytes = self.read_slice(len)?;
         dst.copy_from_slice(bytes);
+
         Ok(())
     }
 }
@@ -98,31 +107,27 @@ impl ZWrite for &mut [u8] {
         self.len()
     }
 
-    fn write_u8(&mut self, value: u8) -> crate::ZResult<(), crate::ZBytesError> {
+    fn write_u8(&mut self, value: u8) -> core::result::Result<(), crate::BytesError> {
         if self.remaining() == 0 {
-            crate::trace!(
-                "write_u8 ({}:{}:{}): dst (len: 0) is full, cannot write value {}",
-                file!(),
-                line!(),
-                column!(),
-                value
-            );
-            return Err(crate::ZBytesError::DstIsFull);
+            crate::trace!("dst (len: 0) is full, cannot write u8 - {}", crate::zctx!());
+            crate::zbail!(crate::BytesError::DstIsFull);
         }
 
         unsafe {
             *self.get_unchecked_mut(0) = value;
-            *self = ::core::mem::take(self).get_unchecked_mut(1..);
+            *self = core::mem::take(self).get_unchecked_mut(1..);
         }
 
         Ok(())
     }
 
-    fn write(&mut self, src: &'_ [u8]) -> crate::ZResult<usize, crate::ZBytesError> {
+    fn write(&mut self, src: &'_ [u8]) -> core::result::Result<usize, crate::BytesError> {
         let len = src.len().min(self.len());
-        let (head, tail) = unsafe { ::core::mem::take(self).split_at_mut_unchecked(len) };
+        let (head, tail) = unsafe { core::mem::take(self).split_at_mut_unchecked(len) };
+
         head.copy_from_slice(&src[..len]);
         *self = tail;
+
         Ok(len)
     }
 
@@ -130,32 +135,32 @@ impl ZWrite for &mut [u8] {
         &mut self,
         len: usize,
         writer: impl FnOnce(&mut [u8]) -> usize,
-    ) -> crate::ZResult<usize, crate::ZBytesError> {
+    ) -> core::result::Result<usize, crate::BytesError> {
         if self.len() < len {
             crate::trace!(
-                "write_slot ({}:{}:{}): dst (len: {}) is too small to write slot of len {}",
-                file!(),
-                line!(),
-                column!(),
+                "dst (len: {}) is too small to write slot of len {} - {}",
                 self.len(),
-                len
+                len,
+                crate::zctx!()
             );
-            return Err(crate::ZBytesError::DstIsTooSmall);
+            crate::zbail!(crate::BytesError::DstIsTooSmall);
         }
+
         let written = writer(&mut self[..len]);
+
         if written > len {
             crate::trace!(
-                "write_slot ({}:{}:{}): writer wrote {} bytes, which is more than the allocated slot size of {}",
-                file!(),
-                line!(),
-                column!(),
+                "writer wrote {} bytes which exceeds the allocated slot size of {} - {}",
                 written,
-                len
+                len,
+                crate::zctx!()
             );
-            return Err(crate::ZBytesError::DstIsTooSmall);
+            crate::zbail!(crate::BytesError::DstIsTooSmall);
         }
-        let (_, tail) = unsafe { ::core::mem::take(self).split_at_mut_unchecked(written) };
+
+        let (_, tail) = unsafe { core::mem::take(self).split_at_mut_unchecked(written) };
         *self = tail;
+
         Ok(written)
     }
 }
@@ -166,13 +171,15 @@ impl ZWrite for alloc::vec::Vec<u8> {
         usize::MAX - self.len()
     }
 
-    fn write_u8(&mut self, value: u8) -> crate::ZResult<(), crate::ZBytesError> {
+    fn write_u8(&mut self, value: u8) -> core::result::Result<(), crate::BytesError> {
         self.push(value);
+
         Ok(())
     }
 
-    fn write(&mut self, src: &'_ [u8]) -> crate::ZResult<usize, crate::ZBytesError> {
+    fn write(&mut self, src: &'_ [u8]) -> core::result::Result<usize, crate::BytesError> {
         self.extend_from_slice(src);
+
         Ok(src.len())
     }
 
@@ -180,15 +187,16 @@ impl ZWrite for alloc::vec::Vec<u8> {
         &mut self,
         len: usize,
         writer: impl FnOnce(&mut [u8]) -> usize,
-    ) -> crate::ZResult<usize, crate::ZBytesError> {
+    ) -> core::result::Result<usize, crate::BytesError> {
         self.reserve(len);
+
         let s = {
             let slice = &mut *self.spare_capacity_mut();
             unsafe { slice.get_unchecked_mut(..len) }
         };
 
         let written =
-            unsafe { writer(&mut *(s as *mut [::core::mem::MaybeUninit<u8>] as *mut [u8])) };
+            unsafe { writer(&mut *(s as *mut [core::mem::MaybeUninit<u8>] as *mut [u8])) };
 
         unsafe { self.set_len(self.len() + written) };
 
@@ -200,7 +208,7 @@ impl ZWrite for alloc::vec::Vec<u8> {
 pub struct SliceMark<'a> {
     ptr: *const u8,
     len: usize,
-    _marker: ::core::marker::PhantomData<&'a u8>,
+    _marker: core::marker::PhantomData<&'a u8>,
 }
 
 #[cfg(test)]
@@ -210,12 +218,12 @@ impl<'a> ZStore<'a> for &'a mut [u8] {
         SliceMark {
             ptr: self.as_ptr(),
             len: self.len(),
-            _marker: ::core::marker::PhantomData,
+            _marker: core::marker::PhantomData,
         }
     }
 
     unsafe fn slice(&self, mark: &Self::Mark) -> &'a [u8] {
-        unsafe { ::core::slice::from_raw_parts(mark.ptr as *mut u8, mark.len) }
+        unsafe { core::slice::from_raw_parts(mark.ptr as *mut u8, mark.len) }
     }
 }
 
@@ -232,9 +240,9 @@ impl<'a> ZStore<'a> for alloc::vec::Vec<u8> {
     /// may lead to undefined behavior if the vector is modified or dropped while the slice is still in use.
     ///
     /// In this specific testing context, it is assumed that the vector will live long enough for the slice to be valid,
-    /// and that the vector will always be extended or modified in a way that does not invalidate the slice.
+    /// and that the vector will always be extended or modified in a way that does not invalidate the slice (no reallocation occurs).
     unsafe fn slice(&self, mark: &Self::Mark) -> &'a [u8] {
-        unsafe { ::core::mem::transmute(self.get_unchecked(*mark..)) }
+        unsafe { core::mem::transmute(self.get_unchecked(*mark..)) }
     }
 }
 
@@ -243,29 +251,19 @@ impl<'a> ZRead<'a> for &'a [u8] {
         self.len()
     }
 
-    fn peek(&self) -> crate::ZResult<u8, crate::ZBytesError> {
-        if self.can_read() {
-            Ok(unsafe { *self.get_unchecked(0) })
-        } else {
-            crate::trace!(
-                "peek ({}:{}:{}): src (len: 0) is empty, cannot peek",
-                file!(),
-                line!(),
-                column!()
-            );
-            Err(crate::ZBytesError::SrcIsEmpty)
+    fn peek(&self) -> core::result::Result<u8, crate::BytesError> {
+        if !self.can_read() {
+            crate::trace!("src (len: 0) is empty, cannot peek u8 - {}", crate::zctx!());
+            crate::zbail!(crate::BytesError::SrcIsEmpty)
         }
+
+        Ok(unsafe { *self.get_unchecked(0) })
     }
 
-    fn read_u8(&mut self) -> crate::ZResult<u8, crate::ZBytesError> {
+    fn read_u8(&mut self) -> core::result::Result<u8, crate::BytesError> {
         if !self.can_read() {
-            crate::trace!(
-                "read_u8 ({}:{}:{}): src (len: 0) is empty, cannot read u8",
-                file!(),
-                line!(),
-                column!()
-            );
-            return Err(crate::ZBytesError::SrcIsEmpty);
+            crate::trace!("src (len: 0) is empty, cannot read u8 - {}", crate::zctx!());
+            crate::zbail!(crate::BytesError::SrcIsEmpty);
         }
 
         let value = unsafe { *self.get_unchecked(0) };
@@ -274,20 +272,20 @@ impl<'a> ZRead<'a> for &'a [u8] {
         Ok(value)
     }
 
-    fn read_slice(&mut self, len: usize) -> crate::ZResult<&'a [u8], crate::ZBytesError> {
+    fn read_slice(&mut self, len: usize) -> core::result::Result<&'a [u8], crate::BytesError> {
         if self.remaining() < len {
             crate::trace!(
-                "read_slice ({}:{}:{}): src (len: {}) is too small to read slice of len {}",
-                file!(),
-                line!(),
-                column!(),
+                "src (len: {}) is too small to read {} bytes - {}",
                 self.remaining(),
-                len
+                len,
+                crate::zctx!()
             );
-            return Err(crate::ZBytesError::SrcIsTooSmall);
+            crate::zbail!(crate::BytesError::SrcIsTooSmall);
         }
+
         let (head, tail) = unsafe { self.split_at_unchecked(len) };
         *self = tail;
+
         Ok(head)
     }
 }

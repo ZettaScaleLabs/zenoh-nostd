@@ -3,7 +3,7 @@ use sha3::{
     digest::{ExtendableOutput, Update, XofReader},
 };
 
-use zenoh_proto::{fields::*, *};
+use zenoh_proto::fields::*;
 
 pub(crate) mod open;
 

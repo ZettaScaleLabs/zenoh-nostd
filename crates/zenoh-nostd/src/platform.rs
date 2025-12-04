@@ -1,6 +1,4 @@
-use ::core::net::SocketAddr;
-
-use crate::ZResult;
+use core::net::SocketAddr;
 
 pub mod tcp;
 pub mod ws;
@@ -12,16 +10,16 @@ pub trait ZPlatform {
     fn new_tcp_stream(
         &self,
         addr: &SocketAddr,
-    ) -> impl Future<Output = ZResult<Self::ZTcpStream, crate::ZConnectionError>> {
+    ) -> impl Future<Output = core::result::Result<Self::ZTcpStream, crate::ConnectionError>> {
         let _ = addr;
-        async { Err(crate::ZConnectionError::CouldNotConnect) }
+        async { Err(crate::ConnectionError::CouldNotConnect) }
     }
 
     fn new_websocket_stream(
         &self,
         addr: &SocketAddr,
-    ) -> impl Future<Output = ZResult<Self::ZWebSocket, crate::ZConnectionError>> {
+    ) -> impl Future<Output = core::result::Result<Self::ZWebSocket, crate::ConnectionError>> {
         let _ = addr;
-        async { Err(crate::ZConnectionError::CouldNotConnect) }
+        async { Err(crate::ConnectionError::CouldNotConnect) }
     }
 }

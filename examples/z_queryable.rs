@@ -54,7 +54,7 @@ async fn entry(spawner: embassy_executor::Spawner) -> zenoh_nostd::ZResult<()> {
                 zenoh_nostd::info!(
                     "[Queryable] Received Query ('{}': '{:?}')",
                     query.keyexpr().as_str(),
-                    ::core::str::from_utf8(payload).unwrap()
+                    core::str::from_utf8(payload).unwrap()
                 );
             }
         }

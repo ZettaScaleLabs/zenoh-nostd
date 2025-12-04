@@ -1,4 +1,4 @@
-use ::core::{iter::Take, time::Duration};
+use core::{iter::Take, time::Duration};
 
 use zenoh_proto::{
     ZResult,

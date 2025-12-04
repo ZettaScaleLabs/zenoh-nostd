@@ -7,8 +7,8 @@ pub const VERSION: u8 = 9;
 
 pub mod logging;
 
-pub mod error;
-pub(crate) use error::*;
+pub mod zerror;
+pub(crate) use zerror::*;
 
 mod bytes;
 pub use bytes::*;
@@ -16,8 +16,8 @@ pub use bytes::*;
 mod codec;
 pub(crate) use codec::*;
 
-mod core;
-pub use core::*;
+mod ke;
+pub use ke::*;
 
 pub mod msgs;
 pub use msgs::{exts, fields};

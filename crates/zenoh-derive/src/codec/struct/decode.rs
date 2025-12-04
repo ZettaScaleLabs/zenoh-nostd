@@ -34,7 +34,7 @@ pub fn parse(r#struct: &ZenohStruct) -> syn::Result<(TokenStream, TokenStream)> 
                     body.push(quote::quote! {
                         let #access = {
                             let v = header & #slot;
-                            <_ as TryFrom<u8>>::try_from(v >> #slot.trailing_zeros()).map_err(|_| crate::ZCodecError::CouldNotParseHeader)?
+                            <_ as TryFrom<u8>>::try_from(v >> #slot.trailing_zeros()).map_err(|_| crate::CodecError::CouldNotParseHeader)?
                         };
                     });
 
@@ -166,7 +166,7 @@ pub fn parse(r#struct: &ZenohStruct) -> syn::Result<(TokenStream, TokenStream)> 
                             #(#body_ext,)*
                             _ => {
                                 if mandatory {
-                                    return Err(crate::ZCodecError::MissingMandatoryExtension);
+                                    return Err(crate::CodecError::CouldNotReadExtension);
                                 }
 
                                 crate::skip_ext(r, ext_kind)?;

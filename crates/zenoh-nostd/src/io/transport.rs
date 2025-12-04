@@ -59,7 +59,7 @@ where
         config: TransportMineConfig,
         tx: &mut impl AsMut<[u8]>,
         rx: &mut impl AsMut<[u8]>,
-    ) -> crate::ZResult<(Self, TransportConfig), crate::ZTransportError> {
+    ) -> core::result::Result<(Self, TransportConfig), crate::TransportError> {
         match select(
             Timer::after(config.open_timeout.try_into().unwrap()),
             async { establishment::open::open_link(link, config, tx, rx).await },
@@ -67,7 +67,7 @@ where
         .await
         {
             embassy_futures::select::Either::First(_) => {
-                zbail!(crate::ZTransportError::Timeout);
+                zbail!(crate::TransportError::OpenTimeout);
             }
             embassy_futures::select::Either::Second(res) => res,
         }
@@ -101,8 +101,10 @@ pub trait ZTransportTx {
         &mut self,
         tx: &mut [u8],
         sn: &mut u32,
-        mut writer: impl FnMut(&mut BatchWriter<&mut [u8]>) -> crate::ZResult<(), crate::ZCodecError>,
-    ) -> impl ::core::future::Future<Output = crate::ZResult<(), crate::ZTransportError>> {
+        mut writer: impl FnMut(
+            &mut BatchWriter<&mut [u8]>,
+        ) -> core::result::Result<(), crate::CodecError>,
+    ) -> impl core::future::Future<Output = core::result::Result<(), crate::TransportError>> {
         let (mut batch, space) = if self.tx().is_streamed() {
             let space = u16::MIN.to_le_bytes();
             tx[..space.len()].copy_from_slice(&space);
@@ -138,7 +140,7 @@ pub trait ZTransportRx {
     fn recv<'a>(
         &mut self,
         rx: &'a mut [u8],
-    ) -> impl ::core::future::Future<Output = crate::ZResult<&'a [u8], crate::ZTransportError>>
+    ) -> impl core::future::Future<Output = core::result::Result<&'a [u8], crate::TransportError>>
     {
         async move {
             let n = if self.rx().is_streamed() {

@@ -43,7 +43,7 @@ impl<'a> EventAccumulator<'a> for &mut [Event<'a>] {
         } else {
             unsafe {
                 *self.get_unchecked_mut(0) = event;
-                *self = ::core::mem::take(self).get_unchecked_mut(1..);
+                *self = core::mem::take(self).get_unchecked_mut(1..);
             }
             Ok(())
         }

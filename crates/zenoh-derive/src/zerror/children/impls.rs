@@ -13,13 +13,13 @@ pub fn impls_from(error_enum: &ErrorEnum, input: &DeclaredErrors) -> TokenStream
                 let vname = &variant.name;
 
                 quote::quote! {
-                    #name:: #vname => ZError:: #vname,
+                    #name:: #vname => Error:: #vname,
                 }
             },
         );
 
         quote::quote! {
-            impl From<#name> for ZError {
+            impl From<#name> for Error {
                 fn from(value: #name) -> Self {
                     match value {
                         #(#variants)*
@@ -34,14 +34,13 @@ pub fn impls_from(error_enum: &ErrorEnum, input: &DeclaredErrors) -> TokenStream
         let child_error = input.get(child_ident).unwrap();
         let child_name = &child_error.name;
 
-        let variants =
-            super::map_variants(child_error, input, |_, variant: &ErrorVariant| {
-                let vname = &variant.name;
+        let variants = super::map_variants(child_error, input, |_, variant: &ErrorVariant| {
+            let vname = &variant.name;
 
-                quote::quote! {
-                    #child_name:: #vname => #name:: #vname,
-                }
-            });
+            quote::quote! {
+                #child_name:: #vname => #name:: #vname,
+            }
+        });
 
         quote::quote! {
             impl From<#child_name> for #name {

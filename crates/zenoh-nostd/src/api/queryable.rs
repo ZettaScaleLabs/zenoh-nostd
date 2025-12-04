@@ -1,11 +1,11 @@
-use ::core::task::{Context, Poll};
+use core::task::{Context, Poll};
 
 use embassy_sync::{
     blocking_mutex::raw::CriticalSectionRawMutex,
     channel::{Channel, DynamicReceiver},
 };
 use heapless::{FnvIndexMap, IndexMapIter};
-use zenoh_proto::{ZError, ZResult, keyexpr, zbail};
+use zenoh_proto::{Error, ZResult, keyexpr, zbail};
 
 use crate::{ZOwnedQuery, ZQuery, platform::Platform};
 
@@ -45,7 +45,7 @@ impl<
 }
 
 pub trait ZQueryableAsyncCallback<T: Platform + 'static> {
-    fn poll_ready_to_send(&self, cx: &mut ::core::task::Context<'_>) -> ::core::task::Poll<()>;
+    fn poll_ready_to_send(&self, cx: &mut core::task::Context<'_>) -> core::task::Poll<()>;
     fn call(&self, query: ZQuery<T>) -> crate::ZResult<()>;
 }
 
@@ -57,7 +57,7 @@ impl<T: Platform + 'static> ZQueryableCallback<T> {
     }
 
     pub(crate) async fn call(&self, query: ZQuery<'_, T>) -> crate::ZResult<()> {
-        use ::core::future::poll_fn;
+        use core::future::poll_fn;
 
         poll_fn(|cx| self.0.poll_ready_to_send(cx)).await;
         self.0.call(query)?;
@@ -126,16 +126,16 @@ impl<T: Platform + 'static, const N: usize> ZQueryableCallbacks<T>
         callback: ZQueryableCallback<T>,
     ) -> crate::ZResult<()> {
         if self.lookup.contains_key(&id) {
-            zbail!(ZError::CallbackAlreadySet)
+            zbail!(Error::CallbackAlreadySet)
         }
 
         self.lookup
             .insert(id, ke)
-            .map_err(|_| ZError::CapacityExceeded)?;
+            .map_err(|_| Error::CapacityExceeded)?;
 
         self.callbacks
             .insert(id, callback)
-            .map_err(|_| ZError::CapacityExceeded)
+            .map_err(|_| Error::CapacityExceeded)
             .map(|_| ())
     }
 

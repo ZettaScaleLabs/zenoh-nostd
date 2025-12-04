@@ -1,8 +1,5 @@
 use embassy_sync::channel::DynamicReceiver;
-use zenoh_proto::{
-    WireExpr, keyexpr,
-    msgs::{Declare, DeclareBody, DeclareSubscriber},
-};
+use zenoh_proto::{fields::*, msgs::*, *};
 
 use crate::{
     api::{CallbackId, OwnedSample, SessionResources, driver::Driver},

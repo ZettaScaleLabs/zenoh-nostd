@@ -25,8 +25,8 @@ impl Platform for PlatformEmbassy {
         let mut socket: TcpSocket<'static> = TcpSocket::new(self.stack, rx_buf, tx_buf);
 
         let address: IpAddress = match addr.ip() {
-            ::core::net::IpAddr::V4(v4) => IpAddress::Ipv4(v4),
-            ::core::net::IpAddr::V6(_) => zbail!(zenoh_nostd::ZConnectionError::CouldNotConnect),
+            core::net::IpAddr::V4(v4) => IpAddress::Ipv4(v4),
+            core::net::IpAddr::V6(_) => zbail!(zenoh_nostd::ZConnectionError::CouldNotConnect),
         };
 
         let ip_endpoint = IpEndpoint::new(address, addr.port());

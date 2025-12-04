@@ -1,4 +1,4 @@
-use ::core::time::Duration;
+use core::time::Duration;
 
 use crate::{fields::*, *};
 
@@ -92,7 +92,10 @@ impl ZBodyLen for QueryableInfo {
 }
 
 impl ZBodyEncode for QueryableInfo {
-    fn z_body_encode(&self, w: &mut impl crate::ZWrite) -> crate::ZResult<(), crate::ZCodecError> {
+    fn z_body_encode(
+        &self,
+        w: &mut impl crate::ZWrite,
+    ) -> core::result::Result<(), crate::CodecError> {
         <u64 as ZEncode>::z_encode(&self.as_u64(), w)
     }
 }
@@ -103,7 +106,7 @@ impl<'a> ZBodyDecode<'a> for QueryableInfo {
     fn z_body_decode(
         r: &mut impl crate::ZRead<'a>,
         _: (),
-    ) -> crate::ZResult<Self, crate::ZCodecError> {
+    ) -> core::result::Result<Self, crate::CodecError> {
         let value = <u64 as ZDecode>::z_decode(r)?;
         let complete = (value & 0b0000_0001) != 0;
         let distance = ((value >> 8) & 0xFFFF) as u16;
@@ -160,7 +163,10 @@ impl ZLen for Duration {
 }
 
 impl ZBodyEncode for Duration {
-    fn z_body_encode(&self, w: &mut impl crate::ZWrite) -> crate::ZResult<(), crate::ZCodecError> {
+    fn z_body_encode(
+        &self,
+        w: &mut impl crate::ZWrite,
+    ) -> core::result::Result<(), crate::CodecError> {
         let v = match self.as_millis() % 1_000 {
             0 => self.as_millis() / 1_000,
             _ => self.as_millis(),
@@ -171,7 +177,7 @@ impl ZBodyEncode for Duration {
 }
 
 impl ZEncode for Duration {
-    fn z_encode(&self, w: &mut impl crate::ZWrite) -> crate::ZResult<(), crate::ZCodecError> {
+    fn z_encode(&self, w: &mut impl crate::ZWrite) -> core::result::Result<(), crate::CodecError> {
         <u64 as ZEncode>::z_encode(&(self.as_millis() as u64), w)
     }
 }
@@ -182,7 +188,7 @@ impl<'a> ZBodyDecode<'a> for Duration {
     fn z_body_decode(
         r: &mut impl crate::ZRead<'a>,
         h: u8,
-    ) -> crate::ZResult<Self, crate::ZCodecError> {
+    ) -> core::result::Result<Self, crate::CodecError> {
         let is_seconds = (h & 0b0000_0001) != 0;
         let value = <u64 as ZDecode>::z_decode(r)?;
         if is_seconds {
@@ -194,7 +200,7 @@ impl<'a> ZBodyDecode<'a> for Duration {
 }
 
 impl<'a> ZDecode<'a> for Duration {
-    fn z_decode(r: &mut impl crate::ZRead<'a>) -> crate::ZResult<Self, crate::ZCodecError> {
+    fn z_decode(r: &mut impl crate::ZRead<'a>) -> core::result::Result<Self, crate::CodecError> {
         let value = <u64 as ZDecode>::z_decode(r)?;
         Ok(Duration::from_millis(value))
     }
