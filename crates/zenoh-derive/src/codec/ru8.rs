@@ -84,13 +84,13 @@ pub fn derive_zru8(input: &DeriveInput) -> syn::Result<TokenStream> {
         }
 
         impl crate::ZBodyEncode for #ident {
-            fn z_body_encode(&self, w: &mut impl crate::ZWrite) -> core::result::Result<(), crate::CodecError> {
+            fn z_body_encode(&self, w: &mut impl crate::ZWriteable) -> core::result::Result<(), crate::CodecError> {
                 <u64 as ZEncode>::z_encode(&((*self as u8) as u64), w)
             }
         }
 
         impl crate::ZEncode for #ident {
-            fn z_encode(&self, w: &mut impl crate::ZWrite) -> core::result::Result<(), crate::CodecError> {
+            fn z_encode(&self, w: &mut impl crate::ZWriteable) -> core::result::Result<(), crate::CodecError> {
                 <Self as crate::ZBodyEncode>::z_body_encode(self, w)
             }
         }
@@ -98,7 +98,7 @@ pub fn derive_zru8(input: &DeriveInput) -> syn::Result<TokenStream> {
         impl<'a> crate::ZBodyDecode<'a> for #ident {
             type Ctx = ();
 
-            fn z_body_decode(r: &mut impl crate::ZRead<'a>, _: ()) -> core::result::Result<Self, crate::CodecError> {
+            fn z_body_decode(r: &mut impl crate::ZReadable<'a>, _: ()) -> core::result::Result<Self, crate::CodecError> {
                 let value = <u64 as ZDecode>::z_decode(r)?;
                 match value as u8 {
                     #(#variants_map)*
@@ -108,7 +108,7 @@ pub fn derive_zru8(input: &DeriveInput) -> syn::Result<TokenStream> {
         }
 
         impl<'a> crate::ZDecode<'a> for #ident {
-            fn z_decode(r: &mut impl crate::ZRead<'a>) -> core::result::Result<Self, crate::CodecError> {
+            fn z_decode(r: &mut impl crate::ZReadable<'a>) -> core::result::Result<Self, crate::CodecError> {
                 <Self as crate::ZBodyDecode<'a>>::z_body_decode(r, ())
             }
         }
@@ -119,7 +119,7 @@ pub fn derive_zru8(input: &DeriveInput) -> syn::Result<TokenStream> {
 
         impl #ident {
             #[cfg(test)]
-            pub(crate) fn rand<'a>(_: &mut impl crate::ZStore<'a>) -> Self {
+            pub(crate) fn rand<'a>(_: &mut impl crate::ZStoreable<'a>) -> Self {
                 use rand::seq::SliceRandom;
                 let mut rng = rand::thread_rng();
                 let choices = [#(#ids)*];

@@ -41,13 +41,13 @@ pub fn parse(r#struct: &ZenohStruct, ident: &Ident) -> TokenStream {
         }
 
         impl crate::ZBodyEncode for #ident {
-            fn z_body_encode(&self, w: &mut impl crate::ZWrite) -> core::result::Result<(), crate::CodecError> {
+            fn z_body_encode(&self, w: &mut impl crate::ZWriteable) -> core::result::Result<(), crate::CodecError> {
                 < _ as crate::ZEncode>::z_encode(&(self. #access as u64), w)
             }
         }
 
         impl crate::ZEncode for #ident {
-            fn z_encode(&self, w: &mut impl crate::ZWrite) -> core::result::Result<(), crate::CodecError> {
+            fn z_encode(&self, w: &mut impl crate::ZWriteable) -> core::result::Result<(), crate::CodecError> {
                 < _ as crate::ZBodyEncode>::z_body_encode(self, w)
             }
         }
@@ -55,7 +55,7 @@ pub fn parse(r#struct: &ZenohStruct, ident: &Ident) -> TokenStream {
         impl<'a> crate::ZBodyDecode<'a> for #ident  {
             type Ctx = ();
 
-            fn z_body_decode(r: &mut impl crate::ZRead<'a>, _: ()) -> core::result::Result<Self, crate::CodecError> {
+            fn z_body_decode(r: &mut impl crate::ZReadable<'a>, _: ()) -> core::result::Result<Self, crate::CodecError> {
                 let #access = < u64 as crate::ZDecode>::z_decode(r)? as #ty;
 
                 Ok(Self {
@@ -65,7 +65,7 @@ pub fn parse(r#struct: &ZenohStruct, ident: &Ident) -> TokenStream {
         }
 
         impl<'a> crate::ZDecode<'a> for #ident {
-            fn z_decode(r: &mut impl crate::ZRead<'a>) -> core::result::Result<Self, crate::CodecError> {
+            fn z_decode(r: &mut impl crate::ZReadable<'a>) -> core::result::Result<Self, crate::CodecError> {
                 < _ as crate::ZBodyDecode>::z_body_decode(r, ())
             }
         }

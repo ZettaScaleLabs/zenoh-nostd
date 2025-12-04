@@ -94,7 +94,7 @@ impl ZBodyLen for QueryableInfo {
 impl ZBodyEncode for QueryableInfo {
     fn z_body_encode(
         &self,
-        w: &mut impl crate::ZWrite,
+        w: &mut impl crate::ZWriteable,
     ) -> core::result::Result<(), crate::CodecError> {
         <u64 as ZEncode>::z_encode(&self.as_u64(), w)
     }
@@ -104,7 +104,7 @@ impl<'a> ZBodyDecode<'a> for QueryableInfo {
     type Ctx = ();
 
     fn z_body_decode(
-        r: &mut impl crate::ZRead<'a>,
+        r: &mut impl crate::ZReadable<'a>,
         _: (),
     ) -> core::result::Result<Self, crate::CodecError> {
         let value = <u64 as ZDecode>::z_decode(r)?;
@@ -165,7 +165,7 @@ impl ZLen for Duration {
 impl ZBodyEncode for Duration {
     fn z_body_encode(
         &self,
-        w: &mut impl crate::ZWrite,
+        w: &mut impl crate::ZWriteable,
     ) -> core::result::Result<(), crate::CodecError> {
         let v = match self.as_millis() % 1_000 {
             0 => self.as_millis() / 1_000,
@@ -177,7 +177,10 @@ impl ZBodyEncode for Duration {
 }
 
 impl ZEncode for Duration {
-    fn z_encode(&self, w: &mut impl crate::ZWrite) -> core::result::Result<(), crate::CodecError> {
+    fn z_encode(
+        &self,
+        w: &mut impl crate::ZWriteable,
+    ) -> core::result::Result<(), crate::CodecError> {
         <u64 as ZEncode>::z_encode(&(self.as_millis() as u64), w)
     }
 }
@@ -186,7 +189,7 @@ impl<'a> ZBodyDecode<'a> for Duration {
     type Ctx = u8;
 
     fn z_body_decode(
-        r: &mut impl crate::ZRead<'a>,
+        r: &mut impl crate::ZReadable<'a>,
         h: u8,
     ) -> core::result::Result<Self, crate::CodecError> {
         let is_seconds = (h & 0b0000_0001) != 0;
@@ -200,7 +203,9 @@ impl<'a> ZBodyDecode<'a> for Duration {
 }
 
 impl<'a> ZDecode<'a> for Duration {
-    fn z_decode(r: &mut impl crate::ZRead<'a>) -> core::result::Result<Self, crate::CodecError> {
+    fn z_decode(
+        r: &mut impl crate::ZReadable<'a>,
+    ) -> core::result::Result<Self, crate::CodecError> {
         let value = <u64 as ZDecode>::z_decode(r)?;
         Ok(Duration::from_millis(value))
     }

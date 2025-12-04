@@ -20,7 +20,7 @@ macro_rules! roundtrip {
 
         #[cfg(feature = "alloc")]
         {
-            // Because random data generation uses the `ZStore` unsafe trait, we need
+            // Because random data generation uses the `ZStoreable` unsafe trait, we need
             // to avoid reallocation during the test to keep pointers valid.
             let mut rand = alloc::vec::Vec::with_capacity(MAX_PAYLOAD_SIZE);
             let mut data = alloc::vec::Vec::new();
@@ -56,7 +56,7 @@ macro_rules! roundtrip {
 
         #[cfg(feature = "alloc")]
         {
-            // Because random data generation uses the `ZStore` unsafe trait, we need
+            // Because random data generation uses the `ZStoreable` unsafe trait, we need
             // to avoid reallocation during the test to keep pointers valid.
             let mut rand = alloc::vec::Vec::with_capacity(MAX_PAYLOAD_SIZE);
             let mut data = alloc::vec::Vec::new();
@@ -163,7 +163,7 @@ pub enum FrameBody<'a> {
 impl ZFramed for FrameBody<'_> {}
 
 impl<'a> FrameBody<'a> {
-    pub(crate) fn rand(w: &mut impl crate::ZStore<'a>) -> Self {
+    pub(crate) fn rand(w: &mut impl crate::ZStoreable<'a>) -> Self {
         use rand::seq::SliceRandom;
         let mut rng = rand::thread_rng();
         let choices = [
@@ -227,7 +227,7 @@ fn network_stream() {
 
     for msg in &messages {
         batch
-            .frame(msg, Reliability::default(), QoS::default())
+            .framed(msg, Reliability::default(), QoS::default())
             .unwrap();
     }
 
@@ -260,10 +260,10 @@ fn transport_stream() {
     let mut batch = BatchWriter::new(&mut data[..], 0);
 
     for (r, msg) in &messages {
-        batch.frame(msg, *r, QoS::default()).unwrap();
+        batch.framed(msg, *r, QoS::default()).unwrap();
     }
 
-    batch.unframe(&KeepAlive {}).unwrap();
+    batch.unframed(&KeepAlive {}).unwrap();
 
     let (_, len) = batch.finalize();
     let batch = BatchReader::new(&data[..len]);

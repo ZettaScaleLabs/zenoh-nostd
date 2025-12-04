@@ -44,7 +44,7 @@ impl SendInitSynIn {
         };
 
         transport
-            .send(tx.as_mut(), &mut 0, |batch| batch.unframe(&msg))
+            .send(tx.as_mut(), &mut 0, |batch| batch.unframed(&msg))
             .await
     }
 }
@@ -132,7 +132,7 @@ impl<'a> SendOpenSynIn<'a> {
 
         transport
             .send(tx.as_mut(), &mut 0, |batch| {
-                batch.unframe(&msg)?;
+                batch.unframed(&msg)?;
                 Ok(())
             })
             .await?;

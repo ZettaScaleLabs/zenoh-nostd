@@ -1,4 +1,4 @@
-pub trait ZWrite {
+pub trait ZWriteable {
     fn remaining(&self) -> usize;
 
     fn write(&mut self, src: &'_ [u8]) -> core::result::Result<usize, crate::BytesError>;
@@ -30,7 +30,7 @@ pub trait ZWrite {
 }
 
 #[cfg(test)]
-pub trait ZStore<'a>: ZWrite {
+pub trait ZStoreable<'a>: ZWriteable {
     type Mark;
 
     fn mark(&self) -> Self::Mark;
@@ -60,7 +60,7 @@ pub trait ZStore<'a>: ZWrite {
     }
 }
 
-pub trait ZRead<'a> {
+pub trait ZReadable<'a> {
     fn remaining(&self) -> usize;
     fn peek(&self) -> core::result::Result<u8, crate::BytesError>;
     fn read_slice(&mut self, len: usize) -> core::result::Result<&'a [u8], crate::BytesError>;
@@ -102,7 +102,7 @@ pub trait ZRead<'a> {
     }
 }
 
-impl ZWrite for &mut [u8] {
+impl ZWriteable for &mut [u8] {
     fn remaining(&self) -> usize {
         self.len()
     }
@@ -166,7 +166,7 @@ impl ZWrite for &mut [u8] {
 }
 
 #[cfg(feature = "alloc")]
-impl ZWrite for alloc::vec::Vec<u8> {
+impl ZWriteable for alloc::vec::Vec<u8> {
     fn remaining(&self) -> usize {
         usize::MAX - self.len()
     }
@@ -212,7 +212,7 @@ pub struct SliceMark<'a> {
 }
 
 #[cfg(test)]
-impl<'a> ZStore<'a> for &'a mut [u8] {
+impl<'a> ZStoreable<'a> for &'a mut [u8] {
     type Mark = SliceMark<'a>;
     fn mark(&self) -> Self::Mark {
         SliceMark {
@@ -229,7 +229,7 @@ impl<'a> ZStore<'a> for &'a mut [u8] {
 
 #[cfg(test)]
 #[cfg(feature = "alloc")]
-impl<'a> ZStore<'a> for alloc::vec::Vec<u8> {
+impl<'a> ZStoreable<'a> for alloc::vec::Vec<u8> {
     type Mark = usize;
     fn mark(&self) -> Self::Mark {
         self.len()
@@ -246,7 +246,7 @@ impl<'a> ZStore<'a> for alloc::vec::Vec<u8> {
     }
 }
 
-impl<'a> ZRead<'a> for &'a [u8] {
+impl<'a> ZReadable<'a> for &'a [u8] {
     fn remaining(&self) -> usize {
         self.len()
     }

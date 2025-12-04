@@ -149,26 +149,6 @@ crate::declare_zerror! {
         #[err = "could not spawn embassy task"]
         CouldNotSpawnEmbassyTask = 70,
     }
-
-    // #[doc = "Other errors."]
-    // enum ZGeneralError {
-    //     #[doc = "Could not receive from channel."]
-    //     #[err = "could not receive from channel"]
-    //     CouldNotRecvFromChannel = 50,
-
-    //     #[doc = "Capacity exceeded."]
-    //     #[err = "capacity exceeded"]
-    //     CapacityExceeded = 51,
-
-    //     #[doc = "Callback already set for given id."]
-    //     #[err = "callback already set for given id"]
-    //     CallbackAlreadySet = 52,
-
-
-    //     #[doc = "Could not spawn task."]
-    //     #[err = "could not spawn task"]
-    //     CouldNotSpawnTask = 54,
-    // }
 }
 
 #[macro_export]

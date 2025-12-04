@@ -120,7 +120,7 @@ macro_rules! roundtrip {
         $crate::ZEncode::z_encode(&$value, &mut &mut data[..]).unwrap();
 
         let decoded = <$ty as $crate::ZDecode>::z_decode(
-            &mut crate::ZRead::read_slice(&mut &data[..], len).unwrap(),
+            &mut crate::ZReadable::read_slice(&mut &data[..], len).unwrap(),
         )
         .unwrap();
 

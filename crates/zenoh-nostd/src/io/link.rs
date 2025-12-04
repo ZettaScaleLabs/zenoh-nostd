@@ -79,10 +79,6 @@ where
     LinkWs(LinkWs<Platform::ZWebSocket>),
 }
 
-//
-// ─── IMPL ZLinkInfo ─────────────────────────────────────────────────────────────
-//
-
 impl<Platform> ZLinkInfo for Link<Platform>
 where
     Platform: ZPlatform,
@@ -140,10 +136,6 @@ where
     }
 }
 
-//
-// ─── IMPL ZLinkTx ───────────────────────────────────────────────────────────────
-//
-
 impl<Platform> ZLinkTx for Link<Platform>
 where
     Platform: ZPlatform,
@@ -181,10 +173,6 @@ where
         }
     }
 }
-
-//
-// ─── IMPL ZLinkRx ───────────────────────────────────────────────────────────────
-//
 
 impl<Platform> ZLinkRx for Link<Platform>
 where
@@ -229,10 +217,6 @@ where
         }
     }
 }
-
-//
-// ─── IMPL ZLink ────────────────────────────────────────────────────────────────
-//
 
 impl<Platform> ZLink for Link<Platform>
 where

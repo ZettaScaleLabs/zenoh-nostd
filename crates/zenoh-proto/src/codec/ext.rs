@@ -75,7 +75,7 @@ pub fn zext_len<'a, T: ZExt<'a>>(x: &T) -> usize {
 
 pub fn zext_encode<'a, T: ZExt<'a>, const ID: u8, const MANDATORY: bool>(
     x: &T,
-    w: &mut impl crate::ZWrite,
+    w: &mut impl crate::ZWriteable,
     more: bool,
 ) -> core::result::Result<(), crate::CodecError> {
     let header: u8 = zext_header::<ID, MANDATORY, T>(more);
@@ -90,7 +90,7 @@ pub fn zext_encode<'a, T: ZExt<'a>, const ID: u8, const MANDATORY: bool>(
 }
 
 pub fn zext_decode<'a, T: ZExt<'a>>(
-    r: &mut impl crate::ZRead<'a>,
+    r: &mut impl crate::ZReadable<'a>,
 ) -> core::result::Result<T, crate::CodecError> {
     let _ = <u8 as ZDecode>::z_decode(r)?;
 
@@ -103,7 +103,7 @@ pub fn zext_decode<'a, T: ZExt<'a>>(
 }
 
 pub fn skip_ext<'a>(
-    r: &mut impl crate::ZRead<'a>,
+    r: &mut impl crate::ZReadable<'a>,
     kind: ZExtKind,
 ) -> core::result::Result<(), crate::CodecError> {
     let _ = <u8 as ZDecode>::z_decode(r)?;
@@ -123,7 +123,7 @@ pub fn skip_ext<'a>(
 }
 
 pub fn decode_ext_header<'a>(
-    r: &mut impl crate::ZRead<'a>,
+    r: &mut impl crate::ZReadable<'a>,
 ) -> core::result::Result<(u8, ZExtKind, bool, bool), crate::CodecError> {
     let header = r.peek()?;
 

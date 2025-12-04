@@ -54,7 +54,7 @@ impl ZBodyLen for BatchSize {
 impl ZBodyEncode for BatchSize {
     fn z_body_encode(
         &self,
-        w: &mut impl crate::ZWrite,
+        w: &mut impl crate::ZWriteable,
     ) -> core::result::Result<(), crate::CodecError> {
         w.write(&self.0.to_le_bytes())?;
         Ok(())
@@ -65,7 +65,7 @@ impl<'a> ZBodyDecode<'a> for BatchSize {
     type Ctx = ();
 
     fn z_body_decode(
-        r: &mut impl crate::ZRead<'a>,
+        r: &mut impl crate::ZReadable<'a>,
         _: (),
     ) -> core::result::Result<Self, crate::CodecError> {
         let mut bytes = u16::MAX.to_le_bytes();
@@ -123,7 +123,7 @@ impl ZBodyLen for ZenohIdProto {
 impl ZBodyEncode for ZenohIdProto {
     fn z_body_encode(
         &self,
-        w: &mut impl crate::ZWrite,
+        w: &mut impl crate::ZWriteable,
     ) -> core::result::Result<(), crate::CodecError> {
         let bytes = &self.as_le_bytes()[..self.size()];
         <&[u8] as ZEncode>::z_encode(&bytes, w)
@@ -134,7 +134,7 @@ impl<'a> ZBodyDecode<'a> for ZenohIdProto {
     type Ctx = ();
 
     fn z_body_decode(
-        r: &mut impl crate::ZRead<'a>,
+        r: &mut impl crate::ZReadable<'a>,
         _: (),
     ) -> core::result::Result<Self, crate::CodecError> {
         let bytes = <&[u8] as ZDecode>::z_decode(r)?;
@@ -158,7 +158,7 @@ impl ZBodyLen for Timestamp {
 impl ZBodyEncode for Timestamp {
     fn z_body_encode(
         &self,
-        w: &mut impl crate::ZWrite,
+        w: &mut impl crate::ZWriteable,
     ) -> core::result::Result<(), crate::CodecError> {
         <u64 as ZEncode>::z_encode(&self.get_time().as_u64(), w)?;
         let bytes = &self.get_id().to_le_bytes()[..self.get_id().size()];
@@ -171,7 +171,7 @@ impl<'a> ZBodyDecode<'a> for Timestamp {
     type Ctx = ();
 
     fn z_body_decode(
-        r: &mut impl crate::ZRead<'a>,
+        r: &mut impl crate::ZReadable<'a>,
         _: (),
     ) -> core::result::Result<Self, crate::CodecError> {
         let time = NTP64(<u64 as ZDecode>::z_decode(r)?);
@@ -228,7 +228,7 @@ impl ZBodyLen for Encoding<'_> {
 impl ZBodyEncode for Encoding<'_> {
     fn z_body_encode(
         &self,
-        w: &mut impl crate::ZWrite,
+        w: &mut impl crate::ZWriteable,
     ) -> core::result::Result<(), crate::CodecError> {
         let mut id = (self.id as u32) << 1;
 
@@ -251,7 +251,7 @@ impl<'a> ZBodyDecode<'a> for Encoding<'a> {
     type Ctx = ();
 
     fn z_body_decode(
-        r: &mut impl crate::ZRead<'a>,
+        r: &mut impl crate::ZReadable<'a>,
         _: (),
     ) -> core::result::Result<Self, crate::CodecError> {
         let id = <u32 as ZDecode>::z_decode(r)?;
@@ -334,7 +334,7 @@ impl ZBodyLen for Resolution {
 impl ZBodyEncode for Resolution {
     fn z_body_encode(
         &self,
-        w: &mut impl crate::ZWrite,
+        w: &mut impl crate::ZWriteable,
     ) -> core::result::Result<(), crate::CodecError> {
         <u8 as ZBodyEncode>::z_body_encode(&self.0, w)
     }
@@ -344,7 +344,7 @@ impl<'a> ZBodyDecode<'a> for Resolution {
     type Ctx = ();
 
     fn z_body_decode(
-        r: &mut impl crate::ZRead<'a>,
+        r: &mut impl crate::ZReadable<'a>,
         _: (),
     ) -> core::result::Result<Self, crate::CodecError> {
         Ok(Self(<u8 as crate::ZDecode>::z_decode(r)?))

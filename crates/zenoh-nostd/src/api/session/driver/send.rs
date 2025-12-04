@@ -13,7 +13,7 @@ where
     pub async fn frame(&mut self, x: impl ZFramed) -> crate::ZResult<()> {
         self.tx
             .send(self.tx_buf.as_mut(), &mut self.sn, |batch| {
-                batch.frame(&x, Reliability::Reliable, QoS::default())?;
+                batch.framed(&x, Reliability::Reliable, QoS::default())?;
                 Ok(())
             })
             .await?;
@@ -29,7 +29,7 @@ where
     pub async fn unframe(&mut self, x: impl ZUnframed) -> crate::ZResult<()> {
         self.tx
             .send(self.tx_buf.as_mut(), &mut self.sn, |batch| {
-                batch.unframe(&x)?;
+                batch.unframed(&x)?;
                 Ok(())
             })
             .await?;

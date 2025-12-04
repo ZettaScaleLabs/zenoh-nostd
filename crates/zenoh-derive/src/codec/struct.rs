@@ -76,7 +76,7 @@ pub fn derive_zstruct(input: &DeriveInput) -> syn::Result<TokenStream> {
         }
 
         impl #impl_generics crate::ZBodyEncode for #ident #ty_generics #where_clause {
-            fn z_body_encode(&self, w: &mut impl crate::ZWrite) -> core::result::Result<(), crate::CodecError> {
+            fn z_body_encode(&self, w: &mut impl crate::ZWriteable) -> core::result::Result<(), crate::CodecError> {
                 #encode_body
 
                 Ok(())
@@ -84,7 +84,7 @@ pub fn derive_zstruct(input: &DeriveInput) -> syn::Result<TokenStream> {
         }
 
         impl #impl_generics crate::ZEncode for #ident #ty_generics #where_clause {
-            fn z_encode(&self, w: &mut impl crate::ZWrite) -> core::result::Result<(), crate::CodecError> {
+            fn z_encode(&self, w: &mut impl crate::ZWriteable) -> core::result::Result<(), crate::CodecError> {
                 #encode
 
                 Ok(())
@@ -94,13 +94,13 @@ pub fn derive_zstruct(input: &DeriveInput) -> syn::Result<TokenStream> {
         impl<'a> crate::ZBodyDecode<'a> for #ident #ty_generics #where_clause {
             type Ctx = #ctx;
 
-            fn z_body_decode(r: &mut impl crate::ZRead<'a>, #ctx_p) -> core::result::Result<Self, crate::CodecError> {
+            fn z_body_decode(r: &mut impl crate::ZReadable<'a>, #ctx_p) -> core::result::Result<Self, crate::CodecError> {
                 #decode_body
             }
         }
 
         impl<'a> crate::ZDecode<'a> for #ident #ty_generics #where_clause {
-            fn z_decode(r: &mut impl crate::ZRead<'a>) -> core::result::Result<Self, crate::CodecError> {
+            fn z_decode(r: &mut impl crate::ZReadable<'a>) -> core::result::Result<Self, crate::CodecError> {
                 #decode
             }
         }

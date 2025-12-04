@@ -50,12 +50,12 @@ pub fn parse(r#struct: &ZenohStruct) -> syn::Result<(TokenStream, TokenStream)> 
                     let shift = attr.shift.unwrap_or(0);
 
                     (
-                        quote::quote! { < _ as crate::ZBodyDecode>::z_body_decode(&mut crate::ZRead::read_slice(r, #access)?)?, header >> #shift },
+                        quote::quote! { < _ as crate::ZBodyDecode>::z_body_decode(&mut crate::ZReadable::read_slice(r, #access)?)?, header >> #shift },
                         quote::quote! { < _ as crate::ZBodyDecode>::z_body_decode(r, header >> #shift)? },
                     )
                 } else {
                     (
-                        quote::quote! { < _ as crate::ZDecode>::z_decode(&mut crate::ZRead::read_slice(r, #access)?)? },
+                        quote::quote! { < _ as crate::ZDecode>::z_decode(&mut crate::ZReadable::read_slice(r, #access)?)? },
                         quote::quote! { < _ as crate::ZDecode>::z_decode(r)? },
                     )
                 };

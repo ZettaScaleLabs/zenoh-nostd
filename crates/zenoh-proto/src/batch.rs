@@ -47,7 +47,7 @@ pub struct BatchReader<'a, T> {
 
 impl<'a, T> BatchReader<'a, T>
 where
-    T: crate::ZRead<'a>,
+    T: crate::ZReadable<'a>,
 {
     pub fn new(reader: T) -> Self {
         Self {
@@ -60,7 +60,7 @@ where
 
 impl<'a, T> Iterator for BatchReader<'a, T>
 where
-    T: crate::ZRead<'a>,
+    T: crate::ZReadable<'a>,
 {
     type Item = Message<'a>;
 
@@ -177,7 +177,7 @@ pub struct BatchWriter<'a, T> {
 
 impl<'a, T> BatchWriter<'a, T>
 where
-    T: crate::ZWrite,
+    T: crate::ZWriteable,
 {
     pub fn new(writer: T, sn: u32) -> Self {
         let init = writer.remaining();
@@ -210,9 +210,9 @@ impl ZUnframed for Close {}
 
 impl<'a, W> BatchWriter<'a, W>
 where
-    W: crate::ZWrite,
+    W: crate::ZWriteable,
 {
-    pub fn unframe(&mut self, x: &impl ZUnframed) -> core::result::Result<(), crate::CodecError> {
+    pub fn unframed(&mut self, x: &impl ZUnframed) -> core::result::Result<(), crate::CodecError> {
         <_ as ZEncode>::z_encode(x, &mut self.writer)?;
         self.frame = None;
         Ok(())
@@ -230,9 +230,9 @@ impl ZFramed for Declare<'_> {}
 
 impl<'a, W> BatchWriter<'a, W>
 where
-    W: crate::ZWrite,
+    W: crate::ZWriteable,
 {
-    pub fn frame(
+    pub fn framed(
         &mut self,
         x: &impl ZFramed,
         r: Reliability,
