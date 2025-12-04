@@ -2,7 +2,7 @@ use core::time::Duration;
 
 use crate::{exts::*, *};
 
-#[derive(ZStruct, Debug, PartialEq, Default)]
+#[derive(ZStruct, Debug, PartialEq)]
 #[zenoh(header = "Z|T|A:1=0|ID:5=0x02")]
 pub struct OpenSyn<'a> {
     #[zenoh(flatten, shift = 6)]
@@ -24,6 +24,22 @@ pub struct OpenSyn<'a> {
     pub lowlatency: Option<HasLowLatency>,
     #[zenoh(ext = 0x6)]
     pub compression: Option<HasCompression>,
+}
+
+impl Default for OpenSyn<'_> {
+    fn default() -> Self {
+        Self {
+            lease: Duration::from_secs(10),
+            sn: u32::default(),
+            cookie: &[],
+            qos: None,
+            auth: None,
+            mlink_syn: None,
+            mlink_ack: None,
+            lowlatency: None,
+            compression: None,
+        }
+    }
 }
 
 #[derive(ZStruct, Debug, PartialEq, Default)]
