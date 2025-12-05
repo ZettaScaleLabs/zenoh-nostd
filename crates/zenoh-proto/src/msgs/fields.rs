@@ -356,9 +356,9 @@ crate::derive_zstruct_with_body!(Resolution);
 #[repr(u8)]
 #[derive(ZRU8, Debug, Default, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum WhatAmI {
-    #[default]
     Peer = Self::U8_P,
     Router = Self::U8_R,
+    #[default]
     Client = Self::U8_C,
 }
 
