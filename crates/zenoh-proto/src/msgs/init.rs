@@ -15,7 +15,7 @@ pub struct InitResolution {
     pub batch_size: BatchSize,
 }
 
-#[derive(ZStruct, Debug, PartialEq, Default)]
+#[derive(ZStruct, Debug, PartialEq)]
 #[zenoh(header = "Z|S|A:1=0|ID:5=0x01")]
 pub struct InitSyn<'a> {
     pub version: u8,
@@ -38,6 +38,23 @@ pub struct InitSyn<'a> {
     pub compression: Option<HasCompression>,
     #[zenoh(ext = 0x7, default = Patch::none())]
     pub patch: Patch,
+}
+
+impl Default for InitSyn<'_> {
+    fn default() -> Self {
+        Self {
+            version: crate::VERSION,
+            identifier: InitIdentifier::default(),
+            resolution: InitResolution::default(),
+            qos: None,
+            qos_link: None,
+            auth: None,
+            mlink: None,
+            lowlatency: None,
+            compression: None,
+            patch: Patch::default(),
+        }
+    }
 }
 
 #[derive(ZStruct, Debug, PartialEq, Default)]
