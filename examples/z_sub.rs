@@ -3,22 +3,7 @@
 #![cfg_attr(feature = "wasm", no_main)]
 
 use zenoh_examples::*;
-use zenoh_nostd::{api::*, *};
-
-zimport_types!(
-    PLATFORM: Platform,
-    TX: [u8; 512],
-    RX: [u8; 512],
-
-    MAX_KEYEXPR_LEN: 64,
-    MAX_PARAMETERS_LEN: 128,
-    MAX_PAYLOAD_LEN: 512,
-
-    MAX_QUEUED: 8,
-    MAX_CALLBACKS: 8,
-
-    MAX_SUBSCRIBERS: 8,
-);
+use zenoh_nostd::api::*;
 
 const CONNECT: &str = match option_env!("CONNECT") {
     Some(v) => v,
@@ -31,23 +16,14 @@ const CONNECT: &str = match option_env!("CONNECT") {
     }
 };
 
-fn callback_1(sample: &Sample) {
+async fn callback(sample: *const Sample) {
+    let sample = unsafe { &*sample };
+
     zenoh_nostd::info!(
         "[Subscriber] Received Sample ('{}': '{:?}')",
-        sample.keyexpr().as_str(),
-        core::str::from_utf8(sample.payload()).unwrap()
+        unsafe { sample.keyexpr() }.as_str(),
+        core::str::from_utf8(unsafe { sample.payload() }).unwrap()
     );
-}
-
-#[embassy_executor::task]
-async fn callback_2(mut subscriber: Subscriber<'static>) {
-    while let Some(sample) = subscriber.recv().await {
-        zenoh_nostd::info!(
-            "[Async Subscriber] Received Sample ('{}': '{:?}')",
-            sample.keyexpr().as_str(),
-            core::str::from_utf8(sample.payload()).unwrap()
-        );
-    }
 }
 
 async fn entry(spawner: embassy_executor::Spawner) -> zenoh_nostd::ZResult<()> {
@@ -56,13 +32,9 @@ async fn entry(spawner: embassy_executor::Spawner) -> zenoh_nostd::ZResult<()> {
 
     zenoh_nostd::info!("zenoh-nostd z_sub example");
 
-    let platform = init_platform(&spawner).await;
-    let config = Config::new(platform, [0u8; 512], [0u8; 512]);
+    let config = init_example(&spawner).await;
 
     let mut resources = Resources::new();
-    let cb1 = resources.subscriber_sync(callback_1).await?;
-    let cb2 = resources.subscriber_async().await?;
-
     let session =
         zenoh_nostd::api::open(&mut resources, config, EndPoint::try_from(CONNECT)?).await?;
 
@@ -73,18 +45,11 @@ async fn entry(spawner: embassy_executor::Spawner) -> zenoh_nostd::ZResult<()> {
 
     let ke = keyexpr::new("demo/example/**")?;
 
-    let _ = session.declare_subscriber(ke, cb1).finish().await?;
-    let mut subscriber = session.declare_subscriber(ke, cb2).finish().await?;
+    session.declare_subscriber(ke, &callback).await?;
 
     embassy_futures::select::select(session.run(), async {
         loop {
-            while let Some(sample) = subscriber.recv().await {
-                zenoh_nostd::info!(
-                    "[Async Subscriber] Received Sample ('{}': '{:?}')",
-                    sample.keyexpr().as_str(),
-                    core::str::from_utf8(sample.payload()).unwrap()
-                );
-            }
+            embassy_time::Timer::after(embassy_time::Duration::from_secs(5)).await;
         }
     })
     .await;

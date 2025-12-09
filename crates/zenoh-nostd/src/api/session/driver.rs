@@ -10,50 +10,46 @@ use embassy_time::{Instant, Timer};
 use zenoh_proto::msgs::KeepAlive;
 
 use crate::{
-    api::SessionResources,
+    api::{SessionResources, ZDriverConfig, ZSessionConfig},
     io::transport::{TransportMineConfig, TransportOtherConfig, TransportRx, TransportTx},
-    platform::ZPlatform,
 };
 
-pub struct DriverTx<'a, Platform, TxBuf>
+pub struct DriverTx<'a, DriverConfig>
 where
-    Platform: ZPlatform,
+    DriverConfig: ZDriverConfig,
 {
-    pub(crate) tx_buf: TxBuf,
-    pub(crate) tx: TransportTx<'a, Platform>,
+    pub(crate) tx_buf: DriverConfig::TxBuf,
+    pub(crate) tx: TransportTx<'a, DriverConfig::Platform>,
     pub(crate) sn: u32,
 
     pub(crate) next_keepalive: Instant,
     pub(crate) config: TransportMineConfig,
 }
 
-pub struct DriverRx<'a, Platform, RxBuf>
+pub struct DriverRx<'a, DriverConfig>
 where
-    Platform: ZPlatform,
+    DriverConfig: ZDriverConfig,
 {
-    pub(crate) rx_buf: RxBuf,
-    pub(crate) rx: TransportRx<'a, Platform>,
+    pub(crate) rx_buf: DriverConfig::RxBuf,
+    pub(crate) rx: TransportRx<'a, DriverConfig::Platform>,
 
     pub(crate) last_read: Instant,
     pub(crate) config: TransportOtherConfig,
 }
 
-pub struct Driver<'a, Platform, TxBuf, RxBuf>
+pub struct Driver<'a, DriverConfig>
 where
-    Platform: ZPlatform,
+    DriverConfig: ZDriverConfig,
 {
-    pub(crate) tx: Mutex<NoopRawMutex, DriverTx<'a, Platform, TxBuf>>,
-    pub(crate) rx: Mutex<NoopRawMutex, DriverRx<'a, Platform, RxBuf>>,
+    pub(crate) tx: Mutex<NoopRawMutex, DriverTx<'a, DriverConfig>>,
+    pub(crate) rx: Mutex<NoopRawMutex, DriverRx<'a, DriverConfig>>,
 }
 
-impl<'a, Platform, TxBuf, RxBuf> Driver<'a, Platform, TxBuf, RxBuf>
+impl<'r, DriverConfig> Driver<'r, DriverConfig>
 where
-    Platform: ZPlatform,
+    DriverConfig: ZDriverConfig,
 {
-    pub(crate) fn new(
-        tx: DriverTx<'a, Platform, TxBuf>,
-        rx: DriverRx<'a, Platform, RxBuf>,
-    ) -> Self {
+    pub(crate) fn new(tx: DriverTx<'r, DriverConfig>, rx: DriverRx<'r, DriverConfig>) -> Self {
         Self {
             tx: Mutex::new(tx),
             rx: Mutex::new(rx),
@@ -61,30 +57,11 @@ where
     }
 }
 
-impl<'a, Platform, TxBuf, RxBuf> Driver<'a, Platform, TxBuf, RxBuf>
+impl<Config> Driver<'_, Config>
 where
-    Platform: ZPlatform,
-    TxBuf: AsMut<[u8]>,
-    RxBuf: AsMut<[u8]>,
+    Config: ZDriverConfig + ZSessionConfig,
 {
-    pub async fn run<
-        const MAX_KEYEXPR_LEN: usize,
-        const MAX_PARAMETERS_LEN: usize,
-        const MAX_PAYLOAD_LEN: usize,
-        const MAX_QUEUED: usize,
-        const MAX_CALLBACKS: usize,
-        const MAX_SUBSCRIBERS: usize,
-    >(
-        &self,
-        resources: &SessionResources<
-            MAX_KEYEXPR_LEN,
-            MAX_PARAMETERS_LEN,
-            MAX_PAYLOAD_LEN,
-            MAX_QUEUED,
-            MAX_CALLBACKS,
-            MAX_SUBSCRIBERS,
-        >,
-    ) -> crate::ZResult<()> {
+    pub async fn run(&self, resources: &SessionResources<Config>) -> crate::ZResult<()> {
         let mut rx_guard = self.rx.lock().await;
         let rx = rx_guard.deref_mut();
 
@@ -102,7 +79,7 @@ where
                     if Instant::now() >= tx.next_keepalive() {
                         zenoh_proto::trace!("Sending KeepAlive");
 
-                        tx.unframe(KeepAlive {}).await?;
+                        tx.unframed(KeepAlive {}).await?;
                     }
                 }
                 Either::Second(msg) => {

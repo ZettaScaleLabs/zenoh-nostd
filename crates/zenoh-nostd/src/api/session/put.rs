@@ -1,27 +1,27 @@
 use zenoh_proto::{exts::*, fields::*, msgs::*, *};
 
-use crate::{api::driver::Driver, platform::ZPlatform};
+use crate::api::{ZConfig, ZDriverConfig, driver::Driver};
 
-pub struct SessionPutBuilder<'a, 'b, Platform, TxBuf, RxBuf>
+pub struct SessionPutBuilder<'a, 'r, DriverConfig>
 where
-    Platform: ZPlatform,
+    DriverConfig: ZDriverConfig,
 {
-    driver: &'b Driver<'a, Platform, TxBuf, RxBuf>,
-    ke: &'b keyexpr,
-    payload: &'b [u8],
-    encoding: Encoding<'b>,
+    driver: &'a Driver<'r, DriverConfig>,
+    ke: &'a keyexpr,
+    payload: &'a [u8],
+    encoding: Encoding<'a>,
     timestamp: Option<Timestamp>,
-    attachment: Option<Attachment<'b>>,
+    attachment: Option<Attachment<'a>>,
 }
 
-impl<'a, 'b, Platform, TxBuf, RxBuf> SessionPutBuilder<'a, 'b, Platform, TxBuf, RxBuf>
+impl<'a, 'r, DriverConfig> SessionPutBuilder<'a, 'r, DriverConfig>
 where
-    Platform: ZPlatform,
+    DriverConfig: ZDriverConfig,
 {
     pub(crate) fn new(
-        driver: &'b Driver<'a, Platform, TxBuf, RxBuf>,
-        ke: &'b keyexpr,
-        payload: &'b [u8],
+        driver: &'a Driver<'r, DriverConfig>,
+        ke: &'a keyexpr,
+        payload: &'a [u8],
     ) -> Self {
         Self {
             driver,
@@ -33,7 +33,7 @@ where
         }
     }
 
-    pub fn encoding(mut self, encoding: Encoding<'b>) -> Self {
+    pub fn encoding(mut self, encoding: Encoding<'a>) -> Self {
         self.encoding = encoding;
         self
     }
@@ -43,17 +43,11 @@ where
         self
     }
 
-    pub fn attachment(mut self, attachment: &'b [u8]) -> Self {
+    pub fn attachment(mut self, attachment: &'a [u8]) -> Self {
         self.attachment = Some(Attachment { buffer: attachment });
         self
     }
-}
 
-impl<'a, 'b, Platform, TxBuf, RxBuf> SessionPutBuilder<'a, 'b, Platform, TxBuf, RxBuf>
-where
-    Platform: ZPlatform,
-    TxBuf: AsMut<[u8]>,
-{
     pub async fn finish(self) -> crate::ZResult<()> {
         let msg = Push {
             wire_expr: WireExpr::from(self.ke),
@@ -72,17 +66,15 @@ where
     }
 }
 
-impl<'a, Platform, TxBuf, RxBuf, SessionResources>
-    super::PublicSession<'a, Platform, TxBuf, RxBuf, SessionResources>
+impl<'r, Config> super::Session<'r, Config>
 where
-    Platform: ZPlatform,
-    TxBuf: AsMut<[u8]>,
+    Config: ZConfig,
 {
-    pub fn put<'b>(
-        &'b self,
-        ke: &'b keyexpr,
-        bytes: &'b [u8],
-    ) -> SessionPutBuilder<'a, 'b, Platform, TxBuf, RxBuf> {
+    pub fn put<'a>(
+        &'a self,
+        ke: &'a keyexpr,
+        bytes: &'a [u8],
+    ) -> SessionPutBuilder<'a, 'r, Config> {
         SessionPutBuilder::new(&self.driver, ke, bytes)
     }
 }

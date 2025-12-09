@@ -23,3 +23,4 @@ embassy-futures.workspace = true
 embassy-time.workspace = true
 embassy-sync.workspace = true
 heapless.workspace = true
+paste.workspace = true

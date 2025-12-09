@@ -1,5 +1,6 @@
 #![no_std]
 
+use zenoh_nostd::api::{HeaplessCallbacks, Sample, ZConfig, ZDriverConfig, ZSessionConfig};
 #[cfg(feature = "std")]
 pub use zenoh_std::PlatformStd as Platform;
 
@@ -27,16 +28,54 @@ mod esp32s3_app {
 #[cfg(feature = "esp32s3")]
 use esp32s3_app::*;
 
-pub async fn init_platform(spawner: &embassy_executor::Spawner) -> Platform {
+pub struct ExampleConfig {
+    platform: Platform,
+    tx: [u8; 512],
+    rx: [u8; 512],
+}
+
+impl ZDriverConfig for ExampleConfig {
+    type Platform = Platform;
+    type TxBuf = [u8; 512];
+    type RxBuf = [u8; 512];
+
+    fn platform(&self) -> &Self::Platform {
+        &self.platform
+    }
+
+    fn txrx(&mut self) -> (&mut Self::TxBuf, &mut Self::RxBuf) {
+        (&mut self.tx, &mut self.rx)
+    }
+}
+
+impl ZSessionConfig for ExampleConfig {
+    type SubscriberCallbacks = HeaplessCallbacks<*const Sample, (), 128, 8>;
+}
+
+impl ZConfig for ExampleConfig {
+    fn into_parts(self) -> (Self::Platform, Self::TxBuf, Self::RxBuf) {
+        (self.platform, self.tx, self.rx)
+    }
+}
+
+pub async fn init_example(spawner: &embassy_executor::Spawner) -> ExampleConfig {
     #[cfg(feature = "std")]
     {
         let _ = spawner;
-        Platform {}
+        ExampleConfig {
+            platform: Platform {},
+            tx: [0; 512],
+            rx: [0; 512],
+        }
     }
     #[cfg(feature = "wasm")]
     {
         let _ = spawner;
-        Platform {}
+        ExampleConfig {
+            platform: Platform {},
+            tx: [0; 512],
+            rx: [0; 512],
+        }
     }
     #[cfg(feature = "esp32s3")]
     {
@@ -98,7 +137,11 @@ pub async fn init_platform(spawner: &embassy_executor::Spawner) -> Platform {
         };
         zenoh_nostd::info!("Network initialized with IP: {}", ip);
 
-        Platform { stack }
+        ExampleConfig {
+            platform: Platform {},
+            tx: [0; 512],
+            rx: [0; 512],
+        }
     }
 }
 

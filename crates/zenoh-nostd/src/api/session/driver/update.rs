@@ -1,38 +1,16 @@
-use zenoh_proto::{
-    BatchReader, Message, keyexpr,
-    msgs::{Push, PushBody},
-};
+use core::ops::Deref;
+use zenoh_proto::{Message, msgs::*, *};
 
-use core::ops::DerefMut;
+use crate::api::{Sample, SessionResources, ZCallback, ZCallbacks, ZDriverConfig, ZSessionConfig};
 
-use crate::{
-    api::{Sample, SessionResources},
-    platform::ZPlatform,
-};
-
-impl<'a, Platform, TxBux, RxBux> super::Driver<'a, Platform, TxBux, RxBux>
+impl<Config> super::Driver<'_, Config>
 where
-    Platform: ZPlatform,
+    Config: ZDriverConfig + ZSessionConfig,
 {
-    pub async fn update<
-        'b,
-        const MAX_KEYEXPR_LEN: usize,
-        const MAX_PARAMETERS_LEN: usize,
-        const MAX_PAYLOAD_LEN: usize,
-        const MAX_QUEUED: usize,
-        const MAX_CALLBACKS: usize,
-        const MAX_SUBSCRIBERS: usize,
-    >(
+    pub async fn update(
         &self,
-        reader: &'b [u8],
-        resources: &SessionResources<
-            MAX_KEYEXPR_LEN,
-            MAX_PARAMETERS_LEN,
-            MAX_PAYLOAD_LEN,
-            MAX_QUEUED,
-            MAX_CALLBACKS,
-            MAX_SUBSCRIBERS,
-        >,
+        reader: &[u8],
+        resources: &SessionResources<Config>,
     ) -> crate::ZResult<()> {
         let batch = BatchReader::new(reader);
 
@@ -50,22 +28,16 @@ where
                         },
                     ..
                 } => {
-                    let zbuf: &'b [u8] = put.payload;
+                    let payload = put.payload;
+                    let ke = wire_expr.suffix;
+                    let ke = keyexpr::new(ke)?;
+                    let sample = Sample::new(ke, payload);
 
-                    let ke: &'b str = wire_expr.suffix;
-                    let ke: &'b keyexpr = keyexpr::new(ke)?;
+                    let sub_guard = resources.subscribers.lock().await;
+                    let subscribers = sub_guard.deref();
 
-                    let mut cb_guard = resources.subscribers.lock().await;
-                    let cb = cb_guard.deref_mut();
-
-                    let matching_callbacks = cb
-                        .iter()
-                        .filter_map(|((_, k), v)| if k.intersects(ke) { Some(v) } else { None })
-                        .filter_map(|cb_id| resources.callbacks.get(cb_id));
-
-                    for callback in matching_callbacks {
-                        let sample = Sample::new(ke, zbuf);
-                        callback.call_subscriber(sample).await?;
+                    for callback in subscribers.intersects(ke) {
+                        callback.execute(&sample).await;
                     }
                 }
                 _ => {}

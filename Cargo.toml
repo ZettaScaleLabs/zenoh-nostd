@@ -32,10 +32,11 @@ embassy-executor = "0.9.1"
 heapless = { version = "0.8", default-features = false }
 static_cell = "2.1.1"
 
-# Proc macro
+# Macros
 proc-macro2 = "1.0"
 quote = "1.0"
 syn = { version = "2.0", features = ["full"] }
+paste = "1.0"
 
 # Logs
 defmt = "1.0"
@@ -45,7 +46,6 @@ web-sys = { version = "0.3.82", features = ["console"] }
 # Tests
 rand = "0.8"
 criterion = "0.7"
-paste = "1.0"
 
 [package]
 name = "zenoh-examples"

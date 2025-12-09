@@ -1,11 +1,7 @@
-use crate::platform::ZPlatform;
-
-macro_rules! zdriver {
-    ($ty:ty, $ty2:ident) => {
-        <$ty as $crate::api::config::ZDriverConfig>::$ty2
-    };
-}
-pub(crate) use zdriver;
+use crate::{
+    api::{Sample, ZCallbacks},
+    platform::ZPlatform,
+};
 
 pub trait ZDriverConfig {
     type Platform: ZPlatform;
@@ -13,12 +9,15 @@ pub trait ZDriverConfig {
     type TxBuf: AsMut<[u8]>;
     type RxBuf: AsMut<[u8]>;
 
-    fn platform(self) -> Self::Platform;
+    fn platform(&self) -> &Self::Platform;
 
-    fn tx() -> Self::TxBuf;
-    fn rx() -> Self::RxBuf;
+    fn txrx(&mut self) -> (&mut Self::TxBuf, &mut Self::RxBuf);
 }
 
-pub trait ZConfig {
-    type DriverConfig: ZDriverConfig;
+pub trait ZSessionConfig {
+    type SubscriberCallbacks: ZCallbacks<*const Sample, ()>;
+}
+
+pub trait ZConfig: ZDriverConfig + ZSessionConfig {
+    fn into_parts(self) -> (Self::Platform, Self::TxBuf, Self::RxBuf);
 }

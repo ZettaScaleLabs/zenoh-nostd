@@ -4,11 +4,11 @@ pub use config::*;
 mod session;
 pub use session::*;
 
-mod callback;
-pub use callback::*;
-
 mod sample;
 pub use sample::*;
+
+mod callback;
+pub use callback::*;
 
 mod endpoint;
 pub use endpoint::*;

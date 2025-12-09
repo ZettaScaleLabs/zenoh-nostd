@@ -1,122 +1,55 @@
 use crate::{
-    api::{EndPoint, driver::Driver},
+    api::{EndPoint, ZConfig, driver::Driver},
     io::{
         link::Link,
         transport::{Transport, TransportMineConfig},
     },
-    platform::ZPlatform,
 };
+
 use embassy_time::Duration;
 
 pub(crate) mod driver;
+
 mod resources;
 pub use resources::*;
 
 mod put;
 mod run;
-pub mod sub;
 
-#[macro_export]
-macro_rules! zimport_types {
-    (
-        PLATFORM: $platform:ty,
-        TX: $txbuf:ty,
-        RX: $rxbuf:ty,
+mod sub;
+pub use sub::*;
 
-        MAX_KEYEXPR_LEN: $max_keyexpr_len:expr,
-        MAX_PARAMETERS_LEN: $max_parameters_len:expr,
-        MAX_PAYLOAD_LEN: $max_payload_len:expr,
-
-        MAX_QUEUED: $max_queued:expr,
-        MAX_CALLBACKS: $max_callbacks:expr,
-
-        MAX_SUBSCRIBERS: $max_subscribers:expr,
-    ) => {
-        type Config = $crate::api::PublicConfig<$platform, $txbuf, $rxbuf>;
-
-        type Resources<'a> = $crate::api::PublicResources<
-            'a,
-            $platform,
-            $txbuf,
-            $rxbuf,
-            $crate::api::SessionResources<
-                $max_keyexpr_len,
-                $max_parameters_len,
-                $max_payload_len,
-                $max_queued,
-                $max_callbacks,
-                $max_subscribers,
-            >,
-        >;
-
-        type Session<'a> = $crate::api::PublicSession<
-            'a,
-            $platform,
-            $txbuf,
-            $rxbuf,
-            $crate::api::SessionResources<
-                $max_keyexpr_len,
-                $max_parameters_len,
-                $max_payload_len,
-                $max_queued,
-                $max_callbacks,
-                $max_subscribers,
-            >,
-        >;
-
-        type Subscriber<'a> = $crate::api::sub::Subscriber<'a, $max_keyexpr_len, $max_payload_len>;
-    };
-}
-
-pub struct PublicConfig<Platform, TxBuf, RxBuf> {
-    platform: Platform,
-    tx: TxBuf,
-    rx: RxBuf,
-}
-
-impl<Platform, TxBuf, RxBuf> PublicConfig<Platform, TxBuf, RxBuf> {
-    pub fn new(platform: Platform, tx_buf: TxBuf, rx_buf: RxBuf) -> Self {
-        Self {
-            platform,
-            tx: tx_buf,
-            rx: rx_buf,
-        }
-    }
-}
-
-pub struct PublicSession<'a, Platform, TxBuf, RxBuf, Resources>
+pub struct Session<'a, Config>
 where
-    Platform: ZPlatform,
+    Config: ZConfig,
 {
-    pub(crate) driver: &'a Driver<'a, Platform, TxBuf, RxBuf>,
-    pub(crate) resources: &'a Resources,
+    pub(crate) driver: &'a Driver<'a, Config>,
+    pub(crate) resources: &'a SessionResources<Config>,
 }
 
-impl<'a, Platform, TxBuf, RxBuf, Resources> Clone
-    for PublicSession<'a, Platform, TxBuf, RxBuf, Resources>
+impl<'a, Config> Clone for Session<'a, Config>
 where
-    Platform: ZPlatform,
+    Config: ZConfig,
 {
     fn clone(&self) -> Self {
-        PublicSession {
+        Session {
             driver: self.driver,
             resources: self.resources,
         }
     }
 }
 
-pub async fn open<'a, Platform, TxBuf, RxBuf, SessionResources>(
-    resources: &'a mut PublicResources<'a, Platform, TxBuf, RxBuf, SessionResources>,
-    mut config: PublicConfig<Platform, TxBuf, RxBuf>,
+pub async fn open<'a, Config>(
+    resources: &'a mut Resources<'a, Config>,
+    mut config: Config,
     endpoint: EndPoint<'_>,
-) -> crate::ZResult<PublicSession<'a, Platform, TxBuf, RxBuf, SessionResources>>
+) -> crate::ZResult<Session<'a, Config>>
 where
-    Platform: ZPlatform,
-    TxBuf: AsMut<[u8]>,
-    RxBuf: AsMut<[u8]>,
+    Config: ZConfig,
 {
-    let link = Link::new(&config.platform, endpoint).await?;
+    let link = Link::new(config.platform(), endpoint).await?;
 
+    let (tx, rx) = config.txrx();
     let (transport, tconfig) = Transport::open(
         link,
         TransportMineConfig {
@@ -125,12 +58,12 @@ where
             keep_alive: 4,
             open_timeout: Duration::from_secs(5),
         },
-        &mut config.tx,
-        &mut config.rx,
+        tx,
+        rx,
     )
     .await?;
 
     let (driver, resources) = resources.init(config, transport, tconfig);
 
-    Ok(PublicSession { driver, resources })
+    Ok(Session { driver, resources })
 }

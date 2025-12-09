@@ -2,6 +2,7 @@
 #![cfg_attr(feature = "esp32s3", no_main)]
 #![cfg_attr(feature = "wasm", no_main)]
 
+use embassy_futures::select::select;
 use zenoh_examples::*;
 use zenoh_nostd::api::*;
 
@@ -27,18 +28,12 @@ async fn entry(spawner: embassy_executor::Spawner) -> zenoh_nostd::ZResult<()> {
     let session =
         zenoh_nostd::api::open(&mut resources, config, EndPoint::try_from(CONNECT)?).await?;
 
-    // In this example we don't care about maintaining the session alive, so we directly run the put operation here.
-
-    let ke = keyexpr::new("demo/example")?;
-    let payload = b"Hello, from no-std!";
-
-    session.put(ke, payload).finish().await?;
-
-    zenoh_nostd::info!(
-        "[Put] Sent PUT ('{}': '{}')",
-        ke.as_str(),
-        core::str::from_utf8(payload).unwrap()
-    );
+    select(session.run(), async {
+        loop {
+            embassy_time::Timer::after(embassy_time::Duration::from_secs(5)).await;
+        }
+    })
+    .await;
 
     Ok(())
 }
