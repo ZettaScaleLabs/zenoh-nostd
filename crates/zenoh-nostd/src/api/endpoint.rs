@@ -18,7 +18,7 @@ fn address(s: &str) -> &str {
 
 #[repr(transparent)]
 #[derive(Copy, Clone, PartialEq, Eq, Hash)]
-pub struct Protocol<'a>(&'a str);
+pub(crate) struct Protocol<'a>(&'a str);
 
 impl<'a> Protocol<'a> {
     pub fn as_str(&self) -> &'_ str {
@@ -46,7 +46,7 @@ impl fmt::Debug for Protocol<'_> {
 
 #[repr(transparent)]
 #[derive(Copy, Clone, PartialEq, Eq, Hash)]
-pub struct Address<'a>(&'a str);
+pub(crate) struct Address<'a>(&'a str);
 
 impl<'a> Address<'a> {
     pub fn as_str(&self) -> &'_ str {
@@ -84,11 +84,11 @@ pub struct EndPoint<'a> {
 }
 
 impl EndPoint<'_> {
-    pub fn protocol(&self) -> Protocol<'_> {
+    pub(crate) fn protocol(&self) -> Protocol<'_> {
         Protocol(protocol(self.inner))
     }
 
-    pub fn address(&self) -> Address<'_> {
+    pub(crate) fn address(&self) -> Address<'_> {
         Address(address(self.inner))
     }
 }

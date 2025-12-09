@@ -1,11 +1,11 @@
 use embassy_futures::select::{Either, select};
 use embassy_time::Timer;
 
-use crate::{api::ZDriverConfig, io::transport::ZTransportRx};
+use crate::{api::ZConfig, io::transport::ZTransportRx};
 
-impl<DriverConfig> super::DriverRx<'_, DriverConfig>
+impl<Config> super::DriverRx<'_, Config>
 where
-    DriverConfig: ZDriverConfig,
+    Config: ZConfig,
 {
     pub async fn recv(&mut self) -> crate::ZResult<&[u8]> {
         let read_lease = Timer::at(self.last_read + self.config.other_lease);

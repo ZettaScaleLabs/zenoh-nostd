@@ -55,9 +55,8 @@ where
     }
 }
 
-unsafe fn trampoline_poll<F, Fut, A, B>(fut: *mut (), cx: &mut Context<'_>) -> Poll<B>
+unsafe fn trampoline_poll<Fut, B>(fut: *mut (), cx: &mut Context<'_>) -> Poll<B>
 where
-    F: Fn(A) -> Fut,
     Fut: Future<Output = B>,
 {
     let fut: &mut Fut = unsafe { &mut *(fut as *mut Fut) };
@@ -90,7 +89,7 @@ impl<A, B, const N: usize> CallbackStruct<A, B, N> {
             ctx: f as *const F as *mut (),
             call: trampoline_call::<F, Fut, A, B>,
             drop_future: trampoline_drop::<Fut, B>,
-            poll_future: trampoline_poll::<F, Fut, A, B>,
+            poll_future: trampoline_poll::<Fut, B>,
         }
     }
 

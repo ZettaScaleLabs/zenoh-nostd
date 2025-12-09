@@ -4,7 +4,7 @@
 
 use embassy_time::Instant;
 use zenoh_examples::*;
-use zenoh_nostd::{EndPoint, keyexpr};
+use zenoh_nostd::api::*;
 
 const CONNECT: &str = match option_env!("CONNECT") {
     Some(v) => v,
@@ -34,39 +34,41 @@ async fn entry(spawner: embassy_executor::Spawner) -> zenoh_nostd::ZResult<()> {
 
     zenoh_nostd::info!("zenoh-nostd z_pub_thr example");
 
-    let platform = init_platform(&spawner).await;
-    let config = zenoh_nostd::zconfig!(
-            Platform: (spawner, platform),
-            TX: 512,
-            RX: 512,
-            MAX_SUBSCRIBERS: 2,
-            MAX_QUERIES: 2,
-            MAX_QUERYABLES: 2
-    );
+    let config = init_example(&spawner).await;
+    let mut resources = Resources::new();
+    let session =
+        zenoh_nostd::api::open(&mut resources, config, EndPoint::try_from(CONNECT)?).await?;
 
-    let session = zenoh_nostd::open!(config, EndPoint::try_from(CONNECT)?);
-
-    let mut payload = [0u8; PAYLOAD];
-    for (i, p) in payload.iter_mut().enumerate().take(PAYLOAD) {
-        *p = (i % 10) as u8;
-    }
-
-    let publisher = session.declare_publisher(keyexpr::new("test/thr")?);
+    let payload: [u8; PAYLOAD] = core::array::from_fn(|i| (i % 10) as u8);
+    let publisher = session
+        .declare_publisher(keyexpr::new("test/thr")?)
+        .finish()
+        .await?;
 
     let mut count: usize = 0;
     let mut start = Instant::now();
-    loop {
-        publisher.put(&payload).await?;
+    embassy_futures::select::select(session.run(), async {
+        loop {
+            if let Err(e) = publisher.put(&payload).finish().await {
+                zenoh_nostd::error!("Error publishing message: {}", e);
+                break;
+            }
 
-        if count < 100_000 {
-            count += 1;
-        } else {
-            let thpt = count as f64 / (start.elapsed().as_micros() as f64 / 1_000_000.0);
-            zenoh_nostd::info!("{} msgs/s", thpt);
-            count = 0;
-            start = Instant::now();
+            if count < 100_000 {
+                count += 1;
+            } else {
+                let thpt = count as f64 / (start.elapsed().as_micros() as f64 / 1_000_000.0);
+                zenoh_nostd::info!("{} msgs/s", thpt);
+                count = 0;
+                start = Instant::now();
+            }
         }
-    }
+
+        Ok::<(), zenoh_nostd::Error>(())
+    })
+    .await;
+
+    Ok(())
 }
 
 #[cfg_attr(feature = "std", embassy_executor::main)]

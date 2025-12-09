@@ -1,13 +1,10 @@
 use zenoh_proto::{Message, msgs::*, *};
 
-use crate::api::{
-    Sample, SessionResources, ZCallback, ZCallbacks, ZChannel, ZChannels, ZDriverConfig,
-    ZSessionConfig,
-};
+use crate::api::{Sample, SessionResources, ZCallback, ZCallbacks, ZChannel, ZChannels, ZConfig};
 
 impl<Config> super::Driver<'_, Config>
 where
-    Config: ZDriverConfig + ZSessionConfig,
+    Config: ZConfig,
 {
     pub async fn update(
         &self,

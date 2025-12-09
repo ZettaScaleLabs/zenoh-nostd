@@ -23,7 +23,6 @@ async fn entry(spawner: embassy_executor::Spawner) -> zenoh_nostd::ZResult<()> {
     zenoh_nostd::info!("zenoh-nostd z_sub example");
 
     let config = init_example(&spawner).await;
-
     let mut resources = Resources::new();
     let session =
         zenoh_nostd::api::open(&mut resources, config, EndPoint::try_from(CONNECT)?).await?;
@@ -46,8 +45,13 @@ async fn entry(spawner: embassy_executor::Spawner) -> zenoh_nostd::ZResult<()> {
                 core::str::from_utf8(sample.payload()).unwrap()
             );
         }
+
+        Ok::<(), zenoh_nostd::Error>(())
     })
     .await;
+
+    zenoh_nostd::info!("[Subscriber] Undeclaring subscriber and exiting...");
+    subscriber.undeclare().await?;
 
     Ok(())
 }

@@ -3,11 +3,11 @@ use core::ops::DerefMut;
 use embassy_time::Instant;
 use zenoh_proto::{exts::*, fields::*, *};
 
-use crate::{api::ZDriverConfig, io::transport::ZTransportTx};
+use crate::{api::ZConfig, io::transport::ZTransportTx};
 
-impl<DriverConfig> super::DriverTx<'_, DriverConfig>
+impl<Config> super::DriverTx<'_, Config>
 where
-    DriverConfig: ZDriverConfig,
+    Config: ZConfig,
 {
     pub async fn framed(&mut self, x: impl ZFramed) -> crate::ZResult<()> {
         self.tx
@@ -17,10 +17,8 @@ where
             })
             .await?;
 
-        self.next_keepalive = Instant::now()
-            + (self.config.mine_lease / (self.config.keep_alive as u32))
-                .try_into()
-                .unwrap();
+        self.next_keepalive =
+            Instant::now() + (self.config.mine_lease / (self.config.keep_alive as u32));
 
         Ok(())
     }
@@ -33,10 +31,8 @@ where
             })
             .await?;
 
-        self.next_keepalive = Instant::now()
-            + (self.config.mine_lease / (self.config.keep_alive as u32))
-                .try_into()
-                .unwrap();
+        self.next_keepalive =
+            Instant::now() + (self.config.mine_lease / (self.config.keep_alive as u32));
 
         Ok(())
     }
@@ -46,9 +42,9 @@ where
     }
 }
 
-impl<'a, DriverConfig> super::Driver<'a, DriverConfig>
+impl<'a, Config> super::Driver<'a, Config>
 where
-    DriverConfig: ZDriverConfig,
+    Config: ZConfig,
 {
     pub async fn send(&self, x: impl ZFramed) -> crate::ZResult<()> {
         let mut tx_guard = self.tx.lock().await;

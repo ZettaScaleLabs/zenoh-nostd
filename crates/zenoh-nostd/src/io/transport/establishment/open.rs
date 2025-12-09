@@ -226,10 +226,7 @@ pub(crate) async fn open_link<Platform: ZPlatform>(
                 other_zid,
                 other_whatami,
                 other_sn: osyn_out.mine_sn,
-                other_lease: oack_out
-                    .other_lease
-                    .try_into()
-                    .expect("Duration conversion failed"),
+                other_lease: oack_out.other_lease,
             },
             negociated_config: TransportNegociatedConfig {
                 mine_sn: osyn_out.mine_sn,

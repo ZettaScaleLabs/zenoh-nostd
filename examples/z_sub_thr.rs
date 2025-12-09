@@ -3,7 +3,7 @@
 #![cfg_attr(feature = "wasm", no_main)]
 use embassy_time::Instant;
 use zenoh_examples::*;
-use zenoh_nostd::{EndPoint, ZSample, keyexpr, zsubscriber};
+use zenoh_nostd::api::*;
 
 const CONNECT: &str = match option_env!("CONNECT") {
     Some(v) => v,
@@ -56,7 +56,7 @@ static mut STATS: Stats = Stats {
     global_start: None,
 };
 
-fn callback(_: &ZSample<'_>) {
+async fn callback(_: SamplePtr) {
     #[allow(static_mut_refs)]
     unsafe {
         if STATS.finished_rounds >= 10 {
@@ -73,29 +73,22 @@ async fn entry(spawner: embassy_executor::Spawner) -> zenoh_nostd::ZResult<()> {
 
     zenoh_nostd::info!("zenoh-nostd z_sub_thr example");
 
-    let platform = init_platform(&spawner).await;
-    let config = zenoh_nostd::zconfig!(
-            Platform: (spawner, platform),
-            TX: 512,
-            RX: 512,
-            MAX_SUBSCRIBERS: 2,
-            MAX_QUERIES: 2,
-            MAX_QUERYABLES: 2
-    );
-
-    let session = zenoh_nostd::open!(config, EndPoint::try_from(CONNECT)?);
+    let config = init_example(&spawner).await;
+    let mut resources = Resources::new();
+    let session =
+        zenoh_nostd::api::open(&mut resources, config, EndPoint::try_from(CONNECT)?).await?;
 
     unsafe {
         STATS.round_start = Instant::now();
     }
 
     let _ = session
-        .declare_subscriber(keyexpr::new("test/thr")?, zsubscriber!(callback))
+        .declare_subscriber(keyexpr::new("test/thr")?)
+        .callback(&callback)
+        .finish()
         .await?;
 
-    loop {
-        embassy_time::Timer::after(embassy_time::Duration::from_secs(1)).await;
-    }
+    session.run().await
 }
 
 #[cfg_attr(feature = "std", embassy_executor::main)]

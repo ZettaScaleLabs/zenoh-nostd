@@ -1,6 +1,6 @@
 use crate::{
     api::{
-        ZCallbacks, ZChannels, ZConfig, ZSessionConfig,
+        ZCallbacks, ZChannels, ZConfig,
         driver::{Driver, DriverRx, DriverTx},
     },
     io::transport::{Transport, TransportConfig},
@@ -9,9 +9,9 @@ use crate::{
 use embassy_sync::{blocking_mutex::raw::NoopRawMutex, mutex::Mutex};
 use embassy_time::Instant;
 
-pub struct SessionResources<Config>
+pub(crate) struct SessionResources<Config>
 where
-    Config: ZSessionConfig,
+    Config: ZConfig,
 {
     pub next: Mutex<NoopRawMutex, u32>,
 
@@ -21,7 +21,7 @@ where
 
 impl<Config> SessionResources<Config>
 where
-    Config: ZSessionConfig,
+    Config: ZConfig,
 {
     pub async fn next(&self) -> u32 {
         let mut guard = self.next.lock().await;
@@ -39,6 +39,15 @@ where
     driver: Option<Driver<'r, Config>>,
 
     session: SessionResources<Config>,
+}
+
+impl<Config> Default for Resources<'_, Config>
+where
+    Config: ZConfig,
+{
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl<Config> Resources<'_, Config>
