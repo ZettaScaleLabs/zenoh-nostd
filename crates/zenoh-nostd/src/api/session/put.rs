@@ -1,12 +1,12 @@
 use zenoh_proto::{exts::*, fields::*, msgs::*, *};
 
-use crate::api::{ZConfig, ZDriverConfig, driver::Driver};
+use crate::api::{ZConfig, driver::Driver};
 
-pub struct SessionPutBuilder<'a, 'r, DriverConfig>
+pub struct SessionPutBuilder<'a, 'r, Config>
 where
-    DriverConfig: ZDriverConfig,
+    Config: ZConfig,
 {
-    driver: &'a Driver<'r, DriverConfig>,
+    driver: &'a Driver<'r, Config>,
     ke: &'a keyexpr,
     payload: &'a [u8],
     encoding: Encoding<'a>,
@@ -14,15 +14,11 @@ where
     attachment: Option<Attachment<'a>>,
 }
 
-impl<'a, 'r, DriverConfig> SessionPutBuilder<'a, 'r, DriverConfig>
+impl<'a, 'r, Config> SessionPutBuilder<'a, 'r, Config>
 where
-    DriverConfig: ZDriverConfig,
+    Config: ZConfig,
 {
-    pub(crate) fn new(
-        driver: &'a Driver<'r, DriverConfig>,
-        ke: &'a keyexpr,
-        payload: &'a [u8],
-    ) -> Self {
+    pub(crate) fn new(driver: &'a Driver<'r, Config>, ke: &'a keyexpr, payload: &'a [u8]) -> Self {
         Self {
             driver,
             ke,
@@ -75,6 +71,6 @@ where
         ke: &'a keyexpr,
         bytes: &'a [u8],
     ) -> SessionPutBuilder<'a, 'r, Config> {
-        SessionPutBuilder::new(&self.driver, ke, bytes)
+        SessionPutBuilder::new(self.driver, ke, bytes)
     }
 }

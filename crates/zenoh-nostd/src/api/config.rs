@@ -3,8 +3,10 @@ use crate::{
     platform::ZPlatform,
 };
 
-pub trait ZDriverConfig {
+pub trait ZConfig {
     type Platform: ZPlatform;
+    type SubscriberCallbacks: ZCallbacks<SamplePtr, ()>;
+    type SubscriberChannels: ZChannels<SamplePtr>;
 
     type TxBuf: AsMut<[u8]>;
     type RxBuf: AsMut<[u8]>;
@@ -12,13 +14,6 @@ pub trait ZDriverConfig {
     fn platform(&self) -> &Self::Platform;
 
     fn txrx(&mut self) -> (&mut Self::TxBuf, &mut Self::RxBuf);
-}
 
-pub trait ZSessionConfig {
-    type SubscriberCallbacks: ZCallbacks<SamplePtr, ()>;
-    type SubscriberChannels: ZChannels<SamplePtr>;
-}
-
-pub trait ZConfig: ZDriverConfig + ZSessionConfig {
     fn into_parts(self) -> (Self::Platform, Self::TxBuf, Self::RxBuf);
 }

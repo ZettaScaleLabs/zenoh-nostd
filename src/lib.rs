@@ -1,8 +1,7 @@
 #![no_std]
 
-use zenoh_nostd::api::{
-    HeaplessSubscriberCallbacks, HeaplessSubscriberChannels, ZConfig, ZDriverConfig, ZSessionConfig,
-};
+use zenoh_nostd::api::{HeaplessSubscriberCallbacks, HeaplessSubscriberChannels, ZConfig};
+
 #[cfg(feature = "std")]
 pub use zenoh_std::PlatformStd as Platform;
 
@@ -35,9 +34,11 @@ pub struct ExampleConfig {
     tx: [u8; 512],
     rx: [u8; 512],
 }
-
-impl ZDriverConfig for ExampleConfig {
+impl ZConfig for ExampleConfig {
     type Platform = Platform;
+    type SubscriberCallbacks = HeaplessSubscriberCallbacks<128, 8>;
+    type SubscriberChannels = HeaplessSubscriberChannels<64, 256, 8, 8>;
+
     type TxBuf = [u8; 512];
     type RxBuf = [u8; 512];
 
@@ -48,14 +49,7 @@ impl ZDriverConfig for ExampleConfig {
     fn txrx(&mut self) -> (&mut Self::TxBuf, &mut Self::RxBuf) {
         (&mut self.tx, &mut self.rx)
     }
-}
 
-impl ZSessionConfig for ExampleConfig {
-    type SubscriberCallbacks = HeaplessSubscriberCallbacks<128, 8>;
-    type SubscriberChannels = HeaplessSubscriberChannels<64, 256, 8, 8>;
-}
-
-impl ZConfig for ExampleConfig {
     fn into_parts(self) -> (Self::Platform, Self::TxBuf, Self::RxBuf) {
         (self.platform, self.tx, self.rx)
     }

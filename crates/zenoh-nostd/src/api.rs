@@ -8,10 +8,10 @@ mod sample;
 pub use sample::*;
 
 mod callbacks;
-pub use callbacks::*;
+pub(crate) use callbacks::*;
 
 mod channels;
-pub use channels::*;
+pub(crate) use channels::*;
 
 mod endpoint;
 pub use endpoint::*;

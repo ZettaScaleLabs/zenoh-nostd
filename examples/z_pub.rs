@@ -2,8 +2,9 @@
 #![cfg_attr(feature = "esp32s3", no_main)]
 #![cfg_attr(feature = "wasm", no_main)]
 
+use static_cell::StaticCell;
 use zenoh_examples::*;
-use zenoh_nostd::{EndPoint, keyexpr};
+use zenoh_nostd::api::*;
 
 const CONNECT: &str = match option_env!("CONNECT") {
     Some(v) => v,
@@ -16,29 +17,42 @@ const CONNECT: &str = match option_env!("CONNECT") {
     }
 };
 
+#[embassy_executor::task]
+async fn session_task(session: Session<'static, ExampleConfig>) {
+    if let Err(e) = session.run().await {
+        zenoh_nostd::error!("Error in session task: {}", e);
+    }
+}
+
 async fn entry(spawner: embassy_executor::Spawner) -> zenoh_nostd::ZResult<()> {
     #[cfg(feature = "log")]
     env_logger::init();
 
-    zenoh_nostd::info!("zenoh-nostd z_pub example");
+    zenoh_nostd::info!("zenoh-nostd z_put example");
 
-    let platform = init_platform(&spawner).await;
-    let config = zenoh_nostd::zconfig!(
-            Platform: (spawner, platform),
-            TX: 512,
-            RX: 512,
-            MAX_SUBSCRIBERS: 2,
-            MAX_QUERIES: 2,
-            MAX_QUERYABLES: 2
-    );
+    let config = init_example(&spawner).await;
+    static RESOURCES: StaticCell<Resources<ExampleConfig>> = StaticCell::new();
+    let session = zenoh_nostd::api::open(
+        RESOURCES.init(Resources::new()),
+        config,
+        EndPoint::try_from(CONNECT)?,
+    )
+    .await?;
 
-    let session = zenoh_nostd::open!(config, EndPoint::try_from(CONNECT)?);
+    spawner.spawn(session_task(session.clone())).map_err(|e| {
+        zenoh_nostd::error!("Error spawning task: {}", e);
+        zenoh_nostd::EmbassyError::CouldNotSpawnEmbassyTask
+    })?;
 
-    let publisher = session.declare_publisher(keyexpr::new("demo/example")?);
+    let publisher = session
+        .declare_publisher(keyexpr::new("demo/example")?)
+        .finish()
+        .await?;
+
     let payload = b"Hello, from no-std!";
 
     loop {
-        publisher.put(payload).await?;
+        publisher.put(payload).finish().await?;
 
         zenoh_nostd::info!(
             "[Publisher] Sent PUT ('{}': '{}')",

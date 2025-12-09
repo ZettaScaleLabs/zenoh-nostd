@@ -10,46 +10,46 @@ use embassy_time::{Instant, Timer};
 use zenoh_proto::msgs::KeepAlive;
 
 use crate::{
-    api::{SessionResources, ZDriverConfig, ZSessionConfig},
+    api::{SessionResources, ZConfig},
     io::transport::{TransportMineConfig, TransportOtherConfig, TransportRx, TransportTx},
 };
 
-pub struct DriverTx<'a, DriverConfig>
+pub struct DriverTx<'a, Config>
 where
-    DriverConfig: ZDriverConfig,
+    Config: ZConfig,
 {
-    pub(crate) tx_buf: DriverConfig::TxBuf,
-    pub(crate) tx: TransportTx<'a, DriverConfig::Platform>,
+    pub(crate) tx_buf: Config::TxBuf,
+    pub(crate) tx: TransportTx<'a, Config::Platform>,
     pub(crate) sn: u32,
 
     pub(crate) next_keepalive: Instant,
     pub(crate) config: TransportMineConfig,
 }
 
-pub struct DriverRx<'a, DriverConfig>
+pub struct DriverRx<'a, Config>
 where
-    DriverConfig: ZDriverConfig,
+    Config: ZConfig,
 {
-    pub(crate) rx_buf: DriverConfig::RxBuf,
-    pub(crate) rx: TransportRx<'a, DriverConfig::Platform>,
+    pub(crate) rx_buf: Config::RxBuf,
+    pub(crate) rx: TransportRx<'a, Config::Platform>,
 
     pub(crate) last_read: Instant,
     pub(crate) config: TransportOtherConfig,
 }
 
-pub struct Driver<'a, DriverConfig>
+pub struct Driver<'a, Config>
 where
-    DriverConfig: ZDriverConfig,
+    Config: ZConfig,
 {
-    pub(crate) tx: Mutex<NoopRawMutex, DriverTx<'a, DriverConfig>>,
-    pub(crate) rx: Mutex<NoopRawMutex, DriverRx<'a, DriverConfig>>,
+    pub(crate) tx: Mutex<NoopRawMutex, DriverTx<'a, Config>>,
+    pub(crate) rx: Mutex<NoopRawMutex, DriverRx<'a, Config>>,
 }
 
-impl<'r, DriverConfig> Driver<'r, DriverConfig>
+impl<'r, Config> Driver<'r, Config>
 where
-    DriverConfig: ZDriverConfig,
+    Config: ZConfig,
 {
-    pub(crate) fn new(tx: DriverTx<'r, DriverConfig>, rx: DriverRx<'r, DriverConfig>) -> Self {
+    pub(crate) fn new(tx: DriverTx<'r, Config>, rx: DriverRx<'r, Config>) -> Self {
         Self {
             tx: Mutex::new(tx),
             rx: Mutex::new(rx),
@@ -59,7 +59,7 @@ where
 
 impl<Config> Driver<'_, Config>
 where
-    Config: ZDriverConfig + ZSessionConfig,
+    Config: ZConfig,
 {
     pub async fn run(&self, resources: &SessionResources<Config>) -> crate::ZResult<()> {
         let mut rx_guard = self.rx.lock().await;

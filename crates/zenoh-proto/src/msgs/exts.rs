@@ -25,7 +25,7 @@ pub struct Value<'a> {
     pub payload: &'a [u8],
 }
 
-#[derive(ZExt, Debug, PartialEq, Default)]
+#[derive(ZExt, Debug, PartialEq, Default, Clone)]
 pub struct Attachment<'a> {
     #[zenoh(size = remain)]
     pub buffer: &'a [u8],

@@ -60,10 +60,9 @@ where
         tx: &mut impl AsMut<[u8]>,
         rx: &mut impl AsMut<[u8]>,
     ) -> core::result::Result<(Self, TransportConfig), crate::TransportError> {
-        match select(
-            Timer::after(config.open_timeout.try_into().unwrap()),
-            async { establishment::open::open_link(link, config, tx, rx).await },
-        )
+        match select(Timer::after(config.open_timeout), async {
+            establishment::open::open_link(link, config, tx, rx).await
+        })
         .await
         {
             embassy_futures::select::Either::First(_) => {

@@ -78,6 +78,12 @@ pub struct HeaplessChannelsInner<const QUEUED: usize, const CAPACITY: usize> {
     channels: FnvIndexMap<u32, u32, CAPACITY>,
 }
 
+impl<const QUEUED: usize, const CAPACITY: usize> Default for HeaplessChannelsInner<QUEUED, CAPACITY> {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl<const QUEUED: usize, const CAPACITY: usize> HeaplessChannelsInner<QUEUED, CAPACITY> {
     pub fn new() -> Self {
         let mut available = Vec::new();

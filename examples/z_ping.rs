@@ -3,8 +3,9 @@
 #![cfg_attr(feature = "wasm", no_main)]
 
 use embassy_time::{Duration, Instant};
+use static_cell::StaticCell;
 use zenoh_examples::*;
-use zenoh_nostd::{EndPoint, keyexpr, zsubscriber};
+use zenoh_nostd::api::*;
 
 const CONNECT: &str = match option_env!("CONNECT") {
     Some(v) => v,
@@ -17,67 +18,85 @@ const CONNECT: &str = match option_env!("CONNECT") {
     }
 };
 
+const PAYLOAD: usize = match usize::from_str_radix(
+    match option_env!("PAYLOAD") {
+        Some(v) => v,
+        None => "8",
+    },
+    10,
+) {
+    Ok(v) => v,
+    Err(_) => 8,
+};
+
+#[embassy_executor::task]
+async fn session_task(session: Session<'static, ExampleConfig>) {
+    if let Err(e) = session.run().await {
+        zenoh_nostd::error!("Error in session task: {}", e);
+    }
+}
+
 async fn entry(spawner: embassy_executor::Spawner) -> zenoh_nostd::ZResult<()> {
     #[cfg(feature = "log")]
     env_logger::init();
 
     zenoh_nostd::info!("zenoh-nostd z_ping example");
 
-    let platform = init_platform(&spawner).await;
-    let config = zenoh_nostd::zconfig!(
-            Platform: (spawner, platform),
-            TX: 512,
-            RX: 512,
-            MAX_SUBSCRIBERS: 2,
-            MAX_QUERIES: 2,
-            MAX_QUERYABLES: 2
-    );
+    let config = init_example(&spawner).await;
+    static RESOURCES: StaticCell<Resources<ExampleConfig>> = StaticCell::new();
+    let session = zenoh_nostd::api::open(
+        RESOURCES.init(Resources::new()),
+        config,
+        EndPoint::try_from(CONNECT)?,
+    )
+    .await?;
 
-    let session = zenoh_nostd::open!(config, EndPoint::try_from(CONNECT)?);
+    spawner.spawn(session_task(session.clone())).map_err(|e| {
+        zenoh_nostd::error!("Error spawning task: {}", e);
+        zenoh_nostd::EmbassyError::CouldNotSpawnEmbassyTask
+    })?;
 
-    let ke_pong = keyexpr::new("test/pong")?;
-    let ke_ping = keyexpr::new("test/ping")?;
-
-    let sub = session
-        .declare_subscriber(
-            ke_pong,
-            zsubscriber!(QUEUE_SIZE: 8, MAX_KEYEXPR: 32, MAX_PAYLOAD: 128),
-        )
+    let ping = session
+        .declare_publisher(keyexpr::new("test/ping")?)
+        .finish()
         .await?;
 
-    let data = [0, 1, 2, 3, 4, 5, 6, 7];
+    let pong = session
+        .declare_subscriber(keyexpr::new("test/pong")?)
+        .finish()
+        .await?;
 
-    #[cfg(feature = "esp32s3")]
-    extern crate alloc;
-    #[cfg(feature = "esp32s3")]
-    use alloc::vec::Vec;
-
-    let mut samples = Vec::<u64>::with_capacity(100);
+    let data: [u8; PAYLOAD] = core::array::from_fn(|i| (i % 10) as u8);
+    let mut samples = [0u64; 100];
 
     zenoh_nostd::info!("Warming up for 1s");
     let now = Instant::now();
 
     while now.elapsed() < Duration::from_secs(1) {
-        session.put(ke_ping, &data).await?;
-
-        let _ = sub.recv().await?;
+        ping.put(&data).finish().await?;
+        let _ = pong.recv().await?;
     }
 
     zenoh_nostd::info!("Starting ping-pong measurements");
 
-    for _ in 0..100 {
+    for i in 0..100 {
         let start = Instant::now();
 
-        session.put(ke_ping, &data).await?;
+        ping.put(&data).finish().await?;
+        let _ = pong.recv().await?;
 
-        let _ = sub.recv().await?;
-
-        let elapsed = start.elapsed().as_micros();
-        samples.push(elapsed);
+        samples[i] = start.elapsed().as_micros();
     }
 
-    for (i, rtt) in samples.iter().enumerate().take(100) {
-        zenoh_nostd::info!("{} bytes: seq={} rtt={:?}µs lat={:?}µs", 8, i, rtt, rtt / 2);
+    for i in 0..100 {
+        let rtt = samples[i];
+        zenoh_nostd::info!(
+            "{} bytes: seq={} rtt={:?}µs lat={:?}µs",
+            data.len(),
+            i,
+            rtt,
+            rtt / 2
+        );
     }
 
     let avg_rtt: u64 = samples.iter().sum::<u64>() / samples.len() as u64;

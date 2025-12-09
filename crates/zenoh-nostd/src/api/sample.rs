@@ -10,10 +10,16 @@ impl Sample {
         Sample { keyexpr, payload }
     }
 
+    /// # Safety
+    ///
+    /// The caller must ensure that the pointers are valid for the lifetime of the Sample.
     pub unsafe fn keyexpr(&self) -> &keyexpr {
         unsafe { &*self.keyexpr }
     }
 
+    /// # Safety
+    ///
+    /// The caller must ensure that the pointers are valid for the lifetime of the Sample.
     pub unsafe fn payload(&self) -> &[u8] {
         unsafe { &*self.payload }
     }
@@ -27,7 +33,10 @@ pub struct SampleRef<'a> {
 }
 
 impl<'a> SampleRef<'a> {
-    pub fn new(sample: &SamplePtr) -> SampleRef<'a> {
+    /// # Safety
+    ///
+    /// The caller must ensure that the pointers are valid for the lifetime of the Sample.
+    pub unsafe fn new(sample: &SamplePtr) -> SampleRef<'a> {
         unsafe {
             let sample = &**sample;
 
@@ -49,7 +58,7 @@ impl<'a> SampleRef<'a> {
 
 impl From<SamplePtr> for SampleRef<'_> {
     fn from(sample: SamplePtr) -> Self {
-        SampleRef::new(&sample)
+        unsafe { SampleRef::new(&sample) }
     }
 }
 
@@ -101,7 +110,7 @@ impl<const MAX_KEYEXPR: usize, const MAX_PAYLOAD: usize> TryFrom<SamplePtr>
     type Error = crate::CollectionError;
 
     fn try_from(sample: SamplePtr) -> core::result::Result<Self, Self::Error> {
-        let sample = SampleRef::new(&sample);
+        let sample = unsafe { SampleRef::new(&sample) };
         HeaplessSample::new(sample.keyexpr(), sample.payload())
     }
 }

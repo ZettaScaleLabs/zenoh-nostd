@@ -17,7 +17,10 @@ mod put;
 mod run;
 
 mod sub;
-pub use sub::*;
+pub use sub::{HeaplessSubscriberCallbacks, HeaplessSubscriberChannels, Subscriber};
+
+mod r#pub;
+pub use r#pub::Publisher;
 
 pub struct Session<'a, Config>
 where

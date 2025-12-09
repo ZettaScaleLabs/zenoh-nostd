@@ -188,7 +188,7 @@ impl<'a> ZExt<'a> for Timestamp {
     const KIND: ZExtKind = ZExtKind::ZStruct;
 }
 
-#[derive(Debug, PartialEq, Default)]
+#[derive(Debug, PartialEq, Default, Clone)]
 pub struct Encoding<'a> {
     pub id: u16,
 

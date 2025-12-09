@@ -1,6 +1,6 @@
 use crate::api::{
     HeaplessCallbacks, HeaplessChannels, HeaplessSample, SamplePtr, SessionResources, ZCallbacks,
-    ZChannel, ZChannels, ZConfig, ZDriverConfig, ZSessionConfig, driver::Driver,
+    ZChannel, ZChannels, ZConfig, driver::Driver,
 };
 use zenoh_proto::{fields::*, keyexpr, msgs::*};
 
@@ -14,19 +14,22 @@ pub type HeaplessSubscriberChannels<
     const CAPACITY: usize,
 > = HeaplessChannels<HeaplessSample<MAX_KEYEXPR, MAX_PAYLOAD>, QUEUED, CAPACITY>;
 
-pub struct Subscriber<'r, Config>
+pub struct Subscriber<'a, 'r, Config>
 where
-    Config: ZSessionConfig,
+    Config: ZConfig,
 {
+    driver: &'a Driver<'r, Config>,
+    resources: &'r SessionResources<Config>,
+
     ke: &'static keyexpr,
     id: u32,
 
     channel: Option<&'r <Config::SubscriberChannels as ZChannels<SamplePtr>>::Channel>,
 }
 
-impl<'r, Config> Subscriber<'r, Config>
+impl<'r, Config> Subscriber<'_, 'r, Config>
 where
-    Config: ZSessionConfig,
+    Config: ZConfig,
 {
     pub fn keyexpr(&self) -> &'static keyexpr {
         self.ke
@@ -47,11 +50,28 @@ where
             Err(crate::SubscriberError::SubscriberChannelClosed)
         }
     }
+
+    pub async fn undeclare(self) -> crate::ZResult<()> {
+        let msg = Declare {
+            body: DeclareBody::UndeclareSubscriber(UndeclareSubscriber {
+                id: self.id,
+                ..Default::default()
+            }),
+            ..Default::default()
+        };
+
+        self.resources.sub_callbacks.lock().await.remove(self.id)?;
+        self.resources.sub_channels.remove(self.id).await?;
+
+        self.driver.send(msg).await?;
+
+        Ok(())
+    }
 }
 
 pub struct SubscriberBuilder<'a, 'r, Config>
 where
-    Config: ZDriverConfig + ZSessionConfig,
+    Config: ZConfig,
 {
     driver: &'a Driver<'r, Config>,
     resources: &'r SessionResources<Config>,
@@ -63,7 +83,7 @@ where
 
 impl<'a, 'r, Config> SubscriberBuilder<'a, 'r, Config>
 where
-    Config: ZDriverConfig + ZSessionConfig,
+    Config: ZConfig,
 {
     pub(crate) fn new(
         driver: &'a Driver<'r, Config>,
@@ -86,7 +106,7 @@ where
         self
     }
 
-    pub async fn finish(self) -> crate::ZResult<Subscriber<'r, Config>> {
+    pub async fn finish(self) -> crate::ZResult<Subscriber<'a, 'r, Config>> {
         let id = self.resources.next().await;
 
         let mut subscribers = self.resources.sub_callbacks.lock().await;
@@ -101,7 +121,7 @@ where
 
         let msg = Declare {
             body: DeclareBody::DeclareSubscriber(DeclareSubscriber {
-                id: id,
+                id,
                 wire_expr: WireExpr::from(self.ke),
             }),
             ..Default::default()
@@ -110,6 +130,8 @@ where
         self.driver.send(msg).await?;
 
         Ok(Subscriber {
+            driver: self.driver,
+            resources: self.resources,
             ke: self.ke,
             id,
             channel,
@@ -125,6 +147,6 @@ where
         &'a self,
         ke: &'static keyexpr,
     ) -> SubscriberBuilder<'a, 'r, Config> {
-        SubscriberBuilder::new(&self.driver, &self.resources, ke)
+        SubscriberBuilder::new(self.driver, self.resources, ke)
     }
 }
