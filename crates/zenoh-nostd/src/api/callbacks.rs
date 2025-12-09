@@ -139,13 +139,13 @@ pub trait ZCallbacks<A, B> {
         id: u32,
         ke: &'static keyexpr,
         callback: impl Into<Self::Callback>,
-    ) -> crate::ZResult<()>;
-    fn remove(&mut self, id: u32) -> crate::ZResult<()>;
-    fn intersects<'a>(&'a self, ke: &keyexpr) -> impl Iterator<Item = &'a Self::Callback>
+    ) -> core::result::Result<(), crate::CollectionError>;
+    fn remove(&mut self, id: u32) -> core::result::Result<(), crate::CollectionError>;
+    fn intersects<'r>(&'r self, ke: &keyexpr) -> impl Iterator<Item = &'r Self::Callback>
     where
-        Self::Callback: 'a,
-        A: 'a,
-        B: 'a;
+        Self::Callback: 'r,
+        A: 'r,
+        B: 'r;
 }
 
 pub struct HeaplessCallbacks<A, B, const CALLBACK_MEMORY: usize, const CAPACITY: usize> {
@@ -170,27 +170,37 @@ impl<A, B, const CALLBACK_MEMORY: usize, const CAPACITY: usize> ZCallbacks<A, B>
         id: u32,
         ke: &'static keyexpr,
         callback: impl Into<Self::Callback>,
-    ) -> crate::ZResult<()> {
+    ) -> core::result::Result<(), crate::CollectionError> {
+        if self.keyexprs.contains_key(&id) {
+            return Err(crate::CollectionError::KeyAlreadyExists);
+        }
+
+        if self.callbacks.contains_key(&id) {
+            return Err(crate::CollectionError::KeyAlreadyExists);
+        }
+
         self.keyexprs
             .insert(id, ke)
             .map_err(|_| crate::CollectionError::CollectionIsFull)?;
+
         self.callbacks
             .insert(id, callback.into())
             .map_err(|_| crate::CollectionError::CollectionIsFull)?;
+
         Ok(())
     }
 
-    fn remove(&mut self, id: u32) -> crate::ZResult<()> {
+    fn remove(&mut self, id: u32) -> core::result::Result<(), crate::CollectionError> {
         self.keyexprs.remove(&id);
         self.callbacks.remove(&id);
         Ok(())
     }
 
-    fn intersects<'a>(&'a self, ke: &keyexpr) -> impl Iterator<Item = &'a Self::Callback>
+    fn intersects<'r>(&'r self, ke: &keyexpr) -> impl Iterator<Item = &'r Self::Callback>
     where
-        Self::Callback: 'a,
+        Self::Callback: 'r,
     {
-        self.keyexprs.iter().filter_map(move |(id, registered_ke)| {
+        self.keyexprs.iter().filter_map(|(id, registered_ke)| {
             if registered_ke.intersects(ke) {
                 self.callbacks.get(id)
             } else {

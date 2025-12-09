@@ -7,8 +7,11 @@ pub use session::*;
 mod sample;
 pub use sample::*;
 
-mod callback;
-pub use callback::*;
+mod callbacks;
+pub use callbacks::*;
+
+mod channels;
+pub use channels::*;
 
 mod endpoint;
 pub use endpoint::*;

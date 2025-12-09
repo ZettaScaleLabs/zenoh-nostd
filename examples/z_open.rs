@@ -2,7 +2,7 @@
 #![cfg_attr(feature = "esp32s3", no_main)]
 #![cfg_attr(feature = "wasm", no_main)]
 
-use embassy_futures::select::select;
+use static_cell::StaticCell;
 use zenoh_examples::*;
 use zenoh_nostd::api::*;
 
@@ -17,6 +17,13 @@ const CONNECT: &str = match option_env!("CONNECT") {
     }
 };
 
+#[embassy_executor::task]
+async fn session_task(session: Session<'static, ExampleConfig>) {
+    if let Err(e) = session.run().await {
+        zenoh_nostd::error!("Error in session task: {}", e);
+    }
+}
+
 async fn entry(spawner: embassy_executor::Spawner) -> zenoh_nostd::ZResult<()> {
     #[cfg(feature = "log")]
     env_logger::init();
@@ -24,18 +31,28 @@ async fn entry(spawner: embassy_executor::Spawner) -> zenoh_nostd::ZResult<()> {
     zenoh_nostd::info!("zenoh-nostd z_put example");
 
     let config = init_example(&spawner).await;
-    let mut resources = Resources::new();
-    let session =
-        zenoh_nostd::api::open(&mut resources, config, EndPoint::try_from(CONNECT)?).await?;
+    static RESOURCES: StaticCell<Resources<ExampleConfig>> = StaticCell::new();
+    let session = zenoh_nostd::api::open(
+        RESOURCES.init(Resources::new()),
+        config,
+        EndPoint::try_from(CONNECT)?,
+    )
+    .await?;
 
-    select(session.run(), async {
-        loop {
-            embassy_time::Timer::after(embassy_time::Duration::from_secs(5)).await;
-        }
-    })
-    .await;
+    // In this example we care about maintaining the session alive, we then have two choices:
+    //  1) Spawn a new task to run the `session.run()` in background, but it requires the `resources` to be `static`.
+    //  2) Use `select` or `join` to run both the session and the subscriber in the same task.
+    // Here we use the first approach. For a demonstration of the second approach, see the `z_sub` example.
 
-    Ok(())
+    spawner.spawn(session_task(session.clone())).map_err(|e| {
+        zenoh_nostd::error!("Error spawning task: {}", e);
+
+        zenoh_nostd::EmbassyError::CouldNotSpawnEmbassyTask
+    })?;
+
+    loop {
+        embassy_time::Timer::after(embassy_time::Duration::from_secs(1)).await;
+    }
 }
 
 #[cfg_attr(feature = "std", embassy_executor::main)]

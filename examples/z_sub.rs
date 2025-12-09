@@ -16,16 +16,6 @@ const CONNECT: &str = match option_env!("CONNECT") {
     }
 };
 
-async fn callback(sample: *const Sample) {
-    let sample = unsafe { &*sample };
-
-    zenoh_nostd::info!(
-        "[Subscriber] Received Sample ('{}': '{:?}')",
-        unsafe { sample.keyexpr() }.as_str(),
-        core::str::from_utf8(unsafe { sample.payload() }).unwrap()
-    );
-}
-
 async fn entry(spawner: embassy_executor::Spawner) -> zenoh_nostd::ZResult<()> {
     #[cfg(feature = "log")]
     env_logger::init();
@@ -41,15 +31,20 @@ async fn entry(spawner: embassy_executor::Spawner) -> zenoh_nostd::ZResult<()> {
     // In this example we care about maintaining the session alive, we then have two choices:
     //  1) Spawn a new task to run the `session.run()` in background, but it requires the `resources` to be `static`.
     //  2) Use `select` or `join` to run both the session and the subscriber in the same task.
-    // Here we use the second approach. For a demonstration of the first approach, see the `z_queryable` example.
+    // Here we use the second approach. For a demonstration of the first approach, see the `z_open` example.
 
-    let ke = keyexpr::new("demo/example/**")?;
-
-    session.declare_subscriber(ke, &callback).await?;
+    let subscriber = session
+        .declare_subscriber(keyexpr::new("demo/example/**")?)
+        .finish()
+        .await?;
 
     embassy_futures::select::select(session.run(), async {
-        loop {
-            embassy_time::Timer::after(embassy_time::Duration::from_secs(5)).await;
+        while let Ok(sample) = subscriber.recv().await {
+            zenoh_nostd::info!(
+                "[Subscriber] Received sample ('{}': '{}')",
+                sample.keyexpr().as_str(),
+                core::str::from_utf8(sample.payload()).unwrap()
+            );
         }
     })
     .await;

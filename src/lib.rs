@@ -1,6 +1,8 @@
 #![no_std]
 
-use zenoh_nostd::api::{HeaplessCallbacks, Sample, ZConfig, ZDriverConfig, ZSessionConfig};
+use zenoh_nostd::api::{
+    HeaplessSubscriberCallbacks, HeaplessSubscriberChannels, ZConfig, ZDriverConfig, ZSessionConfig,
+};
 #[cfg(feature = "std")]
 pub use zenoh_std::PlatformStd as Platform;
 
@@ -49,7 +51,8 @@ impl ZDriverConfig for ExampleConfig {
 }
 
 impl ZSessionConfig for ExampleConfig {
-    type SubscriberCallbacks = HeaplessCallbacks<*const Sample, (), 128, 8>;
+    type SubscriberCallbacks = HeaplessSubscriberCallbacks<128, 8>;
+    type SubscriberChannels = HeaplessSubscriberChannels<64, 256, 8, 8>;
 }
 
 impl ZConfig for ExampleConfig {

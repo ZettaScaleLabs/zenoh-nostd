@@ -1,7 +1,9 @@
-use core::ops::Deref;
 use zenoh_proto::{Message, msgs::*, *};
 
-use crate::api::{Sample, SessionResources, ZCallback, ZCallbacks, ZDriverConfig, ZSessionConfig};
+use crate::api::{
+    Sample, SessionResources, ZCallback, ZCallbacks, ZChannel, ZChannels, ZDriverConfig,
+    ZSessionConfig,
+};
 
 impl<Config> super::Driver<'_, Config>
 where
@@ -33,11 +35,16 @@ where
                     let ke = keyexpr::new(ke)?;
                     let sample = Sample::new(ke, payload);
 
-                    let sub_guard = resources.subscribers.lock().await;
-                    let subscribers = sub_guard.deref();
-
-                    for callback in subscribers.intersects(ke) {
+                    let sub_cb = resources.sub_callbacks.lock().await;
+                    for callback in sub_cb.intersects(ke) {
                         callback.execute(&sample).await;
+                    }
+
+                    let sub_ch = &resources.sub_channels;
+                    let guard = sub_ch.lock().await;
+
+                    for ch in sub_ch.intersects(&guard, ke).await {
+                        ch.send(&sample).await?;
                     }
                 }
                 _ => {}

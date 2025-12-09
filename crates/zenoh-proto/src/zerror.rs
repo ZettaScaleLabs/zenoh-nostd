@@ -139,6 +139,9 @@ crate::declare_zerror! {
         #[doc = "Collection is full."]
         #[err = "collection is full"]
         CollectionIsFull = 62,
+        #[doc = "Collection is empty."]
+        #[err = "collection is empty"]
+        CollectionIsEmpty = 63,
     }
 
     // --- Embassy related errors ---
@@ -148,6 +151,15 @@ crate::declare_zerror! {
         #[doc = "Could not spawn embassy task."]
         #[err = "could not spawn embassy task"]
         CouldNotSpawnEmbassyTask = 70,
+    }
+
+    // --- Subscriber related errors ---
+
+    #[doc = "Errors related to zenoh subscribers."]
+    pub enum SubscriberError {
+        #[doc = "Subscriber channel is closed."]
+        #[err = "subscriber channel is closed"]
+        SubscriberChannelClosed = 80,
     }
 }
 

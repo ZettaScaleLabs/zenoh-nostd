@@ -1,6 +1,6 @@
 use crate::{
     api::{
-        ZCallbacks, ZConfig, ZSessionConfig,
+        ZCallbacks, ZChannels, ZConfig, ZSessionConfig,
         driver::{Driver, DriverRx, DriverTx},
     },
     io::transport::{Transport, TransportConfig},
@@ -15,7 +15,8 @@ where
 {
     pub next: Mutex<NoopRawMutex, u32>,
 
-    pub subscribers: Mutex<NoopRawMutex, Config::SubscriberCallbacks>,
+    pub sub_callbacks: Mutex<NoopRawMutex, Config::SubscriberCallbacks>,
+    pub sub_channels: Config::SubscriberChannels,
 }
 
 impl<Config> SessionResources<Config>
@@ -50,7 +51,8 @@ where
             driver: None,
             session: SessionResources {
                 next: Mutex::new(0),
-                subscribers: Mutex::new(Config::SubscriberCallbacks::empty()),
+                sub_callbacks: Mutex::new(Config::SubscriberCallbacks::empty()),
+                sub_channels: Config::SubscriberChannels::new(),
             },
         }
     }

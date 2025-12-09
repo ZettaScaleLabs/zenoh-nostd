@@ -1,5 +1,5 @@
 use crate::{
-    api::{Sample, ZCallbacks},
+    api::{SamplePtr, ZCallbacks, ZChannels},
     platform::ZPlatform,
 };
 
@@ -15,7 +15,8 @@ pub trait ZDriverConfig {
 }
 
 pub trait ZSessionConfig {
-    type SubscriberCallbacks: ZCallbacks<*const Sample, ()>;
+    type SubscriberCallbacks: ZCallbacks<SamplePtr, ()>;
+    type SubscriberChannels: ZChannels<SamplePtr>;
 }
 
 pub trait ZConfig: ZDriverConfig + ZSessionConfig {
