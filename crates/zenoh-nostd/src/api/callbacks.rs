@@ -7,8 +7,8 @@ use core::{
 use heapless::FnvIndexMap;
 use zenoh_proto::keyexpr;
 
-pub struct CallbackFuture<const N: usize, Output> {
-    fut: MaybeUninit<[u8; N]>,
+struct CallbackFuture<const ASYNC_CALLBACK_MEMORY: usize, Output> {
+    fut: MaybeUninit<[u8; ASYNC_CALLBACK_MEMORY]>,
 
     drop_future: unsafe fn(*mut ()),
     poll_future: unsafe fn(*mut (), &mut Context<'_>) -> Poll<Output>,
@@ -16,7 +16,9 @@ pub struct CallbackFuture<const N: usize, Output> {
     _pin: core::marker::PhantomPinned,
 }
 
-impl<const N: usize, Output> Drop for CallbackFuture<N, Output> {
+impl<const ASYNC_CALLBACK_MEMORY: usize, Output> Drop
+    for CallbackFuture<ASYNC_CALLBACK_MEMORY, Output>
+{
     fn drop(&mut self) {
         unsafe {
             (self.drop_future)(self.fut.as_ptr() as *mut ());
@@ -24,7 +26,9 @@ impl<const N: usize, Output> Drop for CallbackFuture<N, Output> {
     }
 }
 
-impl<const N: usize, Output> Future for CallbackFuture<N, Output> {
+impl<const ASYNC_CALLBACK_MEMORY: usize, Output> Future
+    for CallbackFuture<ASYNC_CALLBACK_MEMORY, Output>
+{
     type Output = Output;
 
     fn poll(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
@@ -64,7 +68,7 @@ where
     fut.as_mut().poll(cx)
 }
 
-pub struct CallbackStruct<A, B, const N: usize> {
+struct AsyncCallback<A, B, const ASYNC_CALLBACK_MEMORY: usize> {
     ctx: *mut (),
 
     call: unsafe fn(*mut (), *mut (), A),
@@ -72,7 +76,7 @@ pub struct CallbackStruct<A, B, const N: usize> {
     poll_future: unsafe fn(*mut (), &mut Context<'_>) -> Poll<B>,
 }
 
-impl<A, B, const N: usize> CallbackStruct<A, B, N> {
+impl<A, B, const ASYNC_CALLBACK_MEMORY: usize> AsyncCallback<A, B, ASYNC_CALLBACK_MEMORY> {
     pub fn new<F, Fut>(f: &'static F) -> Self
     where
         F: Fn(A) -> Fut + 'static,
@@ -80,12 +84,12 @@ impl<A, B, const N: usize> CallbackStruct<A, B, N> {
     {
         const {
             assert!(
-                core::mem::size_of::<Fut>() <= N,
+                core::mem::size_of::<Fut>() <= ASYNC_CALLBACK_MEMORY,
                 "Stored future is too large for the provided storage size"
             );
         };
 
-        CallbackStruct {
+        AsyncCallback {
             ctx: f as *const F as *mut (),
             call: trampoline_call::<F, Fut, A, B>,
             drop_future: trampoline_drop::<Fut, B>,
@@ -93,8 +97,8 @@ impl<A, B, const N: usize> CallbackStruct<A, B, N> {
         }
     }
 
-    pub fn execute(&self, arg: A) -> CallbackFuture<N, B> {
-        let mut fut: MaybeUninit<[u8; N]> = MaybeUninit::uninit();
+    pub fn execute(&self, arg: A) -> CallbackFuture<ASYNC_CALLBACK_MEMORY, B> {
+        let mut fut: MaybeUninit<[u8; ASYNC_CALLBACK_MEMORY]> = MaybeUninit::uninit();
 
         unsafe {
             (self.call)(self.ctx, fut.as_mut_ptr() as *mut (), arg);
@@ -109,13 +113,17 @@ impl<A, B, const N: usize> CallbackStruct<A, B, N> {
     }
 }
 
-impl<A, B, const N: usize, F, Fut> From<&'static F> for CallbackStruct<A, B, N>
-where
-    F: Fn(A) -> Fut + 'static,
-    Fut: Future<Output = B>,
-{
-    fn from(f: &'static F) -> Self {
-        Self::new(f)
+pub struct SyncCallback<A, B> {
+    call: fn(A) -> B,
+}
+
+impl<A, B> SyncCallback<A, B> {
+    pub fn new(f: fn(A) -> B) -> Self {
+        SyncCallback { call: f }
+    }
+
+    pub fn execute(&self, arg: A) -> B {
+        (self.call)(arg)
     }
 }
 
@@ -123,9 +131,51 @@ pub trait ZCallback<A, B> {
     fn execute(&self, arg: A) -> impl Future<Output = B>;
 }
 
-impl<A, B, const CALLBACK_MEMORY: usize> ZCallback<A, B> for CallbackStruct<A, B, CALLBACK_MEMORY> {
+impl<A, B, const ASYNC_CALLBACK_MEMORY: usize> ZCallback<A, B>
+    for AsyncCallback<A, B, ASYNC_CALLBACK_MEMORY>
+{
     fn execute(&self, arg: A) -> impl Future<Output = B> {
         self.execute(arg)
+    }
+}
+
+impl<A, B> ZCallback<A, B> for SyncCallback<A, B> {
+    fn execute(&self, arg: A) -> impl Future<Output = B> {
+        core::future::ready(self.execute(arg))
+    }
+}
+
+enum CallbackInner<A, B, const ASYNC_CALLBACK_MEMORY: usize> {
+    Sync(SyncCallback<A, B>),
+    Async(AsyncCallback<A, B, ASYNC_CALLBACK_MEMORY>),
+}
+
+pub struct Callback<A, B, const ASYNC_CALLBACK_MEMORY: usize>(
+    CallbackInner<A, B, ASYNC_CALLBACK_MEMORY>,
+);
+
+impl<A, B, const ASYNC_CALLBACK_MEMORY: usize> ZCallback<A, B>
+    for Callback<A, B, ASYNC_CALLBACK_MEMORY>
+{
+    async fn execute(&self, arg: A) -> B {
+        match &self.0 {
+            CallbackInner::Sync(sync_cb) => ZCallback::execute(sync_cb, arg).await,
+            CallbackInner::Async(async_cb) => ZCallback::execute(async_cb, arg).await,
+        }
+    }
+}
+
+impl<A, B, const ASYNC_CALLBACK_MEMORY: usize> Callback<A, B, ASYNC_CALLBACK_MEMORY> {
+    pub fn from_sync(f: fn(A) -> B) -> Self {
+        Callback(CallbackInner::Sync(SyncCallback::new(f)))
+    }
+
+    pub fn from_async<F, Fut>(f: &'static F) -> Self
+    where
+        F: Fn(A) -> Fut + 'static,
+        Fut: Future<Output = B>,
+    {
+        Callback(CallbackInner::Async(AsyncCallback::new::<F, Fut>(f)))
     }
 }
 
@@ -147,15 +197,15 @@ pub trait ZCallbacks<A, B> {
         B: 'r;
 }
 
-pub struct HeaplessCallbacks<A, B, const CALLBACK_MEMORY: usize, const CAPACITY: usize> {
+pub struct HeaplessCallbacks<A, B, const ASYNC_CALLBACK_MEMORY: usize, const CAPACITY: usize> {
     keyexprs: FnvIndexMap<u32, &'static keyexpr, CAPACITY>,
-    callbacks: FnvIndexMap<u32, CallbackStruct<A, B, CALLBACK_MEMORY>, CAPACITY>,
+    callbacks: FnvIndexMap<u32, Callback<A, B, ASYNC_CALLBACK_MEMORY>, CAPACITY>,
 }
 
-impl<A, B, const CALLBACK_MEMORY: usize, const CAPACITY: usize> ZCallbacks<A, B>
-    for HeaplessCallbacks<A, B, CALLBACK_MEMORY, CAPACITY>
+impl<A, B, const ASYNC_CALLBACK_MEMORY: usize, const CAPACITY: usize> ZCallbacks<A, B>
+    for HeaplessCallbacks<A, B, ASYNC_CALLBACK_MEMORY, CAPACITY>
 {
-    type Callback = CallbackStruct<A, B, CALLBACK_MEMORY>;
+    type Callback = Callback<A, B, ASYNC_CALLBACK_MEMORY>;
 
     fn empty() -> Self {
         Self {

@@ -1,20 +1,10 @@
 #![cfg_attr(feature = "esp32s3", no_std)]
 #![cfg_attr(feature = "esp32s3", no_main)]
 #![cfg_attr(feature = "wasm", no_main)]
+
 use embassy_time::Instant;
 use zenoh_examples::*;
 use zenoh_nostd::api::*;
-
-const CONNECT: &str = match option_env!("CONNECT") {
-    Some(v) => v,
-    None => {
-        if cfg!(feature = "wasm") {
-            "ws/127.0.0.1:7446"
-        } else {
-            "tcp/127.0.0.1:7447"
-        }
-    }
-};
 
 struct Stats {
     round_count: usize,
@@ -50,13 +40,13 @@ impl Stats {
 
 static mut STATS: Stats = Stats {
     round_count: 0,
-    round_size: 1000,
+    round_size: 100_000,
     finished_rounds: 0,
     round_start: Instant::from_millis(0),
     global_start: None,
 };
 
-async fn callback(_: SamplePtr) {
+fn callback(_: SamplePtr) {
     #[allow(static_mut_refs)]
     unsafe {
         if STATS.finished_rounds >= 10 {
@@ -84,7 +74,7 @@ async fn entry(spawner: embassy_executor::Spawner) -> zenoh_nostd::ZResult<()> {
 
     let _ = session
         .declare_subscriber(keyexpr::new("test/thr")?)
-        .callback(&callback)
+        .callback(Callback::from_sync(callback))
         .finish()
         .await?;
 

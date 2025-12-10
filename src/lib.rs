@@ -29,18 +29,29 @@ mod esp32s3_app {
 #[cfg(feature = "esp32s3")]
 use esp32s3_app::*;
 
+pub const CONNECT: &str = match option_env!("CONNECT") {
+    Some(v) => v,
+    None => {
+        if cfg!(feature = "wasm") {
+            "ws/127.0.0.1:7446"
+        } else {
+            "tcp/127.0.0.1:7447"
+        }
+    }
+};
+
 pub struct ExampleConfig {
     platform: Platform,
-    tx: [u8; 512],
-    rx: [u8; 512],
+    tx: [u8; u16::MAX as usize],
+    rx: [u8; u16::MAX as usize],
 }
 impl ZConfig for ExampleConfig {
     type Platform = Platform;
     type SubscriberCallbacks = HeaplessSubscriberCallbacks<128, 8>;
     type SubscriberChannels = HeaplessSubscriberChannels<64, 256, 8, 8>;
 
-    type TxBuf = [u8; 512];
-    type RxBuf = [u8; 512];
+    type TxBuf = [u8; u16::MAX as usize];
+    type RxBuf = [u8; u16::MAX as usize];
 
     fn platform(&self) -> &Self::Platform {
         &self.platform
@@ -61,8 +72,8 @@ pub async fn init_example(spawner: &embassy_executor::Spawner) -> ExampleConfig 
         let _ = spawner;
         ExampleConfig {
             platform: Platform {},
-            tx: [0; 512],
-            rx: [0; 512],
+            tx: [0; u16::MAX as usize],
+            rx: [0; u16::MAX as usize],
         }
     }
     #[cfg(feature = "wasm")]
@@ -70,8 +81,8 @@ pub async fn init_example(spawner: &embassy_executor::Spawner) -> ExampleConfig 
         let _ = spawner;
         ExampleConfig {
             platform: Platform {},
-            tx: [0; 512],
-            rx: [0; 512],
+            tx: [0; u16::MAX as usize],
+            rx: [0; u16::MAX as usize],
         }
     }
     #[cfg(feature = "esp32s3")]
@@ -136,8 +147,8 @@ pub async fn init_example(spawner: &embassy_executor::Spawner) -> ExampleConfig 
 
         ExampleConfig {
             platform: Platform {},
-            tx: [0; 512],
-            rx: [0; 512],
+            tx: [0; u16::MAX as usize],
+            rx: [0; u16::MAX as usize],
         }
     }
 }

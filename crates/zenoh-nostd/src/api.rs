@@ -8,6 +8,7 @@ mod sample;
 pub use sample::*;
 
 mod callbacks;
+pub use callbacks::Callback;
 pub(crate) use callbacks::*;
 
 mod channels;

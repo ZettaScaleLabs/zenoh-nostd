@@ -100,9 +100,9 @@ where
 
     pub fn callback(
         mut self,
-        callback: impl Into<<Config::SubscriberCallbacks as ZCallbacks<SamplePtr, ()>>::Callback>,
+        callback: <Config::SubscriberCallbacks as ZCallbacks<SamplePtr, ()>>::Callback,
     ) -> Self {
-        self.callback = Some(callback.into());
+        self.callback = Some(callback);
         self
     }
 

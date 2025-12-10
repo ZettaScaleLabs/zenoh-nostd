@@ -6,17 +6,6 @@ use static_cell::StaticCell;
 use zenoh_examples::*;
 use zenoh_nostd::api::*;
 
-const CONNECT: &str = match option_env!("CONNECT") {
-    Some(v) => v,
-    None => {
-        if cfg!(feature = "wasm") {
-            "ws/127.0.0.1:7446"
-        } else {
-            "tcp/127.0.0.1:7447"
-        }
-    }
-};
-
 #[embassy_executor::task]
 async fn session_task(session: Session<'static, ExampleConfig>) {
     if let Err(e) = session.run().await {

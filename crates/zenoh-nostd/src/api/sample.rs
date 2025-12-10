@@ -23,6 +23,18 @@ impl Sample {
     pub unsafe fn payload(&self) -> &[u8] {
         unsafe { &*self.payload }
     }
+
+    /// # Safety
+    ///
+    /// The caller must ensure that the pointers are valid for the lifetime of the Sample.
+    pub unsafe fn as_ref(&self) -> SampleRef<'_> {
+        unsafe {
+            SampleRef {
+                keyexpr: self.keyexpr(),
+                payload: self.payload(),
+            }
+        }
+    }
 }
 
 pub type SamplePtr = *const Sample;
