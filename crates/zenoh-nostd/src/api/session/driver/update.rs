@@ -39,7 +39,6 @@ where
 
                     let sub_ch = &resources.sub_channels;
                     let guard = sub_ch.lock().await;
-
                     for ch in sub_ch.intersects(&guard, ke).await {
                         ch.send(&sample).await?;
                     }

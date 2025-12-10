@@ -7,8 +7,11 @@ pub use session::*;
 mod sample;
 pub use sample::*;
 
+mod callback;
+pub use callback::Callback;
+pub(crate) use callback::*;
+
 mod callbacks;
-pub use callbacks::Callback;
 pub(crate) use callbacks::*;
 
 mod channels;
