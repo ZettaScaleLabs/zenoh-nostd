@@ -1,6 +1,6 @@
-use zenoh_proto::{exts::*, fields::*, msgs::*, *};
+use zenoh_proto::{exts::*, fields::*, *};
 
-use crate::api::{ZConfig, driver::Driver};
+use crate::api::{ZConfig, driver::Driver, session::put::PutBuilder};
 
 pub struct Publisher<'a, 'r, Config>
 where
@@ -21,15 +21,15 @@ where
         self.ke
     }
 
-    pub fn put(&'a self, payload: &'a [u8]) -> PublisherPutBuilder<'a, 'r, Config> {
-        PublisherPutBuilder {
-            driver: self.driver,
-            ke: self.ke,
-            payload,
-            encoding: self.encoding.clone(),
-            timestamp: None,
-            attachment: self.attachment.clone(),
+    pub fn put(&'a self, payload: &'a [u8]) -> PutBuilder<'a, 'r, Config> {
+        let mut put =
+            PutBuilder::new(self.driver, self.ke, payload).encoding(self.encoding.clone());
+
+        if let Some(attachment) = self.attachment.clone() {
+            put = put.attachment(attachment.buffer);
         }
+
+        put
     }
 }
 
@@ -86,55 +86,5 @@ where
 {
     pub fn declare_publisher<'a>(&'a self, ke: &'a keyexpr) -> PublisherBuilder<'a, 'r, Config> {
         PublisherBuilder::new(self.driver, ke)
-    }
-}
-
-pub struct PublisherPutBuilder<'a, 'r, Config>
-where
-    Config: ZConfig,
-{
-    driver: &'a Driver<'r, Config>,
-    ke: &'a keyexpr,
-
-    payload: &'a [u8],
-    encoding: Encoding<'a>,
-    timestamp: Option<Timestamp>,
-    attachment: Option<Attachment<'a>>,
-}
-
-impl<'a, 'r, Config> PublisherPutBuilder<'a, 'r, Config>
-where
-    Config: ZConfig,
-{
-    pub fn encoding(mut self, encoding: Encoding<'a>) -> Self {
-        self.encoding = encoding;
-        self
-    }
-
-    pub fn timestamp(mut self, timestamp: Timestamp) -> Self {
-        self.timestamp = Some(timestamp);
-        self
-    }
-
-    pub fn attachment(mut self, attachment: &'a [u8]) -> Self {
-        self.attachment = Some(Attachment { buffer: attachment });
-        self
-    }
-
-    pub async fn finish(self) -> crate::ZResult<()> {
-        let msg = Push {
-            wire_expr: WireExpr::from(self.ke),
-            payload: PushBody::Put(Put {
-                payload: self.payload,
-                encoding: self.encoding,
-                timestamp: self.timestamp,
-                attachment: self.attachment,
-                ..Default::default()
-            }),
-            timestamp: self.timestamp,
-            ..Default::default()
-        };
-
-        self.driver.send(msg).await
     }
 }

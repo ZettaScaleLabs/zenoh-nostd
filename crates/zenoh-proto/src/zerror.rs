@@ -144,22 +144,19 @@ crate::declare_zerror! {
         CollectionIsEmpty = 63,
     }
 
-    // --- Embassy related errors ---
+    // --- Session related errors ---
 
     #[doc = "Errors related to zenoh embassy integration."]
-    enum EmbassyError {
+    enum SessionError {
         #[doc = "Could not spawn embassy task."]
         #[err = "could not spawn embassy task"]
         CouldNotSpawnEmbassyTask = 70,
-    }
-
-    // --- Subscriber related errors ---
-
-    #[doc = "Errors related to zenoh subscribers."]
-    pub enum SubscriberError {
-        #[doc = "Subscriber channel is closed."]
-        #[err = "subscriber channel is closed"]
-        SubscriberChannelClosed = 80,
+        #[doc = "Channel is closed."]
+        #[err = "channel is closed"]
+        ChannelClosed = 80,
+        #[doc = "Request timed out."]
+        #[err = "request timed out"]
+        RequestTimedout = 81,
     }
 }
 

@@ -1,12 +1,16 @@
 use crate::{
-    api::{SamplePtr, ZCallbacks, ZChannels},
+    api::{ResponsePtr, SamplePtr, ZCallbacks, ZChannels},
     platform::ZPlatform,
 };
 
 pub trait ZConfig {
     type Platform: ZPlatform;
+
     type SubscriberCallbacks: ZCallbacks<SamplePtr, ()>;
     type SubscriberChannels: ZChannels<SamplePtr>;
+
+    type GetCallbacks: ZCallbacks<ResponsePtr, ()>;
+    type GetChannels: ZChannels<ResponsePtr>;
 
     type TxBuf: AsMut<[u8]>;
     type RxBuf: AsMut<[u8]>;

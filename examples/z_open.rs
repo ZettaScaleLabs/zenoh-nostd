@@ -35,7 +35,7 @@ async fn entry(spawner: embassy_executor::Spawner) -> zenoh_nostd::ZResult<()> {
 
     spawner.spawn(session_task(session.clone())).map_err(|e| {
         zenoh_nostd::error!("Error spawning task: {}", e);
-        zenoh_nostd::EmbassyError::CouldNotSpawnEmbassyTask
+        zenoh_nostd::SessionError::CouldNotSpawnEmbassyTask
     })?;
 
     loop {

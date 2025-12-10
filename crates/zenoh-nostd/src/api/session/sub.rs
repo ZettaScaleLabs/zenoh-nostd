@@ -35,19 +35,15 @@ where
         self.ke
     }
 
-    pub fn id(&self) -> u32 {
-        self.id
-    }
-
     pub async fn recv(
         &self,
     ) -> core::result::Result<
         <<Config::SubscriberChannels as ZChannels<SamplePtr>>::Channel as ZChannel<SamplePtr>>::Item,
-    crate::SubscriberError,>{
+    crate::SessionError,>{
         if let Some(ch) = &self.channel {
             Ok(ch.recv().await)
         } else {
-            Err(crate::SubscriberError::SubscriberChannelClosed)
+            Err(crate::SessionError::ChannelClosed)
         }
     }
 
@@ -111,11 +107,11 @@ where
 
         let mut subscribers = self.resources.sub_callbacks.lock().await;
         let channel = if let Some(callback) = self.callback {
-            subscribers.insert(id, self.ke, callback)?;
+            subscribers.insert(id, self.ke, None, callback)?;
             None
         } else {
             let channels = &self.resources.sub_channels;
-            let ch = channels.insert(id, self.ke).await?;
+            let ch = channels.insert(id, self.ke, None).await?;
             Some(ch)
         };
 

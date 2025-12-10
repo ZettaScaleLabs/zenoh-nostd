@@ -1,13 +1,22 @@
 use zenoh_proto::keyexpr;
 
-pub struct Sample {
+pub struct Response {
+    ok: bool,
     keyexpr: *const keyexpr,
     payload: *const [u8],
 }
 
-impl Sample {
-    pub(crate) fn new(keyexpr: &keyexpr, payload: &[u8]) -> Self {
-        Self { keyexpr, payload }
+impl Response {
+    pub(crate) fn new(ok: bool, keyexpr: &keyexpr, payload: &[u8]) -> Self {
+        Self {
+            ok,
+            keyexpr,
+            payload,
+        }
+    }
+
+    pub fn is_ok(&self) -> bool {
+        self.ok
     }
 
     /// # Safety
@@ -25,26 +34,32 @@ impl Sample {
     }
 }
 
-pub type SamplePtr = *const Sample;
+pub type ResponsePtr = *const Response;
 
-pub struct SampleRef<'a> {
+pub struct ResponseRef<'a> {
+    ok: bool,
     keyexpr: &'a keyexpr,
     payload: &'a [u8],
 }
 
-impl<'a> SampleRef<'a> {
+impl<'a> ResponseRef<'a> {
     /// # Safety
     ///
     /// The caller must ensure that the pointers are valid for the lifetime of the Sample.
-    pub unsafe fn new(sample: &SamplePtr) -> Self {
+    pub unsafe fn new(sample: &ResponsePtr) -> Self {
         unsafe {
             let sample = &**sample;
 
             Self {
+                ok: sample.is_ok(),
                 keyexpr: sample.keyexpr(),
                 payload: sample.payload(),
             }
         }
+    }
+
+    pub fn is_ok(&self) -> bool {
+        self.ok
     }
 
     pub fn keyexpr(&self) -> &keyexpr {
@@ -56,25 +71,29 @@ impl<'a> SampleRef<'a> {
     }
 }
 
-impl From<SamplePtr> for SampleRef<'_> {
-    fn from(sample: SamplePtr) -> Self {
+impl From<ResponsePtr> for ResponseRef<'_> {
+    fn from(sample: ResponsePtr) -> Self {
         unsafe { Self::new(&sample) }
     }
 }
 
-impl From<SampleRef<'_>> for Sample {
-    fn from(sample: SampleRef<'_>) -> Self {
-        Self::new(sample.keyexpr(), sample.payload())
+impl From<ResponseRef<'_>> for Response {
+    fn from(sample: ResponseRef<'_>) -> Self {
+        Self::new(sample.is_ok(), sample.keyexpr(), sample.payload())
     }
 }
 
-pub struct HeaplessSample<const MAX_KEYEXPR: usize, const MAX_PAYLOAD: usize> {
+pub struct HeaplessResponse<const MAX_KEYEXPR: usize, const MAX_PAYLOAD: usize> {
+    ok: bool,
     keyexpr: heapless::String<MAX_KEYEXPR>,
     payload: heapless::Vec<u8, MAX_PAYLOAD>,
 }
 
-impl<const MAX_KEYEXPR: usize, const MAX_PAYLOAD: usize> HeaplessSample<MAX_KEYEXPR, MAX_PAYLOAD> {
+impl<const MAX_KEYEXPR: usize, const MAX_PAYLOAD: usize>
+    HeaplessResponse<MAX_KEYEXPR, MAX_PAYLOAD>
+{
     pub fn new(
+        ok: bool,
         keyexpr: &keyexpr,
         payload: &[u8],
     ) -> core::result::Result<Self, crate::CollectionError> {
@@ -89,9 +108,14 @@ impl<const MAX_KEYEXPR: usize, const MAX_PAYLOAD: usize> HeaplessSample<MAX_KEYE
             .map_err(|_| crate::CollectionError::CollectionIsFull)?;
 
         Ok(Self {
+            ok,
             keyexpr: ke_str,
             payload: pl_vec,
         })
+    }
+
+    pub fn is_ok(&self) -> bool {
+        self.ok
     }
 
     pub fn keyexpr(&self) -> &keyexpr {
@@ -104,13 +128,13 @@ impl<const MAX_KEYEXPR: usize, const MAX_PAYLOAD: usize> HeaplessSample<MAX_KEYE
     }
 }
 
-impl<const MAX_KEYEXPR: usize, const MAX_PAYLOAD: usize> TryFrom<SamplePtr>
-    for HeaplessSample<MAX_KEYEXPR, MAX_PAYLOAD>
+impl<const MAX_KEYEXPR: usize, const MAX_PAYLOAD: usize> TryFrom<ResponsePtr>
+    for HeaplessResponse<MAX_KEYEXPR, MAX_PAYLOAD>
 {
     type Error = crate::CollectionError;
 
-    fn try_from(sample: SamplePtr) -> core::result::Result<Self, Self::Error> {
-        let sample = unsafe { SampleRef::new(&sample) };
-        Self::new(sample.keyexpr(), sample.payload())
+    fn try_from(sample: ResponsePtr) -> core::result::Result<Self, Self::Error> {
+        let sample = unsafe { ResponseRef::new(&sample) };
+        Self::new(sample.is_ok(), sample.keyexpr(), sample.payload())
     }
 }

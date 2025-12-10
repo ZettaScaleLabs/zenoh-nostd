@@ -1,3 +1,4 @@
+use embassy_time::Instant;
 use heapless::FnvIndexMap;
 use zenoh_proto::keyexpr;
 
@@ -11,8 +12,11 @@ pub trait ZCallbacks<A, B> {
         &mut self,
         id: u32,
         ke: &'static keyexpr,
+        timedout: Option<Instant>,
         callback: impl Into<Self::Callback>,
     ) -> core::result::Result<(), crate::CollectionError>;
+    fn drop_timedout(&mut self);
+    fn get<'r>(&'r self, id: u32) -> Option<&'r Self::Callback>;
     fn remove(&mut self, id: u32) -> core::result::Result<(), crate::CollectionError>;
     fn intersects<'r>(&'r self, ke: &keyexpr) -> impl Iterator<Item = &'r Self::Callback>
     where
@@ -24,6 +28,7 @@ pub trait ZCallbacks<A, B> {
 pub struct HeaplessCallbacks<A, B, const ASYNC_CALLBACK_MEMORY: usize, const CAPACITY: usize> {
     keyexprs: FnvIndexMap<u32, &'static keyexpr, CAPACITY>,
     callbacks: FnvIndexMap<u32, Callback<A, B, ASYNC_CALLBACK_MEMORY>, CAPACITY>,
+    timedouts: FnvIndexMap<u32, Instant, CAPACITY>,
 }
 
 impl<A, B, const ASYNC_CALLBACK_MEMORY: usize, const CAPACITY: usize> ZCallbacks<A, B>
@@ -35,6 +40,7 @@ impl<A, B, const ASYNC_CALLBACK_MEMORY: usize, const CAPACITY: usize> ZCallbacks
         Self {
             keyexprs: FnvIndexMap::new(),
             callbacks: FnvIndexMap::new(),
+            timedouts: FnvIndexMap::new(),
         }
     }
 
@@ -42,6 +48,7 @@ impl<A, B, const ASYNC_CALLBACK_MEMORY: usize, const CAPACITY: usize> ZCallbacks
         &mut self,
         id: u32,
         ke: &'static keyexpr,
+        timedout: Option<Instant>,
         callback: impl Into<Self::Callback>,
     ) -> core::result::Result<(), crate::CollectionError> {
         if self.keyexprs.contains_key(&id) {
@@ -49,6 +56,10 @@ impl<A, B, const ASYNC_CALLBACK_MEMORY: usize, const CAPACITY: usize> ZCallbacks
         }
 
         if self.callbacks.contains_key(&id) {
+            return Err(crate::CollectionError::KeyAlreadyExists);
+        }
+
+        if self.timedouts.contains_key(&id) {
             return Err(crate::CollectionError::KeyAlreadyExists);
         }
 
@@ -60,13 +71,38 @@ impl<A, B, const ASYNC_CALLBACK_MEMORY: usize, const CAPACITY: usize> ZCallbacks
             .insert(id, callback.into())
             .map_err(|_| crate::CollectionError::CollectionIsFull)?;
 
+        if let Some(timedout) = timedout {
+            self.timedouts
+                .insert(id, timedout)
+                .map_err(|_| crate::CollectionError::CollectionIsFull)?;
+        }
+
         Ok(())
+    }
+
+    fn drop_timedout(&mut self) {
+        self.timedouts.retain(|id, timedout| {
+            if Instant::now() >= *timedout {
+                self.keyexprs.remove(&id);
+                self.callbacks.remove(&id);
+
+                false
+            } else {
+                true
+            }
+        });
     }
 
     fn remove(&mut self, id: u32) -> core::result::Result<(), crate::CollectionError> {
         self.keyexprs.remove(&id);
         self.callbacks.remove(&id);
+        self.timedouts.remove(&id);
+
         Ok(())
+    }
+
+    fn get<'r>(&'r self, id: u32) -> Option<&'r Self::Callback> {
+        self.callbacks.get(&id)
     }
 
     fn intersects<'r>(&'r self, ke: &keyexpr) -> impl Iterator<Item = &'r Self::Callback>

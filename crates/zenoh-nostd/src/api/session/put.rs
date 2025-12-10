@@ -2,7 +2,7 @@ use zenoh_proto::{exts::*, fields::*, msgs::*, *};
 
 use crate::api::{ZConfig, driver::Driver};
 
-pub struct SessionPutBuilder<'a, 'r, Config>
+pub struct PutBuilder<'a, 'r, Config>
 where
     Config: ZConfig,
 {
@@ -14,7 +14,7 @@ where
     attachment: Option<Attachment<'a>>,
 }
 
-impl<'a, 'r, Config> SessionPutBuilder<'a, 'r, Config>
+impl<'a, 'r, Config> PutBuilder<'a, 'r, Config>
 where
     Config: ZConfig,
 {
@@ -66,11 +66,7 @@ impl<'r, Config> super::Session<'r, Config>
 where
     Config: ZConfig,
 {
-    pub fn put<'a>(
-        &'a self,
-        ke: &'a keyexpr,
-        bytes: &'a [u8],
-    ) -> SessionPutBuilder<'a, 'r, Config> {
-        SessionPutBuilder::new(self.driver, ke, bytes)
+    pub fn put<'a>(&'a self, ke: &'a keyexpr, bytes: &'a [u8]) -> PutBuilder<'a, 'r, Config> {
+        PutBuilder::new(self.driver, ke, bytes)
     }
 }

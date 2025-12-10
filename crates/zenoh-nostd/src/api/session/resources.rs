@@ -17,6 +17,9 @@ where
 
     pub sub_callbacks: Mutex<NoopRawMutex, Config::SubscriberCallbacks>,
     pub sub_channels: Config::SubscriberChannels,
+
+    pub get_callbacks: Mutex<NoopRawMutex, Config::GetCallbacks>,
+    pub get_channels: Config::GetChannels,
 }
 
 impl<Config> SessionResources<Config>
@@ -60,8 +63,12 @@ where
             driver: None,
             session: SessionResources {
                 next: Mutex::new(0),
+
                 sub_callbacks: Mutex::new(Config::SubscriberCallbacks::empty()),
                 sub_channels: Config::SubscriberChannels::new(),
+
+                get_callbacks: Mutex::new(Config::GetCallbacks::empty()),
+                get_channels: Config::GetChannels::new(),
             },
         }
     }

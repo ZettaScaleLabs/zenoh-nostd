@@ -22,6 +22,9 @@ pub use sub::{HeaplessSubscriberCallbacks, HeaplessSubscriberChannels, Subscribe
 mod r#pub;
 pub use r#pub::Publisher;
 
+mod get;
+pub use get::{Get, HeaplessGetCallbacks, HeaplessGetChannels};
+
 pub struct Session<'a, Config>
 where
     Config: ZConfig,
