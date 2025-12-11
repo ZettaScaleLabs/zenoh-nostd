@@ -1,4 +1,7 @@
+use elain::{Align, Alignment};
 use zenoh_proto::keyexpr;
+
+use crate::api::AsyncCallback;
 
 pub struct Sample {
     keyexpr: *const keyexpr,
@@ -112,5 +115,30 @@ impl<const MAX_KEYEXPR: usize, const MAX_PAYLOAD: usize> TryFrom<SamplePtr>
     fn try_from(sample: SamplePtr) -> core::result::Result<Self, Self::Error> {
         let sample = unsafe { SampleRef::new(&sample) };
         Self::new(sample.keyexpr(), sample.payload())
+    }
+}
+
+impl<
+    const CALLBACK_SIZE: usize,
+    const CALLBACK_ALIGN: usize,
+    const FUTURE_SIZE: usize,
+    const FUTURE_ALIGN: usize,
+> AsyncCallback<SamplePtr, (), CALLBACK_SIZE, CALLBACK_ALIGN, FUTURE_SIZE, FUTURE_ALIGN>
+where
+    Align<CALLBACK_ALIGN>: Alignment,
+    Align<FUTURE_ALIGN>: Alignment,
+{
+    pub fn new_sync_sub(f: impl Fn(&SampleRef<'_>) -> ()) -> Self {
+        Self::new_sync(move |sample_ptr: SamplePtr| {
+            let sample_ref = sample_ptr.into();
+            f(&sample_ref)
+        })
+    }
+
+    pub fn new_async_sub(f: impl AsyncFn(&SampleRef<'_>) -> ()) -> Self {
+        Self::new_async(async move |sample_ptr: SamplePtr| {
+            let sample_ref = sample_ptr.into();
+            f(&sample_ref).await
+        })
     }
 }

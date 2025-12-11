@@ -51,7 +51,7 @@ pub struct ExampleConfig {
 impl ZConfig for ExampleConfig {
     type Platform = Platform;
 
-    type SubscriberCallbacks = HeaplessSubscriberCallbacks<128, 8>;
+    type SubscriberCallbacks = HeaplessSubscriberCallbacks<128, 128, 8, 128, 8>;
     type SubscriberChannels = HeaplessSubscriberChannels<64, 256, 8, 8>;
 
     type GetCallbacks = HeaplessGetCallbacks<128, 8>;

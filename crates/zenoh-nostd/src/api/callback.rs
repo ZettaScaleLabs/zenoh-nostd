@@ -1,177 +1,148 @@
-use core::{
-    mem::MaybeUninit,
-    pin::Pin,
-    task::{Context, Poll},
-};
+use core::{mem::MaybeUninit, pin::Pin, ptr::NonNull};
 
-struct CallbackFuture<const ASYNC_CALLBACK_MEMORY: usize, Output> {
-    fut: MaybeUninit<[u8; ASYNC_CALLBACK_MEMORY]>,
+use elain::{Align, Alignment};
 
-    drop_future: unsafe fn(*mut ()),
-    poll_future: unsafe fn(*mut (), &mut Context<'_>) -> Poll<Output>,
-
-    _pin: core::marker::PhantomPinned,
+pub trait ZCallback<Arg, Ret> {
+    fn call(&self, arg: Arg) -> impl Future<Output = Ret>;
 }
 
-impl<const ASYNC_CALLBACK_MEMORY: usize, Output> Drop
-    for CallbackFuture<ASYNC_CALLBACK_MEMORY, Output>
+#[repr(C)]
+struct DynStorage<const SIZE: usize, const ALIGN: usize>
+where
+    Align<ALIGN>: Alignment,
+{
+    data: MaybeUninit<[u8; SIZE]>,
+    drop: unsafe fn(NonNull<()>),
+    _align: Align<ALIGN>,
+}
+
+impl<const SIZE: usize, const ALIGN: usize> Drop for DynStorage<SIZE, ALIGN>
+where
+    Align<ALIGN>: Alignment,
 {
     fn drop(&mut self) {
-        unsafe {
-            (self.drop_future)(self.fut.as_ptr() as *mut ());
-        }
+        unsafe { (self.drop)(NonNull::from(&mut self.data).cast()) }
     }
 }
 
-impl<const ASYNC_CALLBACK_MEMORY: usize, Output> Future
-    for CallbackFuture<ASYNC_CALLBACK_MEMORY, Output>
-{
-    type Output = Output;
-
-    fn poll(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
-        unsafe { (self.poll_future)(self.fut.as_ptr() as *mut (), cx) }
-    }
-}
-
-unsafe fn trampoline_call<F, Fut, A, B>(ctx: *mut (), data: *mut (), arg: A)
+impl<const SIZE: usize, const ALIGN: usize> DynStorage<SIZE, ALIGN>
 where
-    F: Fn(A) -> Fut,
-    Fut: Future<Output = B>,
+    Align<ALIGN>: Alignment,
 {
-    let f: &F = unsafe { &*(ctx as *const F) };
-    let result = f(arg);
+    fn new<T>(data: T) -> Self {
+        crate::trace!(
+            "Creating DynStorage for type of size {} and alignment {}",
+            size_of::<T>(),
+            align_of::<T>()
+        );
 
-    unsafe {
-        core::ptr::write(data as *mut _, result);
-    }
-}
-
-unsafe fn trampoline_drop<Fut, B>(fut: *mut ())
-where
-    Fut: Future<Output = B>,
-{
-    let fut: &mut Fut = unsafe { &mut *(fut as *mut Fut) };
-    unsafe {
-        core::ptr::drop_in_place(fut);
-    }
-}
-
-unsafe fn trampoline_poll<Fut, B>(fut: *mut (), cx: &mut Context<'_>) -> Poll<B>
-where
-    Fut: Future<Output = B>,
-{
-    let fut: &mut Fut = unsafe { &mut *(fut as *mut Fut) };
-    let mut fut = unsafe { Pin::new_unchecked(fut) };
-    fut.as_mut().poll(cx)
-}
-
-struct AsyncCallback<A, B, const ASYNC_CALLBACK_MEMORY: usize> {
-    ctx: *mut (),
-
-    call: unsafe fn(*mut (), *mut (), A),
-    drop_future: unsafe fn(*mut ()),
-    poll_future: unsafe fn(*mut (), &mut Context<'_>) -> Poll<B>,
-}
-
-impl<A, B, const ASYNC_CALLBACK_MEMORY: usize> AsyncCallback<A, B, ASYNC_CALLBACK_MEMORY> {
-    pub fn new<F, Fut>(f: &'static F) -> Self
-    where
-        F: Fn(A) -> Fut + 'static,
-        Fut: Future<Output = B>,
-    {
         const {
-            assert!(
-                core::mem::size_of::<Fut>() <= ASYNC_CALLBACK_MEMORY,
-                "Stored future is too large for the provided storage size"
-            );
+            assert!(size_of::<T>() <= SIZE);
+            assert!(align_of::<T>() <= ALIGN);
         };
 
-        AsyncCallback {
-            ctx: f as *const F as *mut (),
-            call: trampoline_call::<F, Fut, A, B>,
-            drop_future: trampoline_drop::<Fut, B>,
-            poll_future: trampoline_poll::<Fut, B>,
-        }
+        let mut this = Self {
+            data: MaybeUninit::uninit(),
+            drop: |data: NonNull<()>| unsafe { data.cast::<T>().drop_in_place() },
+            _align: Align::default(),
+        };
+        unsafe { this.data.as_mut_ptr().cast::<T>().write(data) };
+        this
     }
 
-    pub fn execute(&self, arg: A) -> CallbackFuture<ASYNC_CALLBACK_MEMORY, B> {
-        let mut fut: MaybeUninit<[u8; ASYNC_CALLBACK_MEMORY]> = MaybeUninit::uninit();
+    fn insert<T>(option: &mut Option<Self>, data: T) -> &mut T {
+        let ptr = NonNull::from(&mut option.insert(Self::new(data)).data);
+        unsafe { ptr.cast().as_mut() }
+    }
 
-        unsafe {
-            (self.call)(self.ctx, fut.as_mut_ptr() as *mut (), arg);
-        }
-
-        CallbackFuture {
-            fut,
-            drop_future: self.drop_future,
-            poll_future: self.poll_future,
-            _pin: core::marker::PhantomPinned,
-        }
+    fn ptr(&self) -> NonNull<()> {
+        NonNull::from(&self.data).cast()
     }
 }
 
-pub struct SyncCallback<A, B> {
-    call: fn(A) -> B,
+enum ReturnOrFuture<Ret, Fut> {
+    Return(Ret),
+    Future(Fut),
 }
 
-impl<A, B> SyncCallback<A, B> {
-    pub fn new(f: fn(A) -> B) -> Self {
-        SyncCallback { call: f }
-    }
-
-    pub fn execute(&self, arg: A) -> B {
-        (self.call)(arg)
-    }
-}
-
-pub trait ZCallback<A, B> {
-    fn execute(&self, arg: A) -> impl Future<Output = B>;
-}
-
-impl<A, B, const ASYNC_CALLBACK_MEMORY: usize> ZCallback<A, B>
-    for AsyncCallback<A, B, ASYNC_CALLBACK_MEMORY>
+pub struct AsyncCallback<
+    Arg,
+    Ret,
+    const CALLBACK_SIZE: usize = { size_of::<usize>() },
+    const CALLBACK_ALIGN: usize = { size_of::<usize>() },
+    const FUTURE_SIZE: usize = { 4 * size_of::<usize>() },
+    const FUTURE_ALIGN: usize = { size_of::<usize>() },
+> where
+    Align<CALLBACK_ALIGN>: Alignment,
+    Align<FUTURE_ALIGN>: Alignment,
 {
-    fn execute(&self, arg: A) -> impl Future<Output = B> {
-        self.execute(arg)
-    }
+    context: DynStorage<CALLBACK_SIZE, CALLBACK_ALIGN>,
+    #[expect(clippy::type_complexity)]
+    callback: unsafe fn(
+        NonNull<()>,
+        Arg,
+        &mut Option<DynStorage<FUTURE_SIZE, FUTURE_ALIGN>>,
+    ) -> ReturnOrFuture<Ret, Pin<&mut dyn Future<Output = Ret>>>,
 }
 
-impl<A, B> ZCallback<A, B> for SyncCallback<A, B> {
-    fn execute(&self, arg: A) -> impl Future<Output = B> {
-        core::future::ready(self.execute(arg))
-    }
-}
-
-enum CallbackInner<A, B, const ASYNC_CALLBACK_MEMORY: usize> {
-    Sync(SyncCallback<A, B>),
-    Async(AsyncCallback<A, B, ASYNC_CALLBACK_MEMORY>),
-}
-
-pub struct Callback<A, B, const ASYNC_CALLBACK_MEMORY: usize>(
-    CallbackInner<A, B, ASYNC_CALLBACK_MEMORY>,
-);
-
-impl<A, B, const ASYNC_CALLBACK_MEMORY: usize> ZCallback<A, B>
-    for Callback<A, B, ASYNC_CALLBACK_MEMORY>
+impl<
+    Arg,
+    Ret,
+    const CALLBACK_SIZE: usize,
+    const CALLBACK_ALIGN: usize,
+    const FUTURE_SIZE: usize,
+    const FUTURE_ALIGN: usize,
+> AsyncCallback<Arg, Ret, CALLBACK_SIZE, CALLBACK_ALIGN, FUTURE_SIZE, FUTURE_ALIGN>
+where
+    Align<CALLBACK_ALIGN>: Alignment,
+    Align<FUTURE_ALIGN>: Alignment,
 {
-    async fn execute(&self, arg: A) -> B {
-        match &self.0 {
-            CallbackInner::Sync(sync_cb) => ZCallback::execute(sync_cb, arg).await,
-            CallbackInner::Async(async_cb) => ZCallback::execute(async_cb, arg).await,
+    pub(crate) fn new_async<F: AsyncFn(Arg) -> Ret>(f: F) -> Self {
+        Self {
+            context: DynStorage::new(f),
+            callback:
+                |ctx: NonNull<()>,
+                 arg: Arg,
+                 fut: &mut Option<DynStorage<FUTURE_SIZE, FUTURE_ALIGN>>| unsafe {
+                    let fut = DynStorage::insert(fut, ctx.cast::<F>().as_ref()(arg));
+                    core::mem::transmute(ReturnOrFuture::Future::<Ret, _>(Pin::new_unchecked(
+                        fut as &mut dyn Future<Output = Ret>,
+                    )))
+                },
+        }
+    }
+
+    pub(crate) fn new_sync<F: Fn(Arg) -> Ret>(f: F) -> Self {
+        Self {
+            context: DynStorage::new(f),
+            callback:
+                |ctx: NonNull<()>,
+                 arg: Arg,
+                 _: &mut Option<DynStorage<FUTURE_SIZE, FUTURE_ALIGN>>| unsafe {
+                    ReturnOrFuture::Return(ctx.cast::<F>().as_ref()(arg))
+                },
         }
     }
 }
 
-impl<A, B, const ASYNC_CALLBACK_MEMORY: usize> Callback<A, B, ASYNC_CALLBACK_MEMORY> {
-    pub fn from_sync(f: fn(A) -> B) -> Self {
-        Callback(CallbackInner::Sync(SyncCallback::new(f)))
-    }
-
-    pub fn from_async<F, Fut>(f: &'static F) -> Self
-    where
-        F: Fn(A) -> Fut + 'static,
-        Fut: Future<Output = B>,
-    {
-        Callback(CallbackInner::Async(AsyncCallback::new::<F, Fut>(f)))
+impl<
+    Arg,
+    Ret,
+    const CALLBACK_SIZE: usize,
+    const CALLBACK_ALIGN: usize,
+    const FUTURE_SIZE: usize,
+    const FUTURE_ALIGN: usize,
+> ZCallback<Arg, Ret>
+    for AsyncCallback<Arg, Ret, CALLBACK_SIZE, CALLBACK_ALIGN, FUTURE_SIZE, FUTURE_ALIGN>
+where
+    Align<CALLBACK_ALIGN>: Alignment,
+    Align<FUTURE_ALIGN>: Alignment,
+{
+    async fn call(&self, arg: Arg) -> Ret {
+        let mut future = None;
+        match unsafe { (self.callback)(self.context.ptr(), arg, &mut future) } {
+            ReturnOrFuture::Return(ret) => ret,
+            ReturnOrFuture::Future(fut) => fut.await,
+        }
     }
 }

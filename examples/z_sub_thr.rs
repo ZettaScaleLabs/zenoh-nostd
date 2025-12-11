@@ -46,7 +46,7 @@ static mut STATS: Stats = Stats {
     global_start: None,
 };
 
-fn callback(_: SamplePtr) {
+fn callback(_: &SampleRef<'_>) {
     #[allow(static_mut_refs)]
     unsafe {
         if STATS.finished_rounds >= 10 {
@@ -74,7 +74,7 @@ async fn entry(spawner: embassy_executor::Spawner) -> zenoh_nostd::ZResult<()> {
 
     let _ = session
         .declare_subscriber(keyexpr::new("test/thr")?)
-        .callback(Callback::from_sync(callback))
+        .callback(AsyncCallback::new_sync_sub(callback))
         .finish()
         .await?;
 

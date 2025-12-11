@@ -33,7 +33,7 @@ where
 
                     let sub_cb = resources.sub_callbacks.lock().await;
                     for cb in sub_cb.intersects(ke) {
-                        cb.execute(&sample).await;
+                        cb.call(&sample).await;
                     }
 
                     let sub_ch = &resources.sub_channels;
@@ -66,7 +66,7 @@ where
 
                     let get_cb = resources.get_callbacks.lock().await;
                     if let Some(cb) = get_cb.get(rid) {
-                        cb.execute(&response).await;
+                        cb.call(&response).await;
                     }
 
                     let get_ch = &resources.get_channels;

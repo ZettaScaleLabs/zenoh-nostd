@@ -1,11 +1,12 @@
+use elain::{Align, Alignment};
 use embassy_time::Instant;
 use heapless::FnvIndexMap;
 use zenoh_proto::keyexpr;
 
-use crate::api::{Callback, ZCallback};
+use crate::api::{AsyncCallback, ZCallback};
 
-pub trait ZCallbacks<A, B> {
-    type Callback: ZCallback<A, B>;
+pub trait ZCallbacks<Arg, Ret> {
+    type Callback: ZCallback<Arg, Ret>;
 
     fn empty() -> Self;
     fn insert(
@@ -13,7 +14,7 @@ pub trait ZCallbacks<A, B> {
         id: u32,
         ke: &'static keyexpr,
         timedout: Option<Instant>,
-        callback: impl Into<Self::Callback>,
+        callback: Self::Callback,
     ) -> core::result::Result<(), crate::CollectionError>;
     fn drop_timedout(&mut self);
     fn get<'r>(&'r self, id: u32) -> Option<&'r Self::Callback>;
@@ -21,20 +22,55 @@ pub trait ZCallbacks<A, B> {
     fn intersects<'r>(&'r self, ke: &keyexpr) -> impl Iterator<Item = &'r Self::Callback>
     where
         Self::Callback: 'r,
-        A: 'r,
-        B: 'r;
+        Arg: 'r,
+        Ret: 'r;
 }
 
-pub struct HeaplessCallbacks<A, B, const ASYNC_CALLBACK_MEMORY: usize, const CAPACITY: usize> {
+pub struct HeaplessCallbacks<
+    Arg,
+    Ret,
+    const CAPACITY: usize,
+    const CALLBACK_SIZE: usize = { size_of::<usize>() },
+    const CALLBACK_ALIGN: usize = { size_of::<usize>() },
+    const FUTURE_SIZE: usize = { 4 * size_of::<usize>() },
+    const FUTURE_ALIGN: usize = { size_of::<usize>() },
+> where
+    Align<CALLBACK_ALIGN>: Alignment,
+    Align<FUTURE_ALIGN>: Alignment,
+{
     keyexprs: FnvIndexMap<u32, &'static keyexpr, CAPACITY>,
-    callbacks: FnvIndexMap<u32, Callback<A, B, ASYNC_CALLBACK_MEMORY>, CAPACITY>,
+    callbacks: FnvIndexMap<
+        u32,
+        AsyncCallback<Arg, Ret, CALLBACK_SIZE, CALLBACK_ALIGN, FUTURE_SIZE, FUTURE_ALIGN>,
+        CAPACITY,
+    >,
     timedouts: FnvIndexMap<u32, Instant, CAPACITY>,
 }
 
-impl<A, B, const ASYNC_CALLBACK_MEMORY: usize, const CAPACITY: usize> ZCallbacks<A, B>
-    for HeaplessCallbacks<A, B, ASYNC_CALLBACK_MEMORY, CAPACITY>
+impl<
+    Arg,
+    Ret,
+    const CAPACITY: usize,
+    const CALLBACK_SIZE: usize,
+    const CALLBACK_ALIGN: usize,
+    const FUTURE_SIZE: usize,
+    const FUTURE_ALIGN: usize,
+> ZCallbacks<Arg, Ret>
+    for HeaplessCallbacks<
+        Arg,
+        Ret,
+        CAPACITY,
+        CALLBACK_SIZE,
+        CALLBACK_ALIGN,
+        FUTURE_SIZE,
+        FUTURE_ALIGN,
+    >
+where
+    Align<CALLBACK_ALIGN>: Alignment,
+    Align<FUTURE_ALIGN>: Alignment,
 {
-    type Callback = Callback<A, B, ASYNC_CALLBACK_MEMORY>;
+    type Callback =
+        AsyncCallback<Arg, Ret, CALLBACK_SIZE, CALLBACK_ALIGN, FUTURE_SIZE, FUTURE_ALIGN>;
 
     fn empty() -> Self {
         Self {
@@ -49,7 +85,7 @@ impl<A, B, const ASYNC_CALLBACK_MEMORY: usize, const CAPACITY: usize> ZCallbacks
         id: u32,
         ke: &'static keyexpr,
         timedout: Option<Instant>,
-        callback: impl Into<Self::Callback>,
+        callback: Self::Callback,
     ) -> core::result::Result<(), crate::CollectionError> {
         if self.keyexprs.contains_key(&id) {
             return Err(crate::CollectionError::KeyAlreadyExists);
@@ -68,7 +104,7 @@ impl<A, B, const ASYNC_CALLBACK_MEMORY: usize, const CAPACITY: usize> ZCallbacks
             .map_err(|_| crate::CollectionError::CollectionIsFull)?;
 
         self.callbacks
-            .insert(id, callback.into())
+            .insert(id, callback)
             .map_err(|_| crate::CollectionError::CollectionIsFull)?;
 
         if let Some(timedout) = timedout {

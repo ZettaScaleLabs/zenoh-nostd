@@ -4,8 +4,21 @@ use crate::api::{
 };
 use zenoh_proto::{fields::*, keyexpr, msgs::*};
 
-pub type HeaplessSubscriberCallbacks<const CALLBACK_MEMORY: usize, const CAPACITY: usize> =
-    HeaplessCallbacks<SamplePtr, (), CALLBACK_MEMORY, CAPACITY>;
+pub type HeaplessSubscriberCallbacks<
+    const CAPACITY: usize,
+    const CALLBACK_SIZE: usize = { size_of::<usize>() },
+    const CALLBACK_ALIGN: usize = { size_of::<usize>() },
+    const FUTURE_SIZE: usize = { 4 * size_of::<usize>() },
+    const FUTURE_ALIGN: usize = { size_of::<usize>() },
+> = HeaplessCallbacks<
+    SamplePtr,
+    (),
+    CAPACITY,
+    CALLBACK_SIZE,
+    CALLBACK_ALIGN,
+    FUTURE_SIZE,
+    FUTURE_ALIGN,
+>;
 
 pub type HeaplessSubscriberChannels<
     const MAX_KEYEXPR: usize,
