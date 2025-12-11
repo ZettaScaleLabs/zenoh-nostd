@@ -31,7 +31,7 @@ where
                     let ke = keyexpr::new(ke)?;
                     let sample = Sample::new(ke, payload);
 
-                    let sub_cb = resources.sub_callbacks.lock().await;
+                    let mut sub_cb = resources.sub_callbacks.lock().await;
                     for cb in sub_cb.intersects(ke) {
                         cb.call(&sample).await;
                     }
@@ -64,7 +64,7 @@ where
                     let ke = keyexpr::new(ke)?;
                     let response = crate::api::Response::new(is_ok, &ke, payload);
 
-                    let get_cb = resources.get_callbacks.lock().await;
+                    let mut get_cb = resources.get_callbacks.lock().await;
                     if let Some(cb) = get_cb.get(rid) {
                         cb.call(&response).await;
                     }

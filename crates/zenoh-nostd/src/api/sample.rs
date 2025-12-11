@@ -1,53 +1,16 @@
-use elain::{Align, Alignment};
+use higher_kinded_types::ForLt;
 use zenoh_proto::keyexpr;
 
-use crate::api::AsyncCallback;
+pub(crate) type SampleRef = ForLt!(<'a> = &'a Sample<'a>);
 
-pub struct Sample {
-    keyexpr: *const keyexpr,
-    payload: *const [u8],
-}
-
-impl Sample {
-    pub(crate) fn new(keyexpr: &keyexpr, payload: &[u8]) -> Self {
-        Self { keyexpr, payload }
-    }
-
-    /// # Safety
-    ///
-    /// The caller must ensure that the pointers are valid for the lifetime of the Sample.
-    pub unsafe fn keyexpr(&self) -> &keyexpr {
-        unsafe { &*self.keyexpr }
-    }
-
-    /// # Safety
-    ///
-    /// The caller must ensure that the pointers are valid for the lifetime of the Sample.
-    pub unsafe fn payload(&self) -> &[u8] {
-        unsafe { &*self.payload }
-    }
-}
-
-pub type SamplePtr = *const Sample;
-
-pub struct SampleRef<'a> {
+pub struct Sample<'a> {
     keyexpr: &'a keyexpr,
     payload: &'a [u8],
 }
 
-impl<'a> SampleRef<'a> {
-    /// # Safety
-    ///
-    /// The caller must ensure that the pointers are valid for the lifetime of the Sample.
-    pub unsafe fn new(sample: &SamplePtr) -> Self {
-        unsafe {
-            let sample = &**sample;
-
-            Self {
-                keyexpr: sample.keyexpr(),
-                payload: sample.payload(),
-            }
-        }
+impl<'a> Sample<'a> {
+    pub fn new(keyexpr: &'a keyexpr, payload: &'a [u8]) -> Self {
+        Self { keyexpr, payload }
     }
 
     pub fn keyexpr(&self) -> &keyexpr {
@@ -56,18 +19,6 @@ impl<'a> SampleRef<'a> {
 
     pub fn payload(&self) -> &[u8] {
         self.payload
-    }
-}
-
-impl From<SamplePtr> for SampleRef<'_> {
-    fn from(sample: SamplePtr) -> Self {
-        unsafe { Self::new(&sample) }
-    }
-}
-
-impl From<SampleRef<'_>> for Sample {
-    fn from(sample: SampleRef<'_>) -> Self {
-        Self::new(sample.keyexpr(), sample.payload())
     }
 }
 
@@ -107,38 +58,12 @@ impl<const MAX_KEYEXPR: usize, const MAX_PAYLOAD: usize> HeaplessSample<MAX_KEYE
     }
 }
 
-impl<const MAX_KEYEXPR: usize, const MAX_PAYLOAD: usize> TryFrom<SamplePtr>
+impl<const MAX_KEYEXPR: usize, const MAX_PAYLOAD: usize> TryFrom<&Sample<'_>>
     for HeaplessSample<MAX_KEYEXPR, MAX_PAYLOAD>
 {
     type Error = crate::CollectionError;
 
-    fn try_from(sample: SamplePtr) -> core::result::Result<Self, Self::Error> {
-        let sample = unsafe { SampleRef::new(&sample) };
+    fn try_from(sample: &Sample<'_>) -> core::result::Result<Self, Self::Error> {
         Self::new(sample.keyexpr(), sample.payload())
-    }
-}
-
-impl<
-    const CALLBACK_SIZE: usize,
-    const CALLBACK_ALIGN: usize,
-    const FUTURE_SIZE: usize,
-    const FUTURE_ALIGN: usize,
-> AsyncCallback<SamplePtr, (), CALLBACK_SIZE, CALLBACK_ALIGN, FUTURE_SIZE, FUTURE_ALIGN>
-where
-    Align<CALLBACK_ALIGN>: Alignment,
-    Align<FUTURE_ALIGN>: Alignment,
-{
-    pub fn new_sync_sub(f: impl Fn(&SampleRef<'_>) -> ()) -> Self {
-        Self::new_sync(move |sample_ptr: SamplePtr| {
-            let sample_ref = sample_ptr.into();
-            f(&sample_ref)
-        })
-    }
-
-    pub fn new_async_sub(f: impl AsyncFn(&SampleRef<'_>) -> ()) -> Self {
-        Self::new_async(async move |sample_ptr: SamplePtr| {
-            let sample_ref = sample_ptr.into();
-            f(&sample_ref).await
-        })
     }
 }

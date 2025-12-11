@@ -1,12 +1,25 @@
 use crate::api::{
-    HeaplessCallbacks, HeaplessChannels, HeaplessResponse, ResponsePtr, SessionResources,
+    HeaplessCallbacks, HeaplessChannels, HeaplessResponse, ResponseRef, SessionResources,
     ZCallbacks, ZChannel, ZChannels, ZConfig, driver::Driver,
 };
 use embassy_time::{Duration, Instant};
 use zenoh_proto::{exts::*, fields::*, keyexpr, msgs::*};
 
-pub type HeaplessGetCallbacks<const CALLBACK_MEMORY: usize, const CAPACITY: usize> =
-    HeaplessCallbacks<ResponsePtr, (), CALLBACK_MEMORY, CAPACITY>;
+pub type HeaplessGetCallbacks<
+    const CAPACITY: usize,
+    const CALLBACK_SIZE: usize = { size_of::<usize>() },
+    const CALLBACK_ALIGN: usize = { size_of::<usize>() },
+    const FUTURE_SIZE: usize = { 4 * size_of::<usize>() },
+    const FUTURE_ALIGN: usize = { size_of::<usize>() },
+> = HeaplessCallbacks<
+    ResponseRef,
+    (),
+    CAPACITY,
+    CALLBACK_SIZE,
+    CALLBACK_ALIGN,
+    FUTURE_SIZE,
+    FUTURE_ALIGN,
+>;
 
 pub type HeaplessGetChannels<
     const MAX_KEYEXPR: usize,
@@ -21,7 +34,7 @@ where
 {
     ke: &'static keyexpr,
     timedout: Instant,
-    channel: Option<&'r <Config::GetChannels as ZChannels<ResponsePtr>>::Channel>,
+    channel: Option<&'r <Config::GetChannels as ZChannels<ResponseRef>>::Channel>,
 }
 
 impl<'r, Config> Get<'r, Config>
@@ -35,7 +48,7 @@ where
     pub async fn recv(
         &self,
     ) -> core::result::Result<
-        <<Config::GetChannels as ZChannels<ResponsePtr>>::Channel as ZChannel<ResponsePtr>>::Item,
+        <<Config::GetChannels as ZChannels<ResponseRef>>::Channel as ZChannel<ResponseRef>>::Item,
         crate::SessionError,
     > {
         if let Some(ch) = &self.channel {
@@ -70,7 +83,7 @@ where
     payload: Option<&'a [u8]>,
     timeout: Option<Duration>,
 
-    callback: Option<<Config::GetCallbacks as ZCallbacks<ResponsePtr, ()>>::Callback>,
+    callback: Option<<Config::GetCallbacks as ZCallbacks<ResponseRef, ()>>::Callback>,
 }
 
 impl<'a, 'r, Config> GetBuilder<'a, 'r, Config>
@@ -110,7 +123,7 @@ where
 
     pub fn callback(
         mut self,
-        callback: <Config::GetCallbacks as ZCallbacks<ResponsePtr, ()>>::Callback,
+        callback: <Config::GetCallbacks as ZCallbacks<ResponseRef, ()>>::Callback,
     ) -> Self {
         self.callback = Some(callback);
         self

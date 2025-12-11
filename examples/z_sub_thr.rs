@@ -38,25 +38,6 @@ impl Stats {
     }
 }
 
-static mut STATS: Stats = Stats {
-    round_count: 0,
-    round_size: 100_000,
-    finished_rounds: 0,
-    round_start: Instant::from_millis(0),
-    global_start: None,
-};
-
-fn callback(_: &SampleRef<'_>) {
-    #[allow(static_mut_refs)]
-    unsafe {
-        if STATS.finished_rounds >= 10 {
-            return;
-        }
-
-        STATS.increment();
-    };
-}
-
 async fn entry(spawner: embassy_executor::Spawner) -> zenoh_nostd::ZResult<()> {
     #[cfg(feature = "log")]
     env_logger::init();
@@ -68,13 +49,24 @@ async fn entry(spawner: embassy_executor::Spawner) -> zenoh_nostd::ZResult<()> {
     let session =
         zenoh_nostd::api::open(&mut resources, config, EndPoint::try_from(CONNECT)?).await?;
 
-    unsafe {
-        STATS.round_start = Instant::now();
-    }
+    let mut stats = Stats {
+        round_count: 0,
+        round_size: 100_000,
+        finished_rounds: 0,
+        round_start: Instant::now(),
+        global_start: None,
+    };
 
     let _ = session
         .declare_subscriber(keyexpr::new("test/thr")?)
-        .callback(AsyncCallback::new_sync_sub(callback))
+        .callback(Callback::new_sync(move |_| {
+            if stats.finished_rounds >= 10 {
+                // TODO! implement a `session.close()` that can be called here to gracefully terminate the session
+                return;
+            }
+
+            stats.increment();
+        }))
         .finish()
         .await?;
 

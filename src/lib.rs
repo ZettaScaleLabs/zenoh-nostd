@@ -51,10 +51,10 @@ pub struct ExampleConfig {
 impl ZConfig for ExampleConfig {
     type Platform = Platform;
 
-    type SubscriberCallbacks = HeaplessSubscriberCallbacks<128, 128, 8, 128, 8>;
+    type SubscriberCallbacks = HeaplessSubscriberCallbacks<8, 128, 128>;
     type SubscriberChannels = HeaplessSubscriberChannels<64, 256, 8, 8>;
 
-    type GetCallbacks = HeaplessGetCallbacks<128, 8>;
+    type GetCallbacks = HeaplessGetCallbacks<8, 128, 128>;
     type GetChannels = HeaplessGetChannels<64, 256, 8, 8>;
 
     type TxBuf = [u8; u16::MAX as usize];

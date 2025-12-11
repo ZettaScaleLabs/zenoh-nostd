@@ -1,5 +1,5 @@
 use crate::api::{
-    HeaplessCallbacks, HeaplessChannels, HeaplessSample, SamplePtr, SessionResources, ZCallbacks,
+    HeaplessCallbacks, HeaplessChannels, HeaplessSample, SampleRef, SessionResources, ZCallbacks,
     ZChannel, ZChannels, ZConfig, driver::Driver,
 };
 use zenoh_proto::{fields::*, keyexpr, msgs::*};
@@ -11,7 +11,7 @@ pub type HeaplessSubscriberCallbacks<
     const FUTURE_SIZE: usize = { 4 * size_of::<usize>() },
     const FUTURE_ALIGN: usize = { size_of::<usize>() },
 > = HeaplessCallbacks<
-    SamplePtr,
+    SampleRef,
     (),
     CAPACITY,
     CALLBACK_SIZE,
@@ -37,7 +37,7 @@ where
     ke: &'static keyexpr,
     id: u32,
 
-    channel: Option<&'r <Config::SubscriberChannels as ZChannels<SamplePtr>>::Channel>,
+    channel: Option<&'r <Config::SubscriberChannels as ZChannels<SampleRef>>::Channel>,
 }
 
 impl<'r, Config> Subscriber<'_, 'r, Config>
@@ -51,7 +51,7 @@ where
     pub async fn recv(
         &self,
     ) -> core::result::Result<
-        <<Config::SubscriberChannels as ZChannels<SamplePtr>>::Channel as ZChannel<SamplePtr>>::Item,
+        <<Config::SubscriberChannels as ZChannels<SampleRef>>::Channel as ZChannel<SampleRef>>::Item,
     crate::SessionError,>{
         if let Some(ch) = &self.channel {
             Ok(ch.recv().await)
@@ -87,7 +87,7 @@ where
 
     ke: &'static keyexpr,
 
-    callback: Option<<Config::SubscriberCallbacks as ZCallbacks<SamplePtr, ()>>::Callback>,
+    callback: Option<<Config::SubscriberCallbacks as ZCallbacks<SampleRef, ()>>::Callback>,
 }
 
 impl<'a, 'r, Config> SubscriberBuilder<'a, 'r, Config>
@@ -109,7 +109,7 @@ where
 
     pub fn callback(
         mut self,
-        callback: <Config::SubscriberCallbacks as ZCallbacks<SamplePtr, ()>>::Callback,
+        callback: <Config::SubscriberCallbacks as ZCallbacks<SampleRef, ()>>::Callback,
     ) -> Self {
         self.callback = Some(callback);
         self

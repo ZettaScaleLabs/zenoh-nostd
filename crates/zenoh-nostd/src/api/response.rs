@@ -1,60 +1,20 @@
+use higher_kinded_types::ForLt;
 use zenoh_proto::keyexpr;
 
-pub struct Response {
-    ok: bool,
-    keyexpr: *const keyexpr,
-    payload: *const [u8],
-}
+pub(crate) type ResponseRef = ForLt!(<'a> = &'a Response<'a>);
 
-impl Response {
-    pub(crate) fn new(ok: bool, keyexpr: &keyexpr, payload: &[u8]) -> Self {
-        Self {
-            ok,
-            keyexpr,
-            payload,
-        }
-    }
-
-    pub fn is_ok(&self) -> bool {
-        self.ok
-    }
-
-    /// # Safety
-    ///
-    /// The caller must ensure that the pointers are valid for the lifetime of the Sample.
-    pub unsafe fn keyexpr(&self) -> &keyexpr {
-        unsafe { &*self.keyexpr }
-    }
-
-    /// # Safety
-    ///
-    /// The caller must ensure that the pointers are valid for the lifetime of the Sample.
-    pub unsafe fn payload(&self) -> &[u8] {
-        unsafe { &*self.payload }
-    }
-}
-
-pub type ResponsePtr = *const Response;
-
-pub struct ResponseRef<'a> {
+pub struct Response<'a> {
     ok: bool,
     keyexpr: &'a keyexpr,
     payload: &'a [u8],
 }
 
-impl<'a> ResponseRef<'a> {
-    /// # Safety
-    ///
-    /// The caller must ensure that the pointers are valid for the lifetime of the Sample.
-    pub unsafe fn new(sample: &ResponsePtr) -> Self {
-        unsafe {
-            let sample = &**sample;
-
-            Self {
-                ok: sample.is_ok(),
-                keyexpr: sample.keyexpr(),
-                payload: sample.payload(),
-            }
+impl<'a> Response<'a> {
+    pub fn new(ok: bool, keyexpr: &'a keyexpr, payload: &'a [u8]) -> Self {
+        Self {
+            ok,
+            keyexpr,
+            payload,
         }
     }
 
@@ -68,18 +28,6 @@ impl<'a> ResponseRef<'a> {
 
     pub fn payload(&self) -> &[u8] {
         self.payload
-    }
-}
-
-impl From<ResponsePtr> for ResponseRef<'_> {
-    fn from(sample: ResponsePtr) -> Self {
-        unsafe { Self::new(&sample) }
-    }
-}
-
-impl From<ResponseRef<'_>> for Response {
-    fn from(sample: ResponseRef<'_>) -> Self {
-        Self::new(sample.is_ok(), sample.keyexpr(), sample.payload())
     }
 }
 
@@ -128,13 +76,12 @@ impl<const MAX_KEYEXPR: usize, const MAX_PAYLOAD: usize>
     }
 }
 
-impl<const MAX_KEYEXPR: usize, const MAX_PAYLOAD: usize> TryFrom<ResponsePtr>
+impl<const MAX_KEYEXPR: usize, const MAX_PAYLOAD: usize> TryFrom<&Response<'_>>
     for HeaplessResponse<MAX_KEYEXPR, MAX_PAYLOAD>
 {
     type Error = crate::CollectionError;
 
-    fn try_from(sample: ResponsePtr) -> core::result::Result<Self, Self::Error> {
-        let sample = unsafe { ResponseRef::new(&sample) };
+    fn try_from(sample: &Response<'_>) -> core::result::Result<Self, Self::Error> {
         Self::new(sample.is_ok(), sample.keyexpr(), sample.payload())
     }
 }

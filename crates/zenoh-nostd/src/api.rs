@@ -11,7 +11,7 @@ mod response;
 pub use response::*;
 
 mod callback;
-pub use callback::AsyncCallback;
+pub use callback::Callback;
 pub(crate) use callback::*;
 
 mod callbacks;

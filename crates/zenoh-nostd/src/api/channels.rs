@@ -4,14 +4,15 @@ use embassy_sync::{
 };
 use embassy_time::Instant;
 use heapless::{FnvIndexMap, Vec};
+use higher_kinded_types::ForLt;
 use zenoh_proto::keyexpr;
 
-pub trait ZChannel<Value> {
-    type Item: TryFrom<Value, Error = crate::CollectionError>;
+pub trait ZChannel<Value: ForLt> {
+    type Item: for<'a> TryFrom<Value::Of<'a>, Error = crate::CollectionError>;
 
     fn send(
         &self,
-        value: Value,
+        value: Value::Of<'_>,
     ) -> impl Future<Output = core::result::Result<(), crate::CollectionError>>;
 
     fn recv(&self) -> impl Future<Output = Self::Item>;
@@ -22,11 +23,12 @@ pub type HeaplessChannel<A, const QUEUED: usize> =
 
 impl<Item, Value, const QUEUED: usize> ZChannel<Value> for HeaplessChannel<Item, QUEUED>
 where
-    Item: TryFrom<Value, Error = crate::CollectionError>,
+    Value: ForLt,
+    Item: for<'a> TryFrom<Value::Of<'a>, Error = crate::CollectionError>,
 {
     type Item = Item;
 
-    async fn send(&self, value: Value) -> core::result::Result<(), crate::CollectionError> {
+    async fn send(&self, value: Value::Of<'_>) -> core::result::Result<(), crate::CollectionError> {
         self.send(Self::Item::try_from(value)?).await;
 
         Ok(())
@@ -37,7 +39,7 @@ where
     }
 }
 
-pub trait ZChannels<Value> {
+pub trait ZChannels<Value: ForLt> {
     type Channel: ZChannel<Value>;
 
     type Guard<'a>
@@ -140,7 +142,8 @@ pub struct HeaplessChannels<Item, const QUEUED: usize, const CAPACITY: usize> {
 impl<Item, Value, const QUEUED: usize, const CAPACITY: usize> ZChannels<Value>
     for HeaplessChannels<Item, QUEUED, CAPACITY>
 where
-    Item: TryFrom<Value, Error = crate::CollectionError>,
+    Value: ForLt,
+    Item: for<'a> TryFrom<Value::Of<'a>, Error = crate::CollectionError>,
 {
     type Channel = HeaplessChannel<Item, QUEUED>;
     type Guard<'r>

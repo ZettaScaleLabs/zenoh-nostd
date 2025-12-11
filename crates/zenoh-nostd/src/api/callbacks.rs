@@ -1,11 +1,12 @@
 use elain::{Align, Alignment};
 use embassy_time::Instant;
 use heapless::FnvIndexMap;
+use higher_kinded_types::ForLt;
 use zenoh_proto::keyexpr;
 
-use crate::api::{AsyncCallback, ZCallback};
+use crate::api::{Callback, ZCallback};
 
-pub trait ZCallbacks<Arg, Ret> {
+pub trait ZCallbacks<Arg: ForLt, Ret> {
     type Callback: ZCallback<Arg, Ret>;
 
     fn empty() -> Self;
@@ -17,9 +18,9 @@ pub trait ZCallbacks<Arg, Ret> {
         callback: Self::Callback,
     ) -> core::result::Result<(), crate::CollectionError>;
     fn drop_timedout(&mut self);
-    fn get<'r>(&'r self, id: u32) -> Option<&'r Self::Callback>;
+    fn get<'r>(&'r mut self, id: u32) -> Option<&'r mut Self::Callback>;
     fn remove(&mut self, id: u32) -> core::result::Result<(), crate::CollectionError>;
-    fn intersects<'r>(&'r self, ke: &keyexpr) -> impl Iterator<Item = &'r Self::Callback>
+    fn intersects<'r>(&'r mut self, ke: &keyexpr) -> impl Iterator<Item = &'r mut Self::Callback>
     where
         Self::Callback: 'r,
         Arg: 'r,
@@ -31,17 +32,18 @@ pub struct HeaplessCallbacks<
     Ret,
     const CAPACITY: usize,
     const CALLBACK_SIZE: usize = { size_of::<usize>() },
-    const CALLBACK_ALIGN: usize = { size_of::<usize>() },
     const FUTURE_SIZE: usize = { 4 * size_of::<usize>() },
+    const CALLBACK_ALIGN: usize = { size_of::<usize>() },
     const FUTURE_ALIGN: usize = { size_of::<usize>() },
 > where
+    Arg: ForLt,
     Align<CALLBACK_ALIGN>: Alignment,
     Align<FUTURE_ALIGN>: Alignment,
 {
     keyexprs: FnvIndexMap<u32, &'static keyexpr, CAPACITY>,
     callbacks: FnvIndexMap<
-        u32,
-        AsyncCallback<Arg, Ret, CALLBACK_SIZE, CALLBACK_ALIGN, FUTURE_SIZE, FUTURE_ALIGN>,
+        (u32, &'static keyexpr),
+        Callback<Arg, Ret, CALLBACK_SIZE, FUTURE_SIZE, CALLBACK_ALIGN, FUTURE_ALIGN>,
         CAPACITY,
     >,
     timedouts: FnvIndexMap<u32, Instant, CAPACITY>,
@@ -52,8 +54,8 @@ impl<
     Ret,
     const CAPACITY: usize,
     const CALLBACK_SIZE: usize,
-    const CALLBACK_ALIGN: usize,
     const FUTURE_SIZE: usize,
+    const CALLBACK_ALIGN: usize,
     const FUTURE_ALIGN: usize,
 > ZCallbacks<Arg, Ret>
     for HeaplessCallbacks<
@@ -61,16 +63,16 @@ impl<
         Ret,
         CAPACITY,
         CALLBACK_SIZE,
-        CALLBACK_ALIGN,
         FUTURE_SIZE,
+        CALLBACK_ALIGN,
         FUTURE_ALIGN,
     >
 where
+    Arg: ForLt,
     Align<CALLBACK_ALIGN>: Alignment,
     Align<FUTURE_ALIGN>: Alignment,
 {
-    type Callback =
-        AsyncCallback<Arg, Ret, CALLBACK_SIZE, CALLBACK_ALIGN, FUTURE_SIZE, FUTURE_ALIGN>;
+    type Callback = Callback<Arg, Ret, CALLBACK_SIZE, FUTURE_SIZE, CALLBACK_ALIGN, FUTURE_ALIGN>;
 
     fn empty() -> Self {
         Self {
@@ -91,7 +93,7 @@ where
             return Err(crate::CollectionError::KeyAlreadyExists);
         }
 
-        if self.callbacks.contains_key(&id) {
+        if self.callbacks.contains_key(&(id, ke)) {
             return Err(crate::CollectionError::KeyAlreadyExists);
         }
 
@@ -104,7 +106,7 @@ where
             .map_err(|_| crate::CollectionError::CollectionIsFull)?;
 
         self.callbacks
-            .insert(id, callback)
+            .insert((id, ke), callback)
             .map_err(|_| crate::CollectionError::CollectionIsFull)?;
 
         if let Some(timedout) = timedout {
@@ -119,8 +121,9 @@ where
     fn drop_timedout(&mut self) {
         self.timedouts.retain(|id, timedout| {
             if Instant::now() >= *timedout {
-                self.keyexprs.remove(&id);
-                self.callbacks.remove(&id);
+                if let Some(ke) = self.keyexprs.remove(&id) {
+                    self.callbacks.remove(&(*id, ke));
+                }
 
                 false
             } else {
@@ -130,27 +133,31 @@ where
     }
 
     fn remove(&mut self, id: u32) -> core::result::Result<(), crate::CollectionError> {
-        self.keyexprs.remove(&id);
-        self.callbacks.remove(&id);
+        if let Some(ke) = self.keyexprs.remove(&id) {
+            self.callbacks.remove(&(id, ke));
+        }
         self.timedouts.remove(&id);
 
         Ok(())
     }
 
-    fn get<'r>(&'r self, id: u32) -> Option<&'r Self::Callback> {
-        self.callbacks.get(&id)
+    fn get<'r>(&'r mut self, id: u32) -> Option<&'r mut Self::Callback> {
+        let ke = self.keyexprs.get(&id)?;
+        self.callbacks.get_mut(&(id, ke))
     }
 
-    fn intersects<'r>(&'r self, ke: &keyexpr) -> impl Iterator<Item = &'r Self::Callback>
+    fn intersects<'r>(&'r mut self, ke: &keyexpr) -> impl Iterator<Item = &'r mut Self::Callback>
     where
         Self::Callback: 'r,
     {
-        self.keyexprs.iter().filter_map(|(id, registered_ke)| {
-            if registered_ke.intersects(ke) {
-                self.callbacks.get(id)
-            } else {
-                None
-            }
-        })
+        self.callbacks
+            .iter_mut()
+            .filter_map(move |((_, registered_ke), callback)| {
+                if registered_ke.intersects(ke) {
+                    Some(callback)
+                } else {
+                    None
+                }
+            })
     }
 }
