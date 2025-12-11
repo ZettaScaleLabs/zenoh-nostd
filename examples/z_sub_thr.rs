@@ -60,7 +60,7 @@ async fn entry(spawner: embassy_executor::Spawner) -> zenoh_nostd::ZResult<()> {
     let _ = session
         .declare_subscriber(keyexpr::new("test/thr")?)
         .callback(Callback::new_sync(move |_| {
-            if stats.finished_rounds >= 10 {
+            if stats.finished_rounds >= 1000 {
                 // TODO! implement a `session.close()` that can be called here to gracefully terminate the session
                 return;
             }

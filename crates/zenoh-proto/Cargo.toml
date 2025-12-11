@@ -27,7 +27,6 @@ log = { workspace = true, optional = true }
 defmt = { workspace = true, optional = true }
 web-sys = { workspace = true, optional = true }
 
-
 [dev-dependencies]
 rand.workspace = true
 paste.workspace = true
