@@ -7,16 +7,16 @@ use zenoh_proto::{fields::*, keyexpr, msgs::*};
 pub type HeaplessSubscriberCallbacks<
     const CAPACITY: usize,
     const CALLBACK_SIZE: usize = { size_of::<usize>() },
-    const CALLBACK_ALIGN: usize = { size_of::<usize>() },
     const FUTURE_SIZE: usize = { 4 * size_of::<usize>() },
+    const CALLBACK_ALIGN: usize = { size_of::<usize>() },
     const FUTURE_ALIGN: usize = { size_of::<usize>() },
 > = HeaplessCallbacks<
     SampleRef,
     (),
     CAPACITY,
     CALLBACK_SIZE,
-    CALLBACK_ALIGN,
     FUTURE_SIZE,
+    CALLBACK_ALIGN,
     FUTURE_ALIGN,
 >;
 

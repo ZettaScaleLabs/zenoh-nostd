@@ -22,6 +22,7 @@ where
     pub get_channels: Config::GetChannels,
 
     pub queryable_callbacks: Mutex<NoopRawMutex, Config::QueryableCallbacks>,
+    pub queryable_channels: Config::QueryableChannels,
 }
 
 impl<Config> SessionResources<Config>
@@ -73,6 +74,7 @@ where
                 get_channels: Config::GetChannels::new(),
 
                 queryable_callbacks: Mutex::new(Config::QueryableCallbacks::empty()),
+                queryable_channels: Config::QueryableChannels::new(),
             },
         }
     }

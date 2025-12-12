@@ -3,7 +3,7 @@ use crate::{
     platform::ZPlatform,
 };
 
-pub trait ZConfig {
+pub trait ZConfig: 'static {
     type Platform: ZPlatform;
 
     type SubscriberCallbacks: ZCallbacks<SampleRef, ()>;
@@ -14,7 +14,11 @@ pub trait ZConfig {
 
     type QueryableCallbacks: ZCallbacks<QueryRef<Self>, ()>
     where
-        Self: Sized;
+        Self: Sized + 'static;
+
+    type QueryableChannels: ZChannels<QueryRef<Self>>
+    where
+        Self: Sized + 'static;
 
     type TxBuf: AsMut<[u8]>;
     type RxBuf: AsMut<[u8]>;

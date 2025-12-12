@@ -61,7 +61,10 @@ impl<Config> Driver<'static, Config>
 where
     Config: ZConfig,
 {
-    pub async fn run(&'static self, resources: &SessionResources<Config>) -> crate::ZResult<()> {
+    pub(crate) async fn run(
+        &'static self,
+        resources: &SessionResources<Config>,
+    ) -> crate::ZResult<()> {
         let mut rx_guard = self.rx.lock().await;
         let rx = rx_guard.deref_mut();
 

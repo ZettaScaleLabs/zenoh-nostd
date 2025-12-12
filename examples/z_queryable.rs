@@ -17,7 +17,7 @@ const CONNECT: &str = match option_env!("CONNECT") {
     }
 };
 
-async fn callback(query: &Query<'_, '_, ExampleConfig>) {
+async fn callback(query: &Query<'_, ExampleConfig>) {
     match query.payload() {
         None => {
             zenoh_nostd::info!(
@@ -38,6 +38,8 @@ async fn callback(query: &Query<'_, '_, ExampleConfig>) {
     let _ = query
         .reply(query.keyexpr(), b"Response from z_queryable")
         .await;
+
+    let _ = query.finalize().await;
 }
 
 async fn entry(spawner: embassy_executor::Spawner) -> zenoh_nostd::ZResult<()> {

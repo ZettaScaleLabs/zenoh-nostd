@@ -1,5 +1,6 @@
 use crate::api::{
-    HeaplessCallbacks, QueryRef, SessionResources, ZCallbacks, ZConfig, driver::Driver,
+    HeaplessCallbacks, HeaplessChannels, HeaplessQuery, QueryRef, SessionResources, ZCallbacks,
+    ZConfig, driver::Driver,
 };
 use zenoh_proto::{fields::*, keyexpr, msgs::*};
 
@@ -7,17 +8,30 @@ pub type HeaplessQueryableCallbacks<
     Config,
     const CAPACITY: usize,
     const CALLBACK_SIZE: usize = { size_of::<usize>() },
-    const CALLBACK_ALIGN: usize = { size_of::<usize>() },
     const FUTURE_SIZE: usize = { 4 * size_of::<usize>() },
+    const CALLBACK_ALIGN: usize = { size_of::<usize>() },
     const FUTURE_ALIGN: usize = { size_of::<usize>() },
 > = HeaplessCallbacks<
     QueryRef<Config>,
     (),
     CAPACITY,
     CALLBACK_SIZE,
-    CALLBACK_ALIGN,
     FUTURE_SIZE,
+    CALLBACK_ALIGN,
     FUTURE_ALIGN,
+>;
+
+pub type HeaplessQueryableChannels<
+    Config,
+    const MAX_KEYEXPR: usize,
+    const MAX_PARAMETERS: usize,
+    const MAX_PAYLOAD: usize,
+    const QUEUED: usize,
+    const CAPACITY: usize,
+> = HeaplessChannels<
+    HeaplessQuery<MAX_KEYEXPR, MAX_PARAMETERS, MAX_PAYLOAD, Config>,
+    QUEUED,
+    CAPACITY,
 >;
 
 pub struct Queryable<'a, 'r, Config>

@@ -11,25 +11,25 @@ use zenoh_proto::{
 
 use crate::api::{ZConfig, driver::Driver};
 
-pub(crate) type QueryRef<Config> = ForLt!(<'a> = &'a Query<'a, 'a, Config>);
+pub(crate) type QueryRef<Config> = ForLt!(<'a> = &'a Query<'a, Config>);
 
-pub struct Query<'a, 'r, Config>
+pub struct Query<'a, Config>
 where
     Config: ZConfig,
 {
-    driver: &'a Driver<'r, Config>,
+    driver: &'static Driver<'static, Config>,
     rid: u32,
     keyexpr: &'a keyexpr,
     parameters: Option<&'a str>,
     payload: Option<&'a [u8]>,
 }
 
-impl<'a, 'r, Config> Query<'a, 'r, Config>
+impl<'a, Config> Query<'a, Config>
 where
     Config: ZConfig,
 {
     pub fn new(
-        driver: &'a Driver<'r, Config>,
+        driver: &'static Driver<'static, Config>,
         rid: u32,
         keyexpr: &'a keyexpr,
         parameters: Option<&'a str>,
@@ -91,7 +91,7 @@ where
         self.driver.send(response).await
     }
 
-    pub async fn finalize(self) -> crate::ZResult<()> {
+    pub async fn finalize(&self) -> crate::ZResult<()> {
         let response = ResponseFinal {
             rid: self.rid,
             ..Default::default()
@@ -102,8 +102,6 @@ where
 }
 
 pub struct HeaplessQuery<
-    'a,
-    'r,
     const MAX_KEYEXPR: usize,
     const MAX_PARAMETERS: usize,
     const MAX_PAYLOAD: usize,
@@ -111,26 +109,20 @@ pub struct HeaplessQuery<
 > where
     Config: ZConfig,
 {
-    driver: &'a Driver<'r, Config>,
+    driver: &'static Driver<'static, Config>,
     rid: u32,
     keyexpr: String<MAX_KEYEXPR>,
     parameters: Option<String<MAX_PARAMETERS>>,
     payload: Option<Vec<u8, MAX_PAYLOAD>>,
 }
 
-impl<
-    'a,
-    'r,
-    const MAX_KEYEXPR: usize,
-    const MAX_PARAMETERS: usize,
-    const MAX_PAYLOAD: usize,
-    Config,
-> HeaplessQuery<'a, 'r, MAX_KEYEXPR, MAX_PARAMETERS, MAX_PAYLOAD, Config>
+impl<const MAX_KEYEXPR: usize, const MAX_PARAMETERS: usize, const MAX_PAYLOAD: usize, Config>
+    HeaplessQuery<MAX_KEYEXPR, MAX_PARAMETERS, MAX_PAYLOAD, Config>
 where
     Config: ZConfig,
 {
     pub fn new(
-        driver: &'a Driver<'r, Config>,
+        driver: &'static Driver<'static, Config>,
         rid: u32,
         keyexpr: &keyexpr,
         parameters: Option<&str>,
@@ -227,21 +219,14 @@ where
     }
 }
 
-impl<
-    'a,
-    'r,
-    const MAX_KEYEXPR: usize,
-    const MAX_PARAMETERS: usize,
-    const MAX_PAYLOAD: usize,
-    Config,
-> TryFrom<&Query<'a, 'r, Config>>
-    for HeaplessQuery<'a, 'r, MAX_KEYEXPR, MAX_PARAMETERS, MAX_PAYLOAD, Config>
+impl<'a, const MAX_KEYEXPR: usize, const MAX_PARAMETERS: usize, const MAX_PAYLOAD: usize, Config>
+    TryFrom<&Query<'a, Config>> for HeaplessQuery<MAX_KEYEXPR, MAX_PARAMETERS, MAX_PAYLOAD, Config>
 where
     Config: ZConfig,
 {
     type Error = crate::CollectionError;
 
-    fn try_from(q: &Query<'a, 'r, Config>) -> Result<Self, Self::Error> {
+    fn try_from(q: &Query<'a, Config>) -> Result<Self, Self::Error> {
         HeaplessQuery::new(q.driver, q.rid, q.keyexpr, q.parameters, q.payload)
     }
 }

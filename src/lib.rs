@@ -2,7 +2,7 @@
 
 use zenoh_nostd::api::{
     HeaplessGetCallbacks, HeaplessGetChannels, HeaplessQueryableCallbacks,
-    HeaplessSubscriberCallbacks, HeaplessSubscriberChannels, ZConfig,
+    HeaplessQueryableChannels, HeaplessSubscriberCallbacks, HeaplessSubscriberChannels, ZConfig,
 };
 
 #[cfg(feature = "std")]
@@ -57,7 +57,8 @@ impl ZConfig for ExampleConfig {
     type GetCallbacks = HeaplessGetCallbacks<8, 128, 128>;
     type GetChannels = HeaplessGetChannels<64, 256, 8, 8>;
 
-    type QueryableCallbacks = HeaplessQueryableCallbacks<Self, 8, 128, 128>;
+    type QueryableCallbacks = HeaplessQueryableCallbacks<Self, 8, 128, 2048>;
+    type QueryableChannels = HeaplessQueryableChannels<Self, 64, 256, 256, 8, 8>;
 
     type TxBuf = [u8; u16::MAX as usize];
     type RxBuf = [u8; u16::MAX as usize];

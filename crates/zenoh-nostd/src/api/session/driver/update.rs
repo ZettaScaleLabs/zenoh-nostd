@@ -6,7 +6,7 @@ impl<Config> super::Driver<'static, Config>
 where
     Config: ZConfig,
 {
-    pub async fn update(
+    pub(crate) async fn update(
         &'static self,
         reader: &[u8],
         resources: &SessionResources<Config>,
@@ -97,26 +97,31 @@ where
                 } => {
                     let ke = wire_expr.suffix;
                     let ke = keyexpr::new(ke)?;
-                    // let query = crate::api::Query::new(
-                    //     self,
-                    //     id,
-                    //     ke,
-                    //     if parameters.is_empty() {
-                    //         None
-                    //     } else {
-                    //         Some(parameters)
-                    //     },
-                    //     match body {
-                    //         Some(Value { payload, .. }) => Some(payload),
-                    //         None => None,
-                    //     },
-                    // );
+                    let query = crate::api::Query::new(
+                        self,
+                        id,
+                        ke,
+                        if parameters.is_empty() {
+                            None
+                        } else {
+                            Some(parameters)
+                        },
+                        match body {
+                            Some(Value { payload, .. }) => Some(payload),
+                            None => None,
+                        },
+                    );
 
-                    // let mut queryable_cb = resources.queryable_callbacks.lock().await;
-                    // for cb in queryable_cb.intersects(ke) {
-                    //     cb.call(&query).await;
-                    // }
-                    // query.finalize().await?;
+                    let mut queryable_cb = resources.queryable_callbacks.lock().await;
+                    for cb in queryable_cb.intersects(ke) {
+                        cb.call(&query).await;
+                    }
+
+                    let queryable_ch = &resources.queryable_channels;
+                    let guard = queryable_ch.lock().await;
+                    for ch in queryable_ch.intersects(&guard, ke).await {
+                        ch.send(&query).await?;
+                    }
                 }
                 _ => {}
             }
