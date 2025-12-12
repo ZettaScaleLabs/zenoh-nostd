@@ -18,7 +18,7 @@ pub trait ZCallbacks<Arg: ForLt, Ret> {
         callback: Self::Callback,
     ) -> core::result::Result<(), crate::CollectionError>;
     fn drop_timedout(&mut self);
-    fn get<'r>(&'r mut self, id: u32) -> Option<&'r mut Self::Callback>;
+    fn get(&mut self, id: u32) -> Option<&mut Self::Callback>;
     fn remove(&mut self, id: u32) -> core::result::Result<(), crate::CollectionError>;
     fn intersects<'r>(&'r mut self, ke: &keyexpr) -> impl Iterator<Item = &'r mut Self::Callback>
     where
@@ -121,7 +121,7 @@ where
     fn drop_timedout(&mut self) {
         self.timedouts.retain(|id, timedout| {
             if Instant::now() >= *timedout {
-                if let Some(ke) = self.keyexprs.remove(&id) {
+                if let Some(ke) = self.keyexprs.remove(id) {
                     self.callbacks.remove(&(*id, ke));
                 }
 
@@ -141,7 +141,7 @@ where
         Ok(())
     }
 
-    fn get<'r>(&'r mut self, id: u32) -> Option<&'r mut Self::Callback> {
+    fn get(&mut self, id: u32) -> Option<&mut Self::Callback> {
         let ke = self.keyexprs.get(&id)?;
         self.callbacks.get_mut(&(id, ke))
     }

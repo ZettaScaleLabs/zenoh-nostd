@@ -120,11 +120,11 @@ impl<const QUEUED: usize, const CAPACITY: usize> HeaplessChannelsInner<QUEUED, C
     pub fn drop_timedout(&mut self) {
         self.timedouts.retain(|id, timedout| {
             if Instant::now() >= *timedout {
-                if let Some(index) = self.channels.remove(&id) {
+                if let Some(index) = self.channels.remove(id) {
                     self.available.push(index as usize).ok();
                 }
 
-                self.keyexprs.remove(&id);
+                self.keyexprs.remove(id);
 
                 false
             } else {

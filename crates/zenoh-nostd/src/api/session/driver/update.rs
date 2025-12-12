@@ -62,7 +62,7 @@ where
 
                     let ke = wire_expr.suffix;
                     let ke = keyexpr::new(ke)?;
-                    let response = crate::api::Response::new(is_ok, &ke, payload);
+                    let response = crate::api::Response::new(is_ok, ke, payload);
 
                     let mut get_cb = resources.get_callbacks.lock().await;
                     if let Some(cb) = get_cb.get(rid) {
