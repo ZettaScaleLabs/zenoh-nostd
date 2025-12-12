@@ -1,5 +1,5 @@
 use crate::{
-    api::{ResponseRef, SampleRef, ZCallbacks, ZChannels},
+    api::{QueryRef, ResponseRef, SampleRef, ZCallbacks, ZChannels},
     platform::ZPlatform,
 };
 
@@ -11,6 +11,10 @@ pub trait ZConfig {
 
     type GetCallbacks: ZCallbacks<ResponseRef, ()>;
     type GetChannels: ZChannels<ResponseRef>;
+
+    type QueryableCallbacks: ZCallbacks<QueryRef<Self>, ()>
+    where
+        Self: Sized;
 
     type TxBuf: AsMut<[u8]>;
     type RxBuf: AsMut<[u8]>;

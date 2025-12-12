@@ -25,6 +25,9 @@ pub use r#pub::Publisher;
 mod get;
 pub use get::{Get, HeaplessGetCallbacks, HeaplessGetChannels};
 
+mod queryable;
+pub use queryable::{HeaplessQueryableCallbacks, Queryable};
+
 pub struct Session<'a, Config>
 where
     Config: ZConfig,

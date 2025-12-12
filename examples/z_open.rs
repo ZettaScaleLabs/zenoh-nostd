@@ -32,6 +32,9 @@ async fn entry(spawner: embassy_executor::Spawner) -> zenoh_nostd::ZResult<()> {
     //  1) Spawn a new task to run the `session.run()` in background, but it requires the `resources` to be `static`.
     //  2) Use `select` or `join` to run both the session and the subscriber in the same task.
     // Here we use the first approach. For a demonstration of the second approach, see the `z_sub` example.
+    //
+    // Note: Currently, due to some limitations of the design, the `resources` must be `'static`. Future work
+    // may alleviate this requirement.
 
     spawner.spawn(session_task(session.clone())).map_err(|e| {
         zenoh_nostd::error!("Error spawning task: {}", e);

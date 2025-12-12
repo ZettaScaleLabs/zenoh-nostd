@@ -10,6 +10,9 @@ pub use sample::*;
 mod response;
 pub use response::*;
 
+mod query;
+pub use query::*;
+
 mod callback;
 pub use callback::Callback;
 pub(crate) use callback::*;

@@ -2,6 +2,7 @@
 #![cfg_attr(feature = "esp32s3", no_main)]
 #![cfg_attr(feature = "wasm", no_main)]
 
+use static_cell::StaticCell;
 use zenoh_examples::*;
 use zenoh_nostd::api::*;
 
@@ -12,9 +13,13 @@ async fn entry(spawner: embassy_executor::Spawner) -> zenoh_nostd::ZResult<()> {
     zenoh_nostd::info!("zenoh-nostd z_sub example");
 
     let config = init_example(&spawner).await;
-    let mut resources = Resources::new();
-    let session =
-        zenoh_nostd::api::open(&mut resources, config, EndPoint::try_from(CONNECT)?).await?;
+    static RESOURCES: StaticCell<Resources<ExampleConfig>> = StaticCell::new();
+    let session = zenoh_nostd::api::open(
+        RESOURCES.init(Resources::new()),
+        config,
+        EndPoint::try_from(CONNECT)?,
+    )
+    .await?;
 
     // In this example we care about maintaining the session alive, we then have two choices:
     //  1) Spawn a new task to run the `session.run()` in background, but it requires the `resources` to be `static`.

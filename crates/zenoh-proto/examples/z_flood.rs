@@ -6,7 +6,10 @@ use std::{
 
 use zenoh_proto::{
     BatchReader, BatchWriter, Message,
-    msgs::{InitAck, OpenAck},
+    exts::QoS,
+    fields::{Reliability, WireExpr},
+    keyexpr,
+    msgs::{InitAck, OpenAck, Push, PushBody, Put},
 };
 
 fn handle_client(mut stream: std::net::TcpStream) {
@@ -66,15 +69,29 @@ fn handle_client(mut stream: std::net::TcpStream) {
         .write_all(&tx[..payload_len + 2])
         .expect("Could not send OpenAck");
 
-    // Just read messages indefinitely
-    loop {
-        let mut len = [0; 2];
-        if stream.read_exact(&mut len).is_err() {
-            break;
-        }
+    // Just send messages indefinitely
+    let put = Push {
+        wire_expr: WireExpr::from(keyexpr::from_str_unchecked("test/thr")),
+        payload: PushBody::Put(Put {
+            payload: &[0, 1, 2, 3, 4, 5, 6, 7],
+            ..Default::default()
+        }),
+        ..Default::default()
+    };
 
-        let l = u16::from_le_bytes(len) as usize;
-        if stream.read_exact(&mut rx[..l]).is_err() {
+    let mut batch = BatchWriter::new(&mut tx[2..], 0);
+    for _ in 0..200 {
+        batch
+            .framed(&put, Reliability::Reliable, QoS::default())
+            .expect("Could not encode Push");
+    }
+
+    let (_, payload_len) = batch.finalize();
+    let len_bytes = (payload_len as u16).to_le_bytes();
+    tx[..2].copy_from_slice(&len_bytes);
+
+    loop {
+        if stream.write_all(&tx[..payload_len + 2]).is_err() {
             break;
         }
     }

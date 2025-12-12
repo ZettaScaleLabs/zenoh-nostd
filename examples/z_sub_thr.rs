@@ -3,6 +3,7 @@
 #![cfg_attr(feature = "wasm", no_main)]
 
 use embassy_time::Instant;
+use static_cell::StaticCell;
 use zenoh_examples::*;
 use zenoh_nostd::api::*;
 
@@ -45,9 +46,13 @@ async fn entry(spawner: embassy_executor::Spawner) -> zenoh_nostd::ZResult<()> {
     zenoh_nostd::info!("zenoh-nostd z_sub_thr example");
 
     let config = init_example(&spawner).await;
-    let mut resources = Resources::new();
-    let session =
-        zenoh_nostd::api::open(&mut resources, config, EndPoint::try_from(CONNECT)?).await?;
+    static RESOURCES: StaticCell<Resources<ExampleConfig>> = StaticCell::new();
+    let session = zenoh_nostd::api::open(
+        RESOURCES.init(Resources::new()),
+        config,
+        EndPoint::try_from(CONNECT)?,
+    )
+    .await?;
 
     let mut stats = Stats {
         round_count: 0,
@@ -60,7 +65,7 @@ async fn entry(spawner: embassy_executor::Spawner) -> zenoh_nostd::ZResult<()> {
     let _ = session
         .declare_subscriber(keyexpr::new("test/thr")?)
         .callback(Callback::new_sync(move |_| {
-            if stats.finished_rounds >= 1000 {
+            if stats.finished_rounds >= 10000 {
                 // TODO! implement a `session.close()` that can be called here to gracefully terminate the session
                 return;
             }

@@ -20,6 +20,12 @@ test filter="":
 bench filter="bench":
     cargo test -p zenoh-proto {{filter}} --features=alloc --profile=release -- --nocapture --ignored --test-threads=1
 
+flood:
+    cargo run -p zenoh-proto --release --features=std,log --example z_flood
+
+drain:
+    cargo run -p zenoh-proto --release --features=std,log --example z_drain
+
 std example:
     RUST_LOG=trace cargo run --example {{example}} --features="std,log"
 

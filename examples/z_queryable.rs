@@ -2,8 +2,9 @@
 #![cfg_attr(feature = "esp32s3", no_main)]
 #![cfg_attr(feature = "wasm", no_main)]
 
+use static_cell::StaticCell;
 use zenoh_examples::*;
-use zenoh_nostd::{EndPoint, keyexpr, zqueryable};
+use zenoh_nostd::api::*;
 
 const CONNECT: &str = match option_env!("CONNECT") {
     Some(v) => v,
@@ -16,57 +17,51 @@ const CONNECT: &str = match option_env!("CONNECT") {
     }
 };
 
+async fn callback(query: &Query<'_, '_, ExampleConfig>) {
+    match query.payload() {
+        None => {
+            zenoh_nostd::info!(
+                "[Queryable] Received Query ('{}' with no payload)",
+                query.keyexpr().as_str()
+            );
+        }
+        Some(payload) => {
+            zenoh_nostd::info!(
+                "[Queryable] Received Query ('{}': '{:?}')",
+                query.keyexpr().as_str(),
+                core::str::from_utf8(payload).unwrap()
+            );
+        }
+    }
+
+    zenoh_nostd::info!("[Queryable] Sending OK Reply");
+    let _ = query
+        .reply(query.keyexpr(), b"Response from z_queryable")
+        .await;
+}
+
 async fn entry(spawner: embassy_executor::Spawner) -> zenoh_nostd::ZResult<()> {
     #[cfg(feature = "log")]
     env_logger::init();
 
     zenoh_nostd::info!("zenoh-nostd z_queryable example");
 
-    let platform = init_platform(&spawner).await;
-    let config = zenoh_nostd::zconfig!(
-            Platform: (spawner, platform),
-            TX: 512,
-            RX: 512,
-            MAX_SUBSCRIBERS: 2,
-            MAX_QUERIES: 2,
-            MAX_QUERYABLES: 2
-    );
+    let config = init_example(&spawner).await;
+    static RESOURCES: StaticCell<Resources<ExampleConfig>> = StaticCell::new();
+    let session = zenoh_nostd::api::open(
+        RESOURCES.init(Resources::new()),
+        config,
+        EndPoint::try_from(CONNECT)?,
+    )
+    .await?;
 
-    let session = zenoh_nostd::open!(config, EndPoint::try_from(CONNECT)?);
-
-    let ke = keyexpr::new("demo/example/**")?;
-    let queryable = session
-        .declare_queryable(
-            ke,
-            zqueryable!(Platform, QUEUE_SIZE: 8, MAX_KEYEXPR: 32, MAX_PARAMS: 32, MAX_PAYLOAD: 128),
-        )
+    let _ = session
+        .declare_queryable(keyexpr::new("demo/example/**")?)
+        .callback(Callback::new_async(callback))
+        .finish()
         .await?;
 
-    while let Ok(query) = queryable.recv().await {
-        match query.payload() {
-            None => {
-                zenoh_nostd::info!(
-                    "[Queryable] Received Query ('{}' with no payload)",
-                    query.keyexpr().as_str()
-                );
-            }
-            Some(payload) => {
-                zenoh_nostd::info!(
-                    "[Queryable] Received Query ('{}': '{:?}')",
-                    query.keyexpr().as_str(),
-                    core::str::from_utf8(payload).unwrap()
-                );
-            }
-        }
-
-        zenoh_nostd::info!("[Queryable] Sending OK Reply");
-        query.reply(ke, b"Response from z_queryable").await?;
-
-        // Finalize the query!! (because it's async we can't finalize it automatically on drop)
-        query.finalize().await?;
-    }
-
-    Ok(())
+    session.run().await
 }
 
 #[cfg_attr(feature = "std", embassy_executor::main)]

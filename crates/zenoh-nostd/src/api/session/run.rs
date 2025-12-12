@@ -1,6 +1,6 @@
 use crate::api::ZConfig;
 
-impl<Config> super::Session<'_, Config>
+impl<Config> super::Session<'static, Config>
 where
     Config: ZConfig,
 {

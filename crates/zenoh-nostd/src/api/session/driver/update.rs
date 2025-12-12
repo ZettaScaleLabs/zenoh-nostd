@@ -1,13 +1,13 @@
-use zenoh_proto::{Message, msgs::*, *};
+use zenoh_proto::{Message, exts::Value, msgs::*, *};
 
 use crate::api::{Sample, SessionResources, ZCallback, ZCallbacks, ZChannel, ZChannels, ZConfig};
 
-impl<Config> super::Driver<'_, Config>
+impl<Config> super::Driver<'static, Config>
 where
     Config: ZConfig,
 {
     pub async fn update(
-        &self,
+        &'static self,
         reader: &[u8],
         resources: &SessionResources<Config>,
     ) -> crate::ZResult<()> {
@@ -81,6 +81,42 @@ where
                 } => {
                     resources.get_callbacks.lock().await.remove(rid)?;
                     resources.get_channels.remove(rid).await?;
+                }
+                Message::Request {
+                    body:
+                        Request {
+                            id,
+                            wire_expr,
+                            payload:
+                                RequestBody::Query(Query {
+                                    parameters, body, ..
+                                }),
+                            ..
+                        },
+                    ..
+                } => {
+                    let ke = wire_expr.suffix;
+                    let ke = keyexpr::new(ke)?;
+                    // let query = crate::api::Query::new(
+                    //     self,
+                    //     id,
+                    //     ke,
+                    //     if parameters.is_empty() {
+                    //         None
+                    //     } else {
+                    //         Some(parameters)
+                    //     },
+                    //     match body {
+                    //         Some(Value { payload, .. }) => Some(payload),
+                    //         None => None,
+                    //     },
+                    // );
+
+                    // let mut queryable_cb = resources.queryable_callbacks.lock().await;
+                    // for cb in queryable_cb.intersects(ke) {
+                    //     cb.call(&query).await;
+                    // }
+                    // query.finalize().await?;
                 }
                 _ => {}
             }
