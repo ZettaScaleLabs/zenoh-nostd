@@ -53,6 +53,7 @@ pub struct ExampleConfig {
     tx: [u8; BUFF_SIZE as usize],
     rx: [u8; BUFF_SIZE as usize],
 }
+
 impl ZConfig for ExampleConfig {
     type Platform = Platform;
 
