@@ -1,3 +1,5 @@
+# Justfile for zenoh-nostd project
+
 check:
     cargo clippy -p zenoh-nostd
     cargo clippy -p zenoh-nostd --features=log
@@ -26,8 +28,12 @@ fix:
     cargo clippy --examples --no-default-features --features=wasm,web_console --target wasm32-unknown-unknown --fix --lib --allow-dirty --allow-staged
     WIFI_PASSWORD=* cargo +esp --config .cargo/config.esp32s3.toml fix --examples --no-default-features --features=esp32s3,defmt --lib --allow-dirty --allow-staged
 
+# Code statistics
+
 loc-proto:
     tokei --files crates/zenoh-proto crates/zenoh-derive/src/codec* --exclude crates/zenoh-proto/src/tests*
+
+# Tests and benches
 
 test filter="":
     cargo test {{filter}} -p zenoh-proto --features=alloc
@@ -35,11 +41,21 @@ test filter="":
 bench filter="bench":
     cargo test -p zenoh-proto {{filter}} --features=alloc --profile=release -- --nocapture --ignored --test-threads=1
 
+# Special `std` examples
+
 flood:
     cargo run -p zenoh-proto --release --features=std,log --example z_flood
 
 drain:
     cargo run -p zenoh-proto --release --features=std,log --example z_drain
+
+ping:
+    RUST_LOG=trace cargo run --release --features=std,log --example z_ping
+
+pong:
+    RUST_LOG=trace cargo run --release --features=std,log --example z_pong
+
+# Examples
 
 std example:
     RUST_LOG=trace cargo run --example {{example}} --features="std,log"

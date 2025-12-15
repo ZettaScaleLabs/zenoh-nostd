@@ -64,23 +64,18 @@ zenoh-nostd = { git = "https://github.com/ZettaScaleLabs/zenoh-nostd" }
 Here’s a simple example of sending a payload with `zenoh-nostd`:
 
 ```rust
-async fn entry(spawner: embassy_executor::Spawner) -> zenoh_nostd::result::ZResult<()> {
-    let mut session = zenoh_nostd::open!(
-        zenoh_nostd::zconfig!(
-                PlatformStd: (spawner, PlatformStd {}),
-                TX: 512,
-                RX: 512,
-                MAX_SUBSCRIBERS: 2
-                MAX_QUERIES: 2,
-                MAX_QUERYABLES: 2
-        ),
-        EndPoint::try_from("tcp/127.0.0.1:7447")?
-    );
+async fn entry(spawner: embassy_executor::Spawner) -> zenoh_nostd::ZResult<()> {
+    let config = init_example(&spawner).await;
+    let mut resources = Resources::new();
+    let session =
+        zenoh_nostd::api::open(&mut resources, config, EndPoint::try_from("tcp/127.0.0.1:7447")?).await?;
 
     let ke = keyexpr::new("demo/example")?;
-    let payload = b"Hello, from std!";
+    let payload = b"Hello, from no-std!";
 
-    session.put(ke, payload).await?;
+    session.put(ke, payload).finish().await?;
+
+    Ok(())
 }
 ```
 
@@ -96,12 +91,15 @@ async fn entry(spawner: embassy_executor::Spawner) -> zenoh_nostd::result::ZResu
 
 * No serial support yet. ([#11](https://github.com/ZettaScaleLabs/zenoh-nostd/issues/11))
 * No `alloc` support yet. ([#20](https://github.com/ZettaScaleLabs/zenoh-nostd/issues/20))
+* No `sansio` support yet. ([#33](https://github.com/ZettaScaleLabs/zenoh-nostd/issues/33))
+* `Interest` protocol not implemented yet. ([#46](https://github.com/ZettaScaleLabs/zenoh-nostd/issues/46))
+* `'static` lifetimes required at user level. ([#49](https://github.com/ZettaScaleLabs/zenoh-nostd/issues/49))
 
 ---
 
 ## 🧪 Building and Testing
 
-This project uses [`just`](https://github.com/casey/just) for task management. Use `just clippy` to check the project and examples, `just test` to run the tests and `just bench` to run the benchmarks.
+This project uses [`just`](https://github.com/casey/just) for task management. Use `just check` to check the project and examples, `just test` to run the tests and `just bench` to run the benchmarks.
 
 > 🔍 Pull requests that slow down the bench should be avoided.
 
@@ -132,7 +130,7 @@ CONNECT=tcp/127.0.0.1:7447 just std z_pub
 ```
 
 ```bash
-WIFI_PASSWORD=Abcdef12345 CONNECT=tcp/192.168.21.1:7447 just esp32s3 z_sub
+WIFI_PASSWORD=* CONNECT=tcp/192.168.21.1:7447 just esp32s3 z_sub
 ```
 
 ### Example: Local TCP
@@ -186,19 +184,20 @@ zenoh-nostd/            # Git repository root
 │   ├── zenoh-derive/   # Derive macros
 │   ├── zenoh-nostd/    # Zenoh with IO, embassy
 │   ├── zenoh-proto/    # Zenoh Protocol
-│   └── zenoh-sansio/   # Zenoh Sans IO
+│   └── zenoh-sansio/   # Zenoh Sans IO (WIP)
 │       └── examples
-│           ├── z_get.rs        # Example without io (example with tcp)
-│           ├── z_ping.rs       # Example without io (example with tcp)
-│           ├── z_pong.rs       # Example without io (example with tcp)
-│           ├── z_put.rs        # Example without io (example with tcp)
-│           └── z_sub.rs        # Example without io (example with tcp)
+│           ├── z_get.rs        # Example without io (example with tcp, WIP)
+│           ├── z_ping.rs       # Example without io (example with tcp, WIP)
+│           ├── z_pong.rs       # Example without io (example with tcp, WIP)
+│           ├── z_put.rs        # Example without io (example with tcp, WIP)
+│           └── z_sub.rs        # Example without io (example with tcp, WIP)
 │
 ├── examples/
 │   ├── web/
 │   │   └── index.html  # File to test wasm example
 │   │
 │   ├── z_get.rs        # Example with std/wasm/embassy io
+│   ├── open.rs         # Example with std/wasm/embassy io
 │   ├── z_ping.rs       # Example with std/wasm/embassy io
 │   ├── z_pong.rs       # Example with std/wasm/embassy io
 │   ├── z_pub.rs        # Example with std/wasm/embassy io
@@ -223,6 +222,7 @@ zenoh-nostd/            # Git repository root
 ## 📚 Documentation
 
 The base project has been implemented in ([#6](https://github.com/ZettaScaleLabs/zenoh-nostd/pull/6))
+The structure and API have been reworked in ([#34](https://github.com/ZettaScaleLabs/zenoh-nostd/pull/24))
 
 > 📖 **Note**: Docs require `rustdoc` to be run with `--no-default-features`.
 
