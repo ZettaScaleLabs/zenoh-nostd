@@ -167,7 +167,8 @@ macro_rules! zbail {
     };
 
     ($err:expr, $($arg:tt)+) => {{
-        $crate::error!("{}: {} - {}", core::format_args!($($arg)+), $err, $crate::zctx!());
+        $crate::error!("{}: {}", $err, $crate::zctx!());
+        $crate::error!($($arg)+);
         $crate::zbail!($err);
     }};
 }

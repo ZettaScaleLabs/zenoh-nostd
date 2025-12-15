@@ -68,17 +68,16 @@ async fn entry(spawner: embassy_executor::Spawner) -> zenoh_nostd::ZResult<()> {
 
     zenoh_nostd::info!("Starting ping-pong measurements");
 
-    for i in 0..100 {
+    for sample in samples.iter_mut() {
         let start = Instant::now();
 
         ping.put(&data).finish().await?;
         let _ = pong.recv().await?;
 
-        samples[i] = start.elapsed().as_micros();
+        *sample = start.elapsed().as_micros();
     }
 
-    for i in 0..100 {
-        let rtt = samples[i];
+    for (i, rtt) in samples.iter().enumerate() {
         zenoh_nostd::info!(
             "{} bytes: seq={} rtt={:?}µs lat={:?}µs",
             data.len(),

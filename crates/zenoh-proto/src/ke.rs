@@ -127,6 +127,13 @@ impl core::fmt::Display for keyexpr {
     }
 }
 
+#[cfg(feature = "defmt")]
+impl defmt::Format for keyexpr {
+    fn format(&self, fmt: defmt::Formatter) {
+        defmt::write!(fmt, "ke`{}`", self.as_ref())
+    }
+}
+
 impl Deref for keyexpr {
     type Target = str;
     fn deref(&self) -> &Self::Target {

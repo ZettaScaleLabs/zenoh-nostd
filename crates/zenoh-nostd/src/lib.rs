@@ -7,4 +7,4 @@ pub mod platform;
 
 pub(crate) mod io;
 
-pub use zenoh_proto::{debug, error, info, trace, warn, zbail, zerror::*};
+pub use zenoh_proto::{debug, error, info, logging, trace, warn, zbail, zerror::*};
