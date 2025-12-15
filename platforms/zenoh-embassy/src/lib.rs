@@ -1,41 +1,43 @@
 #![no_std]
 
 use embassy_net::{IpAddress, IpEndpoint, Stack, tcp::TcpSocket};
-use static_cell::StaticCell;
-use zenoh_nostd::{platform::Platform, zbail};
+use zenoh_nostd::{platform::ZPlatform, zbail};
 
 pub mod tcp;
 
+/// Platform implementation for Embassy OS. Be careful, it is only safe to create
+/// one instance of this struct and to only make a single call to `new_tcp_stream`.
 pub struct PlatformEmbassy {
     pub stack: Stack<'static>,
+
+    pub tcp: fn() -> (&'static mut [u8], &'static mut [u8]),
 }
 
-impl Platform for PlatformEmbassy {
-    type AbstractedTcpStream = tcp::EmbassyTcpStream;
-    type AbstractedWsStream = zenoh_nostd::platform::ws::DummyWsStream;
+impl ZPlatform for PlatformEmbassy {
+    type TcpStream = tcp::EmbassyTcpStream;
+    type WebSocket = zenoh_nostd::platform::ws::DummyWsStream;
 
     async fn new_tcp_stream(
         &self,
         addr: &core::net::SocketAddr,
-    ) -> zenoh_nostd::ZResult<Self::AbstractedTcpStream, zenoh_nostd::ZConnectionError> {
-        static RX_BUF: StaticCell<[u8; 2048]> = StaticCell::new();
-        static TX_BUF: StaticCell<[u8; 2048]> = StaticCell::new();
-        let (rx_buf, tx_buf) = (RX_BUF.init([0; 2048]), TX_BUF.init([0; 2048]));
+    ) -> core::result::Result<Self::TcpStream, zenoh_nostd::ConnectionError> {
+        let (tx, rx) = (self.tcp)();
+        let mtu = rx.len() as u16;
 
-        let mut socket: TcpSocket<'static> = TcpSocket::new(self.stack, rx_buf, tx_buf);
+        let mut socket: TcpSocket<'static> = TcpSocket::new(self.stack, tx, rx);
 
         let address: IpAddress = match addr.ip() {
             core::net::IpAddr::V4(v4) => IpAddress::Ipv4(v4),
-            core::net::IpAddr::V6(_) => zbail!(zenoh_nostd::ZConnectionError::CouldNotConnect),
+            core::net::IpAddr::V6(_) => zbail!(zenoh_nostd::ConnectionError::CouldNotConnect),
         };
 
         let ip_endpoint = IpEndpoint::new(address, addr.port());
 
-        socket
-            .connect(ip_endpoint)
-            .await
-            .map_err(|_| zenoh_nostd::ZConnectionError::CouldNotConnect)?;
+        socket.connect(ip_endpoint).await.map_err(|e| {
+            zenoh_nostd::error!("Could not connect to {:?}: {:?}", addr, e);
+            zenoh_nostd::ConnectionError::CouldNotConnect
+        })?;
 
-        Ok(Self::AbstractedTcpStream { socket, mtu: 1024 })
+        Ok(Self::TcpStream { socket, mtu })
     }
 }

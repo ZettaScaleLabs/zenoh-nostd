@@ -10,13 +10,13 @@ pub(crate) mod ws;
 pub struct PlatformStd;
 
 impl ZPlatform for PlatformStd {
-    type ZTcpStream = tcp::StdTcpStream;
-    type ZWebSocket = ws::StdWsStream;
+    type TcpStream = tcp::StdTcpStream;
+    type WebSocket = ws::StdWsStream;
 
     async fn new_websocket_stream(
         &self,
         addr: &std::net::SocketAddr,
-    ) -> core::result::Result<Self::ZWebSocket, zenoh_nostd::ConnectionError> {
+    ) -> core::result::Result<Self::WebSocket, zenoh_nostd::ConnectionError> {
         let uri = Uri::new(format!("ws://{}", addr));
 
         let tcp_stream = TcpStream::connect(uri.hostname_with_implied_port())
@@ -47,7 +47,7 @@ impl ZPlatform for PlatformStd {
     async fn new_tcp_stream(
         &self,
         addr: &core::net::SocketAddr,
-    ) -> core::result::Result<Self::ZTcpStream, zenoh_nostd::ConnectionError> {
+    ) -> core::result::Result<Self::TcpStream, zenoh_nostd::ConnectionError> {
         let socket = TcpStream::connect(addr)
             .await
             .map_err(|_| zenoh_nostd::ConnectionError::CouldNotConnect)?;

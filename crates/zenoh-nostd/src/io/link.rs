@@ -59,24 +59,24 @@ pub enum LinkTx<'a, Platform>
 where
     Platform: ZPlatform + 'a,
 {
-    LinkTcpTx(LinkTcpTx<<Platform::ZTcpStream as ZTcpStream>::Tx<'a>>),
-    LinkWsTx(LinkWsTx<<Platform::ZWebSocket as ZWebSocket>::Tx<'a>>),
+    LinkTcpTx(LinkTcpTx<<Platform::TcpStream as ZTcpStream>::Tx<'a>>),
+    LinkWsTx(LinkWsTx<<Platform::WebSocket as ZWebSocket>::Tx<'a>>),
 }
 
 pub enum LinkRx<'a, Platform>
 where
     Platform: ZPlatform + 'a,
 {
-    LinkTcpRx(LinkTcpRx<<Platform::ZTcpStream as ZTcpStream>::Rx<'a>>),
-    LinkWsRx(LinkWsRx<<Platform::ZWebSocket as ZWebSocket>::Rx<'a>>),
+    LinkTcpRx(LinkTcpRx<<Platform::TcpStream as ZTcpStream>::Rx<'a>>),
+    LinkWsRx(LinkWsRx<<Platform::WebSocket as ZWebSocket>::Rx<'a>>),
 }
 
 pub enum Link<Platform>
 where
     Platform: ZPlatform,
 {
-    LinkTcp(LinkTcp<Platform::ZTcpStream>),
-    LinkWs(LinkWs<Platform::ZWebSocket>),
+    LinkTcp(LinkTcp<Platform::TcpStream>),
+    LinkWs(LinkWs<Platform::WebSocket>),
 }
 
 impl<Platform> ZLinkInfo for Link<Platform>

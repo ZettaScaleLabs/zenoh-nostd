@@ -19,6 +19,8 @@ zenoh-derive = { version = "0.1.0", path = "crates/zenoh-derive" }
 zenoh-proto = { version = "0.1.0", path = "crates/zenoh-proto" }
 zenoh-nostd = { version = "0.1.0", path = "crates/zenoh-nostd" }
 
+# General dependencies
+
 uhlc = { version = "0.8.1", git = "https://github.com/Hennzau/uhlc-rs", branch = "no-alloc", default-features = false }
 sha3 = { version = "0.10.8", default-features = false }
 elain = "0.3"
@@ -68,11 +70,12 @@ defmt = ["zenoh-nostd/defmt"]
 web_console = ["zenoh-nostd/web_console"]
 std = [
     "dep:zenoh-std",
+
     "dep:env_logger",
+
     "embassy-executor/arch-std",
     "embassy-executor/executor-thread",
     "embassy-time/std",
-    "dep:critical-section",
 ]
 esp32s3 = [
     "dep:zenoh-embassy",
@@ -84,17 +87,20 @@ esp32s3 = [
     "dep:esp-println",
     "dep:esp-rtos",
     "dep:esp-radio",
+    "embassy-executor/defmt",
 ]
 wasm = [
     "dep:zenoh-wasm",
+
+    "dep:env_logger",
+
     "getrandom/std",
     "getrandom/js",
-    "dep:env_logger",
+    "dep:wasm-bindgen",
+
     "embassy-executor/arch-wasm",
     "embassy-executor/executor-thread",
     "embassy-time/wasm",
-    "dep:critical-section",
-    "dep:wasm-bindgen",
 ]
 
 [dependencies]
@@ -109,7 +115,6 @@ zenoh-std = { version = "0.1.0", path = "platforms/zenoh-std", optional = true }
 zenoh-embassy = { version = "0.1.0", path = "platforms/zenoh-embassy", optional = true }
 zenoh-wasm = { version = "0.1.0", path = "platforms/zenoh-wasm", optional = true }
 
-critical-section = { version = "1.2", features = ["std"], optional = true }
 env_logger = { version = "0.10", optional = true}
 
 getrandom = { version = "0.2.16", features = ["custom"], optional = true }

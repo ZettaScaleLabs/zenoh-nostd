@@ -112,16 +112,16 @@ impl ZWsTx for StdWsTx<'_> {
         self.write_buffer.clear();
         self.write_buffer
             .extend_from_copyable_slice(buffer)
-            .map_err(|_| {
-                zenoh_nostd::error!("Failed to extend write buffer");
+            .map_err(|e| {
+                zenoh_nostd::error!("Failed to extend write buffer: {}", e);
                 zenoh_nostd::LinkError::LinkTxFailed
             })?;
         let payload = self.write_buffer.as_slice_mut();
         self.sink
             .write_frame(&mut Frame::new_fin(OpCode::Binary, payload))
             .await
-            .map_err(|_| {
-                zenoh_nostd::error!("Could not write frame");
+            .map_err(|e| {
+                zenoh_nostd::error!("Could not write frame: {}", e);
                 zenoh_nostd::LinkError::LinkTxFailed
             })
             .map(|_| buffer.len())
@@ -161,22 +161,27 @@ impl ZWsRx for StdWsRx<'_> {
         buffer: &mut [u8],
     ) -> core::result::Result<usize, zenoh_nostd::LinkError> {
         self.read_buffer.clear();
-        let Ok(frame) = self
+
+        let frame = self
             .stream
             .read_frame(self.read_buffer, WebSocketPayloadOrigin::Consistent)
             .await
-        else {
-            zenoh_nostd::error!("Could not read frame");
-            return Err(zenoh_nostd::LinkError::LinkRxFailed);
-        };
+            .map_err(|e| {
+                zenoh_nostd::error!("Could not read frame: {}", e);
+                zenoh_nostd::LinkError::LinkRxFailed
+            })?;
+
         match frame.op_code() {
             OpCode::Binary => {
                 let len = frame.payload().len().min(buffer.len());
                 buffer[..len].copy_from_slice(&frame.payload()[..len]);
                 Ok(len)
             }
-            _ => {
-                zenoh_nostd::error!("Could not read frame into buffer");
+            code => {
+                zenoh_nostd::error!(
+                    "Could not read frame into buffer: unexpected OpCode {:?}",
+                    code
+                );
                 zbail!(zenoh_nostd::LinkError::LinkRxFailed);
             }
         }

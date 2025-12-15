@@ -27,7 +27,7 @@ where
         self.mtu
     }
     fn is_streamed(&self) -> bool {
-        true
+        false
     }
 }
 
@@ -93,7 +93,7 @@ where
         self.mtu
     }
     fn is_streamed(&self) -> bool {
-        true
+        false
     }
 }
 
@@ -122,7 +122,7 @@ where
         self.mtu
     }
     fn is_streamed(&self) -> bool {
-        true
+        false
     }
 }
 

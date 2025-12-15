@@ -43,25 +43,30 @@ pub const CONNECT: &str = match option_env!("CONNECT") {
     }
 };
 
+#[cfg(feature = "esp32s3")]
+const BUFF_SIZE: u16 = 512u16;
+#[cfg(not(feature = "esp32s3"))]
+const BUFF_SIZE: u16 = u16::MAX;
+
 pub struct ExampleConfig {
     platform: Platform,
-    tx: [u8; u16::MAX as usize],
-    rx: [u8; u16::MAX as usize],
+    tx: [u8; BUFF_SIZE as usize],
+    rx: [u8; BUFF_SIZE as usize],
 }
 impl ZConfig for ExampleConfig {
     type Platform = Platform;
 
-    type SubscriberCallbacks = HeaplessSubscriberCallbacks<8, 128, 128>;
+    type SubscriberCallbacks = HeaplessSubscriberCallbacks<8, 128, 128, 8, 8>;
     type SubscriberChannels = HeaplessSubscriberChannels<64, 256, 8, 8>;
 
-    type GetCallbacks = HeaplessGetCallbacks<8, 128, 128>;
+    type GetCallbacks = HeaplessGetCallbacks<8, 128, 128, 8, 8>;
     type GetChannels = HeaplessGetChannels<64, 256, 8, 8>;
 
-    type QueryableCallbacks = HeaplessQueryableCallbacks<Self, 8, 128, 2048>;
+    type QueryableCallbacks = HeaplessQueryableCallbacks<Self, 8, 128, 2048, 8, 8>;
     type QueryableChannels = HeaplessQueryableChannels<Self, 64, 256, 256, 8, 8>;
 
-    type TxBuf = [u8; u16::MAX as usize];
-    type RxBuf = [u8; u16::MAX as usize];
+    type TxBuf = [u8; BUFF_SIZE as usize];
+    type RxBuf = [u8; BUFF_SIZE as usize];
 
     fn platform(&self) -> &Self::Platform {
         &self.platform
@@ -82,8 +87,8 @@ pub async fn init_example(spawner: &embassy_executor::Spawner) -> ExampleConfig 
         let _ = spawner;
         ExampleConfig {
             platform: Platform {},
-            tx: [0; u16::MAX as usize],
-            rx: [0; u16::MAX as usize],
+            tx: [0; BUFF_SIZE as usize],
+            rx: [0; BUFF_SIZE as usize],
         }
     }
     #[cfg(feature = "wasm")]
@@ -91,8 +96,8 @@ pub async fn init_example(spawner: &embassy_executor::Spawner) -> ExampleConfig 
         let _ = spawner;
         ExampleConfig {
             platform: Platform {},
-            tx: [0; u16::MAX as usize],
-            rx: [0; u16::MAX as usize],
+            tx: [0; BUFF_SIZE as usize],
+            rx: [0; BUFF_SIZE as usize],
         }
     }
     #[cfg(feature = "esp32s3")]
@@ -155,10 +160,20 @@ pub async fn init_example(spawner: &embassy_executor::Spawner) -> ExampleConfig 
         };
         zenoh_nostd::info!("Network initialized with IP: {}", ip);
 
+        fn tcp() -> (&'static mut [u8], &'static mut [u8]) {
+            static TX: StaticCell<[u8; BUFF_SIZE as usize]> = StaticCell::new();
+            let tx = TX.init([0; BUFF_SIZE as usize]);
+
+            static RX: StaticCell<[u8; BUFF_SIZE as usize]> = StaticCell::new();
+            let rx = RX.init([0; BUFF_SIZE as usize]);
+
+            (tx, rx)
+        }
+
         ExampleConfig {
-            platform: Platform {},
-            tx: [0; u16::MAX as usize],
-            rx: [0; u16::MAX as usize],
+            platform: Platform { stack, tcp },
+            tx: [0; BUFF_SIZE as usize],
+            rx: [0; BUFF_SIZE as usize],
         }
     }
 }
