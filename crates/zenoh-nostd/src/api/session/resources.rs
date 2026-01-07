@@ -1,8 +1,5 @@
 use crate::{
-    api::{
-        ZCallbacks, ZChannels, ZConfig,
-        driver::{Driver, DriverRx, DriverTx},
-    },
+    api::{ZConfig, session::driver::*},
     io::transport::{Transport, TransportConfig},
 };
 
@@ -14,21 +11,17 @@ where
     Config: ZConfig,
 {
     pub next: Mutex<NoopRawMutex, u32>,
-
-    pub sub_callbacks: Mutex<NoopRawMutex, Config::SubscriberCallbacks>,
-    pub sub_channels: Config::SubscriberChannels,
-
-    pub get_callbacks: Mutex<NoopRawMutex, Config::GetCallbacks>,
-    pub get_channels: Config::GetChannels,
-
-    pub queryable_callbacks: Mutex<NoopRawMutex, Config::QueryableCallbacks>,
-    pub queryable_channels: Config::QueryableChannels,
+    _phantom: core::marker::PhantomData<Config>,
+    // pub sub_callbacks: Mutex<NoopRawMutex, Config::SubscriberCallbacks>,
+    // pub get_callbacks: Mutex<NoopRawMutex, Config::GetCallbacks>,
+    // pub queryable_callbacks: Mutex<NoopRawMutex, Config::QueryableCallbacks>,
 }
 
 impl<Config> SessionResources<Config>
 where
     Config: ZConfig,
 {
+    #[allow(dead_code)]
     pub async fn next(&self) -> u32 {
         let mut guard = self.next.lock().await;
         let next = *guard;
@@ -66,15 +59,9 @@ where
             driver: None,
             session: SessionResources {
                 next: Mutex::new(0),
-
-                sub_callbacks: Mutex::new(Config::SubscriberCallbacks::empty()),
-                sub_channels: Config::SubscriberChannels::new(),
-
-                get_callbacks: Mutex::new(Config::GetCallbacks::empty()),
-                get_channels: Config::GetChannels::new(),
-
-                queryable_callbacks: Mutex::new(Config::QueryableCallbacks::empty()),
-                queryable_channels: Config::QueryableChannels::new(),
+                _phantom: core::marker::PhantomData, // sub_callbacks: Mutex::new(Config::SubscriberCallbacks::empty()),
+                                                     // get_callbacks: Mutex::new(Config::GetCallbacks::empty()),
+                                                     // queryable_callbacks: Mutex::new(Config::QueryableCallbacks::empty()),
             },
         }
     }

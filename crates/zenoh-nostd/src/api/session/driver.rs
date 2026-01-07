@@ -57,14 +57,11 @@ where
     }
 }
 
-impl<Config> Driver<'static, Config>
+impl<Config> Driver<'_, Config>
 where
     Config: ZConfig,
 {
-    pub(crate) async fn run(
-        &'static self,
-        resources: &SessionResources<Config>,
-    ) -> crate::ZResult<()> {
+    pub(crate) async fn run(&self, resources: &SessionResources<Config>) -> crate::ZResult<()> {
         let mut rx_guard = self.rx.lock().await;
         let rx = rx_guard.deref_mut();
 

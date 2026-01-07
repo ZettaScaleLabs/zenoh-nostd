@@ -1,5 +1,5 @@
 use crate::{
-    api::{EndPoint, ZConfig, driver::Driver},
+    api::{EndPoint, ZConfig, session::driver::Driver},
     io::{
         link::Link,
         transport::{Transport, TransportMineConfig},
@@ -8,25 +8,12 @@ use crate::{
 
 use embassy_time::Duration;
 
-pub(crate) mod driver;
-
+mod driver;
 mod resources;
-pub use resources::*;
 
 mod put;
-mod run;
 
-mod sub;
-pub use sub::{HeaplessSubscriberCallbacks, HeaplessSubscriberChannels, Subscriber};
-
-mod r#pub;
-pub use r#pub::Publisher;
-
-mod get;
-pub use get::{Get, HeaplessGetCallbacks, HeaplessGetChannels};
-
-mod queryable;
-pub use queryable::{HeaplessQueryableCallbacks, HeaplessQueryableChannels, Queryable};
+pub use resources::*;
 
 pub struct Session<'a, Config>
 where
@@ -34,6 +21,17 @@ where
 {
     pub(crate) driver: &'a Driver<'a, Config>,
     pub(crate) resources: &'a SessionResources<Config>,
+}
+
+impl<Config> Session<'_, Config>
+where
+    Config: ZConfig,
+{
+    pub async fn run(&self) -> crate::ZResult<()> {
+        self.driver.run(self.resources).await?;
+
+        todo!("implement a `session.close` method that should undeclare all resources")
+    }
 }
 
 impl<'a, Config> Clone for Session<'a, Config>

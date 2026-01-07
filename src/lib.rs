@@ -1,9 +1,6 @@
 #![no_std]
 
-use zenoh_nostd::api::{
-    HeaplessGetCallbacks, HeaplessGetChannels, HeaplessQueryableCallbacks,
-    HeaplessQueryableChannels, HeaplessSubscriberCallbacks, HeaplessSubscriberChannels, ZConfig,
-};
+use zenoh_nostd::api::ZConfig;
 
 #[cfg(feature = "std")]
 pub use zenoh_std::PlatformStd as Platform;
@@ -56,15 +53,6 @@ pub struct ExampleConfig {
 
 impl ZConfig for ExampleConfig {
     type Platform = Platform;
-
-    type SubscriberCallbacks = HeaplessSubscriberCallbacks<8, 128, 128, 8, 8>;
-    type SubscriberChannels = HeaplessSubscriberChannels<64, 256, 8, 8>;
-
-    type GetCallbacks = HeaplessGetCallbacks<8, 128, 128, 8, 8>;
-    type GetChannels = HeaplessGetChannels<64, 256, 8, 8>;
-
-    type QueryableCallbacks = HeaplessQueryableCallbacks<Self, 8, 128, 2048, 8, 8>;
-    type QueryableChannels = HeaplessQueryableChannels<Self, 64, 256, 256, 8, 8>;
 
     type TxBuf = [u8; BUFF_SIZE as usize];
     type RxBuf = [u8; BUFF_SIZE as usize];

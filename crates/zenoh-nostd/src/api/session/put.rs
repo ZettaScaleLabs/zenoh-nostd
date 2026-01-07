@@ -1,12 +1,12 @@
 use zenoh_proto::{exts::*, fields::*, msgs::*, *};
 
-use crate::api::{ZConfig, driver::Driver};
+use crate::api::{ZConfig, session::driver::Driver};
 
-pub struct PutBuilder<'a, 'r, Config>
+pub struct PutBuilder<'a, Config>
 where
     Config: ZConfig,
 {
-    driver: &'a Driver<'r, Config>,
+    driver: &'a Driver<'a, Config>,
     ke: &'a keyexpr,
     payload: &'a [u8],
     encoding: Encoding<'a>,
@@ -14,11 +14,11 @@ where
     attachment: Option<Attachment<'a>>,
 }
 
-impl<'a, 'r, Config> PutBuilder<'a, 'r, Config>
+impl<'a, Config> PutBuilder<'a, Config>
 where
     Config: ZConfig,
 {
-    pub(crate) fn new(driver: &'a Driver<'r, Config>, ke: &'a keyexpr, payload: &'a [u8]) -> Self {
+    pub(crate) fn new(driver: &'a Driver<'a, Config>, ke: &'a keyexpr, payload: &'a [u8]) -> Self {
         Self {
             driver,
             ke,
@@ -27,6 +27,16 @@ where
             timestamp: None,
             attachment: None,
         }
+    }
+
+    pub fn payload(mut self, payload: &'a [u8]) -> Self {
+        self.payload = payload;
+        self
+    }
+
+    pub fn keyexpr(mut self, ke: &'a keyexpr) -> Self {
+        self.ke = ke;
+        self
     }
 
     pub fn encoding(mut self, encoding: Encoding<'a>) -> Self {
@@ -66,7 +76,7 @@ impl<'r, Config> super::Session<'r, Config>
 where
     Config: ZConfig,
 {
-    pub fn put<'a>(&'a self, ke: &'a keyexpr, bytes: &'a [u8]) -> PutBuilder<'a, 'r, Config> {
-        PutBuilder::new(self.driver, ke, bytes)
+    pub fn put(&self, ke: &'r keyexpr, payload: &'r [u8]) -> PutBuilder<'r, Config> {
+        PutBuilder::new(self.driver, ke, payload)
     }
 }

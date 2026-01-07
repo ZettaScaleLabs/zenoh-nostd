@@ -23,8 +23,7 @@ zenoh-nostd = { version = "0.1.0", path = "crates/zenoh-nostd" }
 
 uhlc = { version = "0.8.1", git = "https://github.com/Hennzau/uhlc-rs", branch = "no-alloc", default-features = false }
 sha3 = { version = "0.10.8", default-features = false }
-elain = "0.3"
-higher-kinded-types = "0.3.0"
+dyn-utils = { version = "0.1.0", git = "https://github.com/wyfo/dyn-utils", default-features = false }
 
 # Embassy (for async/await support)
 embassy-futures = "0.1.2"
