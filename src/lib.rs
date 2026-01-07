@@ -16,7 +16,7 @@ pub use zenoh_wasm::PlatformWasm as Platform;
 
 #[cfg(feature = "esp32s3")]
 mod esp32s3_app {
-    pub use embassy_net::{DhcpConfig, Runner, StackResources};
+    pub use embassy_net::{DhcpConfig, Runner, StackResources, udp::PacketMetadata};
     pub use embassy_time::{Duration, Timer};
     pub use esp_hal::{clock::CpuClock, rng::Rng, timer::systimer::SystemTimer};
     pub use esp_println as _;
@@ -161,7 +161,9 @@ pub async fn init_example(spawner: &embassy_executor::Spawner) -> ExampleConfig 
         };
         zenoh_nostd::info!("Network initialized with IP: {}", ip);
 
-        fn tcp() -> (&'static mut [u8], &'static mut [u8]) {
+        /// This is a naive way, internally it always gives a ref to the same buffer
+        /// so it's UB to create multiple links
+        fn buffers() -> (&'static mut [u8], &'static mut [u8]) {
             static TX: StaticCell<[u8; BUFF_SIZE as usize]> = StaticCell::new();
             let tx = TX.init([0; BUFF_SIZE as usize]);
 
@@ -171,8 +173,22 @@ pub async fn init_example(spawner: &embassy_executor::Spawner) -> ExampleConfig 
             (tx, rx)
         }
 
+        fn metadatas() -> (&'static mut [PacketMetadata], &'static mut [PacketMetadata]) {
+            static TX: StaticCell<[PacketMetadata; 16]> = StaticCell::new();
+            let tx = TX.init([PacketMetadata::EMPTY; 16]);
+
+            static RX: StaticCell<[PacketMetadata; 16]> = StaticCell::new();
+            let rx = RX.init([PacketMetadata::EMPTY; 16]);
+
+            (tx, rx)
+        }
+
         ExampleConfig {
-            platform: Platform { stack, tcp },
+            platform: Platform {
+                stack,
+                buffers,
+                metadatas,
+            },
             tx: [0; BUFF_SIZE as usize],
             rx: [0; BUFF_SIZE as usize],
         }

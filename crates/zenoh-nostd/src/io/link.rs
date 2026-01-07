@@ -4,12 +4,14 @@ use crate::{
     api::EndPoint,
     io::link::{
         tcp::{LinkTcp, LinkTcpRx, LinkTcpTx},
+        udp::{LinkUdp, LinkUdpRx, LinkUdpTx},
         ws::{LinkWs, LinkWsRx, LinkWsTx},
     },
-    platform::{ZPlatform, tcp::ZTcpStream, ws::ZWebSocket},
+    platform::{ZPlatform, tcp::ZTcpStream, udp::ZUdpSocket, ws::ZWebSocket},
 };
 
 pub mod tcp;
+pub mod udp;
 pub mod ws;
 
 pub trait ZLinkInfo {
@@ -60,6 +62,7 @@ where
     Platform: ZPlatform + 'a,
 {
     LinkTcpTx(LinkTcpTx<<Platform::TcpStream as ZTcpStream>::Tx<'a>>),
+    LinkUdpTx(LinkUdpTx<<Platform::UdpSocket as ZUdpSocket>::Tx<'a>>),
     LinkWsTx(LinkWsTx<<Platform::WebSocket as ZWebSocket>::Tx<'a>>),
 }
 
@@ -68,6 +71,7 @@ where
     Platform: ZPlatform + 'a,
 {
     LinkTcpRx(LinkTcpRx<<Platform::TcpStream as ZTcpStream>::Rx<'a>>),
+    LinkUdpRx(LinkUdpRx<<Platform::UdpSocket as ZUdpSocket>::Rx<'a>>),
     LinkWsRx(LinkWsRx<<Platform::WebSocket as ZWebSocket>::Rx<'a>>),
 }
 
@@ -76,6 +80,7 @@ where
     Platform: ZPlatform,
 {
     LinkTcp(LinkTcp<Platform::TcpStream>),
+    LinkUdp(LinkUdp<Platform::UdpSocket>),
     LinkWs(LinkWs<Platform::WebSocket>),
 }
 
@@ -86,6 +91,7 @@ where
     fn mtu(&self) -> u16 {
         match self {
             Self::LinkTcp(tcp) => tcp.mtu(),
+            Self::LinkUdp(udp) => udp.mtu(),
             Self::LinkWs(ws) => ws.mtu(),
         }
     }
@@ -93,6 +99,7 @@ where
     fn is_streamed(&self) -> bool {
         match self {
             Self::LinkTcp(tcp) => tcp.is_streamed(),
+            Self::LinkUdp(udp) => udp.is_streamed(),
             Self::LinkWs(ws) => ws.is_streamed(),
         }
     }
@@ -105,6 +112,7 @@ where
     fn mtu(&self) -> u16 {
         match self {
             Self::LinkTcpTx(tcp) => tcp.mtu(),
+            Self::LinkUdpTx(udp) => udp.mtu(),
             Self::LinkWsTx(ws) => ws.mtu(),
         }
     }
@@ -112,6 +120,7 @@ where
     fn is_streamed(&self) -> bool {
         match self {
             Self::LinkTcpTx(tcp) => tcp.is_streamed(),
+            Self::LinkUdpTx(udp) => udp.is_streamed(),
             Self::LinkWsTx(ws) => ws.is_streamed(),
         }
     }
@@ -124,6 +133,7 @@ where
     fn mtu(&self) -> u16 {
         match self {
             Self::LinkTcpRx(tcp) => tcp.mtu(),
+            Self::LinkUdpRx(udp) => udp.mtu(),
             Self::LinkWsRx(ws) => ws.mtu(),
         }
     }
@@ -131,6 +141,7 @@ where
     fn is_streamed(&self) -> bool {
         match self {
             Self::LinkTcpRx(tcp) => tcp.is_streamed(),
+            Self::LinkUdpRx(udp) => udp.is_streamed(),
             Self::LinkWsRx(ws) => ws.is_streamed(),
         }
     }
@@ -143,6 +154,7 @@ where
     async fn write(&mut self, buffer: &[u8]) -> core::result::Result<usize, crate::LinkError> {
         match self {
             Self::LinkTcp(tcp) => tcp.write(buffer).await,
+            Self::LinkUdp(udp) => udp.write(buffer).await,
             Self::LinkWs(ws) => ws.write(buffer).await,
         }
     }
@@ -150,6 +162,7 @@ where
     async fn write_all(&mut self, buffer: &[u8]) -> core::result::Result<(), crate::LinkError> {
         match self {
             Self::LinkTcp(tcp) => tcp.write_all(buffer).await,
+            Self::LinkUdp(udp) => udp.write_all(buffer).await,
             Self::LinkWs(ws) => ws.write_all(buffer).await,
         }
     }
@@ -162,6 +175,7 @@ where
     async fn write(&mut self, buffer: &[u8]) -> core::result::Result<usize, crate::LinkError> {
         match self {
             Self::LinkTcpTx(tcp) => tcp.write(buffer).await,
+            Self::LinkUdpTx(udp) => udp.write(buffer).await,
             Self::LinkWsTx(ws) => ws.write(buffer).await,
         }
     }
@@ -169,6 +183,7 @@ where
     async fn write_all(&mut self, buffer: &[u8]) -> core::result::Result<(), crate::LinkError> {
         match self {
             Self::LinkTcpTx(tcp) => tcp.write_all(buffer).await,
+            Self::LinkUdpTx(udp) => udp.write_all(buffer).await,
             Self::LinkWsTx(ws) => ws.write_all(buffer).await,
         }
     }
@@ -181,6 +196,7 @@ where
     async fn read(&mut self, buffer: &mut [u8]) -> core::result::Result<usize, crate::LinkError> {
         match self {
             Self::LinkTcp(tcp) => tcp.read(buffer).await,
+            Self::LinkUdp(udp) => udp.read(buffer).await,
             Self::LinkWs(ws) => ws.read(buffer).await,
         }
     }
@@ -191,6 +207,7 @@ where
     ) -> core::result::Result<(), crate::LinkError> {
         match self {
             Self::LinkTcp(tcp) => tcp.read_exact(buffer).await,
+            Self::LinkUdp(udp) => udp.read_exact(buffer).await,
             Self::LinkWs(ws) => ws.read_exact(buffer).await,
         }
     }
@@ -203,6 +220,7 @@ where
     async fn read(&mut self, buffer: &mut [u8]) -> core::result::Result<usize, crate::LinkError> {
         match self {
             Self::LinkTcpRx(tcp) => tcp.read(buffer).await,
+            Self::LinkUdpRx(udp) => udp.read(buffer).await,
             Self::LinkWsRx(ws) => ws.read(buffer).await,
         }
     }
@@ -213,6 +231,7 @@ where
     ) -> core::result::Result<(), crate::LinkError> {
         match self {
             Self::LinkTcpRx(tcp) => tcp.read_exact(buffer).await,
+            Self::LinkUdpRx(udp) => udp.read_exact(buffer).await,
             Self::LinkWsRx(ws) => ws.read_exact(buffer).await,
         }
     }
@@ -237,6 +256,10 @@ where
             Self::LinkTcp(tcp) => {
                 let (tx, rx) = tcp.split();
                 (LinkTx::LinkTcpTx(tx), LinkRx::LinkTcpRx(rx))
+            }
+            Self::LinkUdp(udp) => {
+                let (tx, rx) = udp.split();
+                (LinkTx::LinkUdpTx(tx), LinkRx::LinkUdpRx(rx))
             }
             Self::LinkWs(ws) => {
                 let (tx, rx) = ws.split();
@@ -265,6 +288,14 @@ where
                 let stream = platform.new_tcp_stream(&dst_addr).await?;
 
                 Ok(Self::LinkTcp(LinkTcp::new(stream)))
+            }
+            "udp" => {
+                let dst_addr = SocketAddr::from_str(address.as_str())
+                    .map_err(|_| crate::EndpointError::CouldNotParseAddress)?;
+
+                let socket = platform.new_udp_socket(&dst_addr).await?;
+
+                Ok(Self::LinkUdp(LinkUdp::new(socket)))
             }
             "ws" => {
                 let dst_addr = SocketAddr::from_str(address.as_str())

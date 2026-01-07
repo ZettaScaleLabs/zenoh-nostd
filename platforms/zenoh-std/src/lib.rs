@@ -1,48 +1,19 @@
 use {
-    async_net::TcpStream,
+    async_net::{TcpStream, UdpSocket},
     wtx::{misc::Uri, web_socket::WebSocketConnector},
     zenoh_nostd::platform::ZPlatform,
 };
 
 pub(crate) mod tcp;
+pub(crate) mod udp;
 pub(crate) mod ws;
 
 pub struct PlatformStd;
 
 impl ZPlatform for PlatformStd {
     type TcpStream = tcp::StdTcpStream;
+    type UdpSocket = udp::StdUdpSocket;
     type WebSocket = ws::StdWsStream;
-
-    async fn new_websocket_stream(
-        &self,
-        addr: &std::net::SocketAddr,
-    ) -> core::result::Result<Self::WebSocket, zenoh_nostd::ConnectionError> {
-        let uri = Uri::new(format!("ws://{}", addr));
-
-        let tcp_stream = TcpStream::connect(uri.hostname_with_implied_port())
-            .await
-            .map_err(|_| {
-                zenoh_nostd::error!("Could not connect to TcpStream");
-                zenoh_nostd::ConnectionError::CouldNotConnect
-            })?;
-
-        tcp_stream.set_nodelay(true).map_err(|_| {
-            zenoh_nostd::error!("Could not set nodelay on TcpStream");
-            zenoh_nostd::ConnectionError::CouldNotConnect
-        })?;
-
-        let stream = WebSocketConnector::default()
-            .connect(tcp_stream, &uri.to_ref())
-            .await
-            .map_err(|_| {
-                zenoh_nostd::error!("Could not connect to WebSocket");
-                zenoh_nostd::ConnectionError::CouldNotConnect
-            })?;
-
-        let peer_addr = *addr;
-
-        Ok(ws::StdWsStream::new(peer_addr, stream))
-    }
 
     async fn new_tcp_stream(
         &self,
@@ -84,5 +55,52 @@ impl ZPlatform for PlatformStd {
         }
 
         Ok(tcp::StdTcpStream::new(socket, mtu))
+    }
+
+    async fn new_udp_socket(
+        &self,
+        addr: &core::net::SocketAddr,
+    ) -> core::result::Result<Self::UdpSocket, zenoh_nostd::ConnectionError> {
+        let socket = UdpSocket::bind("0.0.0.0:0")
+            .await
+            .map_err(|_| zenoh_nostd::ConnectionError::CouldNotConnect)?;
+
+        socket
+            .connect(addr)
+            .await
+            .map_err(|_| zenoh_nostd::ConnectionError::CouldNotConnect)?;
+
+        Ok(udp::StdUdpSocket::new(socket, 8192))
+    }
+
+    async fn new_websocket_stream(
+        &self,
+        addr: &std::net::SocketAddr,
+    ) -> core::result::Result<Self::WebSocket, zenoh_nostd::ConnectionError> {
+        let uri = Uri::new(format!("ws://{}", addr));
+
+        let tcp_stream = TcpStream::connect(uri.hostname_with_implied_port())
+            .await
+            .map_err(|_| {
+                zenoh_nostd::error!("Could not connect to TcpStream");
+                zenoh_nostd::ConnectionError::CouldNotConnect
+            })?;
+
+        tcp_stream.set_nodelay(true).map_err(|_| {
+            zenoh_nostd::error!("Could not set nodelay on TcpStream");
+            zenoh_nostd::ConnectionError::CouldNotConnect
+        })?;
+
+        let stream = WebSocketConnector::default()
+            .connect(tcp_stream, &uri.to_ref())
+            .await
+            .map_err(|_| {
+                zenoh_nostd::error!("Could not connect to WebSocket");
+                zenoh_nostd::ConnectionError::CouldNotConnect
+            })?;
+
+        let peer_addr = *addr;
+
+        Ok(ws::StdWsStream::new(peer_addr, stream))
     }
 }
