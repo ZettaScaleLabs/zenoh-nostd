@@ -1,6 +1,10 @@
-use zenoh_proto::{Message, *};
+use zenoh_proto::{msgs::*, *};
 
-use crate::api::{SessionResources, ZConfig};
+use crate::api::{
+    ZConfig,
+    callbacks::{ZCallbacks, ZDynCallback},
+    resources::SessionResources,
+};
 
 impl<Config> super::Driver<'_, Config>
 where
@@ -9,7 +13,7 @@ where
     pub(crate) async fn update(
         &self,
         reader: &[u8],
-        _: &SessionResources<Config>,
+        resources: &SessionResources<'_, Config>,
     ) -> crate::ZResult<()> {
         let batch = BatchReader::new(reader);
 
@@ -42,46 +46,40 @@ where
                 //         ch.send(&sample).await?;
                 //     }
                 // }
-                // Message::Response {
-                //     body:
-                //         Response {
-                //             rid,
-                //             wire_expr,
-                //             payload,
-                //             ..
-                //         },
-                //     ..
-                // } => {
-                //     let (is_ok, payload) = match payload {
-                //         ResponseBody::Reply(Reply {
-                //             payload: PushBody::Put(Put { payload, .. }),
-                //             ..
-                //         }) => (true, payload),
-                //         ResponseBody::Err(Err { payload, .. }) => (false, payload),
-                //     };
+                Message::Response {
+                    body:
+                        Response {
+                            rid,
+                            wire_expr,
+                            payload,
+                            ..
+                        },
+                    ..
+                } => {
+                    let ke = wire_expr.suffix;
+                    let ke = keyexpr::new(ke)?;
+                    let response = match payload {
+                        ResponseBody::Reply(Reply {
+                            payload: PushBody::Put(Put { payload, .. }),
+                            ..
+                        }) => crate::Response::Ok(crate::Sample::new(ke, payload)),
+                        ResponseBody::Err(Err { payload, .. }) => {
+                            crate::Response::Err(crate::Sample::new(ke, payload))
+                        }
+                    };
 
-                //     let ke = wire_expr.suffix;
-                //     let ke = keyexpr::new(ke)?;
-                //     let response = crate::api::Response::new(is_ok, ke, payload);
-
-                //     let mut get_cb = resources.get_callbacks.lock().await;
-                //     if let Some(cb) = get_cb.get(rid) {
-                //         cb.call(&response).await;
-                //     }
-
-                //     let get_ch = &resources.get_channels;
-                //     let guard = get_ch.lock().await;
-                //     if let Some(ch) = get_ch.get(&guard, rid).await {
-                //         ch.send(&response).await?;
-                //     }
-                // }
-                // Message::ResponseFinal {
-                //     body: ResponseFinal { rid, .. },
-                //     ..
-                // } => {
-                //     resources.get_callbacks.lock().await.remove(rid)?;
-                //     resources.get_channels.remove(rid).await?;
-                // }
+                    let mut get_cb = resources.get_callbacks.lock().await;
+                    if let Some(cb) = get_cb.get(rid) {
+                        cb.call(&response).await;
+                    }
+                }
+                Message::ResponseFinal {
+                    body: ResponseFinal { rid, .. },
+                    ..
+                } => {
+                    let mut res = resources.get_callbacks.lock().await;
+                    res.remove(rid)?;
+                }
                 // Message::Request {
                 //     body:
                 //         Request {

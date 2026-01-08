@@ -10,7 +10,7 @@ use embassy_time::{Instant, Timer};
 use zenoh_proto::msgs::KeepAlive;
 
 use crate::{
-    api::{SessionResources, ZConfig},
+    api::{ZConfig, resources::SessionResources},
     io::transport::{TransportMineConfig, TransportOtherConfig, TransportRx, TransportTx},
 };
 
@@ -61,7 +61,7 @@ impl<Config> Driver<'_, Config>
 where
     Config: ZConfig,
 {
-    pub(crate) async fn run(&self, resources: &SessionResources<Config>) -> crate::ZResult<()> {
+    pub(crate) async fn run(&self, resources: &SessionResources<'_, Config>) -> crate::ZResult<()> {
         let mut rx_guard = self.rx.lock().await;
         let rx = rx_guard.deref_mut();
 

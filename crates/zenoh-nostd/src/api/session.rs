@@ -1,5 +1,5 @@
 use crate::{
-    api::{EndPoint, ZConfig, session::driver::Driver},
+    api::{EndPoint, Resources, ZConfig, driver::Driver, resources::SessionResources},
     io::{
         link::Link,
         transport::{Transport, TransportMineConfig},
@@ -8,22 +8,18 @@ use crate::{
 
 use embassy_time::Duration;
 
-mod driver;
-mod resources;
-
+mod get;
 mod put;
 
-pub use resources::*;
-
-pub struct Session<'a, Config>
+pub struct Session<'this, 'res, Config>
 where
     Config: ZConfig,
 {
-    pub(crate) driver: &'a Driver<'a, Config>,
-    pub(crate) resources: &'a SessionResources<Config>,
+    pub(crate) driver: &'this Driver<'this, Config>,
+    pub(crate) resources: &'this SessionResources<'res, Config>,
 }
 
-impl<Config> Session<'_, Config>
+impl<Config> Session<'_, '_, Config>
 where
     Config: ZConfig,
 {
@@ -34,7 +30,7 @@ where
     }
 }
 
-impl<'a, Config> Clone for Session<'a, Config>
+impl<Config> Clone for Session<'_, '_, Config>
 where
     Config: ZConfig,
 {
@@ -46,11 +42,12 @@ where
     }
 }
 
-pub async fn open<'a, Config>(
-    resources: &'a mut Resources<'a, Config>,
+/// Create a session bounded to the lifetimes of the `zenoh_nostd::Resources`.
+pub async fn open<'this, 'res, Config>(
+    resources: &'this mut Resources<'this, 'res, Config>,
     mut config: Config,
     endpoint: EndPoint<'_>,
-) -> crate::ZResult<Session<'a, Config>>
+) -> crate::ZResult<Session<'this, 'res, Config>>
 where
     Config: ZConfig,
 {
@@ -70,7 +67,18 @@ where
     )
     .await?;
 
-    let (driver, resources) = resources.init(config, transport, tconfig);
+    Ok(resources.init(config, transport, tconfig))
+}
 
-    Ok(Session { driver, resources })
+/// Alternative version of `zenoh_nostd::open` that creates an `'static` `zenoh_nostd::Session`.
+#[macro_export]
+macro_rules! open {
+    (
+        $config:expr => $CONFIG:ty,
+        $endpoint:expr
+    ) => {{
+        static RESOURCES: static_cell::StaticCell<$crate::Resources<'static, 'static, $CONFIG>> =
+            static_cell::StaticCell::new();
+        $crate::open(RESOURCES.init($crate::Resources::new()), $config, $endpoint)
+    }};
 }

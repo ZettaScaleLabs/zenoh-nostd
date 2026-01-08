@@ -1,13 +1,14 @@
 use std::marker::PhantomData;
 
-use dyn_utils::{DynObject, storage::Storage};
+use dyn_utils::{
+    DynObject,
+    storage::{RawOrBox, Storage},
+};
 use embassy_time::Instant;
 use heapless::FnvIndexMap;
 use zenoh_proto::keyexpr;
 
-pub trait ZArg {
-    type Of<'a>;
-}
+use crate::api::arg::{ResponseRef, SampleRef, ZArg};
 
 #[dyn_utils::dyn_trait(trait = ZDynCallback)]
 #[dyn_trait(dyn_utils::dyn_object)]
@@ -15,16 +16,16 @@ pub trait ZCallback {
     type Arg: ZArg;
 
     #[dyn_trait(try_sync)]
-    fn call(
-        &mut self,
-        arg: <Self::Arg as ZArg>::Of<'_>,
-        _phantom: PhantomData<&'_ ()>,
-    ) -> impl Future<Output = ()>;
+    fn call(&mut self, arg: <Self::Arg as ZArg>::Of<'_>) -> impl Future<Output = ()>;
 }
 
-type DynCallback<Callback, Future, Arg> = DynObject<dyn ZDynCallback<Future, Arg = Arg>, Callback>;
+pub type DynCallback<'a, Callback, Future, Arg> =
+    DynObject<dyn ZDynCallback<Future, Arg = Arg> + 'a, Callback>;
 
-pub trait ZCallbacks<Arg: ZArg> {
+pub trait ZCallbacks<'a, Arg>
+where
+    Arg: ZArg + 'a,
+{
     type Callback: Storage;
     type Future: Storage;
 
@@ -35,35 +36,37 @@ pub trait ZCallbacks<Arg: ZArg> {
         id: u32,
         ke: &'static keyexpr,
         timedout: Option<Instant>,
-        callback: DynCallback<Self::Callback, Self::Future, Arg>,
+        callback: DynCallback<'a, Self::Callback, Self::Future, Arg>,
     ) -> core::result::Result<(), crate::CollectionError>;
 
     fn drop_timedout(&mut self);
-    fn get(&mut self, id: u32) -> Option<&mut DynCallback<Self::Callback, Self::Future, Arg>>;
+    fn get(&mut self, id: u32) -> Option<&mut DynCallback<'a, Self::Callback, Self::Future, Arg>>;
 
     fn remove(&mut self, id: u32) -> core::result::Result<(), crate::CollectionError>;
 
     fn intersects<'r>(
         &'r mut self,
         ke: &keyexpr,
-    ) -> impl Iterator<Item = &'r mut DynCallback<Self::Callback, Self::Future, Arg>>
+    ) -> impl Iterator<Item = &'r mut DynCallback<'a, Self::Callback, Self::Future, Arg>>
     where
-        DynCallback<Self::Callback, Self::Future, Arg>: 'r;
+        DynCallback<'a, Self::Callback, Self::Future, Arg>: 'r;
 }
 
 pub struct FixedCapacityCallbacks<
+    'a,
     Arg: ZArg,
     const CAPACITY: usize,
     Callback: Storage,
     Future: Storage,
 > {
     keyexprs: FnvIndexMap<u32, &'static keyexpr, CAPACITY>,
-    callbacks: FnvIndexMap<(u32, &'static keyexpr), DynCallback<Callback, Future, Arg>, CAPACITY>,
+    callbacks:
+        FnvIndexMap<(u32, &'static keyexpr), DynCallback<'a, Callback, Future, Arg>, CAPACITY>,
     timedouts: FnvIndexMap<u32, Instant, CAPACITY>,
 }
 
-impl<Arg: ZArg, const CAPACITY: usize, Callback: Storage, Future: Storage> ZCallbacks<Arg>
-    for FixedCapacityCallbacks<Arg, CAPACITY, Callback, Future>
+impl<'a, Arg: ZArg + 'a, const CAPACITY: usize, Callback: Storage, Future: Storage>
+    ZCallbacks<'a, Arg> for FixedCapacityCallbacks<'a, Arg, CAPACITY, Callback, Future>
 {
     type Callback = Callback;
     type Future = Future;
@@ -81,7 +84,7 @@ impl<Arg: ZArg, const CAPACITY: usize, Callback: Storage, Future: Storage> ZCall
         id: u32,
         ke: &'static keyexpr,
         timedout: Option<Instant>,
-        callback: DynCallback<Callback, Future, Arg>,
+        callback: DynCallback<'a, Callback, Future, Arg>,
     ) -> core::result::Result<(), crate::CollectionError> {
         if self.keyexprs.contains_key(&id) {
             return Err(crate::CollectionError::KeyAlreadyExists);
@@ -135,7 +138,7 @@ impl<Arg: ZArg, const CAPACITY: usize, Callback: Storage, Future: Storage> ZCall
         Ok(())
     }
 
-    fn get(&mut self, id: u32) -> Option<&mut DynCallback<Callback, Future, Arg>> {
+    fn get(&mut self, id: u32) -> Option<&mut DynCallback<'a, Callback, Future, Arg>> {
         let ke = self.keyexprs.get(&id)?;
         self.callbacks.get_mut(&(id, ke))
     }
@@ -143,9 +146,9 @@ impl<Arg: ZArg, const CAPACITY: usize, Callback: Storage, Future: Storage> ZCall
     fn intersects<'r>(
         &'r mut self,
         ke: &keyexpr,
-    ) -> impl Iterator<Item = &'r mut DynCallback<Callback, Future, Arg>>
+    ) -> impl Iterator<Item = &'r mut DynCallback<'a, Callback, Future, Arg>>
     where
-        DynCallback<Callback, Future, Arg>: 'r,
+        DynCallback<'a, Callback, Future, Arg>: 'r,
     {
         self.callbacks
             .iter_mut()
@@ -159,7 +162,27 @@ impl<Arg: ZArg, const CAPACITY: usize, Callback: Storage, Future: Storage> ZCall
     }
 }
 
+pub type FixedCapacityGetCallbacks<
+    'a,
+    const CAPACITY: usize,
+    Callback = RawOrBox<16>,
+    Future = RawOrBox<128>,
+> = FixedCapacityCallbacks<'a, ResponseRef, CAPACITY, Callback, Future>;
+
+pub type FixedCapacitySubCallbacks<
+    'a,
+    const CAPACITY: usize,
+    Callback = RawOrBox<16>,
+    Future = RawOrBox<128>,
+> = FixedCapacityCallbacks<'a, SampleRef, CAPACITY, Callback, Future>;
+
 pub struct SyncCallback<Arg, F>(F, PhantomData<Arg>);
+
+impl<Arg, F> SyncCallback<Arg, F> {
+    pub fn new(f: F) -> Self {
+        Self(f, PhantomData)
+    }
+}
 
 impl<Arg, F> ZCallback for SyncCallback<Arg, F>
 where
@@ -169,13 +192,18 @@ where
     type Arg = Arg;
 
     #[dyn_utils::sync]
-    async fn call(&mut self, arg: <Self::Arg as ZArg>::Of<'_>, _: PhantomData<&'_ ()>) {
+    async fn call(&mut self, arg: <Self::Arg as ZArg>::Of<'_>) {
         (self.0)(arg)
     }
 }
 
 pub struct AsyncCallback<Arg, F>(F, PhantomData<Arg>);
 
+impl<Arg, F> AsyncCallback<Arg, F> {
+    pub fn new(f: F) -> Self {
+        Self(f, PhantomData)
+    }
+}
 impl<Arg, F> ZCallback for AsyncCallback<Arg, F>
 where
     Arg: ZArg,
@@ -183,11 +211,7 @@ where
 {
     type Arg = Arg;
 
-    fn call(
-        &mut self,
-        arg: <Self::Arg as ZArg>::Of<'_>,
-        _: PhantomData<&'_ ()>,
-    ) -> impl Future<Output = ()> {
+    fn call(&mut self, arg: <Self::Arg as ZArg>::Of<'_>) -> impl Future<Output = ()> {
         (self.0)(arg)
     }
 }
@@ -203,13 +227,21 @@ fn test() {
     }
 
     trait ZTestConfig {
-        type GetCallbacks: ZCallbacks<ResponseRef>;
+        type GetCallbacks<'a>: ZCallbacks<'a, ResponseRef>;
     }
 
     struct ExampleConfig {}
 
     impl ZTestConfig for ExampleConfig {
-        type GetCallbacks = FixedCapacityCallbacks<ResponseRef, 8, RawOrBox<128>, RawOrBox<128>>;
+        type GetCallbacks<'a> =
+            FixedCapacityCallbacks<'a, ResponseRef, 8, RawOrBox<128>, RawOrBox<128>>;
+    }
+
+    struct Test {}
+    let mut test = Test {};
+
+    impl Test {
+        fn borrow_mut(&mut self) {}
     }
 
     let mut callbacks: FixedCapacityCallbacks<ResponseRef, 8, RawOrBox<128>, RawOrBox<128>> =
@@ -224,6 +256,7 @@ fn test() {
                 async |resp: &Response<'_>| {
                     extern crate std;
                     std::println!("Got {resp:?}");
+                    test.borrow_mut();
                 },
                 PhantomData,
             )),

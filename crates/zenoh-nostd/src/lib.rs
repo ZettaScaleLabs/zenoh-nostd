@@ -3,11 +3,10 @@
 #[cfg(feature = "alloc")]
 extern crate alloc;
 
-pub mod api;
-pub use api::ZResult;
+mod api;
+pub use api::*;
 
+mod io;
 pub mod platform;
-
-pub(crate) mod io;
 
 pub use zenoh_proto::{debug, error, info, logging, trace, warn, zbail, zerror::*};

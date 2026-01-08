@@ -1,6 +1,6 @@
 use zenoh_proto::{exts::*, fields::*, msgs::*, *};
 
-use crate::api::{ZConfig, session::driver::Driver};
+use crate::api::{ZConfig, driver::Driver};
 
 pub struct PutBuilder<'a, Config>
 where
@@ -72,11 +72,11 @@ where
     }
 }
 
-impl<'r, Config> super::Session<'r, Config>
+impl<'this, 'res, Config> super::Session<'this, 'res, Config>
 where
     Config: ZConfig,
 {
-    pub fn put(&self, ke: &'r keyexpr, payload: &'r [u8]) -> PutBuilder<'r, Config> {
+    pub fn put(&self, ke: &'this keyexpr, payload: &'this [u8]) -> PutBuilder<'this, Config> {
         PutBuilder::new(self.driver, ke, payload)
     }
 }
