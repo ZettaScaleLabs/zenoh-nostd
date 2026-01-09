@@ -3047,7 +3047,7 @@ checksum = "e87a2ed6b42ec5e28cc3b94c09982969e9227600b2e3dcbc1db927a84c06bd69"
 [[package]]
 name = "uhlc"
 version = "0.9.0"
-source = "git+https://github.com/Hennzau/uhlc-rs?branch=no-alloc#8d7e2d3c5e5dd5eedd04529856e4a78562870368"
+source = "git+https://github.com/atolab/uhlc-rs#7a69d2b4d685cfaaf54f98d2ed01d21701993b02"
 dependencies = [
  "rand",
  "spin",

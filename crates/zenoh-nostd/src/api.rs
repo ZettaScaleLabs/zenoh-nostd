@@ -8,7 +8,7 @@ pub use response::*;
 pub use sample::*;
 
 mod callbacks;
-pub use callbacks::{FixedCapacityGetCallbacks, FixedCapacitySubCallbacks};
+pub use callbacks::{FixedCapacityGetCallbacks, FixedCapacitySubCallbacks, storage};
 
 mod config;
 pub use config::*;

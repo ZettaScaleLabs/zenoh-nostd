@@ -1,6 +1,6 @@
 #![no_std]
 
-use zenoh_nostd::{FixedCapacityGetCallbacks, ZConfig};
+use zenoh_nostd::{FixedCapacityGetCallbacks, ZConfig, storage::RawOrBox};
 
 #[cfg(feature = "std")]
 pub use zenoh_std::PlatformStd as Platform;
@@ -54,7 +54,7 @@ pub struct ExampleConfig {
 impl ZConfig for ExampleConfig {
     type Platform = Platform;
 
-    type GetCallbacks<'a> = FixedCapacityGetCallbacks<'a, 8>;
+    type GetCallbacks<'a> = FixedCapacityGetCallbacks<'a, 8, RawOrBox<16>, RawOrBox<{ 512 + 128 }>>;
 
     type TxBuf = [u8; BUFF_SIZE as usize];
     type RxBuf = [u8; BUFF_SIZE as usize];

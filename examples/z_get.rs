@@ -2,8 +2,29 @@
 #![cfg_attr(feature = "esp32s3", no_main)]
 #![cfg_attr(feature = "wasm", no_main)]
 
+use embassy_futures::join::join;
+use embassy_sync::{blocking_mutex::raw::NoopRawMutex, channel::Channel};
 use zenoh_examples::*;
-use zenoh_nostd as zenoh;
+use zenoh_nostd::{self as zenoh, OwnedResponse, Response};
+
+async fn response_callback(resp: &Response<'_>) {
+    match resp {
+        Response::Ok(reply) => {
+            zenoh_nostd::info!(
+                "[Get] Received OK Reply ('{}': '{:?}')",
+                reply.keyexpr().as_str(),
+                core::str::from_utf8(reply.payload()).unwrap()
+            );
+        }
+        Response::Err(reply) => {
+            zenoh_nostd::error!(
+                "[Get] Received ERR Reply ('{}': '{:?}')",
+                reply.keyexpr().as_str(),
+                core::str::from_utf8(reply.payload()).unwrap()
+            );
+        }
+    }
+}
 
 async fn entry(spawner: embassy_executor::Spawner) -> zenoh::ZResult<()> {
     #[cfg(feature = "log")]
@@ -13,20 +34,29 @@ async fn entry(spawner: embassy_executor::Spawner) -> zenoh::ZResult<()> {
 
     let config = init_example(&spawner).await;
 
+    // All resources that will be used must outlive `Resources`.
+    let channel = Channel::<NoopRawMutex, OwnedResponse<128, 128>, 8>::new();
+
     let mut resources = zenoh::Resources::new();
     let session = zenoh::open(&mut resources, config, zenoh::EndPoint::try_from(CONNECT)?).await?;
 
-    session
-        .testtest(zenoh::keyexpr::new("demo/example/**")?)
-        .finish()
-        .await?;
-
-    let get = session
+    let responses = session
         .get(zenoh::keyexpr::new("demo/example/**")?)
+        // .callback(response_callback)
+        .channel(channel.dyn_sender(), channel.dyn_receiver())
         .finish()
         .await?;
 
-    session.run().await
+    join(session.run(), async {
+        while let Some(response) = responses.recv().await {
+            response_callback(&response.as_ref()).await
+        }
+    })
+    .await
+    .0
+    .ok();
+
+    Ok(())
 }
 
 #[cfg_attr(feature = "std", embassy_executor::main)]

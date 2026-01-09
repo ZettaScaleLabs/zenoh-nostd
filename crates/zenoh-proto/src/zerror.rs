@@ -142,6 +142,9 @@ crate::declare_zerror! {
         #[doc = "Collection is empty."]
         #[err = "collection is empty"]
         CollectionIsEmpty = 63,
+        #[doc = "Collection too small."]
+        #[err = "collection is too small"]
+        CollectionTooSmall = 64,
     }
 
     // --- Session related errors ---

@@ -162,6 +162,10 @@ impl<'a, Arg: ZArg + 'a, const CAPACITY: usize, Callback: Storage, Future: Stora
     }
 }
 
+pub mod storage {
+    pub use dyn_utils::storage::{Raw, RawOrBox};
+}
+
 pub type FixedCapacityGetCallbacks<
     'a,
     const CAPACITY: usize,

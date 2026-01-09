@@ -68,8 +68,13 @@ where
                         }
                     };
 
+                    extern crate std;
+                    std::println!("REceived response");
+
                     let mut get_cb = resources.get_callbacks.lock().await;
                     if let Some(cb) = get_cb.get(rid) {
+                        std::println!("Matched a callback");
+
                         cb.call(&response).await;
                     }
                 }
