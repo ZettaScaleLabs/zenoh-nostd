@@ -257,9 +257,7 @@ fn test() {
             keyexpr::from_str_unchecked("azd/azd"),
             None,
             DynObject::new(AsyncCallback(
-                async |resp: &Response<'_>| {
-                    extern crate std;
-                    std::println!("Got {resp:?}");
+                async |_: &Response<'_>| {
                     test.borrow_mut();
                 },
                 PhantomData,

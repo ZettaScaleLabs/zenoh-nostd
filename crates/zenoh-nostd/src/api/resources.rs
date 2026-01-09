@@ -12,6 +12,7 @@ where
 {
     pub next: Mutex<NoopRawMutex, u32>,
     pub get_callbacks: Mutex<NoopRawMutex, Config::GetCallbacks<'res>>,
+    pub sub_callbacks: Mutex<NoopRawMutex, Config::SubCallbacks<'res>>,
 }
 
 impl<Config> SessionResources<'_, Config>
@@ -22,6 +23,7 @@ where
         Self {
             next: Mutex::new(0),
             get_callbacks: Mutex::new(Config::GetCallbacks::empty()),
+            sub_callbacks: Mutex::new(Config::SubCallbacks::empty()),
         }
     }
 

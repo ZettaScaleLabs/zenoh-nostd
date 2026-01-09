@@ -9,7 +9,9 @@ use crate::{
 use embassy_time::Duration;
 
 mod get;
+mod r#pub;
 mod put;
+mod sub;
 
 pub struct Session<'this, 'res, Config>
 where

@@ -27,7 +27,8 @@ async fn entry(spawner: embassy_executor::Spawner) -> zenoh::ZResult<()> {
     let payload = b"Hello, from no-std!";
 
     embassy_futures::select::select(session.run(), async {
-        match session.put(ke, payload).finish().await {
+        let bytes = [0u8; 6];
+        match session.put(ke, &bytes).finish().await {
             Ok(_) => {
                 zenoh::info!(
                     "[Put] Sent PUT ('{}': '{}')",

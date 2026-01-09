@@ -164,9 +164,6 @@ where
                     let resp = OwnedResponse::try_from(resp);
                     match resp {
                         Ok(resp) => {
-                            extern crate std;
-                            std::println!("SENDING RESPONSE");
-
                             sender.send(resp).await;
                         }
                         Err(e) => {
@@ -195,9 +192,6 @@ where
             gets.drop_timedout();
             gets.insert(rid, self.ke, Some(timedout), callback)?;
         }
-
-        extern crate std;
-        std::println!("Sending request");
 
         let msg = Request {
             id: rid,

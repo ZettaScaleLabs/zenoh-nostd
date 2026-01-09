@@ -2,23 +2,21 @@
 #![cfg_attr(feature = "esp32s3", no_main)]
 #![cfg_attr(feature = "wasm", no_main)]
 
-use embassy_time::Instant;
-use static_cell::StaticCell;
 use zenoh_examples::*;
-use zenoh_nostd::api::*;
+use zenoh_nostd as zenoh;
 
 struct Stats {
     round_count: usize,
     round_size: usize,
     finished_rounds: usize,
-    round_start: Instant,
-    global_start: Option<Instant>,
+    round_start: embassy_time::Instant,
+    global_start: Option<embassy_time::Instant>,
 }
 
 impl Stats {
     fn increment(&mut self) {
         if self.round_count == 0 {
-            self.round_start = Instant::now();
+            self.round_start = embassy_time::Instant::now();
             if self.global_start.is_none() {
                 self.global_start = Some(self.round_start)
             }
@@ -35,47 +33,49 @@ impl Stats {
     fn print_round(&self) {
         let elapsed = self.round_start.elapsed().as_micros() as f64 / 1_000_000.0;
         let throughput = (self.round_size as f64) / elapsed;
-        zenoh_nostd::info!("{} msg/s", throughput);
+        zenoh::info!("{} msg/s", throughput);
     }
 }
 
-async fn entry(spawner: embassy_executor::Spawner) -> zenoh_nostd::ZResult<()> {
+async fn entry(spawner: embassy_executor::Spawner) -> zenoh::ZResult<()> {
     #[cfg(feature = "log")]
     env_logger::init();
 
-    zenoh_nostd::info!("zenoh-nostd z_sub_thr example");
+    zenoh::info!("zenoh-nostd z_sub_thr example");
 
     let config = init_example(&spawner).await;
-    static RESOURCES: StaticCell<Resources<ExampleConfig>> = StaticCell::new();
-    let session = zenoh_nostd::api::open(
-        RESOURCES.init(Resources::new()),
-        config,
-        EndPoint::try_from(CONNECT)?,
-    )
-    .await?;
+
+    let close =
+        embassy_sync::signal::Signal::<embassy_sync::blocking_mutex::raw::NoopRawMutex, ()>::new();
+
+    let mut resources = zenoh::Resources::new();
+    let session = zenoh::open(&mut resources, config, zenoh::EndPoint::try_from(CONNECT)?).await?;
 
     let mut stats = Stats {
         round_count: 0,
         round_size: 100_000,
         finished_rounds: 0,
-        round_start: Instant::now(),
+        round_start: embassy_time::Instant::now(),
         global_start: None,
     };
 
+    let send = &close;
     let _ = session
-        .declare_subscriber(keyexpr::new("test/thr")?)
-        .callback(Callback::new_sync(move |_| {
+        .declare_subscriber(zenoh::keyexpr::new("test/thr")?)
+        .callback_sync(move |_| {
             if stats.finished_rounds >= 10000 {
-                // TODO! implement a `session.close()` that can be called here to gracefully terminate the session
+                send.signal(());
                 return;
             }
 
             stats.increment();
-        }))
+        })
         .finish()
         .await?;
 
-    session.run().await
+    embassy_futures::select::select(session.run(), close.wait()).await;
+
+    Ok(())
 }
 
 #[cfg_attr(feature = "std", embassy_executor::main)]
@@ -83,10 +83,10 @@ async fn entry(spawner: embassy_executor::Spawner) -> zenoh_nostd::ZResult<()> {
 #[cfg_attr(feature = "wasm", embassy_executor::main)]
 async fn main(spawner: embassy_executor::Spawner) {
     if let Err(e) = entry(spawner).await {
-        zenoh_nostd::error!("Error in main: {}", e);
+        zenoh::error!("Error in main: {}", e);
     }
 
-    zenoh_nostd::info!("Exiting main");
+    zenoh::info!("Exiting main");
 }
 
 #[cfg(feature = "esp32s3")]
@@ -97,7 +97,7 @@ mod esp32s3_app {
 
     #[panic_handler]
     fn panic(info: &core::panic::PanicInfo) -> ! {
-        zenoh_nostd::error!("Panic: {}", info);
+        zenoh::error!("Panic: {}", info);
 
         loop {}
     }

@@ -2,21 +2,23 @@
 #![cfg_attr(feature = "esp32s3", no_main)]
 #![cfg_attr(feature = "wasm", no_main)]
 
-use embassy_futures::join::join;
-use embassy_sync::{blocking_mutex::raw::NoopRawMutex, channel::Channel};
 use zenoh_examples::*;
-use zenoh_nostd::{self as zenoh, OwnedResponse, Response};
+use zenoh_nostd::{self as zenoh};
 
-async fn response_callback(resp: &Response<'_>) {
+async fn response_callback(resp: &zenoh::Response<'_>) {
+    response_callback_sync(resp);
+}
+
+fn response_callback_sync(resp: &zenoh::Response<'_>) {
     match resp {
-        Response::Ok(reply) => {
+        zenoh::Response::Ok(reply) => {
             zenoh_nostd::info!(
                 "[Get] Received OK Reply ('{}': '{:?}')",
                 reply.keyexpr().as_str(),
                 core::str::from_utf8(reply.payload()).unwrap()
             );
         }
-        Response::Err(reply) => {
+        zenoh::Response::Err(reply) => {
             zenoh_nostd::error!(
                 "[Get] Received ERR Reply ('{}': '{:?}')",
                 reply.keyexpr().as_str(),
@@ -34,29 +36,28 @@ async fn entry(spawner: embassy_executor::Spawner) -> zenoh::ZResult<()> {
 
     let config = init_example(&spawner).await;
 
-    // All resources that will be used must outlive `Resources`.
-    let channel = Channel::<NoopRawMutex, OwnedResponse<128, 128>, 8>::new();
-
     let mut resources = zenoh::Resources::new();
     let session = zenoh::open(&mut resources, config, zenoh::EndPoint::try_from(CONNECT)?).await?;
 
-    let responses = session
+    // In the following code we use the direct `callback` API. `zenoh` lets you provide either `sync` or `async` callbacks for your convenience.
+    // **Be careful**, in both case the callback should resolve almost instantly as it will `stop` the `reading` task of the session!
+    //
+    // This means that if you want to do high computation you may prefer to use the `channel` API, or to delegate into your own channels.
+    // See the `z_sub` example to see how the `channel` API works.
+
+    session
         .get(zenoh::keyexpr::new("demo/example/**")?)
-        // .callback(response_callback)
-        .channel(channel.dyn_sender(), channel.dyn_receiver())
+        .callback(response_callback)
         .finish()
         .await?;
 
-    join(session.run(), async {
-        while let Some(response) = responses.recv().await {
-            response_callback(&response.as_ref()).await
-        }
-    })
-    .await
-    .0
-    .ok();
+    session
+        .get(zenoh::keyexpr::new("demo/example/**")?)
+        .callback_sync(response_callback_sync)
+        .finish()
+        .await?;
 
-    Ok(())
+    session.run().await
 }
 
 #[cfg_attr(feature = "std", embassy_executor::main)]

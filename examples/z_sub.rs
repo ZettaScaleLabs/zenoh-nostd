@@ -2,52 +2,49 @@
 #![cfg_attr(feature = "esp32s3", no_main)]
 #![cfg_attr(feature = "wasm", no_main)]
 
-use static_cell::StaticCell;
 use zenoh_examples::*;
-use zenoh_nostd::api::*;
+use zenoh_nostd as zenoh;
 
-async fn entry(spawner: embassy_executor::Spawner) -> zenoh_nostd::ZResult<()> {
+async fn entry(spawner: embassy_executor::Spawner) -> zenoh::ZResult<()> {
     #[cfg(feature = "log")]
     env_logger::init();
 
-    zenoh_nostd::info!("zenoh-nostd z_sub example");
+    zenoh::info!("zenoh-nostd z_sub example");
 
     let config = init_example(&spawner).await;
-    static RESOURCES: StaticCell<Resources<ExampleConfig>> = StaticCell::new();
-    let session = zenoh_nostd::api::open(
-        RESOURCES.init(Resources::new()),
-        config,
-        EndPoint::try_from(CONNECT)?,
-    )
-    .await?;
 
-    // In this example we care about maintaining the session alive, we then have two choices:
-    //  1) Spawn a new task to run the `session.run()` in background, but it requires the `resources` to be `static`.
-    //  2) Use `select` or `join` to run both the session and the subscriber in the same task.
-    // Here we use the second approach. For a demonstration of the first approach, see the `z_open` example.
-    //
-    // Note: Currently, due to some limitations of the design, the `resources` must be `'static`. Future work
-    // may alleviate this requirement.
+    // All channels that will be used must outlive `Resources`.
+    // **Note**: as a direct implication, you may need to make static channels
+    // if you want a `'static` session.
+    let channel = embassy_sync::channel::Channel::<
+        embassy_sync::blocking_mutex::raw::NoopRawMutex,
+        zenoh::OwnedSample<128, 128>,
+        8,
+    >::new();
+
+    let mut resources = zenoh::Resources::new();
+    let session = zenoh::open(&mut resources, config, zenoh::EndPoint::try_from(CONNECT)?).await?;
 
     let subscriber = session
-        .declare_subscriber(keyexpr::new("demo/example/**")?)
+        .declare_subscriber(zenoh::keyexpr::new("demo/example/**")?)
+        .channel(channel.dyn_sender(), channel.dyn_receiver())
         .finish()
         .await?;
 
     embassy_futures::select::select(session.run(), async {
-        while let Ok(sample) = subscriber.recv().await {
-            zenoh_nostd::info!(
+        while let Some(sample) = subscriber.recv().await {
+            zenoh::info!(
                 "[Subscriber] Received sample ('{}': '{}')",
                 sample.keyexpr().as_str(),
                 core::str::from_utf8(sample.payload()).unwrap()
             );
         }
 
-        Ok::<(), zenoh_nostd::Error>(())
+        Ok::<(), zenoh::Error>(())
     })
     .await;
 
-    zenoh_nostd::info!("[Subscriber] Undeclaring subscriber and exiting...");
+    zenoh::info!("[Subscriber] Undeclaring subscriber and exiting...");
     subscriber.undeclare().await?;
 
     Ok(())
@@ -58,10 +55,10 @@ async fn entry(spawner: embassy_executor::Spawner) -> zenoh_nostd::ZResult<()> {
 #[cfg_attr(feature = "esp32s3", esp_rtos::main)]
 async fn main(spawner: embassy_executor::Spawner) {
     if let Err(e) = entry(spawner).await {
-        zenoh_nostd::error!("Error in main: {}", e);
+        zenoh::error!("Error in main: {}", e);
     }
 
-    zenoh_nostd::info!("Exiting main");
+    zenoh::info!("Exiting main");
 }
 
 #[cfg(feature = "esp32s3")]
@@ -72,7 +69,7 @@ mod esp32s3_app {
 
     #[panic_handler]
     fn panic(info: &core::panic::PanicInfo) -> ! {
-        zenoh_nostd::error!("Panic: {}", info);
+        zenoh::error!("Panic: {}", info);
 
         loop {}
     }

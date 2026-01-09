@@ -1,5 +1,8 @@
 use crate::{
-    api::{arg::ResponseRef, callbacks::ZCallbacks},
+    api::{
+        arg::{ResponseRef, SampleRef},
+        callbacks::ZCallbacks,
+    },
     platform::ZPlatform,
 };
 
@@ -7,6 +10,7 @@ pub trait ZConfig {
     type Platform: ZPlatform;
 
     type GetCallbacks<'res>: ZCallbacks<'res, ResponseRef>;
+    type SubCallbacks<'res>: ZCallbacks<'res, SampleRef>;
 
     type TxBuf: AsMut<[u8]>;
     type RxBuf: AsMut<[u8]>;

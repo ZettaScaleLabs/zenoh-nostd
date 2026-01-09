@@ -1,9 +1,12 @@
 use zenoh_proto::{msgs::*, *};
 
-use crate::api::{
-    ZConfig,
-    callbacks::{ZCallbacks, ZDynCallback},
-    resources::SessionResources,
+use crate::{
+    Sample,
+    api::{
+        ZConfig,
+        callbacks::{ZCallbacks, ZDynCallback},
+        resources::SessionResources,
+    },
 };
 
 impl<Config> super::Driver<'_, Config>
@@ -22,30 +25,24 @@ where
                 Message::KeepAlive(_) => {
                     zenoh_proto::trace!("Received KeepAlive");
                 }
-                // Message::Push {
-                //     body:
-                //         Push {
-                //             wire_expr,
-                //             payload: PushBody::Put(Put { payload, .. }),
-                //             ..
-                //         },
-                //     ..
-                // } => {
-                //     let ke = wire_expr.suffix;
-                //     let ke = keyexpr::new(ke)?;
-                //     let sample = Sample::new(ke, payload);
+                Message::Push {
+                    body:
+                        Push {
+                            wire_expr,
+                            payload: PushBody::Put(Put { payload, .. }),
+                            ..
+                        },
+                    ..
+                } => {
+                    let ke = wire_expr.suffix;
+                    let ke = keyexpr::new(ke)?;
+                    let sample = Sample::new(ke, payload);
 
-                //     let mut sub_cb = resources.sub_callbacks.lock().await;
-                //     for cb in sub_cb.intersects(ke) {
-                //         cb.call(&sample).await;
-                //     }
-
-                //     let sub_ch = &resources.sub_channels;
-                //     let guard = sub_ch.lock().await;
-                //     for ch in sub_ch.intersects(&guard, ke).await {
-                //         ch.send(&sample).await?;
-                //     }
-                // }
+                    let mut sub_cb = resources.sub_callbacks.lock().await;
+                    for cb in sub_cb.intersects(ke) {
+                        cb.call(&sample).await;
+                    }
+                }
                 Message::Response {
                     body:
                         Response {
@@ -68,13 +65,8 @@ where
                         }
                     };
 
-                    extern crate std;
-                    std::println!("REceived response");
-
                     let mut get_cb = resources.get_callbacks.lock().await;
                     if let Some(cb) = get_cb.get(rid) {
-                        std::println!("Matched a callback");
-
                         cb.call(&response).await;
                     }
                 }
