@@ -2,11 +2,11 @@ use zenoh_proto::{exts::*, fields::*, msgs::*, *};
 
 use crate::api::{ZConfig, driver::Driver};
 
-pub struct PutBuilder<'a, Config>
+pub struct PutBuilder<'this, 'a, Config>
 where
     Config: ZConfig,
 {
-    driver: &'a Driver<'a, Config>,
+    driver: &'this Driver<'this, Config>,
     ke: &'a keyexpr,
     payload: &'a [u8],
     encoding: Encoding<'a>,
@@ -14,11 +14,15 @@ where
     attachment: Option<Attachment<'a>>,
 }
 
-impl<'a, Config> PutBuilder<'a, Config>
+impl<'this, 'a, Config> PutBuilder<'this, 'a, Config>
 where
     Config: ZConfig,
 {
-    pub(crate) fn new(driver: &'a Driver<'a, Config>, ke: &'a keyexpr, payload: &'a [u8]) -> Self {
+    pub(crate) fn new(
+        driver: &'this Driver<'this, Config>,
+        ke: &'a keyexpr,
+        payload: &'a [u8],
+    ) -> Self {
         Self {
             driver,
             ke,
@@ -76,7 +80,7 @@ impl<'this, 'res, Config> super::Session<'this, 'res, Config>
 where
     Config: ZConfig,
 {
-    pub fn put(&self, ke: &'this keyexpr, payload: &'this [u8]) -> PutBuilder<'this, Config> {
+    pub fn put<'a>(&self, ke: &'a keyexpr, payload: &'a [u8]) -> PutBuilder<'this, 'a, Config> {
         PutBuilder::new(self.driver, ke, payload)
     }
 }

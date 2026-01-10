@@ -30,23 +30,19 @@ where
     Config: ZConfig,
 {
     pub async fn undeclare(self) -> crate::ZResult<()> {
-        todo!(
-            "
-                let msg = Declare {{
-                    body: DeclareBody::UndeclareSubscriber(UndeclareSubscriber {{
-                        id: self.id,
-                        ..Default::default()
-                    }}),
-                    ..Default::default()
-                }};
+        let msg = Declare {
+            body: DeclareBody::UndeclareSubscriber(UndeclareSubscriber {
+                id: self.id,
+                ..Default::default()
+            }),
+            ..Default::default()
+        };
 
-                self.resources.sub_callbacks.lock().await.remove(self.id)?;
+        self.resources.sub_callbacks.lock().await.remove(self.id)?;
 
-                self.driver.send(msg).await?;
+        self.driver.send(msg).await?;
 
-                Ok(())
-            "
-        )
+        Ok(())
     }
 }
 

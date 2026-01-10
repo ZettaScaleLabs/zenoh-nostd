@@ -14,7 +14,7 @@ impl<'this, Config> Publisher<'this, Config>
 where
     Config: ZConfig,
 {
-    pub async fn put(&self, payload: &'this [u8]) -> PutBuilder<'this, Config> {
+    pub async fn put<'a>(&self, payload: &'a [u8]) -> PutBuilder<'this, 'a, Config> {
         PutBuilder::new(self.driver, self.ke, payload)
     }
 
