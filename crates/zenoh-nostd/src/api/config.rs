@@ -1,16 +1,20 @@
 use crate::{
     api::{
-        arg::{ResponseRef, SampleRef},
+        arg::{QueryRef, ResponseRef, SampleRef},
         callbacks::ZCallbacks,
     },
     platform::ZPlatform,
 };
 
-pub trait ZConfig {
+pub trait ZConfig
+where
+    Self: Sized + 'static,
+{
     type Platform: ZPlatform;
 
     type GetCallbacks<'res>: ZCallbacks<'res, ResponseRef>;
     type SubCallbacks<'res>: ZCallbacks<'res, SampleRef>;
+    type QueryableCallbacks<'res>: ZCallbacks<'res, QueryRef<'res, Self>>;
 
     type TxBuf: AsMut<[u8]>;
     type RxBuf: AsMut<[u8]>;

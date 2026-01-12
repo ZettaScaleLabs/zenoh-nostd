@@ -1,4 +1,4 @@
-use zenoh_proto::{msgs::*, *};
+use zenoh_proto::{exts::Value, msgs::*, *};
 
 use crate::{
     Sample,
@@ -9,11 +9,11 @@ use crate::{
     },
 };
 
-impl<'transport, Config> super::Driver<'transport, Config>
+impl<'res, Config> super::Driver<'res, Config>
 where
     Config: ZConfig,
 {
-    pub(crate) async fn update<'res>(
+    pub(crate) async fn update(
         &self,
         reader: &[u8],
         resources: &SessionResources<'res, Config>,
@@ -77,47 +77,41 @@ where
                     let mut res = resources.get_callbacks.lock().await;
                     res.remove(rid)?;
                 }
-                // Message::Request {
-                //     body:
-                //         Request {
-                //             id,
-                //             wire_expr,
-                //             payload:
-                //                 RequestBody::Query(Query {
-                //                     parameters, body, ..
-                //                 }),
-                //             ..
-                //         },
-                //     ..
-                // } => {
-                //     let ke = wire_expr.suffix;
-                //     let ke = keyexpr::new(ke)?;
-                //     let query = crate::api::Query::new(
-                //         self,
-                //         id,
-                //         ke,
-                //         if parameters.is_empty() {
-                //             None
-                //         } else {
-                //             Some(parameters)
-                //         },
-                //         match body {
-                //             Some(Value { payload, .. }) => Some(payload),
-                //             None => None,
-                //         },
-                //     );
+                Message::Request {
+                    body:
+                        Request {
+                            id,
+                            wire_expr,
+                            payload:
+                                RequestBody::Query(Query {
+                                    parameters, body, ..
+                                }),
+                            ..
+                        },
+                    ..
+                } => {
+                    let ke = wire_expr.suffix;
+                    let ke = keyexpr::new(ke)?;
+                    let query = crate::api::Query::new(
+                        self,
+                        id,
+                        ke,
+                        if parameters.is_empty() {
+                            None
+                        } else {
+                            Some(parameters)
+                        },
+                        match body {
+                            Some(Value { payload, .. }) => Some(payload),
+                            None => None,
+                        },
+                    );
 
-                //     let mut queryable_cb = resources.queryable_callbacks.lock().await;
-                //     for cb in queryable_cb.intersects(ke) {
-                //         cb.call(&query).await;
-                //     }
-
-                //     let queryable_ch = &resources.queryable_channels;
-                //     let guard = queryable_ch.lock().await;
-                //     for ch in queryable_ch.intersects(&guard, ke).await {
-                //         ch.send(&query).await?;
-                //     }
-                // }
+                    let mut queryable_cb = resources.queryable_callbacks.lock().await;
+                    for cb in queryable_cb.intersects(ke) {
+                        cb.call(&query).await;
+                    }
+                }
                 _ => {}
             }
         }

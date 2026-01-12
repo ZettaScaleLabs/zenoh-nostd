@@ -24,13 +24,13 @@ impl<'a> Sample<'a> {
 
 #[derive(Debug)]
 pub struct OwnedSample<const MAX_KEYEXPR: usize, const MAX_PAYLOAD: usize> {
-    keyexpr: heapless::String<MAX_KEYEXPR>,
+    ke: heapless::String<MAX_KEYEXPR>,
     payload: heapless::Vec<u8, MAX_PAYLOAD>,
 }
 
 impl<const MAX_KEYEXPR: usize, const MAX_PAYLOAD: usize> OwnedSample<MAX_KEYEXPR, MAX_PAYLOAD> {
     pub fn keyexpr(&self) -> &keyexpr {
-        keyexpr::from_str_unchecked(self.keyexpr.as_str())
+        keyexpr::from_str_unchecked(self.ke.as_str())
     }
 
     pub fn payload(&self) -> &[u8] {
@@ -52,7 +52,7 @@ impl<const MAX_KEYEXPR: usize, const MAX_PAYLOAD: usize> TryFrom<&Sample<'_>>
 
     fn try_from(value: &Sample<'_>) -> Result<Self, Self::Error> {
         Ok(Self {
-            keyexpr: heapless::String::from_str(value.keyexpr().as_str())
+            ke: heapless::String::from_str(value.keyexpr().as_str())
                 .map_err(|_| CollectionError::CollectionTooSmall)?,
             payload: heapless::Vec::from_slice(value.payload())
                 .map_err(|_| CollectionError::CollectionTooSmall)?,

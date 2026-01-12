@@ -57,11 +57,11 @@ where
     }
 }
 
-impl<'transport, Config> Driver<'transport, Config>
+impl<'res, Config> Driver<'res, Config>
 where
     Config: ZConfig,
 {
-    pub(crate) async fn run<'res>(
+    pub(crate) async fn run(
         &self,
         resources: &SessionResources<'res, Config>,
     ) -> crate::ZResult<()> {

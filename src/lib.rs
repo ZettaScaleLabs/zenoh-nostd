@@ -1,7 +1,8 @@
 #![no_std]
 
 use zenoh_nostd::{
-    FixedCapacityGetCallbacks, FixedCapacitySubCallbacks, ZConfig, storage::RawOrBox,
+    FixedCapacityGetCallbacks, FixedCapacityQueryableCallbacks, FixedCapacitySubCallbacks, ZConfig,
+    storage::RawOrBox,
 };
 
 #[cfg(feature = "std")]
@@ -72,6 +73,9 @@ impl ZConfig for ExampleConfig {
 
     type SubCallbacks<'res> =
         FixedCapacitySubCallbacks<'res, 8, RawOrBox<64>, RawOrBox<{ 512 + 128 }>>;
+
+    type QueryableCallbacks<'res> =
+        FixedCapacityQueryableCallbacks<'res, Self, 8, RawOrBox<16>, RawOrBox<{ 512 + 128 }>>;
 
     type TxBuf = [u8; BUFF_SIZE as usize];
     type RxBuf = [u8; BUFF_SIZE as usize];

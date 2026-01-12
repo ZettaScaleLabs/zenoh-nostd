@@ -12,6 +12,7 @@ mod get;
 mod r#pub;
 mod put;
 mod querier;
+mod queryable;
 mod sub;
 
 pub struct Session<'res, Config>

@@ -59,7 +59,7 @@ async fn entry(spawner: embassy_executor::Spawner) -> zenoh::ZResult<()> {
     };
 
     let send = &close;
-    let _ = session
+    session
         .declare_subscriber(zenoh::keyexpr::new("test/thr")?)
         .callback_sync(move |_| {
             if stats.finished_rounds >= 10000 {

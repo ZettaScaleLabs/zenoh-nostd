@@ -1,14 +1,18 @@
 mod arg;
 mod endpoint;
+mod query;
 mod response;
 mod sample;
 
 pub use endpoint::*;
+pub use query::*;
 pub use response::*;
 pub use sample::*;
 
 mod callbacks;
-pub use callbacks::{FixedCapacityGetCallbacks, FixedCapacitySubCallbacks, storage};
+pub use callbacks::{
+    FixedCapacityGetCallbacks, FixedCapacityQueryableCallbacks, FixedCapacitySubCallbacks, storage,
+};
 
 mod config;
 pub use config::*;
