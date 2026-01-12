@@ -36,10 +36,10 @@ loc-proto:
 # Tests and benches
 
 test filter="":
-    cargo test {{filter}} -p zenoh-proto --features=alloc
+    cargo test {{ filter }} -p zenoh-proto --features=alloc
 
 bench filter="bench":
-    cargo test -p zenoh-proto {{filter}} --features=alloc --profile=release -- --nocapture --ignored --test-threads=1
+    cargo test -p zenoh-proto {{ filter }} --features=alloc --profile=release -- --nocapture --ignored --test-threads=1
 
 # Special `std` examples
 
@@ -58,15 +58,15 @@ pong:
 # Examples
 
 std example:
-    RUST_LOG=trace cargo run --example {{example}} --features="std,log"
+    RUST_LOG=trace cargo run --example {{ example }} --features="std,log"
 
 esp32s3 example:
-    cargo +esp --config .cargo/config.esp32s3.toml run --example {{example}} --no-default-features --features=esp32s3,defmt
+    cargo +esp --config .cargo/config.esp32s3.toml run --example {{ example }} --no-default-features --features=esp32s3,defmt
 
 sansio example:
-    RUST_LOG=debug cargo run -p zenoh-sansio --example {{example}} --features="log"
+    RUST_LOG=debug cargo run -p zenoh-sansio --example {{ example }} --features="log"
 
 wasm example *args:
-    RUSTFLAGS='--cfg getrandom_backend="wasm_js"' cargo build --example {{example}} --no-default-features --features="wasm,web_console" --target wasm32-unknown-unknown -- {{args}}
-    wasm-bindgen --target web --out-dir ./examples/web/ ./target/wasm32-unknown-unknown/debug/examples/{{example}}.wasm --out-name z_example
+    RUSTFLAGS='--cfg getrandom_backend="wasm_js"' cargo build --example {{ example }} --no-default-features --features="wasm,web_console" --target wasm32-unknown-unknown -- {{ args }}
+    wasm-bindgen --target web --out-dir ./examples/web/ ./target/wasm32-unknown-unknown/debug/examples/{{ example }}.wasm --out-name z_example
     basic-http-server ./examples/web

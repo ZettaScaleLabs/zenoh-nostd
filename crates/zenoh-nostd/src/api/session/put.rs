@@ -6,12 +6,13 @@ pub struct PutBuilder<'this, 'a, Config>
 where
     Config: ZConfig,
 {
-    driver: &'this Driver<'this, Config>,
-    ke: &'a keyexpr,
-    payload: &'a [u8],
-    encoding: Encoding<'a>,
-    timestamp: Option<Timestamp>,
-    attachment: Option<Attachment<'a>>,
+    pub(crate) driver: &'this Driver<'this, Config>,
+    pub(crate) ke: &'a keyexpr,
+    pub(crate) payload: &'a [u8],
+
+    pub(crate) encoding: Encoding<'a>,
+    pub(crate) timestamp: Option<Timestamp>,
+    pub(crate) attachment: Option<Attachment<'a>>,
 }
 
 impl<'this, 'a, Config> PutBuilder<'this, 'a, Config>
@@ -35,11 +36,6 @@ where
 
     pub fn payload(mut self, payload: &'a [u8]) -> Self {
         self.payload = payload;
-        self
-    }
-
-    pub fn keyexpr(mut self, ke: &'a keyexpr) -> Self {
-        self.ke = ke;
         self
     }
 

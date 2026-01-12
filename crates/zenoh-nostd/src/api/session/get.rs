@@ -47,14 +47,14 @@ pub struct GetBuilder<
 > where
     Config: ZConfig,
 {
-    driver: &'this Driver<'this, Config>,
-    resources: &'this SessionResources<'res, Config>,
+    pub(crate) driver: &'this Driver<'this, Config>,
+    pub(crate) resources: &'this SessionResources<'res, Config>,
 
-    ke: &'static keyexpr,
-    parameters: Option<&'this str>,
-    payload: Option<&'this [u8]>,
-    timeout: Option<Duration>,
-    callback: Option<
+    pub(crate) ke: &'static keyexpr,
+    pub(crate) parameters: Option<&'this str>,
+    pub(crate) payload: Option<&'this [u8]>,
+    pub(crate) timeout: Option<Duration>,
+    pub(crate) callback: Option<
         DynCallback<
             'res,
             <Config::GetCallbacks<'res> as ZCallbacks<'res, ResponseRef>>::Callback,
@@ -62,7 +62,7 @@ pub struct GetBuilder<
             ResponseRef,
         >,
     >,
-    receiver: Option<DynamicReceiver<'this, OwnedResponse>>,
+    pub(crate) receiver: Option<DynamicReceiver<'this, OwnedResponse>>,
 }
 
 impl<'this, 'res, Config> GetBuilder<'this, 'res, Config>
@@ -91,6 +91,11 @@ impl<'this, 'res, Config> GetBuilder<'this, 'res, Config>
 where
     Config: ZConfig,
 {
+    pub fn keyexpr(mut self, ke: &'static keyexpr) -> Self {
+        self.ke = ke;
+        self
+    }
+
     pub fn parameters(mut self, parameters: &'this str) -> Self {
         self.parameters = Some(parameters);
         self

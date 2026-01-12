@@ -11,6 +11,7 @@ use embassy_time::Duration;
 mod get;
 mod r#pub;
 mod put;
+mod querier;
 mod sub;
 
 pub struct Session<'this, 'res, Config>

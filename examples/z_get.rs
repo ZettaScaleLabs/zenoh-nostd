@@ -46,13 +46,13 @@ async fn entry(spawner: embassy_executor::Spawner) -> zenoh::ZResult<()> {
 
     session
         .get(zenoh::keyexpr::new("demo/example/**")?)
-        .callback(response_callback)
+        .callback(async |resp| response_callback(resp).await)
         .finish()
         .await?;
 
     session
         .get(zenoh::keyexpr::new("demo/example/**")?)
-        .callback_sync(response_callback_sync)
+        .callback_sync(|resp| response_callback_sync(resp))
         .finish()
         .await?;
 
