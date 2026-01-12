@@ -9,14 +9,14 @@ use crate::{
     },
 };
 
-impl<Config> super::Driver<'_, Config>
+impl<'transport, Config> super::Driver<'transport, Config>
 where
     Config: ZConfig,
 {
-    pub(crate) async fn update(
+    pub(crate) async fn update<'res>(
         &self,
         reader: &[u8],
-        resources: &SessionResources<'_, Config>,
+        resources: &SessionResources<'res, Config>,
     ) -> crate::ZResult<()> {
         let batch = BatchReader::new(reader);
 

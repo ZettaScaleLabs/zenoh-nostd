@@ -3,24 +3,24 @@ use zenoh_proto::keyexpr;
 
 use crate::api::{ZConfig, driver::Driver, resources::SessionResources, session::get::GetBuilder};
 
-pub struct Querier<'this, 'res, Config>
+pub struct Querier<'a, 'res, Config>
 where
     Config: ZConfig,
 {
-    driver: &'this Driver<'this, Config>,
-    resources: &'this SessionResources<'res, Config>,
+    driver: &'a Driver<'res, Config>,
+    resources: &'a SessionResources<'res, Config>,
 
     ke: &'static keyexpr,
-    parameters: Option<&'this str>,
-    payload: Option<&'this [u8]>,
+    parameters: Option<&'a str>,
+    payload: Option<&'a [u8]>,
     timeout: Option<Duration>,
 }
 
-impl<'this, 'res, Config> Querier<'this, 'res, Config>
+impl<'a, 'res, Config> Querier<'a, 'res, Config>
 where
     Config: ZConfig,
 {
-    pub fn get(&self) -> GetBuilder<'this, 'res, Config> {
+    pub fn get(&self) -> GetBuilder<'a, 'res, Config> {
         GetBuilder {
             driver: self.driver,
             resources: self.resources,
@@ -42,26 +42,26 @@ where
     }
 }
 
-pub struct QuerierBuilder<'this, 'res, Config>
+pub struct QuerierBuilder<'a, 'res, Config>
 where
     Config: ZConfig,
 {
-    driver: &'this Driver<'this, Config>,
-    resources: &'this SessionResources<'res, Config>,
+    driver: &'a Driver<'res, Config>,
+    resources: &'a SessionResources<'res, Config>,
 
     ke: &'static keyexpr,
-    parameters: Option<&'this str>,
-    payload: Option<&'this [u8]>,
+    parameters: Option<&'a str>,
+    payload: Option<&'a [u8]>,
     timeout: Option<Duration>,
 }
 
-impl<'this, 'res, Config> QuerierBuilder<'this, 'res, Config>
+impl<'a, 'res, Config> QuerierBuilder<'a, 'res, Config>
 where
     Config: ZConfig,
 {
     pub(crate) fn new(
-        driver: &'this Driver<'this, Config>,
-        resources: &'this SessionResources<'res, Config>,
+        driver: &'a Driver<'res, Config>,
+        resources: &'a SessionResources<'res, Config>,
         ke: &'static keyexpr,
     ) -> Self {
         Self {
@@ -74,12 +74,12 @@ where
         }
     }
 
-    pub fn parameters(mut self, parameters: &'this str) -> Self {
+    pub fn parameters(mut self, parameters: &'a str) -> Self {
         self.parameters = Some(parameters);
         self
     }
 
-    pub fn payload(mut self, payload: &'this [u8]) -> Self {
+    pub fn payload(mut self, payload: &'a [u8]) -> Self {
         self.payload = Some(payload);
         self
     }
@@ -89,7 +89,7 @@ where
         self
     }
 
-    pub async fn finish(self) -> crate::ZResult<Querier<'this, 'res, Config>> {
+    pub async fn finish(self) -> crate::ZResult<Querier<'a, 'res, Config>> {
         // TODO: send interest msg
         Ok(Querier {
             driver: self.driver,
@@ -102,11 +102,11 @@ where
     }
 }
 
-impl<'this, 'res, Config> super::Session<'this, 'res, Config>
+impl<'res, Config> super::Session<'res, Config>
 where
     Config: ZConfig,
 {
-    pub fn declare_querier(&self, ke: &'static keyexpr) -> QuerierBuilder<'this, 'res, Config> {
-        QuerierBuilder::new(self.driver, self.resources, ke)
+    pub fn declare_querier(&self, ke: &'static keyexpr) -> QuerierBuilder<'_, 'res, Config> {
+        QuerierBuilder::new(&self.driver, &self.resources, ke)
     }
 }

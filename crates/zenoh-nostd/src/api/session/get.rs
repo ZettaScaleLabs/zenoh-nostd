@@ -14,12 +14,12 @@ use crate::api::{
     resources::SessionResources,
 };
 
-pub struct Responses<'this, OwnedResponse = (), const CHANNEL: bool = false> {
+pub struct Responses<'res, OwnedResponse = (), const CHANNEL: bool = false> {
     timedout: Instant,
-    receiver: Option<DynamicReceiver<'this, OwnedResponse>>,
+    receiver: Option<DynamicReceiver<'res, OwnedResponse>>,
 }
 
-impl<'this, OwnedResponse> Responses<'this, OwnedResponse, true> {
+impl<'res, OwnedResponse> Responses<'res, OwnedResponse, true> {
     pub fn try_recv(&self) -> Option<OwnedResponse> {
         self.receiver.as_ref().unwrap().try_receive().ok()
     }
@@ -38,7 +38,7 @@ impl<'this, OwnedResponse> Responses<'this, OwnedResponse, true> {
 }
 
 pub struct GetBuilder<
-    'this,
+    'a,
     'res,
     Config,
     OwnedResponse = (),
@@ -47,12 +47,12 @@ pub struct GetBuilder<
 > where
     Config: ZConfig,
 {
-    pub(crate) driver: &'this Driver<'this, Config>,
-    pub(crate) resources: &'this SessionResources<'res, Config>,
+    pub(crate) driver: &'a Driver<'res, Config>,
+    pub(crate) resources: &'a SessionResources<'res, Config>,
 
     pub(crate) ke: &'static keyexpr,
-    pub(crate) parameters: Option<&'this str>,
-    pub(crate) payload: Option<&'this [u8]>,
+    pub(crate) parameters: Option<&'a str>,
+    pub(crate) payload: Option<&'a [u8]>,
     pub(crate) timeout: Option<Duration>,
     pub(crate) callback: Option<
         DynCallback<
@@ -62,16 +62,16 @@ pub struct GetBuilder<
             ResponseRef,
         >,
     >,
-    pub(crate) receiver: Option<DynamicReceiver<'this, OwnedResponse>>,
+    pub(crate) receiver: Option<DynamicReceiver<'res, OwnedResponse>>,
 }
 
-impl<'this, 'res, Config> GetBuilder<'this, 'res, Config>
+impl<'a, 'res, Config> GetBuilder<'a, 'res, Config, (), false, false>
 where
     Config: ZConfig,
 {
     pub(crate) fn new(
-        driver: &'this Driver<'this, Config>,
-        resources: &'this SessionResources<'res, Config>,
+        driver: &'a Driver<'res, Config>,
+        resources: &'a SessionResources<'res, Config>,
         ke: &'static keyexpr,
     ) -> Self {
         Self {
@@ -85,41 +85,11 @@ where
             receiver: None,
         }
     }
-}
 
-impl<'this, 'res, Config> GetBuilder<'this, 'res, Config>
-where
-    Config: ZConfig,
-{
-    pub fn keyexpr(mut self, ke: &'static keyexpr) -> Self {
-        self.ke = ke;
-        self
-    }
-
-    pub fn parameters(mut self, parameters: &'this str) -> Self {
-        self.parameters = Some(parameters);
-        self
-    }
-
-    pub fn payload(mut self, payload: &'this [u8]) -> Self {
-        self.payload = Some(payload);
-        self
-    }
-
-    pub fn timeout(mut self, timeout: Duration) -> Self {
-        self.timeout = Some(timeout);
-        self
-    }
-}
-
-impl<'this, 'res, Config> GetBuilder<'this, 'res, Config, (), false>
-where
-    Config: ZConfig,
-{
     pub fn callback(
         self,
         callback: impl AsyncFnMut(&crate::Response<'_>) + 'res,
-    ) -> GetBuilder<'this, 'res, Config, (), true> {
+    ) -> GetBuilder<'a, 'res, Config, (), true> {
         GetBuilder {
             driver: self.driver,
             resources: self.resources,
@@ -135,7 +105,7 @@ where
     pub fn callback_sync(
         self,
         callback: impl FnMut(&crate::Response<'_>) + 'res,
-    ) -> GetBuilder<'this, 'res, Config, (), true> {
+    ) -> GetBuilder<'a, 'res, Config, (), true> {
         GetBuilder {
             driver: self.driver,
             resources: self.resources,
@@ -152,9 +122,9 @@ where
         self,
         sender: DynamicSender<'res, OwnedResponse>,
         receiver: DynamicReceiver<'res, OwnedResponse>,
-    ) -> GetBuilder<'this, 'res, Config, OwnedResponse, true, true>
+    ) -> GetBuilder<'a, 'res, Config, OwnedResponse, true, true>
     where
-        OwnedResponse: for<'a> TryFrom<&'a crate::Response<'a>, Error = E>,
+        OwnedResponse: for<'any> TryFrom<&'any crate::Response<'any>, Error = E>,
         E: Display,
     {
         GetBuilder {
@@ -182,12 +152,38 @@ where
     }
 }
 
-impl<'this, 'res, Config, OwnedResponse, const CHANNEL: bool>
-    GetBuilder<'this, 'res, Config, OwnedResponse, true, CHANNEL>
+impl<'a, 'res, Config, OwnedResponse, const READY: bool, const CHANNEL: bool>
+    GetBuilder<'a, 'res, Config, OwnedResponse, READY, CHANNEL>
 where
     Config: ZConfig,
 {
-    pub async fn finish(self) -> crate::ZResult<Responses<'this, OwnedResponse, CHANNEL>> {
+    pub fn keyexpr(mut self, ke: &'static keyexpr) -> Self {
+        self.ke = ke;
+        self
+    }
+
+    pub fn parameters(mut self, parameters: &'a str) -> Self {
+        self.parameters = Some(parameters);
+        self
+    }
+
+    pub fn payload(mut self, payload: &'a [u8]) -> Self {
+        self.payload = Some(payload);
+        self
+    }
+
+    pub fn timeout(mut self, timeout: Duration) -> Self {
+        self.timeout = Some(timeout);
+        self
+    }
+}
+
+impl<'a, 'res, Config, OwnedResponse, const CHANNEL: bool>
+    GetBuilder<'a, 'res, Config, OwnedResponse, true, CHANNEL>
+where
+    Config: ZConfig,
+{
+    pub async fn finish(self) -> crate::ZResult<Responses<'a, OwnedResponse, CHANNEL>> {
         let timedout = Instant::now() + self.timeout.unwrap_or(Duration::from_secs(30));
 
         let rid = self.resources.next().await;
@@ -222,11 +218,11 @@ where
     }
 }
 
-impl<'this, 'res, Config> super::Session<'this, 'res, Config>
+impl<'res, Config> super::Session<'res, Config>
 where
     Config: ZConfig,
 {
-    pub fn get(&self, ke: &'static keyexpr) -> GetBuilder<'this, 'res, Config> {
-        GetBuilder::new(self.driver, self.resources, ke)
+    pub fn get(&self, ke: &'static keyexpr) -> GetBuilder<'_, 'res, Config> {
+        GetBuilder::new(&self.driver, &self.resources, ke)
     }
 }

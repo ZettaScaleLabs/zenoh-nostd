@@ -14,43 +14,31 @@ mod put;
 mod querier;
 mod sub;
 
-pub struct Session<'this, 'res, Config>
+pub struct Session<'res, Config>
 where
     Config: ZConfig,
 {
-    pub(crate) driver: &'this Driver<'this, Config>,
-    pub(crate) resources: &'this SessionResources<'res, Config>,
+    pub(crate) driver: Driver<'res, Config>,
+    pub(crate) resources: SessionResources<'res, Config>,
 }
 
-impl<Config> Session<'_, '_, Config>
+impl<Config> Session<'_, Config>
 where
     Config: ZConfig,
 {
     pub async fn run(&self) -> crate::ZResult<()> {
-        self.driver.run(self.resources).await?;
+        self.driver.run(&self.resources).await?;
 
         todo!("implement a `session.close` method that should undeclare all resources")
     }
 }
 
-impl<Config> Clone for Session<'_, '_, Config>
-where
-    Config: ZConfig,
-{
-    fn clone(&self) -> Self {
-        Session {
-            driver: self.driver,
-            resources: self.resources,
-        }
-    }
-}
-
 /// Create a session bounded to the lifetimes of the `zenoh_nostd::Resources`.
-pub async fn open<'this, 'res, Config>(
-    resources: &'this mut Resources<'this, 'res, Config>,
+pub async fn open<'res, Config>(
+    resources: &'res mut Resources<Config>,
     mut config: Config,
     endpoint: EndPoint<'_>,
-) -> crate::ZResult<Session<'this, 'res, Config>>
+) -> crate::ZResult<Session<'res, Config>>
 where
     Config: ZConfig,
 {
@@ -80,8 +68,14 @@ macro_rules! open {
         $config:expr => $CONFIG:ty,
         $endpoint:expr
     ) => {{
-        static RESOURCES: static_cell::StaticCell<$crate::Resources<'static, 'static, $CONFIG>> =
+        static RESOURCES: static_cell::StaticCell<$crate::Resources<$CONFIG>> =
             static_cell::StaticCell::new();
-        $crate::open(RESOURCES.init($crate::Resources::new()), $config, $endpoint)
+
+        static SESSION: static_cell::StaticCell<$crate::Session<'static, $CONFIG>> =
+            static_cell::StaticCell::new();
+
+        SESSION
+            .init($crate::open(RESOURCES.init($crate::Resources::new()), $config, $endpoint).await?)
+            as &'static $crate::Session<'static, $CONFIG>
     }};
 }

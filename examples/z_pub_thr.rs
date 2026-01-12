@@ -5,17 +5,6 @@
 use zenoh_examples::*;
 use zenoh_nostd as zenoh;
 
-const PAYLOAD: usize = match usize::from_str_radix(
-    match option_env!("PAYLOAD") {
-        Some(v) => v,
-        None => "8",
-    },
-    10,
-) {
-    Ok(v) => v,
-    Err(_) => 8,
-};
-
 async fn entry(spawner: embassy_executor::Spawner) -> zenoh::ZResult<()> {
     #[cfg(feature = "log")]
     env_logger::init();
@@ -23,8 +12,8 @@ async fn entry(spawner: embassy_executor::Spawner) -> zenoh::ZResult<()> {
     zenoh::info!("zenoh-nostd z_pub_thr example");
 
     let config = init_example(&spawner).await;
-    let session =
-        zenoh::open!(config => ExampleConfig, zenoh::EndPoint::try_from(CONNECT)?).await?;
+    let mut resources = zenoh::Resources::new();
+    let session = zenoh::open(&mut resources, config, zenoh::EndPoint::try_from(CONNECT)?).await?;
 
     let payload: [u8; PAYLOAD] = core::array::from_fn(|i| (i % 10) as u8);
     let publisher = session

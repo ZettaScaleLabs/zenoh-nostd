@@ -12,20 +12,20 @@ use crate::api::{
     resources::SessionResources,
 };
 
-pub struct Subscriber<'this, 'res, Config, OwnedSample = (), const CHANNEL: bool = false>
+pub struct Subscriber<'a, 'res, Config, OwnedSample = (), const CHANNEL: bool = false>
 where
     Config: ZConfig,
 {
     id: u32,
 
-    driver: &'this Driver<'this, Config>,
-    resources: &'this SessionResources<'res, Config>,
+    driver: &'a Driver<'res, Config>,
+    resources: &'a SessionResources<'res, Config>,
 
-    receiver: Option<DynamicReceiver<'this, OwnedSample>>,
+    receiver: Option<DynamicReceiver<'res, OwnedSample>>,
 }
 
-impl<'this, 'res, Config, OwnedSample, const CHANNEL: bool>
-    Subscriber<'this, 'res, Config, OwnedSample, CHANNEL>
+impl<'a, 'res, Config, OwnedSample, const CHANNEL: bool>
+    Subscriber<'a, 'res, Config, OwnedSample, CHANNEL>
 where
     Config: ZConfig,
 {
@@ -42,11 +42,11 @@ where
 
         self.driver.send(msg).await?;
 
-        Ok(())
+        todo!("Also stop the channel if any")
     }
 }
 
-impl<'this, 'res, Config, OwnedSample> Subscriber<'this, 'res, Config, OwnedSample, true>
+impl<'a, 'res, Config, OwnedSample> Subscriber<'a, 'res, Config, OwnedSample, true>
 where
     Config: ZConfig,
 {
@@ -60,7 +60,7 @@ where
 }
 
 pub struct SubscriberBuilder<
-    'this,
+    'a,
     'res,
     Config,
     OwnedSample = (),
@@ -69,8 +69,8 @@ pub struct SubscriberBuilder<
 > where
     Config: ZConfig,
 {
-    driver: &'this Driver<'this, Config>,
-    resources: &'this SessionResources<'res, Config>,
+    driver: &'a Driver<'res, Config>,
+    resources: &'a SessionResources<'res, Config>,
 
     ke: &'static keyexpr,
 
@@ -82,16 +82,16 @@ pub struct SubscriberBuilder<
             SampleRef,
         >,
     >,
-    receiver: Option<DynamicReceiver<'this, OwnedSample>>,
+    receiver: Option<DynamicReceiver<'res, OwnedSample>>,
 }
 
-impl<'this, 'res, Config> SubscriberBuilder<'this, 'res, Config>
+impl<'a, 'res, Config> SubscriberBuilder<'a, 'res, Config, (), false, false>
 where
     Config: ZConfig,
 {
     pub(crate) fn new(
-        driver: &'this Driver<'this, Config>,
-        resources: &'this SessionResources<'res, Config>,
+        driver: &'a Driver<'res, Config>,
+        resources: &'a SessionResources<'res, Config>,
         ke: &'static keyexpr,
     ) -> Self {
         Self {
@@ -102,16 +102,11 @@ where
             receiver: None,
         }
     }
-}
 
-impl<'this, 'res, Config> SubscriberBuilder<'this, 'res, Config, (), false>
-where
-    Config: ZConfig,
-{
     pub fn callback(
         self,
         callback: impl AsyncFnMut(&crate::Sample<'_>) + 'res,
-    ) -> SubscriberBuilder<'this, 'res, Config, (), true> {
+    ) -> SubscriberBuilder<'a, 'res, Config, (), true, false> {
         SubscriberBuilder {
             driver: self.driver,
             resources: self.resources,
@@ -124,7 +119,7 @@ where
     pub fn callback_sync(
         self,
         callback: impl FnMut(&crate::Sample<'_>) + 'res,
-    ) -> SubscriberBuilder<'this, 'res, Config, (), true> {
+    ) -> SubscriberBuilder<'a, 'res, Config, (), true, false> {
         SubscriberBuilder {
             driver: self.driver,
             resources: self.resources,
@@ -138,9 +133,9 @@ where
         self,
         sender: DynamicSender<'res, OwnedSample>,
         receiver: DynamicReceiver<'res, OwnedSample>,
-    ) -> SubscriberBuilder<'this, 'res, Config, OwnedSample, true, true>
+    ) -> SubscriberBuilder<'a, 'res, Config, OwnedSample, true, true>
     where
-        OwnedSample: for<'a> TryFrom<&'a crate::Sample<'a>, Error = E>,
+        OwnedSample: for<'any> TryFrom<&'any crate::Sample<'any>, Error = E>,
         E: Display,
     {
         SubscriberBuilder {
@@ -165,14 +160,14 @@ where
     }
 }
 
-impl<'this, 'res, Config, OwnedSample, const CHANNEL: bool>
-    SubscriberBuilder<'this, 'res, Config, OwnedSample, true, CHANNEL>
+impl<'a, 'res, Config, OwnedSample, const CHANNEL: bool>
+    SubscriberBuilder<'a, 'res, Config, OwnedSample, true, CHANNEL>
 where
     Config: ZConfig,
 {
     pub async fn finish(
         self,
-    ) -> crate::ZResult<Subscriber<'this, 'res, Config, OwnedSample, CHANNEL>> {
+    ) -> crate::ZResult<Subscriber<'a, 'res, Config, OwnedSample, CHANNEL>> {
         let id = self.resources.next().await;
 
         if let Some(callback) = self.callback {
@@ -200,14 +195,11 @@ where
     }
 }
 
-impl<'this, 'res, Config> super::Session<'this, 'res, Config>
+impl<'res, Config> super::Session<'res, Config>
 where
     Config: ZConfig,
 {
-    pub fn declare_subscriber(
-        &self,
-        ke: &'static keyexpr,
-    ) -> SubscriberBuilder<'this, 'res, Config> {
-        SubscriberBuilder::new(self.driver, self.resources, ke)
+    pub fn declare_subscriber(&self, ke: &'static keyexpr) -> SubscriberBuilder<'_, 'res, Config> {
+        SubscriberBuilder::new(&self.driver, &self.resources, ke)
     }
 }

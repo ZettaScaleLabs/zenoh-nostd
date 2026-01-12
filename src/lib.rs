@@ -42,6 +42,17 @@ pub const CONNECT: &str = match option_env!("CONNECT") {
     }
 };
 
+pub const PAYLOAD: usize = match usize::from_str_radix(
+    match option_env!("PAYLOAD") {
+        Some(v) => v,
+        None => "8",
+    },
+    10,
+) {
+    Ok(v) => v,
+    Err(_) => 8,
+};
+
 #[cfg(feature = "esp32s3")]
 const BUFF_SIZE: u16 = 512u16;
 #[cfg(not(feature = "esp32s3"))]

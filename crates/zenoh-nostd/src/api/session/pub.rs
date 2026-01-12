@@ -6,22 +6,23 @@ use zenoh_proto::{
 
 use crate::api::{ZConfig, driver::Driver, session::put::PutBuilder};
 
-pub struct Publisher<'this, 'a, Config>
+pub struct Publisher<'a, 'res, Config>
 where
     Config: ZConfig,
 {
-    driver: &'this Driver<'this, Config>,
+    driver: &'a Driver<'res, Config>,
+
     ke: &'a keyexpr,
     encoding: Encoding<'a>,
     timestamp: Option<Timestamp>,
     attachment: Option<Attachment<'a>>,
 }
 
-impl<'this, 'a, Config> Publisher<'this, 'a, Config>
+impl<'a, 'res, Config> Publisher<'a, 'res, Config>
 where
     Config: ZConfig,
 {
-    pub fn put(&self, payload: &'a [u8]) -> PutBuilder<'this, 'a, Config> {
+    pub fn put(&self, payload: &'a [u8]) -> PutBuilder<'a, 'res, Config> {
         PutBuilder {
             driver: self.driver,
             ke: self.ke,
@@ -41,11 +42,11 @@ where
     }
 }
 
-pub struct PublisherBuilder<'this, 'a, Config>
+pub struct PublisherBuilder<'a, 'res, Config>
 where
     Config: ZConfig,
 {
-    driver: &'this Driver<'this, Config>,
+    driver: &'a Driver<'res, Config>,
 
     ke: &'a keyexpr,
     encoding: Encoding<'a>,
@@ -53,11 +54,11 @@ where
     attachment: Option<Attachment<'a>>,
 }
 
-impl<'this, 'a, Config> PublisherBuilder<'this, 'a, Config>
+impl<'a, 'res, Config> PublisherBuilder<'a, 'res, Config>
 where
     Config: ZConfig,
 {
-    pub(crate) fn new(driver: &'this Driver<'this, Config>, ke: &'a keyexpr) -> Self {
+    pub(crate) fn new(driver: &'a Driver<'res, Config>, ke: &'a keyexpr) -> Self {
         Self {
             driver,
             ke,
@@ -87,7 +88,7 @@ where
         self
     }
 
-    pub async fn finish(self) -> crate::ZResult<Publisher<'this, 'a, Config>> {
+    pub async fn finish(self) -> crate::ZResult<Publisher<'a, 'res, Config>> {
         // TODO: send interest msg
 
         Ok(Publisher {
@@ -100,11 +101,11 @@ where
     }
 }
 
-impl<'this, 'res, Config> super::Session<'this, 'res, Config>
+impl<'res, Config> super::Session<'res, Config>
 where
     Config: ZConfig,
 {
-    pub fn declare_publisher<'a>(&self, ke: &'a keyexpr) -> PublisherBuilder<'this, 'a, Config> {
-        PublisherBuilder::new(self.driver, ke)
+    pub fn declare_publisher<'a>(&'a self, ke: &'a keyexpr) -> PublisherBuilder<'a, 'res, Config> {
+        PublisherBuilder::new(&self.driver, ke)
     }
 }

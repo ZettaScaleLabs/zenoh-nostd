@@ -6,7 +6,7 @@ use zenoh_examples::*;
 use zenoh_nostd as zenoh;
 
 #[embassy_executor::task]
-async fn session_task(session: zenoh::Session<'static, 'static, ExampleConfig>) {
+async fn session_task(session: &'static zenoh::Session<'static, ExampleConfig>) {
     if let Err(e) = session.run().await {
         zenoh::error!("Error in session task: {}", e);
     }
@@ -19,10 +19,9 @@ async fn entry(spawner: embassy_executor::Spawner) -> zenoh::ZResult<()> {
     zenoh::info!("zenoh-nostd z_put example");
 
     let config = init_example(&spawner).await;
-    let session =
-        zenoh::open!(config => ExampleConfig, zenoh::EndPoint::try_from(CONNECT)?).await?;
+    let session = zenoh::open!(config => ExampleConfig, zenoh::EndPoint::try_from(CONNECT)?);
 
-    spawner.spawn(session_task(session.clone())).map_err(|e| {
+    spawner.spawn(session_task(session)).map_err(|e| {
         zenoh::error!("Error spawning task: {}", e);
         zenoh::SessionError::CouldNotSpawnEmbassyTask
     })?;

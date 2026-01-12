@@ -14,42 +14,42 @@ use crate::{
     io::transport::{TransportMineConfig, TransportOtherConfig, TransportRx, TransportTx},
 };
 
-pub struct DriverTx<'a, Config>
+pub struct DriverTx<'transport, Config>
 where
     Config: ZConfig,
 {
     pub(crate) tx_buf: Config::TxBuf,
-    pub(crate) tx: TransportTx<'a, Config::Platform>,
+    pub(crate) tx: TransportTx<'transport, Config::Platform>,
     pub(crate) sn: u32,
 
     pub(crate) next_keepalive: Instant,
     pub(crate) config: TransportMineConfig,
 }
 
-pub struct DriverRx<'a, Config>
+pub struct DriverRx<'transport, Config>
 where
     Config: ZConfig,
 {
     pub(crate) rx_buf: Config::RxBuf,
-    pub(crate) rx: TransportRx<'a, Config::Platform>,
+    pub(crate) rx: TransportRx<'transport, Config::Platform>,
 
     pub(crate) last_read: Instant,
     pub(crate) config: TransportOtherConfig,
 }
 
-pub struct Driver<'a, Config>
+pub struct Driver<'transport, Config>
 where
     Config: ZConfig,
 {
-    pub(crate) tx: Mutex<NoopRawMutex, DriverTx<'a, Config>>,
-    pub(crate) rx: Mutex<NoopRawMutex, DriverRx<'a, Config>>,
+    pub(crate) tx: Mutex<NoopRawMutex, DriverTx<'transport, Config>>,
+    pub(crate) rx: Mutex<NoopRawMutex, DriverRx<'transport, Config>>,
 }
 
-impl<'r, Config> Driver<'r, Config>
+impl<'transport, Config> Driver<'transport, Config>
 where
     Config: ZConfig,
 {
-    pub(crate) fn new(tx: DriverTx<'r, Config>, rx: DriverRx<'r, Config>) -> Self {
+    pub(crate) fn new(tx: DriverTx<'transport, Config>, rx: DriverRx<'transport, Config>) -> Self {
         Self {
             tx: Mutex::new(tx),
             rx: Mutex::new(rx),
@@ -57,11 +57,14 @@ where
     }
 }
 
-impl<Config> Driver<'_, Config>
+impl<'transport, Config> Driver<'transport, Config>
 where
     Config: ZConfig,
 {
-    pub(crate) async fn run(&self, resources: &SessionResources<'_, Config>) -> crate::ZResult<()> {
+    pub(crate) async fn run<'res>(
+        &self,
+        resources: &SessionResources<'res, Config>,
+    ) -> crate::ZResult<()> {
         let mut rx_guard = self.rx.lock().await;
         let rx = rx_guard.deref_mut();
 

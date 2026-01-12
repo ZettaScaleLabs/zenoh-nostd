@@ -5,7 +5,7 @@ use zenoh_proto::{exts::*, fields::*, *};
 
 use crate::{api::ZConfig, io::transport::ZTransportTx};
 
-impl<Config> super::DriverTx<'_, Config>
+impl<'transport, Config> super::DriverTx<'transport, Config>
 where
     Config: ZConfig,
 {
@@ -42,7 +42,7 @@ where
     }
 }
 
-impl<'a, Config> super::Driver<'a, Config>
+impl<'transport, Config> super::Driver<'transport, Config>
 where
     Config: ZConfig,
 {

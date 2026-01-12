@@ -9,14 +9,14 @@ fn response_callback(resp: &zenoh::Response<'_>) {
     match resp {
         zenoh::Response::Ok(reply) => {
             zenoh_nostd::info!(
-                "[Get] Received OK Reply ('{}': '{:?}')",
+                "[Querier] Received OK Reply ('{}': '{:?}')",
                 reply.keyexpr().as_str(),
                 core::str::from_utf8(reply.payload()).unwrap()
             );
         }
         zenoh::Response::Err(reply) => {
             zenoh_nostd::error!(
-                "[Get] Received ERR Reply ('{}': '{:?}')",
+                "[Querier] Received ERR Reply ('{}': '{:?}')",
                 reply.keyexpr().as_str(),
                 core::str::from_utf8(reply.payload()).unwrap()
             );
@@ -25,7 +25,7 @@ fn response_callback(resp: &zenoh::Response<'_>) {
 }
 
 #[embassy_executor::task]
-async fn session_task(session: zenoh::Session<'static, 'static, ExampleConfig>) {
+async fn session_task(session: &'static zenoh::Session<'static, ExampleConfig>) {
     if let Err(e) = session.run().await {
         zenoh::error!("Error in session task: {}", e);
     }
@@ -38,10 +38,9 @@ async fn entry(spawner: embassy_executor::Spawner) -> zenoh::ZResult<()> {
     zenoh::info!("zenoh-nostd z_get example");
 
     let config = init_example(&spawner).await;
-    let session =
-        zenoh::open!(config => ExampleConfig, zenoh::EndPoint::try_from(CONNECT)?).await?;
+    let session = zenoh::open!(config => ExampleConfig, zenoh::EndPoint::try_from(CONNECT)?);
 
-    spawner.spawn(session_task(session.clone())).map_err(|e| {
+    spawner.spawn(session_task(session)).map_err(|e| {
         zenoh::error!("Error spawning task: {}", e);
         zenoh::SessionError::CouldNotSpawnEmbassyTask
     })?;

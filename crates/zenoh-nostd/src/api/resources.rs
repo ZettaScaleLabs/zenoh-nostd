@@ -6,6 +6,72 @@ use crate::{
 use embassy_sync::{blocking_mutex::raw::NoopRawMutex, mutex::Mutex};
 use embassy_time::Instant;
 
+pub struct Resources<Config>
+where
+    Config: ZConfig,
+{
+    platform: Option<Config::Platform>,
+    transport: Option<Transport<Config::Platform>>,
+}
+
+impl<Config> Resources<Config>
+where
+    Config: ZConfig,
+{
+    pub fn new() -> Self {
+        Self {
+            platform: None,
+            transport: None,
+        }
+    }
+}
+
+impl<Config> Resources<Config>
+where
+    Config: ZConfig,
+{
+    pub(crate) fn init(
+        &mut self,
+        config: Config,
+        transport: Transport<Config::Platform>,
+        tconfig: TransportConfig,
+    ) -> Session<'_, Config> {
+        let Self {
+            platform: platform_ref_mut,
+            transport: transport_ref_mut,
+        } = self;
+
+        let (platform, tx_buf, rx_buf) = config.into_parts();
+
+        *platform_ref_mut = Some(platform);
+        *transport_ref_mut = Some(transport);
+
+        let (tx, rx) = {
+            let (tx, rx) = transport_ref_mut.as_mut().unwrap().split();
+            (
+                DriverTx {
+                    tx_buf,
+                    tx,
+                    sn: tconfig.negociated_config.mine_sn,
+                    next_keepalive: Instant::now(),
+                    config: tconfig.mine_config.clone(),
+                },
+                DriverRx {
+                    rx_buf,
+                    rx,
+                    last_read: Instant::now(),
+                    config: tconfig.other_config.clone(),
+                },
+            )
+        };
+
+        Session {
+            driver: Driver::new(tx, rx),
+            resources: SessionResources::new(),
+        }
+    }
+}
+
 pub(crate) struct SessionResources<'res, Config>
 where
     Config: ZConfig,
@@ -32,80 +98,5 @@ where
         let next = *guard;
         *guard += 1;
         next
-    }
-}
-
-pub struct Resources<'this, 'res, Config>
-where
-    Config: ZConfig,
-{
-    platform: Option<Config::Platform>,
-    transport: Option<Transport<Config::Platform>>,
-    driver: Option<Driver<'this, Config>>,
-    session_resources: Option<SessionResources<'res, Config>>,
-}
-
-impl<Config> Resources<'_, '_, Config>
-where
-    Config: ZConfig,
-{
-    pub fn new() -> Self {
-        Self {
-            platform: None,
-            transport: None,
-            driver: None,
-            session_resources: None,
-        }
-    }
-}
-
-impl<'this, 'res, Config> Resources<'this, 'res, Config>
-where
-    Config: ZConfig,
-{
-    pub(crate) fn init(
-        &'this mut self,
-        config: Config,
-        transport: Transport<Config::Platform>,
-        tconfig: TransportConfig,
-    ) -> Session<'this, 'res, Config> {
-        let Self {
-            platform: platform_ref_mut,
-            transport: transport_ref_mut,
-            driver: driver_ref_mut,
-            session_resources: session_resources_ref_mut,
-        } = self;
-
-        let (platform, tx_buf, rx_buf) = config.into_parts();
-
-        *platform_ref_mut = Some(platform);
-        *transport_ref_mut = Some(transport);
-        *session_resources_ref_mut = Some(SessionResources::new());
-
-        let (tx, rx) = {
-            let (tx, rx) = transport_ref_mut.as_mut().unwrap().split();
-            (
-                DriverTx {
-                    tx_buf,
-                    tx,
-                    sn: tconfig.negociated_config.mine_sn,
-                    next_keepalive: Instant::now(),
-                    config: tconfig.mine_config.clone(),
-                },
-                DriverRx {
-                    rx_buf,
-                    rx,
-                    last_read: Instant::now(),
-                    config: tconfig.other_config.clone(),
-                },
-            )
-        };
-
-        *driver_ref_mut = Some(Driver::new(tx, rx));
-
-        Session {
-            driver: driver_ref_mut.as_ref().unwrap(),
-            resources: session_resources_ref_mut.as_ref().unwrap(),
-        }
     }
 }
