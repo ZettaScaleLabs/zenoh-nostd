@@ -72,7 +72,7 @@ where
     }
 }
 
-pub(crate) struct SessionResources<'res, Config>
+pub struct SessionResources<'res, Config>
 where
     Config: ZConfig,
 {

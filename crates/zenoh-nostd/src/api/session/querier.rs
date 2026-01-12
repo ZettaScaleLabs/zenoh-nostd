@@ -34,7 +34,7 @@ where
     }
 
     pub async fn undeclare(self) -> crate::ZResult<()> {
-        todo!()
+        todo!("send undeclare interest")
     }
 
     pub fn keyexpr(&self) -> &keyexpr {

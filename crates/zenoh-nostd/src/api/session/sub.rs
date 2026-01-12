@@ -171,9 +171,9 @@ where
         let id = self.resources.next().await;
 
         if let Some(callback) = self.callback {
-            let mut gets = self.resources.sub_callbacks.lock().await;
-            gets.drop_timedout();
-            gets.insert(id, self.ke, None, callback)?;
+            let mut subs = self.resources.sub_callbacks.lock().await;
+            subs.drop_timedout();
+            subs.insert(id, self.ke, None, callback)?;
         }
 
         let msg = Declare {

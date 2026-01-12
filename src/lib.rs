@@ -68,14 +68,12 @@ pub struct ExampleConfig {
 impl ZConfig for ExampleConfig {
     type Platform = Platform;
 
-    type GetCallbacks<'res> =
-        FixedCapacityGetCallbacks<'res, 8, RawOrBox<16>, RawOrBox<{ 512 + 128 }>>;
+    type GetCallbacks<'res> = FixedCapacityGetCallbacks<'res, 8, RawOrBox<1>, RawOrBox<32>>;
 
-    type SubCallbacks<'res> =
-        FixedCapacitySubCallbacks<'res, 8, RawOrBox<64>, RawOrBox<{ 512 + 128 }>>;
+    type SubCallbacks<'res> = FixedCapacitySubCallbacks<'res, 8, RawOrBox<56>, RawOrBox<600>>;
 
     type QueryableCallbacks<'res> =
-        FixedCapacityQueryableCallbacks<'res, Self, 8, RawOrBox<16>, RawOrBox<{ 512 + 128 }>>;
+        FixedCapacityQueryableCallbacks<'res, Self, 8, RawOrBox<32>, RawOrBox<952>>;
 
     type TxBuf = [u8; BUFF_SIZE as usize];
     type RxBuf = [u8; BUFF_SIZE as usize];

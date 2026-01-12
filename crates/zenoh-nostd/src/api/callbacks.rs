@@ -44,6 +44,14 @@ where
 
     fn remove(&mut self, id: u32) -> core::result::Result<(), crate::CollectionError>;
 
+    fn set_counter(
+        &mut self,
+        id: u32,
+        value: usize,
+    ) -> core::result::Result<(), crate::CollectionError>;
+
+    fn decrease(&mut self, id: u32) -> bool;
+
     fn intersects<'r>(
         &'r mut self,
         ke: &keyexpr,
@@ -63,6 +71,7 @@ pub struct FixedCapacityCallbacks<
     callbacks:
         FnvIndexMap<(u32, &'static keyexpr), DynCallback<'a, Callback, Future, Arg>, CAPACITY>,
     timedouts: FnvIndexMap<u32, Instant, CAPACITY>,
+    counters: FnvIndexMap<u32, usize, CAPACITY>,
 }
 
 impl<'a, Arg: ZArg + 'a, const CAPACITY: usize, Callback: Storage, Future: Storage>
@@ -76,6 +85,7 @@ impl<'a, Arg: ZArg + 'a, const CAPACITY: usize, Callback: Storage, Future: Stora
             keyexprs: FnvIndexMap::new(),
             callbacks: FnvIndexMap::new(),
             timedouts: FnvIndexMap::new(),
+            counters: FnvIndexMap::new(),
         }
     }
 
@@ -121,6 +131,7 @@ impl<'a, Arg: ZArg + 'a, const CAPACITY: usize, Callback: Storage, Future: Stora
                 if let Some(ke) = self.keyexprs.remove(id) {
                     self.callbacks.remove(&(*id, ke));
                 }
+                self.counters.remove(id);
 
                 false
             } else {
@@ -134,6 +145,7 @@ impl<'a, Arg: ZArg + 'a, const CAPACITY: usize, Callback: Storage, Future: Stora
             self.callbacks.remove(&(id, ke));
         }
         self.timedouts.remove(&id);
+        self.counters.remove(&id);
 
         Ok(())
     }
@@ -141,6 +153,29 @@ impl<'a, Arg: ZArg + 'a, const CAPACITY: usize, Callback: Storage, Future: Stora
     fn get(&mut self, id: u32) -> Option<&mut DynCallback<'a, Callback, Future, Arg>> {
         let ke = self.keyexprs.get(&id)?;
         self.callbacks.get_mut(&(id, ke))
+    }
+
+    fn set_counter(
+        &mut self,
+        id: u32,
+        value: usize,
+    ) -> core::result::Result<(), crate::CollectionError> {
+        self.counters
+            .insert(id, value)
+            .map_err(|_| crate::CollectionError::CollectionIsFull)
+            .map(|_| ())
+    }
+
+    fn decrease(&mut self, id: u32) -> bool {
+        if let Some(value) = self.counters.get_mut(&id) {
+            if *value > 0 {
+                *value -= 1;
+            }
+
+            if *value == 0 { true } else { false }
+        } else {
+            false
+        }
     }
 
     fn intersects<'r>(

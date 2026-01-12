@@ -76,6 +76,8 @@ where
                 } => {
                     let mut res = resources.get_callbacks.lock().await;
                     res.remove(rid)?;
+
+                    // TODO: also close channels
                 }
                 Message::Request {
                     body:
@@ -94,6 +96,7 @@ where
                     let ke = keyexpr::new(ke)?;
                     let query = crate::api::Query::new(
                         self,
+                        resources,
                         id,
                         ke,
                         if parameters.is_empty() {
@@ -108,6 +111,8 @@ where
                     );
 
                     let mut queryable_cb = resources.queryable_callbacks.lock().await;
+                    let count = queryable_cb.intersects(ke).count();
+                    queryable_cb.set_counter(id, count)?;
                     for cb in queryable_cb.intersects(ke) {
                         cb.call(&query).await;
                     }
