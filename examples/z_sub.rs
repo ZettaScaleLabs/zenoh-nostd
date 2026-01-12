@@ -11,8 +11,6 @@ async fn entry(spawner: embassy_executor::Spawner) -> zenoh::ZResult<()> {
 
     zenoh::info!("zenoh-nostd z_sub example");
 
-    let config = init_example(&spawner).await;
-
     // All channels that will be used must outlive `Resources`.
     // **Note**: as a direct implication, you may need to make static channels
     // if you want a `'static` session.
@@ -22,6 +20,7 @@ async fn entry(spawner: embassy_executor::Spawner) -> zenoh::ZResult<()> {
         8,
     >::new();
 
+    let config = init_example(&spawner).await;
     let mut resources = zenoh::Resources::new();
     let session = zenoh::open(&mut resources, config, zenoh::EndPoint::try_from(CONNECT)?).await?;
 

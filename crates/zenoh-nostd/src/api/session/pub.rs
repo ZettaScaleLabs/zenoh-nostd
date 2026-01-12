@@ -14,12 +14,16 @@ impl<'this, Config> Publisher<'this, Config>
 where
     Config: ZConfig,
 {
-    pub async fn put<'a>(&self, payload: &'a [u8]) -> PutBuilder<'this, 'a, Config> {
+    pub fn put<'a>(&self, payload: &'a [u8]) -> PutBuilder<'this, 'a, Config> {
         PutBuilder::new(self.driver, self.ke, payload)
     }
 
     pub async fn undeclare(self) -> crate::ZResult<()> {
         todo!()
+    }
+
+    pub fn keyexpr(&self) -> &keyexpr {
+        self.ke
     }
 }
 

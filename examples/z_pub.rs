@@ -2,39 +2,33 @@
 #![cfg_attr(feature = "esp32s3", no_main)]
 #![cfg_attr(feature = "wasm", no_main)]
 
-use static_cell::StaticCell;
 use zenoh_examples::*;
-use zenoh_nostd::api::*;
+use zenoh_nostd as zenoh;
 
 #[embassy_executor::task]
-async fn session_task(session: Session<'static, ExampleConfig>) {
+async fn session_task(session: zenoh::Session<'static, 'static, ExampleConfig>) {
     if let Err(e) = session.run().await {
-        zenoh_nostd::error!("Error in session task: {}", e);
+        zenoh::error!("Error in session task: {}", e);
     }
 }
 
-async fn entry(spawner: embassy_executor::Spawner) -> zenoh_nostd::ZResult<()> {
+async fn entry(spawner: embassy_executor::Spawner) -> zenoh::ZResult<()> {
     #[cfg(feature = "log")]
     env_logger::init();
 
-    zenoh_nostd::info!("zenoh-nostd z_put example");
+    zenoh::info!("zenoh-nostd z_put example");
 
     let config = init_example(&spawner).await;
-    static RESOURCES: StaticCell<Resources<ExampleConfig>> = StaticCell::new();
-    let session = zenoh_nostd::api::open(
-        RESOURCES.init(Resources::new()),
-        config,
-        EndPoint::try_from(CONNECT)?,
-    )
-    .await?;
+    let session =
+        zenoh::open!(config => ExampleConfig, zenoh::EndPoint::try_from(CONNECT)?).await?;
 
     spawner.spawn(session_task(session.clone())).map_err(|e| {
-        zenoh_nostd::error!("Error spawning task: {}", e);
-        zenoh_nostd::SessionError::CouldNotSpawnEmbassyTask
+        zenoh::error!("Error spawning task: {}", e);
+        zenoh::SessionError::CouldNotSpawnEmbassyTask
     })?;
 
     let publisher = session
-        .declare_publisher(keyexpr::new("demo/example")?)
+        .declare_publisher(zenoh::keyexpr::new("demo/example")?)
         .finish()
         .await?;
 
@@ -43,7 +37,7 @@ async fn entry(spawner: embassy_executor::Spawner) -> zenoh_nostd::ZResult<()> {
     loop {
         publisher.put(payload).finish().await?;
 
-        zenoh_nostd::info!(
+        zenoh::info!(
             "[Publisher] Sent PUT ('{}': '{}')",
             publisher.keyexpr().as_str(),
             core::str::from_utf8(payload).unwrap()
@@ -58,10 +52,10 @@ async fn entry(spawner: embassy_executor::Spawner) -> zenoh_nostd::ZResult<()> {
 #[cfg_attr(feature = "esp32s3", esp_rtos::main)]
 async fn main(spawner: embassy_executor::Spawner) {
     if let Err(e) = entry(spawner).await {
-        zenoh_nostd::error!("Error in main: {}", e);
+        zenoh::error!("Error in main: {}", e);
     }
 
-    zenoh_nostd::info!("Exiting main");
+    zenoh::info!("Exiting main");
 }
 
 #[cfg(feature = "esp32s3")]
@@ -72,7 +66,7 @@ mod esp32s3_app {
 
     #[panic_handler]
     fn panic(info: &core::panic::PanicInfo) -> ! {
-        zenoh_nostd::error!("Panic: {}", info);
+        zenoh::error!("Panic: {}", info);
 
         loop {}
     }
