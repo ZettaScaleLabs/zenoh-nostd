@@ -1,6 +1,6 @@
-pub(crate) mod recv;
-pub(crate) mod send;
-pub(crate) mod update;
+mod recv;
+mod send;
+mod update;
 
 use core::ops::{Deref, DerefMut};
 

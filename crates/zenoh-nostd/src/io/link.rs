@@ -10,9 +10,9 @@ use crate::{
     platform::{ZPlatform, tcp::ZTcpStream, udp::ZUdpSocket, ws::ZWebSocket},
 };
 
-pub mod tcp;
-pub mod udp;
-pub mod ws;
+mod tcp;
+mod udp;
+mod ws;
 
 pub trait ZLinkInfo {
     fn mtu(&self) -> u16;

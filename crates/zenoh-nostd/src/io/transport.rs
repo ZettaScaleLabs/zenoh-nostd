@@ -7,7 +7,7 @@ use crate::{
     platform::ZPlatform,
 };
 
-pub mod establishment;
+mod establishment;
 
 #[derive(Clone)]
 pub struct TransportMineConfig {

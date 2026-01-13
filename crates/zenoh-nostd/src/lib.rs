@@ -4,9 +4,8 @@
 extern crate alloc;
 
 mod api;
-pub use api::*;
-
 mod io;
-pub mod platform;
 
+pub use api::*;
+pub mod platform;
 pub use zenoh_proto::{debug, error, info, logging, trace, warn, zbail, zctx, zerror::*};

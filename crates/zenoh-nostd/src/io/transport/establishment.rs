@@ -5,7 +5,7 @@ use sha3::{
 
 use zenoh_proto::fields::*;
 
-pub(crate) mod open;
+pub mod open;
 
 const RES_U8: u32 = (u8::MAX >> 1) as u32; // 1 byte max when encoded
 const RES_U16: u32 = (u16::MAX >> 2) as u32; // 2 bytes max when encoded
