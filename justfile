@@ -63,14 +63,11 @@ sub_thr:
 
 # Examples
 
-std example:
-    RUST_LOG=trace cargo run --example {{ example }} --features="std,log"
-
 esp32s3 example:
     cargo +esp --config .cargo/config.esp32s3.toml run --example {{ example }} --no-default-features --features=esp32s3,defmt
 
-sansio example:
-    RUST_LOG=debug cargo run -p zenoh-sansio --example {{ example }} --features="log"
+std example:
+    RUST_LOG=trace cargo run --example {{ example }} --features="std,log"
 
 wasm example *args:
     RUSTFLAGS='--cfg getrandom_backend="wasm_js"' cargo build --example {{ example }} --no-default-features --features="wasm,web_console" --target wasm32-unknown-unknown -- {{ args }}

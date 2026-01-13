@@ -4,9 +4,9 @@ use {
     zenoh_nostd::platform::ZPlatform,
 };
 
-pub(crate) mod tcp;
-pub(crate) mod udp;
-pub(crate) mod ws;
+mod tcp;
+mod udp;
+mod ws;
 
 pub struct PlatformStd;
 
@@ -99,8 +99,6 @@ impl ZPlatform for PlatformStd {
                 zenoh_nostd::ConnectionError::CouldNotConnect
             })?;
 
-        let peer_addr = *addr;
-
-        Ok(ws::StdWsStream::new(peer_addr, stream))
+        Ok(ws::StdWsStream::new(stream))
     }
 }

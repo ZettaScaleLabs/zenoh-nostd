@@ -2,9 +2,9 @@ use embassy_net::udp::{UdpMetadata, UdpSocket};
 use zenoh_nostd::platform::udp::{ZUdpRx, ZUdpSocket, ZUdpTx};
 
 pub struct EmbassyUdpSocket {
-    pub socket: UdpSocket<'static>,
-    pub addr: UdpMetadata,
-    pub mtu: u16,
+    socket: UdpSocket<'static>,
+    addr: UdpMetadata,
+    mtu: u16,
 }
 
 impl EmbassyUdpSocket {
@@ -18,13 +18,12 @@ impl EmbassyUdpSocket {
 }
 
 pub struct EmbassyUdpTx<'a> {
-    pub socket: &'a UdpSocket<'static>,
-    pub addr: UdpMetadata,
+    socket: &'a UdpSocket<'static>,
+    addr: UdpMetadata,
 }
 
 pub struct EmbassyUdpRx<'a> {
-    pub socket: &'a UdpSocket<'static>,
-    pub addr: UdpMetadata,
+    socket: &'a UdpSocket<'static>,
 }
 
 impl ZUdpSocket for EmbassyUdpSocket {
@@ -42,7 +41,6 @@ impl ZUdpSocket for EmbassyUdpSocket {
         };
         let rx = EmbassyUdpRx {
             socket: &self.socket,
-            addr: self.addr,
         };
         (tx, rx)
     }

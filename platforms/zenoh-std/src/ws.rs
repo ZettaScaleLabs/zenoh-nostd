@@ -1,13 +1,11 @@
 use {
     async_net::TcpStream,
-    std::net::SocketAddr,
     wtx::{
         collection::Vector,
         rng::Xorshift64,
-        sync::Arc,
         web_socket::{
             Frame, OpCode, WebSocket, WebSocketBuffer, WebSocketPartsOwned, WebSocketPayloadOrigin,
-            WebSocketReaderOwned, WebSocketReplier, WebSocketWriterOwned,
+            WebSocketReaderOwned, WebSocketWriterOwned,
         },
     },
     zenoh_nostd::{
@@ -17,32 +15,21 @@ use {
 };
 
 pub struct StdWsStream {
-    pub peer_addr: SocketAddr,
-    pub stream: WebSocketReaderOwned<(), Xorshift64, TcpStream, true>,
-    pub sink: WebSocketWriterOwned<(), Xorshift64, TcpStream, true>,
-    pub replier: Arc<WebSocketReplier<true>>,
-    pub read_buffer: Vector<u8>,
-    pub write_buffer: Vector<u8>,
-    pub mtu: u16,
+    stream: WebSocketReaderOwned<(), Xorshift64, TcpStream, true>,
+    sink: WebSocketWriterOwned<(), Xorshift64, TcpStream, true>,
+    read_buffer: Vector<u8>,
+    write_buffer: Vector<u8>,
+    mtu: u16,
 }
 
 impl StdWsStream {
-    pub fn new(
-        peer_addr: SocketAddr,
-        stream: WebSocket<(), Xorshift64, TcpStream, WebSocketBuffer, true>,
-    ) -> Self {
-        let WebSocketPartsOwned {
-            reader,
-            replier,
-            writer,
-        } = stream
+    pub fn new(stream: WebSocket<(), Xorshift64, TcpStream, WebSocketBuffer, true>) -> Self {
+        let WebSocketPartsOwned { reader, writer, .. } = stream
             .into_parts(|s| (s.clone(), s))
             .expect("Failed to split WebSocket");
         Self {
-            peer_addr,
             stream: reader,
             sink: writer,
-            replier,
             read_buffer: Vector::<u8>::new(),
             write_buffer: Vector::<u8>::new(),
             mtu: u16::MAX,
@@ -51,14 +38,13 @@ impl StdWsStream {
 }
 
 pub struct StdWsTx<'a> {
-    pub sink: &'a mut WebSocketWriterOwned<(), Xorshift64, TcpStream, true>,
-    pub replier: &'a WebSocketReplier<true>,
-    pub write_buffer: &'a mut Vector<u8>,
+    sink: &'a mut WebSocketWriterOwned<(), Xorshift64, TcpStream, true>,
+    write_buffer: &'a mut Vector<u8>,
 }
 
 pub struct StdWsRx<'a> {
-    pub stream: &'a mut WebSocketReaderOwned<(), Xorshift64, TcpStream, true>,
-    pub read_buffer: &'a mut Vector<u8>,
+    stream: &'a mut WebSocketReaderOwned<(), Xorshift64, TcpStream, true>,
+    read_buffer: &'a mut Vector<u8>,
 }
 
 impl ZWebSocket for StdWsStream {
@@ -72,7 +58,6 @@ impl ZWebSocket for StdWsStream {
     fn split(&mut self) -> (Self::Tx<'_>, Self::Rx<'_>) {
         let tx = StdWsTx {
             sink: &mut self.sink,
-            replier: &self.replier,
             write_buffer: &mut self.write_buffer,
         };
         let rx = StdWsRx {
@@ -90,7 +75,6 @@ impl ZWsTx for StdWsStream {
     ) -> core::result::Result<usize, zenoh_nostd::LinkError> {
         let mut tx = StdWsTx {
             sink: &mut self.sink,
-            replier: &self.replier,
             write_buffer: &mut self.write_buffer,
         };
         tx.write(buffer).await
