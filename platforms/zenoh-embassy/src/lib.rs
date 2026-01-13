@@ -45,7 +45,7 @@ impl ZPlatform for PlatformEmbassy {
             zenoh_nostd::ConnectionError::CouldNotConnect
         })?;
 
-        Ok(Self::TcpStream { socket, mtu })
+        Ok(Self::TcpStream::new(socket, mtu))
     }
 
     async fn new_udp_socket(
@@ -64,10 +64,6 @@ impl ZPlatform for PlatformEmbassy {
         };
         let ip_endpoint = IpEndpoint::new(address, addr.port());
 
-        Ok(Self::UdpSocket {
-            socket,
-            addr: ip_endpoint.into(),
-            mtu,
-        })
+        Ok(Self::UdpSocket::new(socket, ip_endpoint.into(), mtu))
     }
 }

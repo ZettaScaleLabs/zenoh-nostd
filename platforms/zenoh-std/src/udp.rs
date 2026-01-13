@@ -1,9 +1,8 @@
 use zenoh_nostd::platform::udp::{ZUdpRx, ZUdpSocket, ZUdpTx};
 
 pub struct StdUdpSocket {
-    pub socket: async_net::UdpSocket,
-
-    pub mtu: u16,
+    socket: async_net::UdpSocket,
+    mtu: u16,
 }
 
 impl StdUdpSocket {
@@ -13,11 +12,11 @@ impl StdUdpSocket {
 }
 
 pub struct StdUdpTx {
-    pub socket: async_net::UdpSocket,
+    socket: async_net::UdpSocket,
 }
 
 pub struct StdUdpRx {
-    pub socket: async_net::UdpSocket,
+    socket: async_net::UdpSocket,
 }
 
 impl ZUdpSocket for StdUdpSocket {

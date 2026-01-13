@@ -1,5 +1,4 @@
 use {
-    core::net::SocketAddr,
     futures_util::{
         SinkExt as _, StreamExt as _,
         stream::{SplitSink, SplitStream},
@@ -15,17 +14,15 @@ use {
 };
 
 pub struct WasmWebSocket {
-    pub peer_addr: SocketAddr,
-    pub sink: SplitSink<WebSocket, FrameView>,
-    pub stream: SplitStream<WebSocket>,
-    pub mtu: u16,
+    sink: SplitSink<WebSocket, FrameView>,
+    stream: SplitStream<WebSocket>,
+    mtu: u16,
 }
 
 impl WasmWebSocket {
-    pub fn new(peer_addr: SocketAddr, stream: WebSocket) -> Self {
+    pub fn new(stream: WebSocket) -> Self {
         let (sink, stream) = stream.split();
         Self {
-            peer_addr,
             sink,
             stream,
             mtu: u16::MAX,
@@ -34,11 +31,11 @@ impl WasmWebSocket {
 }
 
 pub struct WasmWsTx<'a> {
-    pub sink: &'a mut SplitSink<WebSocket, FrameView>,
+    sink: &'a mut SplitSink<WebSocket, FrameView>,
 }
 
 pub struct WasmWsRx<'a> {
-    pub stream: &'a mut SplitStream<WebSocket>,
+    stream: &'a mut SplitStream<WebSocket>,
 }
 
 impl ZWebSocket for WasmWebSocket {

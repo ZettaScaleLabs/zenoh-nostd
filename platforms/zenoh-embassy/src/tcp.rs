@@ -3,9 +3,8 @@ use embedded_io_async::{Read, Write};
 use zenoh_nostd::platform::tcp::{ZTcpRx, ZTcpStream, ZTcpTx};
 
 pub struct EmbassyTcpStream {
-    pub socket: TcpSocket<'static>,
-
-    pub mtu: u16,
+    socket: TcpSocket<'static>,
+    mtu: u16,
 }
 
 impl EmbassyTcpStream {
@@ -15,11 +14,11 @@ impl EmbassyTcpStream {
 }
 
 pub struct EmbassyTcpTx<'a> {
-    pub socket: TcpWriter<'a>,
+    socket: TcpWriter<'a>,
 }
 
 pub struct EmbassyTcpRx<'a> {
-    pub socket: TcpReader<'a>,
+    socket: TcpReader<'a>,
 }
 
 impl ZTcpStream for EmbassyTcpStream {

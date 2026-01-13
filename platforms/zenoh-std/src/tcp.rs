@@ -3,9 +3,8 @@ use futures_lite::{AsyncReadExt, AsyncWriteExt};
 use zenoh_nostd::platform::tcp::{ZTcpRx, ZTcpStream, ZTcpTx};
 
 pub struct StdTcpStream {
-    pub stream: async_net::TcpStream,
-
-    pub mtu: u16,
+    stream: async_net::TcpStream,
+    mtu: u16,
 }
 
 impl StdTcpStream {
@@ -15,11 +14,11 @@ impl StdTcpStream {
 }
 
 pub struct StdTcpTx {
-    pub stream: async_net::TcpStream,
+    stream: async_net::TcpStream,
 }
 
 pub struct StdTcpRx {
-    pub stream: async_net::TcpStream,
+    stream: async_net::TcpStream,
 }
 
 impl ZTcpStream for StdTcpStream {

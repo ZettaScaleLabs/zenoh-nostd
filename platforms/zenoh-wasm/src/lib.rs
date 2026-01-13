@@ -24,7 +24,7 @@ impl ZPlatform for PlatformWasm {
             zenoh_nostd::error!("Could not connect to WebSocket");
             zenoh_nostd::ConnectionError::CouldNotConnect
         })?;
-        let peer_addr = *addr;
-        Ok(Self::WebSocket::new(peer_addr, socket))
+
+        Ok(Self::WebSocket::new(socket))
     }
 }
