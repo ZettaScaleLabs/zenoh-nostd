@@ -61,27 +61,27 @@ pub enum LinkTx<'a, Platform>
 where
     Platform: ZPlatform + 'a,
 {
-    LinkTcpTx(LinkTcpTx<<Platform::TcpStream as ZTcpStream>::Tx<'a>>),
-    LinkUdpTx(LinkUdpTx<<Platform::UdpSocket as ZUdpSocket>::Tx<'a>>),
-    LinkWsTx(LinkWsTx<<Platform::WebSocket as ZWebSocket>::Tx<'a>>),
+    Tcp(LinkTcpTx<<Platform::TcpStream as ZTcpStream>::Tx<'a>>),
+    Udp(LinkUdpTx<<Platform::UdpSocket as ZUdpSocket>::Tx<'a>>),
+    Ws(LinkWsTx<<Platform::WebSocket as ZWebSocket>::Tx<'a>>),
 }
 
 pub enum LinkRx<'a, Platform>
 where
     Platform: ZPlatform + 'a,
 {
-    LinkTcpRx(LinkTcpRx<<Platform::TcpStream as ZTcpStream>::Rx<'a>>),
-    LinkUdpRx(LinkUdpRx<<Platform::UdpSocket as ZUdpSocket>::Rx<'a>>),
-    LinkWsRx(LinkWsRx<<Platform::WebSocket as ZWebSocket>::Rx<'a>>),
+    Tcp(LinkTcpRx<<Platform::TcpStream as ZTcpStream>::Rx<'a>>),
+    Udp(LinkUdpRx<<Platform::UdpSocket as ZUdpSocket>::Rx<'a>>),
+    Ws(LinkWsRx<<Platform::WebSocket as ZWebSocket>::Rx<'a>>),
 }
 
 pub enum Link<Platform>
 where
     Platform: ZPlatform,
 {
-    LinkTcp(LinkTcp<Platform::TcpStream>),
-    LinkUdp(LinkUdp<Platform::UdpSocket>),
-    LinkWs(LinkWs<Platform::WebSocket>),
+    Tcp(LinkTcp<Platform::TcpStream>),
+    Udp(LinkUdp<Platform::UdpSocket>),
+    Ws(LinkWs<Platform::WebSocket>),
 }
 
 impl<Platform> ZLinkInfo for Link<Platform>
@@ -90,17 +90,17 @@ where
 {
     fn mtu(&self) -> u16 {
         match self {
-            Self::LinkTcp(tcp) => tcp.mtu(),
-            Self::LinkUdp(udp) => udp.mtu(),
-            Self::LinkWs(ws) => ws.mtu(),
+            Self::Tcp(tcp) => tcp.mtu(),
+            Self::Udp(udp) => udp.mtu(),
+            Self::Ws(ws) => ws.mtu(),
         }
     }
 
     fn is_streamed(&self) -> bool {
         match self {
-            Self::LinkTcp(tcp) => tcp.is_streamed(),
-            Self::LinkUdp(udp) => udp.is_streamed(),
-            Self::LinkWs(ws) => ws.is_streamed(),
+            Self::Tcp(tcp) => tcp.is_streamed(),
+            Self::Udp(udp) => udp.is_streamed(),
+            Self::Ws(ws) => ws.is_streamed(),
         }
     }
 }
@@ -111,17 +111,17 @@ where
 {
     fn mtu(&self) -> u16 {
         match self {
-            Self::LinkTcpTx(tcp) => tcp.mtu(),
-            Self::LinkUdpTx(udp) => udp.mtu(),
-            Self::LinkWsTx(ws) => ws.mtu(),
+            Self::Tcp(tcp) => tcp.mtu(),
+            Self::Udp(udp) => udp.mtu(),
+            Self::Ws(ws) => ws.mtu(),
         }
     }
 
     fn is_streamed(&self) -> bool {
         match self {
-            Self::LinkTcpTx(tcp) => tcp.is_streamed(),
-            Self::LinkUdpTx(udp) => udp.is_streamed(),
-            Self::LinkWsTx(ws) => ws.is_streamed(),
+            Self::Tcp(tcp) => tcp.is_streamed(),
+            Self::Udp(udp) => udp.is_streamed(),
+            Self::Ws(ws) => ws.is_streamed(),
         }
     }
 }
@@ -132,17 +132,17 @@ where
 {
     fn mtu(&self) -> u16 {
         match self {
-            Self::LinkTcpRx(tcp) => tcp.mtu(),
-            Self::LinkUdpRx(udp) => udp.mtu(),
-            Self::LinkWsRx(ws) => ws.mtu(),
+            Self::Tcp(tcp) => tcp.mtu(),
+            Self::Udp(udp) => udp.mtu(),
+            Self::Ws(ws) => ws.mtu(),
         }
     }
 
     fn is_streamed(&self) -> bool {
         match self {
-            Self::LinkTcpRx(tcp) => tcp.is_streamed(),
-            Self::LinkUdpRx(udp) => udp.is_streamed(),
-            Self::LinkWsRx(ws) => ws.is_streamed(),
+            Self::Tcp(tcp) => tcp.is_streamed(),
+            Self::Udp(udp) => udp.is_streamed(),
+            Self::Ws(ws) => ws.is_streamed(),
         }
     }
 }
@@ -153,17 +153,17 @@ where
 {
     async fn write(&mut self, buffer: &[u8]) -> core::result::Result<usize, crate::LinkError> {
         match self {
-            Self::LinkTcp(tcp) => tcp.write(buffer).await,
-            Self::LinkUdp(udp) => udp.write(buffer).await,
-            Self::LinkWs(ws) => ws.write(buffer).await,
+            Self::Tcp(tcp) => tcp.write(buffer).await,
+            Self::Udp(udp) => udp.write(buffer).await,
+            Self::Ws(ws) => ws.write(buffer).await,
         }
     }
 
     async fn write_all(&mut self, buffer: &[u8]) -> core::result::Result<(), crate::LinkError> {
         match self {
-            Self::LinkTcp(tcp) => tcp.write_all(buffer).await,
-            Self::LinkUdp(udp) => udp.write_all(buffer).await,
-            Self::LinkWs(ws) => ws.write_all(buffer).await,
+            Self::Tcp(tcp) => tcp.write_all(buffer).await,
+            Self::Udp(udp) => udp.write_all(buffer).await,
+            Self::Ws(ws) => ws.write_all(buffer).await,
         }
     }
 }
@@ -174,17 +174,17 @@ where
 {
     async fn write(&mut self, buffer: &[u8]) -> core::result::Result<usize, crate::LinkError> {
         match self {
-            Self::LinkTcpTx(tcp) => tcp.write(buffer).await,
-            Self::LinkUdpTx(udp) => udp.write(buffer).await,
-            Self::LinkWsTx(ws) => ws.write(buffer).await,
+            Self::Tcp(tcp) => tcp.write(buffer).await,
+            Self::Udp(udp) => udp.write(buffer).await,
+            Self::Ws(ws) => ws.write(buffer).await,
         }
     }
 
     async fn write_all(&mut self, buffer: &[u8]) -> core::result::Result<(), crate::LinkError> {
         match self {
-            Self::LinkTcpTx(tcp) => tcp.write_all(buffer).await,
-            Self::LinkUdpTx(udp) => udp.write_all(buffer).await,
-            Self::LinkWsTx(ws) => ws.write_all(buffer).await,
+            Self::Tcp(tcp) => tcp.write_all(buffer).await,
+            Self::Udp(udp) => udp.write_all(buffer).await,
+            Self::Ws(ws) => ws.write_all(buffer).await,
         }
     }
 }
@@ -195,9 +195,9 @@ where
 {
     async fn read(&mut self, buffer: &mut [u8]) -> core::result::Result<usize, crate::LinkError> {
         match self {
-            Self::LinkTcp(tcp) => tcp.read(buffer).await,
-            Self::LinkUdp(udp) => udp.read(buffer).await,
-            Self::LinkWs(ws) => ws.read(buffer).await,
+            Self::Tcp(tcp) => tcp.read(buffer).await,
+            Self::Udp(udp) => udp.read(buffer).await,
+            Self::Ws(ws) => ws.read(buffer).await,
         }
     }
 
@@ -206,9 +206,9 @@ where
         buffer: &mut [u8],
     ) -> core::result::Result<(), crate::LinkError> {
         match self {
-            Self::LinkTcp(tcp) => tcp.read_exact(buffer).await,
-            Self::LinkUdp(udp) => udp.read_exact(buffer).await,
-            Self::LinkWs(ws) => ws.read_exact(buffer).await,
+            Self::Tcp(tcp) => tcp.read_exact(buffer).await,
+            Self::Udp(udp) => udp.read_exact(buffer).await,
+            Self::Ws(ws) => ws.read_exact(buffer).await,
         }
     }
 }
@@ -219,9 +219,9 @@ where
 {
     async fn read(&mut self, buffer: &mut [u8]) -> core::result::Result<usize, crate::LinkError> {
         match self {
-            Self::LinkTcpRx(tcp) => tcp.read(buffer).await,
-            Self::LinkUdpRx(udp) => udp.read(buffer).await,
-            Self::LinkWsRx(ws) => ws.read(buffer).await,
+            Self::Tcp(tcp) => tcp.read(buffer).await,
+            Self::Udp(udp) => udp.read(buffer).await,
+            Self::Ws(ws) => ws.read(buffer).await,
         }
     }
 
@@ -230,9 +230,9 @@ where
         buffer: &mut [u8],
     ) -> core::result::Result<(), crate::LinkError> {
         match self {
-            Self::LinkTcpRx(tcp) => tcp.read_exact(buffer).await,
-            Self::LinkUdpRx(udp) => udp.read_exact(buffer).await,
-            Self::LinkWsRx(ws) => ws.read_exact(buffer).await,
+            Self::Tcp(tcp) => tcp.read_exact(buffer).await,
+            Self::Udp(udp) => udp.read_exact(buffer).await,
+            Self::Ws(ws) => ws.read_exact(buffer).await,
         }
     }
 }
@@ -253,17 +253,17 @@ where
 
     fn split(&mut self) -> (LinkTx<'_, Platform>, LinkRx<'_, Platform>) {
         match self {
-            Self::LinkTcp(tcp) => {
+            Self::Tcp(tcp) => {
                 let (tx, rx) = tcp.split();
-                (LinkTx::LinkTcpTx(tx), LinkRx::LinkTcpRx(rx))
+                (LinkTx::Tcp(tx), LinkRx::Tcp(rx))
             }
-            Self::LinkUdp(udp) => {
+            Self::Udp(udp) => {
                 let (tx, rx) = udp.split();
-                (LinkTx::LinkUdpTx(tx), LinkRx::LinkUdpRx(rx))
+                (LinkTx::Udp(tx), LinkRx::Udp(rx))
             }
-            Self::LinkWs(ws) => {
+            Self::Ws(ws) => {
                 let (tx, rx) = ws.split();
-                (LinkTx::LinkWsTx(tx), LinkRx::LinkWsRx(rx))
+                (LinkTx::Ws(tx), LinkRx::Ws(rx))
             }
         }
     }
@@ -287,7 +287,7 @@ where
 
                 let stream = platform.new_tcp_stream(&dst_addr).await?;
 
-                Ok(Self::LinkTcp(LinkTcp::new(stream)))
+                Ok(Self::Tcp(LinkTcp::new(stream)))
             }
             "udp" => {
                 let dst_addr = SocketAddr::from_str(address.as_str())
@@ -295,7 +295,7 @@ where
 
                 let socket = platform.new_udp_socket(&dst_addr).await?;
 
-                Ok(Self::LinkUdp(LinkUdp::new(socket)))
+                Ok(Self::Udp(LinkUdp::new(socket)))
             }
             "ws" => {
                 let dst_addr = SocketAddr::from_str(address.as_str())
@@ -303,7 +303,7 @@ where
 
                 let stream = platform.new_websocket_stream(&dst_addr).await?;
 
-                Ok(Self::LinkWs(LinkWs::new(stream)))
+                Ok(Self::Ws(LinkWs::new(stream)))
             }
             _ => Err(crate::EndpointError::CouldNotParseProtocol.into()),
         }

@@ -55,6 +55,12 @@ ping:
 pong:
     RUST_LOG=trace cargo run --release --features=std,log --example z_pong
 
+pub_thr:
+    RUST_LOG=trace cargo run --release --features=std,log --example z_pub_thr
+
+sub_thr:
+    RUST_LOG=trace cargo run --release --features=std,log --example z_sub_thr
+
 # Examples
 
 std example:

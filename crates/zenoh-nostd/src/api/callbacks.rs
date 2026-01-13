@@ -1,4 +1,4 @@
-use std::marker::PhantomData;
+use core::marker::PhantomData;
 
 use dyn_utils::{
     DynObject,
@@ -172,7 +172,7 @@ impl<'a, Arg: ZArg + 'a, const CAPACITY: usize, Callback: Storage, Future: Stora
                 *value -= 1;
             }
 
-            if *value == 0 { true } else { false }
+            *value == 0
         } else {
             false
         }

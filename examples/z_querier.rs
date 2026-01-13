@@ -54,7 +54,7 @@ async fn entry(spawner: embassy_executor::Spawner) -> zenoh::ZResult<()> {
     loop {
         querier
             .get()
-            .callback_sync(|resp| response_callback(resp))
+            .callback_sync(response_callback)
             .finish()
             .await?;
 
@@ -81,7 +81,7 @@ mod esp32s3_app {
 
     #[panic_handler]
     fn panic(info: &core::panic::PanicInfo) -> ! {
-        zenoh::error!("Panic: {}", info);
+        zenoh_nostd::error!("Panic: {}", info);
 
         loop {}
     }

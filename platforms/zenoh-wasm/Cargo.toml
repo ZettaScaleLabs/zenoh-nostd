@@ -7,7 +7,7 @@ edition = "2024"
 homepage = "http://zenoh.io"
 license = "ZSA-1.0"
 repository = "https://github.com/ZettaScaleLabs/zenoh-nostd"
-rust-version = "1.90.0"
+rust-version = "1.91.0"
 version = "0.1.0"
 
 [dependencies]

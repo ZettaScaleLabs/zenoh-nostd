@@ -22,6 +22,7 @@ async fn entry(spawner: embassy_executor::Spawner) -> zenoh::ZResult<()> {
 
     let config = init_example(&spawner).await;
     let mut resources = zenoh::Resources::new();
+
     let session = zenoh::open(&mut resources, config, zenoh::EndPoint::try_from(CONNECT)?).await?;
 
     let subscriber = session
@@ -68,7 +69,7 @@ mod esp32s3_app {
 
     #[panic_handler]
     fn panic(info: &core::panic::PanicInfo) -> ! {
-        zenoh::error!("Panic: {}", info);
+        zenoh_nostd::error!("Panic: {}", info);
 
         loop {}
     }

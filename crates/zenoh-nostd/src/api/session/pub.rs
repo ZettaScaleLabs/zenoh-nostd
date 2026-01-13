@@ -26,9 +26,9 @@ where
         PutBuilder {
             driver: self.driver,
             ke: self.ke,
-            payload: payload,
+            payload,
             encoding: self.encoding.clone(),
-            timestamp: self.timestamp.clone(),
+            timestamp: self.timestamp,
             attachment: self.attachment.clone(),
         }
     }

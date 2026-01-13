@@ -14,6 +14,15 @@ where
     transport: Option<Transport<Config::Platform>>,
 }
 
+impl<Config> Default for Resources<Config>
+where
+    Config: ZConfig,
+ {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl<Config> Resources<Config>
 where
     Config: ZConfig,

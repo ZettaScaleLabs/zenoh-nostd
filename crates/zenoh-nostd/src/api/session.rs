@@ -34,7 +34,7 @@ where
     }
 }
 
-/// Create a session bounded to the lifetimes of the `zenoh_nostd::Resources`.
+/// Create a session bounded to the lifetimes of the `zenoh_nocore::Resources`.
 pub async fn open<'res, Config>(
     resources: &'res mut Resources<Config>,
     mut config: Config,
@@ -62,7 +62,7 @@ where
     Ok(resources.init(config, transport, tconfig))
 }
 
-/// Alternative version of `zenoh_nostd::open` that creates an `'static` `zenoh_nostd::Session`.
+/// Alternative version of `zenoh_nocore::open` that creates an `'static` `zenoh_nocore::Session`.
 #[macro_export]
 macro_rules! open {
     (

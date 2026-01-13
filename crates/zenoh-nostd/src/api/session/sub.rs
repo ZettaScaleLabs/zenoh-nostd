@@ -1,5 +1,3 @@
-use core::fmt::Display;
-
 use dyn_utils::DynObject;
 use embassy_sync::channel::{DynamicReceiver, DynamicSender};
 use zenoh_proto::{fields::*, msgs::*, *};
@@ -59,6 +57,12 @@ where
     }
 }
 
+type CallbackStorage<'res, Config> =
+    <<Config as ZConfig>::SubCallbacks<'res> as ZCallbacks<'res, SampleRef>>::Callback;
+
+type FutureStorage<'res, Config> =
+    <<Config as ZConfig>::SubCallbacks<'res> as ZCallbacks<'res, SampleRef>>::Future;
+
 pub struct SubscriberBuilder<
     'a,
     'res,
@@ -75,12 +79,7 @@ pub struct SubscriberBuilder<
     ke: &'static keyexpr,
 
     callback: Option<
-        DynCallback<
-            'res,
-            <Config::SubCallbacks<'res> as ZCallbacks<'res, SampleRef>>::Callback,
-            <Config::SubCallbacks<'res> as ZCallbacks<'res, SampleRef>>::Future,
-            SampleRef,
-        >,
+        DynCallback<'res, CallbackStorage<'res, Config>, FutureStorage<'res, Config>, SampleRef>,
     >,
     receiver: Option<DynamicReceiver<'res, OwnedSample>>,
 }
@@ -136,7 +135,6 @@ where
     ) -> SubscriberBuilder<'a, 'res, Config, OwnedSample, true, true>
     where
         OwnedSample: for<'any> TryFrom<&'any crate::Sample<'any>, Error = E>,
-        E: Display,
     {
         SubscriberBuilder {
             driver: self.driver,
@@ -144,14 +142,13 @@ where
             ke: self.ke,
             callback: Some(DynObject::new(AsyncCallback::new(
                 async move |resp: &'_ crate::Sample<'_>| {
-                    let resp = OwnedSample::try_from(resp);
-                    match resp {
-                        Ok(resp) => {
-                            sender.send(resp).await;
-                        }
-                        Err(e) => {
-                            crate::error!("{}: {}", crate::zctx!(), e)
-                        }
+                    if let Ok(resp) = OwnedSample::try_from(resp) {
+                        sender.send(resp).await;
+                    } else {
+                        crate::error!(
+                            "{}: Couldn't convert to a transferable sample",
+                            crate::zctx!()
+                        )
                     }
                 },
             ))),

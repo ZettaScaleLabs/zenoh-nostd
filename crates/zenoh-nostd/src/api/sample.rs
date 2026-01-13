@@ -1,4 +1,4 @@
-use std::str::FromStr;
+use core::str::FromStr;
 
 use zenoh_proto::{keyexpr, zerror::CollectionError};
 

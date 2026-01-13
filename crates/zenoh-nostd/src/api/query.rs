@@ -1,4 +1,4 @@
-use std::str::FromStr;
+use core::str::FromStr;
 
 use zenoh_proto::{
     fields::{ConsolidationMode, Encoding, WireExpr},
@@ -221,12 +221,12 @@ where
                 .map_err(|_| CollectionError::CollectionTooSmall)?,
             parameters: value
                 .parameters
-                .map(|p| heapless::String::from_str(p))
+                .map(heapless::String::from_str)
                 .transpose()
                 .map_err(|_| CollectionError::CollectionTooSmall)?,
             payload: value
                 .payload
-                .map(|p| heapless::Vec::from_slice(p))
+                .map(heapless::Vec::from_slice)
                 .transpose()
                 .map_err(|_| CollectionError::CollectionTooSmall)?,
         })

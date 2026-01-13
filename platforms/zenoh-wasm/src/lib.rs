@@ -7,6 +7,7 @@ pub struct PlatformWasm;
 
 impl ZPlatform for PlatformWasm {
     type TcpStream = zenoh_nostd::platform::tcp::DummyTcpStream;
+    type UdpSocket = zenoh_nostd::platform::udp::DummyUdpSocket;
     type WebSocket = ws::WasmWebSocket;
 
     async fn new_websocket_stream(

@@ -1,5 +1,3 @@
-use std::fmt::Display;
-
 use dyn_utils::DynObject;
 use embassy_futures::select::{Either, select};
 use embassy_sync::channel::{DynamicReceiver, DynamicSender};
@@ -37,6 +35,12 @@ impl<'res, OwnedResponse> Responses<'res, OwnedResponse, true> {
     }
 }
 
+type CallbackStorage<'res, Config> =
+    <<Config as ZConfig>::GetCallbacks<'res> as ZCallbacks<'res, ResponseRef>>::Callback;
+
+type FutureStorage<'res, Config> =
+    <<Config as ZConfig>::GetCallbacks<'res> as ZCallbacks<'res, ResponseRef>>::Future;
+
 pub struct GetBuilder<
     'a,
     'res,
@@ -55,12 +59,7 @@ pub struct GetBuilder<
     pub(crate) payload: Option<&'a [u8]>,
     pub(crate) timeout: Option<Duration>,
     pub(crate) callback: Option<
-        DynCallback<
-            'res,
-            <Config::GetCallbacks<'res> as ZCallbacks<'res, ResponseRef>>::Callback,
-            <Config::GetCallbacks<'res> as ZCallbacks<'res, ResponseRef>>::Future,
-            ResponseRef,
-        >,
+        DynCallback<'res, CallbackStorage<'res, Config>, FutureStorage<'res, Config>, ResponseRef>,
     >,
     pub(crate) receiver: Option<DynamicReceiver<'res, OwnedResponse>>,
 }
@@ -125,7 +124,6 @@ where
     ) -> GetBuilder<'a, 'res, Config, OwnedResponse, true, true>
     where
         OwnedResponse: for<'any> TryFrom<&'any crate::Response<'any>, Error = E>,
-        E: Display,
     {
         GetBuilder {
             driver: self.driver,
@@ -136,14 +134,13 @@ where
             timeout: self.timeout,
             callback: Some(DynObject::new(AsyncCallback::new(
                 async move |resp: &'_ crate::Response<'_>| {
-                    let resp = OwnedResponse::try_from(resp);
-                    match resp {
-                        Ok(resp) => {
-                            sender.send(resp).await;
-                        }
-                        Err(e) => {
-                            crate::error!("{}: {}", crate::zctx!(), e)
-                        }
+                    if let Ok(resp) = OwnedResponse::try_from(resp) {
+                        sender.send(resp).await;
+                    } else {
+                        crate::error!(
+                            "{}: Couldn't convert to a transferable response",
+                            crate::zctx!()
+                        )
                     }
                 },
             ))),

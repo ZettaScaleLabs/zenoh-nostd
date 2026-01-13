@@ -1,5 +1,3 @@
-use core::fmt::Display;
-
 use dyn_utils::DynObject;
 use embassy_sync::channel::{DynamicReceiver, DynamicSender};
 use zenoh_proto::{fields::*, msgs::*, *};
@@ -62,6 +60,16 @@ where
     }
 }
 
+type CallbackStorage<Config> = <<Config as ZConfig>::QueryableCallbacks<'static> as ZCallbacks<
+    'static,
+    QueryRef<'static, Config>,
+>>::Callback;
+
+type FutureStorage<Config> = <<Config as ZConfig>::QueryableCallbacks<'static> as ZCallbacks<
+    'static,
+    QueryRef<'static, Config>,
+>>::Future;
+
 pub struct QueryableBuilder<
     Config,
     OwnedQuery = (),
@@ -79,14 +87,8 @@ pub struct QueryableBuilder<
     callback: Option<
         DynCallback<
             'static,
-            <Config::QueryableCallbacks<'static> as ZCallbacks<
-                'static,
-                QueryRef<'static, Config>,
-            >>::Callback,
-            <Config::QueryableCallbacks<'static> as ZCallbacks<
-                'static,
-                QueryRef<'static, Config>,
-            >>::Future,
+            CallbackStorage<Config>,
+            FutureStorage<Config>,
             QueryRef<'static, Config>,
         >,
     >,
@@ -156,7 +158,6 @@ where
                 ),
                 Error = E,
             >,
-        E: Display,
     {
         QueryableBuilder {
             driver: self.driver,
@@ -164,14 +165,13 @@ where
             ke: self.ke,
             callback: Some(DynObject::new(AsyncCallback::new(
                 async move |resp: &'_ crate::Query<'_, 'static, Config>| {
-                    let resp = OwnedQuery::try_from((resp, self.driver, self.resources));
-                    match resp {
-                        Ok(resp) => {
-                            sender.send(resp).await;
-                        }
-                        Err(e) => {
-                            crate::error!("{}: {}", crate::zctx!(), e)
-                        }
+                    if let Ok(resp) = OwnedQuery::try_from((resp, self.driver, self.resources)) {
+                        sender.send(resp).await;
+                    } else {
+                        crate::error!(
+                            "{}: Couldn't convert to a transferable query",
+                            crate::zctx!()
+                        )
                     }
                 },
             ))),

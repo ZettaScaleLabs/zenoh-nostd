@@ -25,9 +25,9 @@ where
             driver: self.driver,
             resources: self.resources,
             ke: self.ke,
-            parameters: self.parameters.clone(),
-            payload: self.payload.clone(),
-            timeout: self.timeout.clone(),
+            parameters: self.parameters,
+            payload: self.payload,
+            timeout: self.timeout,
             callback: None,
             receiver: None,
         }
