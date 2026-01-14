@@ -16,7 +16,7 @@ async fn entry(spawner: embassy_executor::Spawner) -> zenoh::ZResult<()> {
     #[cfg(feature = "log")]
     env_logger::init();
 
-    zenoh::info!("zenoh-nostd z_put example");
+    zenoh::info!("zenoh-nostd z_open example");
 
     let config = init_example(&spawner).await;
     let session = zenoh::open!(config => ExampleConfig, zenoh::EndPoint::try_from(CONNECT)?);

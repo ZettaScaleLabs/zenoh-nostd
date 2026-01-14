@@ -16,7 +16,7 @@ async fn entry(spawner: embassy_executor::Spawner) -> zenoh::ZResult<()> {
     #[cfg(feature = "log")]
     env_logger::init();
 
-    zenoh::info!("zenoh-nostd z_put example");
+    zenoh::info!("zenoh-nostd z_pub example");
 
     let config = init_example(&spawner).await;
     let session = zenoh::open!(config => ExampleConfig, zenoh::EndPoint::try_from(CONNECT)?);
@@ -26,6 +26,8 @@ async fn entry(spawner: embassy_executor::Spawner) -> zenoh::ZResult<()> {
         zenoh::SessionError::CouldNotSpawnEmbassyTask
     })?;
 
+    zenoh::info!("Declaring publisher");
+
     let publisher = session
         .declare_publisher(zenoh::keyexpr::new("demo/example")?)
         .finish()
@@ -34,13 +36,13 @@ async fn entry(spawner: embassy_executor::Spawner) -> zenoh::ZResult<()> {
     let payload = b"Hello, from no-std!";
 
     loop {
-        publisher.put(payload).finish().await?;
-
-        zenoh::info!(
-            "[Publisher] Sent PUT ('{}': '{}')",
-            publisher.keyexpr().as_str(),
-            core::str::from_utf8(payload).unwrap()
-        );
+        if publisher.put(payload).finish().await.is_ok() {
+            zenoh::info!(
+                "[Publisher] Sent PUT ('{}': '{}')",
+                publisher.keyexpr().as_str(),
+                core::str::from_utf8(payload).unwrap()
+            );
+        }
 
         embassy_time::Timer::after(embassy_time::Duration::from_secs(1)).await;
     }

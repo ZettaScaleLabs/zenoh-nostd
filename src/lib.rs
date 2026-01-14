@@ -56,8 +56,10 @@ pub const PAYLOAD: usize = match usize::from_str_radix(
 
 #[cfg(feature = "esp32s3")]
 const BUFF_SIZE: u16 = 512u16;
-#[cfg(not(feature = "esp32s3"))]
+#[cfg(feature = "std")]
 const BUFF_SIZE: u16 = u16::MAX;
+#[cfg(feature = "wasm")]
+const BUFF_SIZE: u16 = u16::MAX / 2;
 
 pub struct ExampleConfig {
     platform: Platform,
