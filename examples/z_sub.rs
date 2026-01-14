@@ -44,9 +44,6 @@ async fn entry(spawner: embassy_executor::Spawner) -> zenoh::ZResult<()> {
     })
     .await;
 
-    zenoh::info!("[Subscriber] Undeclaring subscriber and exiting...");
-    subscriber.undeclare().await?;
-
     Ok(())
 }
 

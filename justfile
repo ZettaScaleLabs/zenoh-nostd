@@ -64,7 +64,7 @@ sub_thr:
 # Examples
 
 esp32s3 example:
-    cargo +esp --config .cargo/config.esp32s3.toml run --example {{ example }} --no-default-features --features=esp32s3,defmt
+    cargo +esp --config .cargo/config.esp32s3.toml run --release --example {{ example }} --no-default-features --features=esp32s3,defmt
 
 std example:
     RUST_LOG=trace cargo run --example {{ example }} --features="std,log"
