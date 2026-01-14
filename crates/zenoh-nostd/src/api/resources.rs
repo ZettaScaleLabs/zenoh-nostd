@@ -17,7 +17,7 @@ where
 impl<Config> Default for Resources<Config>
 where
     Config: ZConfig,
- {
+{
     fn default() -> Self {
         Self::new()
     }
