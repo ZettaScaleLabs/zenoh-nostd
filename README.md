@@ -66,9 +66,8 @@ Here’s a simple example of sending a payload with `zenoh-nostd`:
 ```rust
 async fn entry(spawner: embassy_executor::Spawner) -> zenoh_nostd::ZResult<()> {
     let config = init_example(&spawner).await;
-    let mut resources = Resources::new();
-    let session =
-        zenoh_nostd::api::open(&mut resources, config, EndPoint::try_from("tcp/127.0.0.1:7447")?).await?;
+    let mut resources = zenoh::Resources::new();
+    let session = zenoh::open(&mut resources, config, zenoh::EndPoint::try_from(CONNECT)?).await?;
 
     let ke = keyexpr::new("demo/example")?;
     let payload = b"Hello, from no-std!";
@@ -83,7 +82,7 @@ async fn entry(spawner: embassy_executor::Spawner) -> zenoh_nostd::ZResult<()> {
 
 ## 🔬 MSRV
 
-> 🛠️ **Minimum Supported Rust Version**: Currently `1.90.0`
+> 🛠️ **Minimum Supported Rust Version**: Currently `1.91.0`
 
 ---
 
@@ -93,7 +92,6 @@ async fn entry(spawner: embassy_executor::Spawner) -> zenoh_nostd::ZResult<()> {
 * No `alloc` support yet. ([#20](https://github.com/ZettaScaleLabs/zenoh-nostd/issues/20))
 * No `sansio` support yet. ([#33](https://github.com/ZettaScaleLabs/zenoh-nostd/issues/33))
 * `Interest` protocol not implemented yet. ([#46](https://github.com/ZettaScaleLabs/zenoh-nostd/issues/46))
-* `'static` lifetimes required at user level. ([#49](https://github.com/ZettaScaleLabs/zenoh-nostd/issues/49))
 
 ---
 
@@ -183,26 +181,20 @@ zenoh-nostd/            # Git repository root
 ├── crates/
 │   ├── zenoh-derive/   # Derive macros
 │   ├── zenoh-nostd/    # Zenoh with IO, embassy
-│   ├── zenoh-proto/    # Zenoh Protocol
-│   └── zenoh-sansio/   # Zenoh Sans IO (WIP)
-│       └── examples
-│           ├── z_get.rs        # Example without io (example with tcp, WIP)
-│           ├── z_ping.rs       # Example without io (example with tcp, WIP)
-│           ├── z_pong.rs       # Example without io (example with tcp, WIP)
-│           ├── z_put.rs        # Example without io (example with tcp, WIP)
-│           └── z_sub.rs        # Example without io (example with tcp, WIP)
+│   └── zenoh-proto/    # Zenoh Protocol
 │
 ├── examples/
 │   ├── web/
 │   │   └── index.html  # File to test wasm example
 │   │
 │   ├── z_get.rs        # Example with std/wasm/embassy io
-│   ├── open.rs         # Example with std/wasm/embassy io
+│   ├── z_open.rs       # Example with std/wasm/embassy io
 │   ├── z_ping.rs       # Example with std/wasm/embassy io
 │   ├── z_pong.rs       # Example with std/wasm/embassy io
 │   ├── z_pub.rs        # Example with std/wasm/embassy io
 │   ├── z_pub_thr.rs    # Example with std/wasm/embassy io
 │   ├── z_put.rs        # Example with std/wasm/embassy io
+│   ├── z_querier.rs    # Example with std/wasm/embassy io
 │   ├── z_queryable.rs  # Example with std/wasm/embassy io
 │   ├── z_sub.rs        # Example with std/wasm/embassy io
 │   └── z_sub_thr.rs    # Example with std/wasm/embassy io
@@ -223,6 +215,7 @@ zenoh-nostd/            # Git repository root
 
 The base project has been implemented in ([#6](https://github.com/ZettaScaleLabs/zenoh-nostd/pull/6))
 The structure and API have been reworked in ([#34](https://github.com/ZettaScaleLabs/zenoh-nostd/pull/24))
+The API have been reworked ([#34](https://github.com/ZettaScaleLabs/zenoh-nostd/pull/52))
 
 > 📖 **Note**: Docs require `rustdoc` to be run with `--no-default-features`.
 
