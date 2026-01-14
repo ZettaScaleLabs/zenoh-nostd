@@ -27,7 +27,8 @@ impl<'a, 'res, Config, OwnedSample, const CHANNEL: bool>
 where
     Config: ZConfig,
 {
-    pub async fn undeclare(self) -> crate::ZResult<()> {
+    #[allow(dead_code)]
+    async fn undeclare(self) -> crate::ZResult<()> {
         let msg = Declare {
             body: DeclareBody::UndeclareSubscriber(UndeclareSubscriber {
                 id: self.id,
