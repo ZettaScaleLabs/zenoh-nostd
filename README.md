@@ -215,7 +215,7 @@ zenoh-nostd/            # Git repository root
 
 The base project has been implemented in ([#6](https://github.com/ZettaScaleLabs/zenoh-nostd/pull/6))
 The structure and API have been reworked in ([#34](https://github.com/ZettaScaleLabs/zenoh-nostd/pull/24))
-The API have been reworked ([#34](https://github.com/ZettaScaleLabs/zenoh-nostd/pull/52))
+The API have been reworked ([#52](https://github.com/ZettaScaleLabs/zenoh-nostd/pull/52))
 
 > 📖 **Note**: Docs require `rustdoc` to be run with `--no-default-features`.
 
