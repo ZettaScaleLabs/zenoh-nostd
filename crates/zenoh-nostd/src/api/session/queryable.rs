@@ -26,7 +26,8 @@ impl<Config, OwnedQuery, const CHANNEL: bool> Queryable<Config, OwnedQuery, CHAN
 where
     Config: ZConfig,
 {
-    pub async fn undeclare(self) -> crate::ZResult<()> {
+    #[allow(dead_code)]
+    async fn undeclare(self) -> crate::ZResult<()> {
         let msg = Declare {
             body: DeclareBody::UndeclareQueryable(UndeclareQueryable {
                 id: self.id,

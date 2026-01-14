@@ -33,7 +33,8 @@ where
         }
     }
 
-    pub async fn undeclare(self) -> crate::ZResult<()> {
+    #[allow(dead_code)]
+    async fn undeclare(self) -> crate::ZResult<()> {
         todo!("send undeclare interest")
     }
 
