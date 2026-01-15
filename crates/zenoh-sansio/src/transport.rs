@@ -2,13 +2,15 @@ use core::fmt::Display;
 use core::time::Duration;
 
 use establishment::Description;
-use zenoh_proto::{ZInstant, fields::*, msgs::*, zerror::TransportError};
+use zenoh_proto::{TransportError, ZInstant, fields::*, msgs::*};
 
-mod establishment;
+pub(crate) mod establishment;
 
+mod handshake;
 mod rx;
 mod tx;
 
+pub use handshake::*;
 pub use rx::*;
 pub use tx::*;
 
@@ -100,24 +102,26 @@ impl<Buff> Transport<Buff> {
         }
     }
 
-    pub fn listen<T, E>(
+    pub fn listen<'a, T, E, Read, Write>(
         self,
-        handle: &mut T,
-        mut read: impl FnMut(&mut T, &mut [u8]) -> core::result::Result<usize, E>,
-        mut write: impl FnMut(&mut T, &[u8]) -> core::result::Result<(), E>,
-    ) -> core::result::Result<OpenedTransport<Buff>, TransportError>
+        handle: T,
+        read: Read,
+        write: Write,
+    ) -> Handshake<Buff, T, Read, Write>
     where
         E: Display,
         Buff: Clone + AsMut<[u8]> + AsRef<[u8]>,
+        Read: FnMut(&mut T, &mut [u8]) -> core::result::Result<usize, E>,
+        Write: FnMut(&mut T, &[u8]) -> core::result::Result<(), E>,
     {
-        let mut state = State::WaitingInitSyn {
+        let state = State::WaitingInitSyn {
             mine_zid: self.zid,
             mine_batch_size: self.batch_size,
             mine_resolution: self.resolution,
             mine_lease: self.lease,
         };
 
-        let mut tx = TransportTx::new(
+        let tx = TransportTx::new(
             self.buff.clone(),
             self.streamed,
             self.batch_size as usize,
@@ -126,7 +130,7 @@ impl<Buff> Transport<Buff> {
             self.lease,
         );
 
-        let mut rx = TransportRx::new(
+        let rx = TransportRx::new(
             self.buff,
             self.streamed,
             self.batch_size as usize,
@@ -135,42 +139,54 @@ impl<Buff> Transport<Buff> {
             self.lease,
         );
 
-        let description = loop {
-            if let Some(description) = state.description() {
-                break description;
-            }
+        Handshake::Pending {
+            state,
+            streamed: self.streamed,
+            tx,
+            rx,
+            handle,
+            read,
+            write,
+        }
 
-            rx.decode_with(|bytes| read(handle, bytes))?;
-            let resp = rx
-                .flush_t()
-                .map(|msg| state.poll(msg))
-                .map(|response| response.0)
-                .flatten();
-            tx.encode_t(resp);
-            if let Some(bytes) = tx.flush() {
-                write(handle, bytes).map_err(|e| {
-                    zenoh_proto::error!("{e}");
-                    TransportError::CouldNotRead
-                })?;
-            }
-        };
+        // let description = loop {
+        //     if let Some(description) = state.description() {
+        //         break description;
+        //     }
 
-        let (tx, rx) = (tx.into_inner(), rx.into_inner());
+        //     rx.decode_with(|bytes| read(handle, bytes))?;
+        //     let resp = rx
+        //         .flush_t()
+        //         .map(|msg| state.poll(msg))
+        //         .map(|response| response.0)
+        //         .flatten();
+        //     tx.encode_t(resp);
+        //     if let Some(bytes) = tx.flush() {
+        //         write(handle, bytes).map_err(|e| {
+        //             zenoh_proto::error!("{e}");
+        //             TransportError::CouldNotRead
+        //         })?;
+        //     }
+        // };
 
-        Ok(OpenedTransport::new(description, self.streamed, tx, rx))
+        // let (tx, rx) = (tx.into_inner(), rx.into_inner());
+
+        // Ok(OpenedTransport::new(description, self.streamed, tx, rx))
     }
 
-    pub fn connect<T, E>(
+    pub fn connect<T, E, Read, Write>(
         self,
-        handle: &mut T,
-        mut read: impl FnMut(&mut T, &mut [u8]) -> core::result::Result<usize, E>,
-        mut write: impl FnMut(&mut T, &[u8]) -> core::result::Result<(), E>,
-    ) -> core::result::Result<OpenedTransport<Buff>, TransportError>
+        mut handle: T,
+        read: Read,
+        mut write: Write,
+    ) -> core::result::Result<Handshake<Buff, T, Read, Write>, TransportError>
     where
         E: Display,
         Buff: Clone + AsMut<[u8]> + AsRef<[u8]>,
+        Read: FnMut(&mut T, &mut [u8]) -> core::result::Result<usize, E>,
+        Write: FnMut(&mut T, &[u8]) -> core::result::Result<(), E>,
     {
-        let mut state = State::WaitingInitAck {
+        let state = State::WaitingInitAck {
             mine_zid: self.zid,
             mine_batch_size: self.batch_size,
             mine_resolution: self.resolution,
@@ -186,7 +202,7 @@ impl<Buff> Transport<Buff> {
             self.lease,
         );
 
-        let mut rx = TransportRx::new(
+        let rx = TransportRx::new(
             self.buff,
             self.streamed,
             self.batch_size as usize,
@@ -208,36 +224,46 @@ impl<Buff> Transport<Buff> {
         })));
 
         if let Some(bytes) = tx.flush() {
-            write(handle, bytes).map_err(|e| {
+            write(&mut handle, bytes).map_err(|e| {
                 zenoh_proto::error!("{e}");
                 TransportError::CouldNotRead
             })?;
         }
 
-        let description = loop {
-            if let Some(description) = state.description() {
-                break description;
-            }
+        Ok(Handshake::Pending {
+            state,
+            streamed: self.streamed,
+            tx,
+            rx,
+            handle,
+            read,
+            write,
+        })
 
-            rx.decode_with(|bytes| read(handle, bytes))?;
-            let resp = rx
-                .flush_t()
-                .map(|msg| state.poll(msg))
-                .map(|response| response.0)
-                .flatten();
+        // let description = loop {
+        //     if let Some(description) = state.description() {
+        //         break description;
+        //     }
 
-            tx.encode_t(resp);
-            if let Some(bytes) = tx.flush() {
-                write(handle, bytes).map_err(|e| {
-                    zenoh_proto::error!("{e}");
-                    TransportError::CouldNotRead
-                })?;
-            }
-        };
+        //     rx.decode_with(|bytes| read(handle, bytes))?;
+        //     let resp = rx
+        //         .flush_t()
+        //         .map(|msg| state.poll(msg))
+        //         .map(|response| response.0)
+        //         .flatten();
 
-        let (tx, rx) = (tx.into_inner(), rx.into_inner());
+        //     tx.encode_t(resp);
+        //     if let Some(bytes) = tx.flush() {
+        //         write(handle, bytes).map_err(|e| {
+        //             zenoh_proto::error!("{e}");
+        //             TransportError::CouldNotRead
+        //         })?;
+        //     }
+        // };
 
-        Ok(OpenedTransport::new(description, self.streamed, tx, rx))
+        // let (tx, rx) = (tx.into_inner(), rx.into_inner());
+
+        // Ok(OpenedTransport::new(description, self.streamed, tx, rx))
     }
 }
 

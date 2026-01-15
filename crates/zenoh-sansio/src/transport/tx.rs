@@ -1,10 +1,9 @@
 use core::time::Duration;
 
 use zenoh_proto::{
-    ZInstant,
+    TransportError, ZInstant,
     fields::Resolution,
     msgs::{NetworkMessage, TransportMessage},
-    zerror::TransportError,
 };
 
 use crate::transport::TransportRx;

@@ -2,10 +2,9 @@ use core::fmt::Display;
 use core::time::Duration;
 
 use zenoh_proto::{
-    ZInstant,
+    TransportError, ZInstant,
     fields::Resolution,
     msgs::{Message, NetworkMessage, TransportMessage},
-    zerror::TransportError,
 };
 
 use crate::transport::TransportTx;
@@ -306,5 +305,5 @@ async fn read_streamed_async<'a>(
         len
     };
 
-    Ok(&buff[..len])
+    Ok::<&'a [u8], TransportError>(&buff[..len])
 }

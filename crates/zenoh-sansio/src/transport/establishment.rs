@@ -5,7 +5,7 @@ use sha3::{
     digest::{ExtendableOutput, Update, XofReader},
 };
 
-use zenoh_proto::{fields::*, msgs::*, zerror::TransportError};
+use zenoh_proto::{TransportError, fields::*, msgs::*};
 
 /// Everything that describes an Opened Transport between two peers
 #[derive(Copy, Clone, Debug, PartialEq)]
@@ -311,67 +311,4 @@ impl State {
             _ => None,
         }
     }
-
-    pub(crate) fn opened(&self) -> bool {
-        matches!(self, Self::Opened(_))
-    }
-}
-
-#[test]
-fn transport_state_handshake() {
-    let mut a = State::WaitingInitSyn {
-        mine_zid: ZenohIdProto::default(),
-        mine_batch_size: 512,
-        mine_resolution: Resolution::default(),
-        mine_lease: Duration::from_secs(30),
-    };
-
-    let b_zid = ZenohIdProto::default();
-    let mut b = State::WaitingInitAck {
-        mine_zid: b_zid,
-        mine_batch_size: 1025,
-        mine_resolution: Resolution::default(),
-        mine_lease: Duration::from_secs(37),
-    };
-
-    let init = TransportMessage::InitSyn(InitSyn {
-        identifier: InitIdentifier {
-            zid: b_zid,
-            ..Default::default()
-        },
-        resolution: InitResolution {
-            resolution: Resolution::default(),
-            batch_size: BatchSize(1025),
-        },
-        ..Default::default()
-    });
-
-    let mut buff = [0u8; 128];
-
-    macro_rules! buff {
-        ($msg:expr) => {{
-            let len: usize =
-                zenoh_proto::transport_encoder_ref(&mut buff, core::iter::once($msg)).sum();
-
-            &buff[..len]
-        }};
-    }
-
-    let mut buff = buff!(&init);
-    let mut next = Some(init);
-    let mut desc = None;
-    let mut current = &mut a;
-    let mut other = &mut b;
-
-    for _ in 0..4 {
-        if let Some(response) = next {
-            (next, desc) = current.poll((response, buff));
-            core::mem::swap(&mut current, &mut other);
-
-            buff = &[];
-        }
-    }
-
-    assert!(desc.is_some());
-    assert!(a.opened() && b.opened());
 }

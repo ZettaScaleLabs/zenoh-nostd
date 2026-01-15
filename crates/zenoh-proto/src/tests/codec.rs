@@ -88,8 +88,9 @@ fn bench_codec_decode_batch() {
     let len = u16::MAX as usize - w.len();
     c.bench_function("decode_batch", |b| {
         b.iter(|| {
-            let mut batch = BatchReader::new(&data[..len]);
-            while batch.next().is_some() {}
+            let mut r = &data[..len];
+            FrameHeader::z_decode(&mut r).unwrap();
+            while Push::z_decode(&mut r).ok().is_some() {}
         })
     });
 

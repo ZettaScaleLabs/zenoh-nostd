@@ -35,8 +35,6 @@ pub use init::*;
 pub use keepalive::*;
 pub use open::*;
 
-use exts::*;
-use fields::*;
 use zenoh_derive::ZEnum;
 
 #[derive(ZEnum, Debug, PartialEq)]
@@ -52,8 +50,8 @@ pub enum NetworkBody<'a> {
 
 #[derive(Debug, PartialEq)]
 pub struct NetworkMessage<'a> {
-    pub reliability: Reliability,
-    pub qos: QoS,
+    pub reliability: fields::Reliability,
+    pub qos: exts::QoS,
     pub body: NetworkBody<'a>,
 }
 

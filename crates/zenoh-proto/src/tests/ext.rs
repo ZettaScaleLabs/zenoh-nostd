@@ -125,17 +125,6 @@ macro_rules! roundtrip {
         .unwrap();
 
         assert_eq!(decoded, $value);
-
-        #[cfg(feature = "alloc")]
-        {
-            let mut data = alloc::vec::Vec::new();
-
-            $crate::ZEncode::z_encode(&$value, &mut data).unwrap();
-
-            let decoded = <$ty as $crate::ZDecode>::z_decode(&mut &data[..]).unwrap();
-
-            assert_eq!(decoded, $value);
-        }
     }};
 }
 

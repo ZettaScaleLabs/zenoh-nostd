@@ -14,7 +14,6 @@ version.workspace = true
 default = []
 
 std = []
-alloc = []
 
 log = ["std", "dep:log"]
 defmt = ["dep:defmt"]

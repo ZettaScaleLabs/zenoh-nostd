@@ -36,7 +36,7 @@ pub trait ZStoreable<'a>: ZWriteable {
     fn mark(&self) -> Self::Mark;
     unsafe fn slice(&self, mark: &Self::Mark) -> &'a [u8];
 
-    fn store(
+    unsafe fn store(
         &mut self,
         len: usize,
         data: impl FnOnce(&mut [u8]) -> usize,
@@ -46,12 +46,14 @@ pub trait ZStoreable<'a>: ZWriteable {
         Ok(unsafe { &self.slice(&mark)[..written] })
     }
 
-    fn store_str(&mut self, s: &str) -> core::result::Result<&'a str, crate::BytesError> {
+    unsafe fn store_str(&mut self, s: &str) -> core::result::Result<&'a str, crate::BytesError> {
         let bytes = s.as_bytes();
-        let slot = self.store(bytes.len(), |buf| {
-            buf[..bytes.len()].copy_from_slice(bytes);
-            bytes.len()
-        })?;
+        let slot = unsafe {
+            self.store(bytes.len(), |buf| {
+                buf[..bytes.len()].copy_from_slice(bytes);
+                bytes.len()
+            })?
+        };
 
         Ok(core::str::from_utf8(slot)
             .expect("Stored string is not valid UTF-8, this should never happen"))
