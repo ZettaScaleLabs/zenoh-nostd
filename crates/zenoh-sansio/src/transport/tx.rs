@@ -137,11 +137,10 @@ impl<Buff> TransportTx<Buff> {
             return;
         }
 
-        if let State::Synchronized { .. } = self.state {
-            if now.0 > self.next_timeout().0 {
+        if let State::Synchronized { .. } = self.state
+            && now.0 > self.next_timeout().0 {
                 self.state = State::Closed;
             }
-        }
 
         if self.state == State::Used {
             self.state = State::Synchronized { last_received: now };

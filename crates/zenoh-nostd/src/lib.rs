@@ -8,4 +8,4 @@ mod io;
 
 pub use api::*;
 pub mod platform;
-pub use zenoh_proto::{debug, error, info, logging, trace, warn, zbail, zctx, zerror::*};
+pub use zenoh_proto::*;

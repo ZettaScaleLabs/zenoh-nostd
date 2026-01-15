@@ -54,7 +54,7 @@ impl<'a, Buff, T, Read, Write> HandshakeReady<'a, Buff, T, Read, Write> {
     }
 }
 
-impl<'a, Buff, T, Read, Write> Handshake<Buff, T, Read, Write> {
+impl<Buff, T, Read, Write> Handshake<Buff, T, Read, Write> {
     pub fn poll<E>(
         &mut self,
     ) -> core::result::Result<Option<HandshakeReady<'_, Buff, T, Read, Write>>, TransportError>
@@ -98,8 +98,7 @@ impl<'a, Buff, T, Read, Write> Handshake<Buff, T, Read, Write> {
                 let resp = rx
                     .flush_t()
                     .map(|msg| state.poll(msg))
-                    .map(|response| response.0)
-                    .flatten();
+                    .filter_map(|response| response.0);
                 tx.encode_t(resp);
                 if let Some(bytes) = tx.flush() {
                     write(handle, bytes).map_err(|e| {

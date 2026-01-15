@@ -1,6 +1,6 @@
 use crate::{Transport, transport::establishment::State};
 use core::{cell::RefCell, time::Duration};
-use zenoh_proto::{fields::*, msgs::*};
+use zenoh_proto::{exts::*, fields::*, keyexpr, msgs::*};
 
 #[test]
 fn transport_state_handshake() {
@@ -168,4 +168,31 @@ fn transport_handshake_streamed() {
         .expect("Unexpected Error")
         .expect("Transport B is not opened yet")
         .open();
+}
+
+#[test]
+fn transport_streamed_codec() {
+    let mut transport = Transport::new([0u8; 512]).streamed().codec();
+
+    let msg = NetworkMessage {
+        reliability: Reliability::Reliable,
+        qos: QoS::declare(),
+        body: NetworkBody::Push(Push {
+            wire_expr: WireExpr::from(keyexpr::from_str_unchecked("abc/def")),
+            payload: PushBody::Put(Put {
+                payload: &[1, 2, 3, 4],
+                ..Default::default()
+            }),
+            ..Default::default()
+        }),
+    };
+
+    transport.tx.encode_ref(core::iter::once(&msg));
+    transport.rx.decode(transport.tx.flush().unwrap()).unwrap();
+
+    let mut flush = transport.rx.flush();
+    let m = flush.next().unwrap();
+
+    assert_eq!(flush.count(), 0);
+    assert_eq!(m, msg);
 }

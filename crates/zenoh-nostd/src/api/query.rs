@@ -1,10 +1,10 @@
 use core::str::FromStr;
 
 use zenoh_proto::{
+    CollectionError,
     fields::{ConsolidationMode, Encoding, WireExpr},
     keyexpr,
     msgs::{Err, PushBody, Put, Reply, Response, ResponseBody, ResponseFinal},
-    zerror::CollectionError,
 };
 
 use crate::{

@@ -195,10 +195,10 @@ impl<Buff> TransportRx<Buff> {
             return;
         }
 
-        if let State::Synchronized { .. } = self.state {
-            if now.0 > self.next_timeout().0 {
-                self.state = State::Closed;
-            }
+        if let State::Synchronized { .. } = self.state
+            && now.0 > self.next_timeout().0
+        {
+            self.state = State::Closed;
         }
 
         if self.state == State::Used {
@@ -218,11 +218,11 @@ impl<Buff> TransportRx<Buff> {
     }
 }
 
-fn read_streamed<'a>(
-    buff: &'a mut [u8],
+fn read_streamed(
+    buff: &mut [u8],
     mut with: impl FnMut(&mut [u8]) -> core::result::Result<usize, TransportError>,
     streamed: bool,
-) -> core::result::Result<&'a [u8], TransportError> {
+) -> core::result::Result<&[u8], TransportError> {
     let len = if streamed {
         if 2 > buff.len() {
             zenoh_proto::zbail!(@log TransportError::TransportTooSmall);

@@ -95,13 +95,13 @@ impl State {
                     mine_lease,
                 } => {
                     *self = Self::WaitingOpenSyn {
-                        mine_zid: mine_zid,
-                        mine_batch_size: mine_batch_size,
-                        mine_resolution: mine_resolution,
-                        mine_lease: mine_lease,
+                        mine_zid,
+                        mine_batch_size,
+                        mine_resolution,
+                        mine_lease,
                     };
 
-                    return (
+                    (
                         Some(TransportMessage::InitAck(InitAck {
                             identifier: InitIdentifier {
                                 zid: mine_zid,
@@ -115,7 +115,7 @@ impl State {
                             ..Default::default()
                         })),
                         None,
-                    );
+                    )
                 }
                 _ => zenoh_proto::zbail!(@ret (None, None), TransportError::StateCantHandle),
             },
@@ -155,13 +155,13 @@ impl State {
                         hasher.update(&mine_zid.as_le_bytes()[..mine_zid.size()]);
                         hasher
                             .update(&ack.identifier.zid.as_le_bytes()[..ack.identifier.zid.size()]);
-                        let mut array = (0 as u32).to_le_bytes();
+                        let mut array = 0_u32.to_le_bytes();
                         hasher.finalize_xof().read(&mut array);
                         u32::from_le_bytes(array)
                             & match mine_resolution.get(Field::FrameSN) {
                                 Bits::U8 => u8::MAX as u32 >> 1,
                                 Bits::U16 => u16::MAX as u32 >> 2,
-                                Bits::U32 => u32::MAX as u32 >> 4,
+                                Bits::U32 => u32::MAX >> 4,
                                 Bits::U64 => u64::MAX as u32 >> 1,
                             }
                     };
@@ -171,11 +171,11 @@ impl State {
                         batch_size,
                         resolution,
                         sn,
-                        mine_lease: mine_lease,
+                        mine_lease,
                         other_zid: ack.identifier.zid,
                     };
 
-                    return (
+                    (
                         Some(TransportMessage::OpenSyn(OpenSyn {
                             lease: mine_lease,
                             sn,
@@ -183,7 +183,7 @@ impl State {
                             ..Default::default()
                         })),
                         None,
-                    );
+                    )
                 }
                 _ => zenoh_proto::zbail!(@ret (None, None), TransportError::StateCantHandle),
             },
@@ -239,13 +239,13 @@ impl State {
                         hasher.update(&mine_zid.as_le_bytes()[..mine_zid.size()]);
                         hasher
                             .update(&syn.identifier.zid.as_le_bytes()[..syn.identifier.zid.size()]);
-                        let mut array = (0 as u32).to_le_bytes();
+                        let mut array = 0_u32.to_le_bytes();
                         hasher.finalize_xof().read(&mut array);
                         u32::from_le_bytes(array)
                             & match mine_resolution.get(Field::FrameSN) {
                                 Bits::U8 => u8::MAX as u32 >> 1,
                                 Bits::U16 => u16::MAX as u32 >> 2,
-                                Bits::U32 => u32::MAX as u32 >> 4,
+                                Bits::U32 => u32::MAX >> 4,
                                 Bits::U64 => u64::MAX as u32 >> 1,
                             }
                     };
@@ -261,16 +261,16 @@ impl State {
                         other_zid: syn.identifier.zid,
                     };
 
-                    *self = Self::Opened(description.clone());
+                    *self = Self::Opened(description);
 
-                    return (
+                    (
                         Some(TransportMessage::OpenAck(OpenAck {
                             lease: mine_lease,
-                            sn: sn,
+                            sn,
                             ..Default::default()
                         })),
                         Some(description),
-                    );
+                    )
                 }
                 _ => zenoh_proto::zbail!(@ret (None, None), TransportError::StateCantHandle),
             },
@@ -295,9 +295,9 @@ impl State {
                         other_zid,
                     };
 
-                    *self = Self::Opened(description.clone());
+                    *self = Self::Opened(description);
 
-                    return (None, Some(description));
+                    (None, Some(description))
                 }
                 _ => zenoh_proto::zbail!(@ret (None, None), TransportError::StateCantHandle),
             },

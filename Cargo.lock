@@ -3595,6 +3595,7 @@ dependencies = [
  "heapless 0.8.0",
  "sha3",
  "zenoh-proto",
+ "zenoh-sansio",
 ]
 
 [[package]]
@@ -3616,6 +3617,7 @@ dependencies = [
 name = "zenoh-sansio"
 version = "0.1.0"
 dependencies = [
+ "rand",
  "sha3",
  "zenoh-proto",
 ]

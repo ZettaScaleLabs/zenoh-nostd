@@ -37,7 +37,7 @@ impl<Buff> Transport<Buff> {
             batch_size: buff.as_ref().len() as u16,
             lease: Duration::from_secs(10),
             resolution: Resolution::default(),
-            buff: buff,
+            buff,
         }
     }
     pub fn with_zid(mut self, zid: ZenohIdProto) -> Self {
@@ -102,7 +102,7 @@ impl<Buff> Transport<Buff> {
         }
     }
 
-    pub fn listen<'a, T, E, Read, Write>(
+    pub fn listen<T, E, Read, Write>(
         self,
         handle: T,
         read: Read,
@@ -301,7 +301,7 @@ impl<Buff> OpenedTransport<Buff> {
 
     pub fn sync(&mut self, now: ZInstant) {
         let Self { tx, rx, .. } = self;
-        rx.sync(&tx, now);
-        tx.sync(&rx, now);
+        rx.sync(tx, now);
+        tx.sync(rx, now);
     }
 }
