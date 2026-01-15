@@ -1,0 +1,377 @@
+use core::time::Duration;
+
+use sha3::{
+    Shake128,
+    digest::{ExtendableOutput, Update, XofReader},
+};
+
+use zenoh_proto::{fields::*, msgs::*, zerror::TransportError};
+
+/// Everything that describes an Opened Transport between two peers
+#[derive(Copy, Clone, Debug, PartialEq)]
+pub(crate) struct Description {
+    pub mine_zid: ZenohIdProto,
+
+    pub batch_size: u16,
+    pub resolution: Resolution,
+
+    pub mine_lease: Duration,
+    pub other_lease: Duration,
+
+    pub mine_sn: u32,
+    pub other_sn: u32,
+
+    pub other_zid: ZenohIdProto,
+}
+
+#[derive(Copy, Clone, Debug, PartialEq)]
+pub(crate) enum State {
+    WaitingInitSyn {
+        /// Mine zid
+        mine_zid: ZenohIdProto,
+        /// Mine startup batch_size
+        mine_batch_size: u16,
+        /// Mine startup resolution
+        mine_resolution: Resolution,
+        /// Mine lease,
+        mine_lease: Duration,
+    },
+    WaitingOpenSyn {
+        /// Mine zid
+        mine_zid: ZenohIdProto,
+        /// Mine startup batch_size
+        mine_batch_size: u16,
+        /// Mine startup resolution
+        mine_resolution: Resolution,
+        /// Mine lease,
+        mine_lease: Duration,
+    },
+    WaitingInitAck {
+        /// Mine zid
+        mine_zid: ZenohIdProto,
+        /// Mine startup batch_size
+        mine_batch_size: u16,
+        /// Mine startup resolution
+        mine_resolution: Resolution,
+        /// Mine lease,
+        mine_lease: Duration,
+    },
+    WaitingOpenAck {
+        /// Mine zid
+        mine_zid: ZenohIdProto,
+        /// Negotiated batch_size
+        batch_size: u16,
+        /// Negotiated resolution
+        resolution: Resolution,
+        /// Computed sn,
+        sn: u32,
+        /// Mine lease,
+        mine_lease: Duration,
+        /// Peer zid
+        other_zid: ZenohIdProto,
+    },
+    Opened(Description),
+}
+
+impl State {
+    pub(crate) fn poll<'a>(
+        &mut self,
+        input: (TransportMessage<'a>, &'a [u8]),
+    ) -> (Option<TransportMessage<'a>>, Option<Description>) {
+        if let Self::Opened(description) = &self {
+            return (None, Some(*description));
+        }
+
+        let (msg, buff) = input;
+
+        match msg {
+            // Don't do any computation at this stage. Pass the relevant values as the cookie
+            // for future computation.
+            TransportMessage::InitSyn(_) => match *self {
+                Self::WaitingInitSyn {
+                    mine_zid,
+                    mine_batch_size,
+                    mine_resolution,
+                    mine_lease,
+                } => {
+                    *self = Self::WaitingOpenSyn {
+                        mine_zid: mine_zid,
+                        mine_batch_size: mine_batch_size,
+                        mine_resolution: mine_resolution,
+                        mine_lease: mine_lease,
+                    };
+
+                    return (
+                        Some(TransportMessage::InitAck(InitAck {
+                            identifier: InitIdentifier {
+                                zid: mine_zid,
+                                ..Default::default()
+                            },
+                            resolution: InitResolution {
+                                resolution: mine_resolution,
+                                batch_size: BatchSize(mine_batch_size),
+                            },
+                            cookie: buff, // TODO: cypher ChaCha20
+                            ..Default::default()
+                        })),
+                        None,
+                    );
+                }
+                _ => zenoh_proto::zbail!(@ret (None, None), TransportError::StateCantHandle),
+            },
+            // Negotiate values, pass the cookie back
+            TransportMessage::InitAck(ack) => match *self {
+                Self::WaitingInitAck {
+                    mine_zid,
+                    mine_batch_size,
+                    mine_resolution,
+                    mine_lease,
+                } => {
+                    zenoh_proto::debug!(
+                        "Received InitAck on transport {:?} -> NEW!({:?})",
+                        mine_zid,
+                        ack.identifier.zid
+                    );
+
+                    let batch_size = mine_batch_size.min(ack.resolution.batch_size.0);
+                    let resolution = {
+                        let mut res = Resolution::default();
+                        let i_fsn_res = ack.resolution.resolution.get(Field::FrameSN);
+                        let m_fsn_res = mine_resolution.get(Field::FrameSN);
+                        if i_fsn_res > m_fsn_res {
+                            zenoh_proto::zbail!(@ret (None, None), TransportError::InvalidAttribute);
+                        }
+                        res.set(Field::FrameSN, i_fsn_res);
+                        let i_rid_res = ack.resolution.resolution.get(Field::RequestID);
+                        let m_rid_res = mine_resolution.get(Field::RequestID);
+                        if i_rid_res > m_rid_res {
+                            zenoh_proto::zbail!(@ret (None, None), TransportError::InvalidAttribute);
+                        }
+                        res.set(Field::RequestID, i_rid_res);
+                        res
+                    };
+                    let sn = {
+                        let mut hasher = Shake128::default();
+                        hasher.update(&mine_zid.as_le_bytes()[..mine_zid.size()]);
+                        hasher
+                            .update(&ack.identifier.zid.as_le_bytes()[..ack.identifier.zid.size()]);
+                        let mut array = (0 as u32).to_le_bytes();
+                        hasher.finalize_xof().read(&mut array);
+                        u32::from_le_bytes(array)
+                            & match mine_resolution.get(Field::FrameSN) {
+                                Bits::U8 => u8::MAX as u32 >> 1,
+                                Bits::U16 => u16::MAX as u32 >> 2,
+                                Bits::U32 => u32::MAX as u32 >> 4,
+                                Bits::U64 => u64::MAX as u32 >> 1,
+                            }
+                    };
+
+                    *self = Self::WaitingOpenAck {
+                        mine_zid,
+                        batch_size,
+                        resolution,
+                        sn,
+                        mine_lease: mine_lease,
+                        other_zid: ack.identifier.zid,
+                    };
+
+                    return (
+                        Some(TransportMessage::OpenSyn(OpenSyn {
+                            lease: mine_lease,
+                            sn,
+                            cookie: ack.cookie,
+                            ..Default::default()
+                        })),
+                        None,
+                    );
+                }
+                _ => zenoh_proto::zbail!(@ret (None, None), TransportError::StateCantHandle),
+            },
+            // Negotiate values, open the transport. Ack the open
+            TransportMessage::OpenSyn(open) => match *self {
+                Self::WaitingOpenSyn {
+                    mine_zid,
+                    mine_batch_size,
+                    mine_resolution,
+                    mine_lease,
+                } => {
+                    // TODO: decypher cookie ChaCha20
+                    let syn = match zenoh_proto::transport_decoder(
+                        open.cookie,
+                        &mut 0,
+                        Resolution::default(),
+                    )
+                    .find_map(|msg| match msg.0 {
+                        TransportMessage::InitSyn(syn) => Some(syn),
+                        _ => None,
+                    }) {
+                        Some(syn) => syn,
+                        None => {
+                            zenoh_proto::zbail!(@ret (None, None), TransportError::InvalidAttribute)
+                        }
+                    };
+
+                    zenoh_proto::debug!(
+                        "Received OpenSyn on transport {:?} -> NEW!({:?})",
+                        mine_zid,
+                        syn.identifier.zid
+                    );
+
+                    let batch_size = mine_batch_size.min(syn.resolution.batch_size.0);
+                    let resolution = {
+                        let mut res = Resolution::default();
+                        let i_fsn_res = syn.resolution.resolution.get(Field::FrameSN);
+                        let m_fsn_res = mine_resolution.get(Field::FrameSN);
+                        if i_fsn_res > m_fsn_res {
+                            zenoh_proto::zbail!(@ret (None, None), TransportError::InvalidAttribute);
+                        }
+                        res.set(Field::FrameSN, i_fsn_res);
+                        let i_rid_res = syn.resolution.resolution.get(Field::RequestID);
+                        let m_rid_res = mine_resolution.get(Field::RequestID);
+                        if i_rid_res > m_rid_res {
+                            zenoh_proto::zbail!(@ret (None, None), TransportError::InvalidAttribute);
+                        }
+                        res.set(Field::RequestID, i_rid_res);
+                        res
+                    };
+                    let sn = {
+                        let mut hasher = Shake128::default();
+                        hasher.update(&mine_zid.as_le_bytes()[..mine_zid.size()]);
+                        hasher
+                            .update(&syn.identifier.zid.as_le_bytes()[..syn.identifier.zid.size()]);
+                        let mut array = (0 as u32).to_le_bytes();
+                        hasher.finalize_xof().read(&mut array);
+                        u32::from_le_bytes(array)
+                            & match mine_resolution.get(Field::FrameSN) {
+                                Bits::U8 => u8::MAX as u32 >> 1,
+                                Bits::U16 => u16::MAX as u32 >> 2,
+                                Bits::U32 => u32::MAX as u32 >> 4,
+                                Bits::U64 => u64::MAX as u32 >> 1,
+                            }
+                    };
+
+                    let description = Description {
+                        mine_zid,
+                        batch_size,
+                        resolution,
+                        mine_lease,
+                        other_lease: open.lease,
+                        mine_sn: sn,
+                        other_sn: open.sn,
+                        other_zid: syn.identifier.zid,
+                    };
+
+                    *self = Self::Opened(description.clone());
+
+                    return (
+                        Some(TransportMessage::OpenAck(OpenAck {
+                            lease: mine_lease,
+                            sn: sn,
+                            ..Default::default()
+                        })),
+                        Some(description),
+                    );
+                }
+                _ => zenoh_proto::zbail!(@ret (None, None), TransportError::StateCantHandle),
+            },
+            // Open the transport
+            TransportMessage::OpenAck(ack) => match *self {
+                Self::WaitingOpenAck {
+                    mine_zid,
+                    batch_size,
+                    resolution,
+                    sn,
+                    mine_lease,
+                    other_zid,
+                } => {
+                    let description = Description {
+                        mine_zid,
+                        batch_size,
+                        resolution,
+                        mine_lease,
+                        other_lease: ack.lease,
+                        mine_sn: sn,
+                        other_sn: ack.sn,
+                        other_zid,
+                    };
+
+                    *self = Self::Opened(description.clone());
+
+                    return (None, Some(description));
+                }
+                _ => zenoh_proto::zbail!(@ret (None, None), TransportError::StateCantHandle),
+            },
+            _ => zenoh_proto::zbail!(@ret (None, None), TransportError::StateCantHandle),
+        }
+    }
+
+    pub(crate) fn description(&self) -> Option<Description> {
+        match self {
+            Self::Opened(description) => Some(*description),
+            _ => None,
+        }
+    }
+
+    pub(crate) fn opened(&self) -> bool {
+        matches!(self, Self::Opened(_))
+    }
+}
+
+#[test]
+fn transport_state_handshake() {
+    let mut a = State::WaitingInitSyn {
+        mine_zid: ZenohIdProto::default(),
+        mine_batch_size: 512,
+        mine_resolution: Resolution::default(),
+        mine_lease: Duration::from_secs(30),
+    };
+
+    let b_zid = ZenohIdProto::default();
+    let mut b = State::WaitingInitAck {
+        mine_zid: b_zid,
+        mine_batch_size: 1025,
+        mine_resolution: Resolution::default(),
+        mine_lease: Duration::from_secs(37),
+    };
+
+    let init = TransportMessage::InitSyn(InitSyn {
+        identifier: InitIdentifier {
+            zid: b_zid,
+            ..Default::default()
+        },
+        resolution: InitResolution {
+            resolution: Resolution::default(),
+            batch_size: BatchSize(1025),
+        },
+        ..Default::default()
+    });
+
+    let mut buff = [0u8; 128];
+
+    macro_rules! buff {
+        ($msg:expr) => {{
+            let len: usize =
+                zenoh_proto::transport_encoder_ref(&mut buff, core::iter::once($msg)).sum();
+
+            &buff[..len]
+        }};
+    }
+
+    let mut buff = buff!(&init);
+    let mut next = Some(init);
+    let mut desc = None;
+    let mut current = &mut a;
+    let mut other = &mut b;
+
+    for _ in 0..4 {
+        if let Some(response) = next {
+            (next, desc) = current.poll((response, buff));
+            core::mem::swap(&mut current, &mut other);
+
+            buff = &[];
+        }
+    }
+
+    assert!(desc.is_some());
+    assert!(a.opened() && b.opened());
+}

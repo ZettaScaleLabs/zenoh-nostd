@@ -2,7 +2,7 @@ use crate::{
     api::{EndPoint, Resources, ZConfig, driver::Driver, resources::SessionResources},
     io::{
         link::Link,
-        transport::{Transport, TransportMineConfig},
+        transport::{TransportLink, TransportMineConfig},
     },
 };
 
@@ -46,7 +46,7 @@ where
     let link = Link::new(config.platform(), endpoint).await?;
 
     let (tx, rx) = config.txrx();
-    let (transport, tconfig) = Transport::open(
+    let (transport, tconfig) = TransportLink::open(
         link,
         TransportMineConfig {
             mine_zid: Default::default(),

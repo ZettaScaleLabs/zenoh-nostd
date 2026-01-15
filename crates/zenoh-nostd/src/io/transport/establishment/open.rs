@@ -2,8 +2,8 @@ use crate::{
     io::{
         link::{Link, ZLinkInfo},
         transport::{
-            Transport, TransportConfig, TransportMineConfig, TransportNegociatedConfig,
-            TransportOtherConfig, ZTransportRx, ZTransportTx, establishment::compute_sn,
+            TransportConfig, TransportLink, TransportMineConfig, TransportNegociatedConfig,
+            TransportOtherConfig, ZTransportLinkRx, ZTransportLinkTx, establishment::compute_sn,
         },
     },
     platform::ZPlatform,
@@ -26,9 +26,9 @@ impl SendInitSynIn {
     pub(crate) async fn send(
         &self,
         tx: &mut impl AsMut<[u8]>,
-        transport: &mut impl ZTransportTx,
+        transport: &mut impl ZTransportLinkTx,
         state: &StateTransport,
-    ) -> core::result::Result<(), crate::TransportError> {
+    ) -> core::result::Result<(), crate::TransportLinkError> {
         let msg = InitSyn {
             version: self.mine_version,
             identifier: InitIdentifier {
@@ -58,16 +58,16 @@ pub(crate) struct RecvInitAckOut<'a> {
 impl<'a> RecvInitAckOut<'a> {
     pub(crate) async fn recv(
         rx: &'a mut impl AsMut<[u8]>,
-        transport: &mut impl ZTransportRx,
+        transport: &mut impl ZTransportLinkRx,
         state: &mut StateTransport,
-    ) -> core::result::Result<Self, crate::TransportError> {
+    ) -> core::result::Result<Self, crate::TransportLinkError> {
         let reader = transport.recv(rx.as_mut()).await?;
         let mut batch = BatchReader::new(reader);
         let init_ack = loop {
             match batch.next() {
                 Some(Message::InitAck(i)) => break i,
                 Some(_) => continue,
-                None => zbail!(crate::TransportError::InvalidRx),
+                None => zbail!(crate::TransportLinkError::InvalidRx),
             }
         };
 
@@ -78,7 +78,7 @@ impl<'a> RecvInitAckOut<'a> {
             let m_fsn_res = state.resolution.get(Field::FrameSN);
 
             if i_fsn_res > m_fsn_res {
-                zbail!(crate::TransportError::InvalidRx);
+                zbail!(crate::TransportLinkError::InvalidRx);
             }
 
             res.set(Field::FrameSN, i_fsn_res);
@@ -87,7 +87,7 @@ impl<'a> RecvInitAckOut<'a> {
             let m_rid_res = state.resolution.get(Field::RequestID);
 
             if i_rid_res > m_rid_res {
-                zbail!(crate::TransportError::InvalidRx);
+                zbail!(crate::TransportLinkError::InvalidRx);
             }
 
             res.set(Field::RequestID, i_rid_res);
@@ -118,9 +118,9 @@ impl<'a> SendOpenSynIn<'a> {
     pub(crate) async fn send(
         &self,
         tx: &mut impl AsMut<[u8]>,
-        transport: &mut impl ZTransportTx,
+        transport: &mut impl ZTransportLinkTx,
         state: &StateTransport,
-    ) -> core::result::Result<SendOpenSynOut, crate::TransportError> {
+    ) -> core::result::Result<SendOpenSynOut, crate::TransportLinkError> {
         let mine_initial_sn = compute_sn(&self.mine_zid, &self.other_zid, state.resolution);
 
         let msg = OpenSyn {
@@ -158,15 +158,15 @@ pub(crate) struct RecvOpenAckOut {
 impl RecvOpenAckOut {
     pub(crate) async fn recv(
         rx: &mut impl AsMut<[u8]>,
-        transport: &mut impl ZTransportRx,
-    ) -> core::result::Result<Self, crate::TransportError> {
+        transport: &mut impl ZTransportLinkRx,
+    ) -> core::result::Result<Self, crate::TransportLinkError> {
         let reader = transport.recv(rx.as_mut()).await?;
         let mut batch = BatchReader::new(reader);
         let open_ack = loop {
             match batch.next() {
                 Some(Message::OpenAck(i)) => break i,
                 Some(_) => continue,
-                None => zbail!(crate::TransportError::InvalidRx),
+                None => zbail!(crate::TransportLinkError::InvalidRx),
             }
         };
         let output = RecvOpenAckOut {
@@ -186,10 +186,10 @@ pub(crate) async fn open_link<Platform: ZPlatform>(
     config: TransportMineConfig,
     tx: &mut impl AsMut<[u8]>,
     rx: &mut impl AsMut<[u8]>,
-) -> core::result::Result<(Transport<Platform>, TransportConfig), crate::TransportError> {
+) -> core::result::Result<(TransportLink<Platform>, TransportConfig), crate::TransportLinkError> {
     let batch_size = link.mtu().min(rx.as_mut().len() as u16);
 
-    let mut transport = Transport { link };
+    let mut transport = TransportLink { link };
 
     let mut state = StateTransport {
         batch_size,

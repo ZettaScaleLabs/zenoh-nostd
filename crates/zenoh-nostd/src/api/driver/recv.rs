@@ -1,7 +1,7 @@
 use embassy_futures::select::{Either, select};
 use embassy_time::Timer;
 
-use crate::{api::ZConfig, io::transport::ZTransportRx};
+use crate::{api::ZConfig, io::transport::ZTransportLinkRx};
 
 impl<'res, Config> super::DriverRx<'res, Config>
 where
@@ -13,7 +13,7 @@ where
         match select(read_lease, self.rx.recv(self.rx_buf.as_mut())).await {
             Either::First(_) => {
                 crate::warn!("Connection closed by peer");
-                crate::zbail!(crate::TransportError::LeaseTimeout);
+                crate::zbail!(crate::TransportLinkError::LeaseTimeout);
             }
             Either::Second(msg) => match msg {
                 Ok(msg) => {

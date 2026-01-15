@@ -3,7 +3,7 @@ use core::ops::DerefMut;
 use embassy_time::Instant;
 use zenoh_proto::{exts::*, fields::*, *};
 
-use crate::{api::ZConfig, io::transport::ZTransportTx};
+use crate::{api::ZConfig, io::transport::ZTransportLinkTx};
 
 impl<'res, Config> super::DriverTx<'res, Config>
 where

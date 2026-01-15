@@ -110,8 +110,8 @@ crate::declare_zerror! {
         LinkRxFailed = 34,
     }
 
-    #[doc = "Errors related to zenoh transports."]
-    enum TransportError: LinkError + CodecError {
+    #[doc = "Errors related to zenoh transport links."]
+    enum TransportLinkError: LinkError + CodecError {
         #[doc = "Received invalid data."]
         #[err = "received invalid data"]
         InvalidRx = 40,
@@ -124,6 +124,33 @@ crate::declare_zerror! {
         #[doc = "Transport has been closed."]
         #[err = "transport has been closed"]
         TransportClosed = 53,
+    }
+
+    #[doc = "Errors related to zenoh transports."]
+    enum TransportError: CodecError {
+        #[doc = "TransportIsFull."]
+        #[err = "transport is full"]
+        TransportIsFull = 54,
+
+        #[doc = "Transport is too small to receive this data."]
+        #[err = "transport is too small"]
+        TransportTooSmall = 55,
+
+        #[doc = "Message too large for a batch."]
+        #[err = "message too large for a batch"]
+        MessageTooLargeForBatch = 56,
+
+        #[doc = "The current transprot state can't handle this message."]
+        #[err = "current state incompatible with message"]
+        StateCantHandle = 57,
+
+        #[doc = "You tried to used a closed transport."]
+        #[err = "transport is closed"]
+        TransportIsClosed = 58,
+
+        #[doc = "Received an invalid attribute in a request."]
+        #[err = "invalid attribute in message"]
+        InvalidAttribute = 59,
     }
 
     // --- Collections related errors ---
@@ -169,10 +196,30 @@ macro_rules! zbail {
         return Err($err.into())
     };
 
+    (@log $err:expr) => {{
+        $crate::error!("{}: {}", $err, $crate::zctx!());
+        $crate::zbail!($err)
+    }};
+
     ($err:expr, $($arg:tt)+) => {{
         $crate::error!("{}: {}", $err, $crate::zctx!());
         $crate::error!($($arg)+);
         $crate::zbail!($err);
+    }};
+
+    (@continue $err:expr) => {{
+        $crate::error!("{}: {}", $err, $crate::zctx!());
+        continue;
+    }};
+
+    (@None $err:expr) => {{
+        $crate::error!("{}: {}", $err, $crate::zctx!());
+        return None;
+    }};
+
+    (@ret $ret:expr, $err:expr) => {{
+        $crate::error!("{}: {}", $err, $crate::zctx!());
+        return $ret;
     }};
 }
 

@@ -3606,9 +3606,18 @@ dependencies = [
  "log",
  "paste",
  "rand",
+ "sha3",
  "uhlc",
  "web-sys",
  "zenoh-derive",
+]
+
+[[package]]
+name = "zenoh-sansio"
+version = "0.1.0"
+dependencies = [
+ "sha3",
+ "zenoh-proto",
 ]
 
 [[package]]

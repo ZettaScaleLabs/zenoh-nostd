@@ -2,7 +2,7 @@ use core::hint::unreachable_unchecked;
 
 use crate::{
     api::{Session, ZConfig, callbacks::*, driver::*},
-    io::transport::{Transport, TransportConfig},
+    io::transport::{TransportConfig, TransportLink},
 };
 
 use embassy_sync::{blocking_mutex::raw::NoopRawMutex, mutex::Mutex};
@@ -18,7 +18,7 @@ where
     Init {
         #[allow(unused)]
         platform: Config::Platform,
-        transport: Transport<Config::Platform>,
+        transport: TransportLink<Config::Platform>,
     },
 }
 
@@ -42,7 +42,7 @@ where
     pub(crate) fn init(
         &mut self,
         config: Config,
-        transport: Transport<Config::Platform>,
+        transport: TransportLink<Config::Platform>,
         tconfig: TransportConfig,
     ) -> Session<'_, Config> {
         let (platform, tx_buf, rx_buf) = config.into_parts();
