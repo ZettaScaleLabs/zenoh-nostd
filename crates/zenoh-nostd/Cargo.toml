@@ -22,11 +22,11 @@ defmt = ["zenoh-proto/defmt"]
 
 [dependencies]
 zenoh-proto.workspace = true
+
 sha3.workspace = true
 dyn-utils.workspace = true
+heapless.workspace = true
 
 embassy-futures.workspace = true
 embassy-time.workspace = true
 embassy-sync.workspace = true
-heapless.workspace = true
-paste.workspace = true

@@ -3593,7 +3593,6 @@ dependencies = [
  "embassy-sync 0.7.2",
  "embassy-time",
  "heapless 0.8.0",
- "paste",
  "sha3",
  "zenoh-proto",
 ]

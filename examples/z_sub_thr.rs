@@ -47,7 +47,7 @@ async fn entry(spawner: embassy_executor::Spawner) -> zenoh::ZResult<()> {
         embassy_sync::signal::Signal::<embassy_sync::blocking_mutex::raw::NoopRawMutex, ()>::new();
 
     let config = init_example(&spawner).await;
-    let mut resources = zenoh::Resources::new();
+    let mut resources = zenoh::Resources::default();
     let session = zenoh::open(&mut resources, config, zenoh::EndPoint::try_from(CONNECT)?).await?;
 
     let mut stats = Stats {

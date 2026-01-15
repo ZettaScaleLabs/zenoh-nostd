@@ -75,8 +75,13 @@ macro_rules! open {
         static SESSION: static_cell::StaticCell<$crate::Session<'static, $CONFIG>> =
             static_cell::StaticCell::new();
 
-        SESSION
-            .init($crate::open(RESOURCES.init($crate::Resources::new()), $config, $endpoint).await?)
-            as &'static $crate::Session<'static, $CONFIG>
+        SESSION.init(
+            $crate::open(
+                RESOURCES.init($crate::Resources::default()),
+                $config,
+                $endpoint,
+            )
+            .await?,
+        ) as &'static $crate::Session<'static, $CONFIG>
     }};
 }

@@ -1,4 +1,4 @@
-use std::hint::unreachable_unchecked;
+use core::hint::unreachable_unchecked;
 
 use crate::{
     api::{Session, ZConfig, callbacks::*, driver::*},
@@ -8,10 +8,12 @@ use crate::{
 use embassy_sync::{blocking_mutex::raw::NoopRawMutex, mutex::Mutex};
 use embassy_time::Instant;
 
+#[derive(Default)]
 pub enum ResourcesInner<Config>
 where
     Config: ZConfig,
 {
+    #[default]
     Uninit,
     Init {
         #[allow(unused)]
@@ -24,14 +26,19 @@ pub struct Resources<Config>(ResourcesInner<Config>)
 where
     Config: ZConfig;
 
+impl<Config> Default for Resources<Config>
+where
+    Config: ZConfig,
+{
+    fn default() -> Self {
+        Self(ResourcesInner::default())
+    }
+}
+
 impl<Config> Resources<Config>
 where
     Config: ZConfig,
 {
-    pub fn new() -> Self {
-        Self(ResourcesInner::Uninit)
-    }
-
     pub(crate) fn init(
         &mut self,
         config: Config,

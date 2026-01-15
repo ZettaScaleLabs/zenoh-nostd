@@ -35,7 +35,7 @@ async fn entry(spawner: embassy_executor::Spawner) -> zenoh::ZResult<()> {
     zenoh::info!("zenoh-nostd z_get example");
 
     let config = init_example(&spawner).await;
-    let mut resources = zenoh::Resources::new();
+    let mut resources = zenoh::Resources::default();
     let session = zenoh::open(&mut resources, config, zenoh::EndPoint::try_from(CONNECT)?).await?;
 
     // In the following code we use the direct `callback` API. `zenoh` lets you provide either `sync` or `async` callbacks for your convenience.
