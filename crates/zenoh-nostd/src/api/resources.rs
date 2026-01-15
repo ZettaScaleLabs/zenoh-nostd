@@ -1,3 +1,5 @@
+use std::hint::unreachable_unchecked;
+
 use crate::{
     api::{Session, ZConfig, callbacks::*, driver::*},
     io::transport::{Transport, TransportConfig},
@@ -6,57 +8,50 @@ use crate::{
 use embassy_sync::{blocking_mutex::raw::NoopRawMutex, mutex::Mutex};
 use embassy_time::Instant;
 
-pub struct Resources<Config>
+pub enum ResourcesInner<Config>
 where
     Config: ZConfig,
 {
-    platform: Option<Config::Platform>,
-    transport: Option<Transport<Config::Platform>>,
+    Uninit,
+    Init {
+        #[allow(unused)]
+        platform: Config::Platform,
+        transport: Transport<Config::Platform>,
+    },
 }
 
-impl<Config> Default for Resources<Config>
+pub struct Resources<Config>(ResourcesInner<Config>)
 where
-    Config: ZConfig,
-{
-    fn default() -> Self {
-        Self::new()
-    }
-}
+    Config: ZConfig;
 
 impl<Config> Resources<Config>
 where
     Config: ZConfig,
 {
     pub fn new() -> Self {
-        Self {
-            platform: None,
-            transport: None,
-        }
+        Self(ResourcesInner::Uninit)
     }
-}
 
-impl<Config> Resources<Config>
-where
-    Config: ZConfig,
-{
     pub(crate) fn init(
         &mut self,
         config: Config,
         transport: Transport<Config::Platform>,
         tconfig: TransportConfig,
     ) -> Session<'_, Config> {
-        let Self {
-            platform: platform_ref_mut,
-            transport: transport_ref_mut,
-        } = self;
-
         let (platform, tx_buf, rx_buf) = config.into_parts();
 
-        *platform_ref_mut = Some(platform);
-        *transport_ref_mut = Some(transport);
+        self.0 = ResourcesInner::Init {
+            platform,
+            transport,
+        };
+
+        let transport_ref_mut = match &mut self.0 {
+            ResourcesInner::Init { transport, .. } => transport,
+            _ => unsafe { unreachable_unchecked() },
+        };
 
         let (tx, rx) = {
-            let (tx, rx) = transport_ref_mut.as_mut().unwrap().split();
+            let (tx, rx) = transport_ref_mut.split();
             (
                 DriverTx {
                     tx_buf,

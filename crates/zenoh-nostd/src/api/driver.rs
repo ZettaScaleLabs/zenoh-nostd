@@ -14,42 +14,42 @@ use crate::{
     io::transport::{TransportMineConfig, TransportOtherConfig, TransportRx, TransportTx},
 };
 
-pub struct DriverTx<'transport, Config>
+pub struct DriverTx<'res, Config>
 where
     Config: ZConfig,
 {
     pub(crate) tx_buf: Config::TxBuf,
-    pub(crate) tx: TransportTx<'transport, Config::Platform>,
+    pub(crate) tx: TransportTx<'res, Config::Platform>,
     pub(crate) sn: u32,
 
     pub(crate) next_keepalive: Instant,
     pub(crate) config: TransportMineConfig,
 }
 
-pub struct DriverRx<'transport, Config>
+pub struct DriverRx<'res, Config>
 where
     Config: ZConfig,
 {
     pub(crate) rx_buf: Config::RxBuf,
-    pub(crate) rx: TransportRx<'transport, Config::Platform>,
+    pub(crate) rx: TransportRx<'res, Config::Platform>,
 
     pub(crate) last_read: Instant,
     pub(crate) config: TransportOtherConfig,
 }
 
-pub struct Driver<'transport, Config>
+pub struct Driver<'res, Config>
 where
     Config: ZConfig,
 {
-    pub(crate) tx: Mutex<NoopRawMutex, DriverTx<'transport, Config>>,
-    pub(crate) rx: Mutex<NoopRawMutex, DriverRx<'transport, Config>>,
+    pub(crate) tx: Mutex<NoopRawMutex, DriverTx<'res, Config>>,
+    pub(crate) rx: Mutex<NoopRawMutex, DriverRx<'res, Config>>,
 }
 
-impl<'transport, Config> Driver<'transport, Config>
+impl<'res, Config> Driver<'res, Config>
 where
     Config: ZConfig,
 {
-    pub(crate) fn new(tx: DriverTx<'transport, Config>, rx: DriverRx<'transport, Config>) -> Self {
+    pub(crate) fn new(tx: DriverTx<'res, Config>, rx: DriverRx<'res, Config>) -> Self {
         Self {
             tx: Mutex::new(tx),
             rx: Mutex::new(rx),

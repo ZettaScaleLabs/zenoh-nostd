@@ -3,7 +3,7 @@ use embassy_time::Timer;
 
 use crate::{api::ZConfig, io::transport::ZTransportRx};
 
-impl<'transport, Config> super::DriverRx<'transport, Config>
+impl<'res, Config> super::DriverRx<'res, Config>
 where
     Config: ZConfig,
 {

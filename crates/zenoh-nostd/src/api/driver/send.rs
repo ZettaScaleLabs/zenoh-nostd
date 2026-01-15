@@ -5,11 +5,11 @@ use zenoh_proto::{exts::*, fields::*, *};
 
 use crate::{api::ZConfig, io::transport::ZTransportTx};
 
-impl<'transport, Config> super::DriverTx<'transport, Config>
+impl<'res, Config> super::DriverTx<'res, Config>
 where
     Config: ZConfig,
 {
-    pub async fn framed(&mut self, x: impl ZFramed) -> crate::ZResult<()> {
+    async fn framed(&mut self, x: impl ZFramed) -> crate::ZResult<()> {
         self.tx
             .send(self.tx_buf.as_mut(), &mut self.sn, |batch| {
                 batch.framed(&x, Reliability::Reliable, QoS::default())?;
@@ -42,7 +42,7 @@ where
     }
 }
 
-impl<'transport, Config> super::Driver<'transport, Config>
+impl<'res, Config> super::Driver<'res, Config>
 where
     Config: ZConfig,
 {
