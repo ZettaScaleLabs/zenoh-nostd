@@ -43,11 +43,11 @@ bench filter="bench":
 
 # Special `std` examples
 
-flood:
-    cargo run -p zenoh-proto --release --features=std,log --example z_flood
+flood *args:
+    cargo run -p zenoh-sansio --release --features=std,log --example z_flood -- {{ args }}
 
-drain:
-    cargo run -p zenoh-proto --release --features=std,log --example z_drain
+drain *args:
+    cargo run -p zenoh-sansio --release --features=std,log --example z_drain -- {{ args }}
 
 ping:
     RUST_LOG=trace cargo run --release --features=std,log --example z_ping

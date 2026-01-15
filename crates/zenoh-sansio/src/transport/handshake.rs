@@ -59,7 +59,6 @@ impl<'a, Buff, T, Read, Write> Handshake<Buff, T, Read, Write> {
         &mut self,
     ) -> core::result::Result<Option<HandshakeReady<'_, Buff, T, Read, Write>>, TransportError>
     where
-        T: Copy,
         E: Display,
         Buff: Clone + AsMut<[u8]> + AsRef<[u8]>,
         Read: FnMut(&mut T, &mut [u8]) -> core::result::Result<usize, E>,
@@ -94,19 +93,12 @@ impl<'a, Buff, T, Read, Write> Handshake<Buff, T, Read, Write> {
                         unreachable!()
                     }
                 }
-                extern crate std;
 
                 rx.decode_with(|bytes| read(handle, bytes))?;
                 let resp = rx
                     .flush_t()
-                    .map(|msg| {
-                        std::println!("Received {:?}", msg.0);
-                        state.poll(msg)
-                    })
-                    .map(|response| {
-                        std::println!("Sending {:?}", response.0);
-                        response.0
-                    })
+                    .map(|msg| state.poll(msg))
+                    .map(|response| response.0)
                     .flatten();
                 tx.encode_t(resp);
                 if let Some(bytes) = tx.flush() {
@@ -117,6 +109,20 @@ impl<'a, Buff, T, Read, Write> Handshake<Buff, T, Read, Write> {
                 }
 
                 Ok(None)
+            }
+        }
+    }
+
+    pub fn finish<E>(mut self) -> core::result::Result<OpenedTransport<Buff>, TransportError>
+    where
+        E: Display,
+        Buff: Clone + AsMut<[u8]> + AsRef<[u8]>,
+        Read: FnMut(&mut T, &mut [u8]) -> core::result::Result<usize, E>,
+        Write: FnMut(&mut T, &[u8]) -> core::result::Result<(), E>,
+    {
+        loop {
+            if let Some(ready) = self.poll()? {
+                break Ok(ready.open());
             }
         }
     }

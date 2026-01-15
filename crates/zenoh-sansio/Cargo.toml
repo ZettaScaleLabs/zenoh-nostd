@@ -24,3 +24,13 @@ defmt = ["zenoh-proto/defmt"]
 zenoh-proto.workspace = true
 
 sha3.workspace = true
+
+[[example]]
+name = "z_flood"
+path = "examples/z_flood.rs"
+required-features = ["std"]
+
+[[example]]
+name = "z_drain"
+path = "examples/z_drain.rs"
+required-features = ["std"]

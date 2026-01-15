@@ -66,32 +66,33 @@ fn transport_state_handshake() {
 
 #[test]
 fn transport_handshake() {
-    let socket = ([0u8; 512], 0usize);
+    let socket = ([0u8; 512], 0usize, 0usize);
     let socket_ref = RefCell::new(socket);
 
     let a = Transport::new([0u8; 512]);
     let b = Transport::new([0u8; 512]);
 
-    extern crate std;
-
-    let read = |socket: &mut &RefCell<([u8; 512], usize)>,
+    let read = |socket: &mut &RefCell<([u8; 512], usize, usize)>,
                 bytes: &mut [u8]|
      -> core::result::Result<usize, i32> {
-        let borrow = socket.borrow();
-        let slice = &borrow.0[..borrow.1];
+        let mut borrow_mut = socket.borrow_mut();
 
+        let to_read = bytes.len().min(borrow_mut.2);
+
+        let slice = &borrow_mut.0[borrow_mut.1..(to_read + borrow_mut.1)];
         bytes[..slice.len()].copy_from_slice(slice);
-        Ok(slice.len())
+        borrow_mut.1 += to_read;
+
+        Ok(to_read)
     };
 
-    let write = |socket: &mut &RefCell<([u8; 512], usize)>,
+    let write = |socket: &mut &RefCell<([u8; 512], usize, usize)>,
                  bytes: &[u8]|
      -> core::result::Result<(), i32> {
-        std::println!("Writing message of size {}", bytes.len());
-
         let mut borrow_mut = socket.borrow_mut();
         borrow_mut.0[..bytes.len()].copy_from_slice(bytes);
-        borrow_mut.1 = bytes.len();
+        borrow_mut.1 = 0;
+        borrow_mut.2 = bytes.len();
         Ok(())
     };
 
@@ -118,39 +119,33 @@ fn transport_handshake() {
 
 #[test]
 fn transport_handshake_streamed() {
-    let socket = ([0u8; 512], 0usize);
+    let socket = ([0u8; 512], 0usize, 0usize);
     let socket_ref = RefCell::new(socket);
 
-    let a = Transport::new([0u8; 512]).streamed();
-    let b = Transport::new([0u8; 512]).streamed();
+    let a = Transport::new([0u8; 512]);
+    let b = Transport::new([0u8; 512]);
 
-    extern crate std;
-
-    let read = |socket: &mut &RefCell<([u8; 512], usize)>,
+    let read = |socket: &mut &RefCell<([u8; 512], usize, usize)>,
                 bytes: &mut [u8]|
      -> core::result::Result<usize, i32> {
-        let borrow = socket.borrow();
+        let mut borrow_mut = socket.borrow_mut();
 
-        std::println!("Reading message of size {}/{}", borrow.1, bytes.len());
-        if bytes.len() == 2 {
-            bytes.copy_from_slice(&borrow.0[..2]);
-            return Ok(2);
-        }
+        let to_read = bytes.len().min(borrow_mut.2);
 
-        let slice = &borrow.0[2..borrow.1];
-
+        let slice = &borrow_mut.0[borrow_mut.1..(to_read + borrow_mut.1)];
         bytes[..slice.len()].copy_from_slice(slice);
-        Ok(slice.len())
+        borrow_mut.1 += to_read;
+
+        Ok(to_read)
     };
 
-    let write = |socket: &mut &RefCell<([u8; 512], usize)>,
+    let write = |socket: &mut &RefCell<([u8; 512], usize, usize)>,
                  bytes: &[u8]|
      -> core::result::Result<(), i32> {
-        std::println!("Writing message of size {}", bytes.len());
-
         let mut borrow_mut = socket.borrow_mut();
         borrow_mut.0[..bytes.len()].copy_from_slice(bytes);
-        borrow_mut.1 = bytes.len();
+        borrow_mut.1 = 0;
+        borrow_mut.2 = bytes.len();
         Ok(())
     };
 
