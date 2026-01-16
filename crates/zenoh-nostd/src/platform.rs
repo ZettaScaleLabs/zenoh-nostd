@@ -9,7 +9,7 @@ pub trait ZPlatform {
     type UdpSocket: udp::ZUdpSocket;
     type WebSocket: ws::ZWebSocket;
 
-    fn new_tcp_stream(
+    fn connect_tcp(
         &self,
         addr: &SocketAddr,
     ) -> impl Future<Output = core::result::Result<Self::TcpStream, crate::ConnectionError>> {
@@ -17,7 +17,15 @@ pub trait ZPlatform {
         async { Err(crate::ConnectionError::CouldNotConnect) }
     }
 
-    fn new_udp_socket(
+    fn listen_tcp(
+        &self,
+        addr: &SocketAddr,
+    ) -> impl Future<Output = core::result::Result<Self::TcpStream, crate::ConnectionError>> {
+        let _ = addr;
+        async { Err(crate::ConnectionError::CouldNotConnect) }
+    }
+
+    fn connect_udp(
         &self,
         addr: &SocketAddr,
     ) -> impl Future<Output = core::result::Result<Self::UdpSocket, crate::ConnectionError>> {
@@ -25,7 +33,7 @@ pub trait ZPlatform {
         async { Err(crate::ConnectionError::CouldNotConnect) }
     }
 
-    fn new_websocket_stream(
+    fn connect_websocket(
         &self,
         addr: &SocketAddr,
     ) -> impl Future<Output = core::result::Result<Self::WebSocket, crate::ConnectionError>> {

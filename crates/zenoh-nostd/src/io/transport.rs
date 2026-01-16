@@ -1,202 +1,261 @@
-use embassy_futures::select::select;
-use embassy_time::{Duration, Timer};
-use zenoh_proto::{fields::*, *};
+use embassy_time::{Duration, with_timeout};
+use zenoh_proto::{
+    exts::QoS,
+    fields::*,
+    msgs::{KeepAlive, NetworkBody, NetworkMessage, TransportMessage},
+    *,
+};
+use zenoh_sansio::{Transport, TransportRx, TransportTx, ZTransportRx, ZTransportTx};
 
 use crate::{
+    ZConfig,
     io::link::{Link, LinkRx, LinkTx, ZLink, ZLinkInfo, ZLinkRx, ZLinkTx},
-    platform::ZPlatform,
 };
-
-mod establishment;
-
-#[derive(Clone)]
-pub struct TransportMineConfig {
-    pub mine_zid: ZenohIdProto,
-    pub mine_lease: Duration,
-
-    pub keep_alive: usize,
-    pub open_timeout: Duration,
-}
-
-#[allow(dead_code)]
-#[derive(Clone)]
-pub struct TransportOtherConfig {
-    pub other_whatami: WhatAmI,
-    pub other_zid: ZenohIdProto,
-    pub other_sn: u32,
-    pub other_lease: Duration,
-}
-
-#[allow(dead_code)]
-#[derive(Clone)]
-pub struct TransportNegociatedConfig {
-    pub mine_sn: u32,
-
-    pub resolution: Resolution,
-    pub batch_size: u16,
-}
 
 #[derive(Clone)]
 pub struct TransportConfig {
-    pub mine_config: TransportMineConfig,
-    pub other_config: TransportOtherConfig,
-    pub negociated_config: TransportNegociatedConfig,
+    pub zid: ZenohIdProto,
+    pub lease: Duration,
+    pub resolution: Resolution,
+
+    pub open_timeout: Duration,
 }
 
-pub struct TransportLink<Platform>
+pub struct TransportLink<Config>
 where
-    Platform: ZPlatform,
+    Config: ZConfig,
 {
-    link: Link<Platform>,
+    link: Link<<Config as ZConfig>::Platform>,
+    transport: Transport<<Config as ZConfig>::Buff>,
 }
 
-impl<Platform> TransportLink<Platform>
+impl<Config> TransportLink<Config>
 where
-    Platform: ZPlatform,
+    Config: ZConfig,
 {
-    pub async fn open(
-        link: Link<Platform>,
-        config: TransportMineConfig,
-        tx: &mut impl AsMut<[u8]>,
-        rx: &mut impl AsMut<[u8]>,
-    ) -> core::result::Result<(Self, TransportConfig), crate::TransportLinkError> {
-        match select(Timer::after(config.open_timeout), async {
-            establishment::open::open_link(link, config, tx, rx).await
-        })
-        .await
-        {
-            embassy_futures::select::Either::First(_) => {
-                zbail!(crate::TransportLinkError::OpenTimeout);
-            }
-            embassy_futures::select::Either::Second(res) => res,
-        }
+    pub async fn connect(
+        mut link: Link<<Config as ZConfig>::Platform>,
+        config: TransportConfig,
+        buff: <Config as ZConfig>::Buff,
+    ) -> core::result::Result<Self, crate::TransportLinkError> {
+        let connect = async move || {
+            let transport = Transport::builder(buff)
+                .with_zid(config.zid)
+                .with_streamed(link.is_streamed())
+                .with_lease(config.lease.into())
+                .with_resolution(config.resolution)
+                .connect_async(
+                    &mut link,
+                    async |link, bytes| {
+                        if link.is_streamed() {
+                            link.read_exact(bytes).await.map(|_| bytes.len())
+                        } else {
+                            link.read(bytes).await
+                        }
+                    },
+                    async |link, bytes| link.write_all(bytes).await,
+                )
+                .await?
+                .finish_async()
+                .await?;
+
+            Ok(Self { link, transport })
+        };
+
+        with_timeout(config.open_timeout, connect())
+            .await
+            .map_err(|_| TransportLinkError::OpenTimeout)
+            .flatten()
     }
 
-    pub fn split(&mut self) -> (TransportLinkTx<'_, Platform>, TransportLinkRx<'_, Platform>) {
+    pub async fn listen(
+        mut link: Link<<Config as ZConfig>::Platform>,
+        config: TransportConfig,
+        buff: <Config as ZConfig>::Buff,
+    ) -> core::result::Result<Self, crate::TransportLinkError> {
+        let connect = async move || {
+            let transport = Transport::builder(buff)
+                .with_zid(config.zid)
+                .with_streamed(link.is_streamed())
+                .with_lease(config.lease.into())
+                .with_resolution(config.resolution)
+                .listen_async(
+                    &mut link,
+                    async |link, bytes| {
+                        if link.is_streamed() {
+                            link.read_exact(bytes).await.map(|_| bytes.len())
+                        } else {
+                            link.read(bytes).await
+                        }
+                    },
+                    async |link, bytes| link.write_all(bytes).await,
+                )
+                .finish_async()
+                .await?;
+
+            Ok(Self { link, transport })
+        };
+
+        with_timeout(config.open_timeout, connect())
+            .await
+            .map_err(|_| TransportLinkError::OpenTimeout)
+            .flatten()
+    }
+
+    pub fn split(&mut self) -> (TransportLinkTx<'_, Config>, TransportLinkRx<'_, Config>) {
         let (link_tx, link_rx) = self.link.split();
 
         (
-            TransportLinkTx { tx: link_tx },
-            TransportLinkRx { rx: link_rx },
+            TransportLinkTx {
+                link: link_tx,
+                transport: &mut self.transport.tx,
+            },
+            TransportLinkRx {
+                link: link_rx,
+                transport: &mut self.transport.rx,
+            },
         )
     }
 }
 
-pub struct TransportLinkTx<'a, Platform>
+pub struct TransportLinkTx<'a, Config>
 where
-    Platform: ZPlatform,
+    Config: ZConfig,
 {
-    tx: LinkTx<'a, Platform>,
+    pub link: LinkTx<'a, <Config as ZConfig>::Platform>,
+    pub transport: &'a mut TransportTx<<Config as ZConfig>::Buff>,
 }
 
-pub struct TransportLinkRx<'a, Platform>
+pub struct TransportLinkRx<'a, Config>
 where
-    Platform: ZPlatform,
+    Config: ZConfig,
 {
-    rx: LinkRx<'a, Platform>,
+    pub link: LinkRx<'a, <Config as ZConfig>::Platform>,
+    pub transport: &'a mut TransportRx<<Config as ZConfig>::Buff>,
 }
 
 pub trait ZTransportLinkTx {
-    fn tx(&mut self) -> &mut impl ZLinkTx;
+    fn tx(&mut self) -> (&mut impl ZLinkTx, &mut impl ZTransportTx);
 
-    fn send(
+    fn send<'a>(
         &mut self,
-        tx: &mut [u8],
-        sn: &mut u32,
-        mut writer: impl FnMut(
-            &mut BatchWriter<&mut [u8]>,
-        ) -> core::result::Result<(), crate::CodecError>,
+        msgs: impl Iterator<Item = NetworkBody<'a>>,
     ) -> impl core::future::Future<Output = core::result::Result<(), crate::TransportLinkError>>
     {
-        let (mut batch, space) = if self.tx().is_streamed() {
-            let space = u16::MIN.to_le_bytes();
-            tx[..space.len()].copy_from_slice(&space);
-            (BatchWriter::new(&mut tx[space.len()..], *sn), space.len())
-        } else {
-            (BatchWriter::new(&mut tx[..], *sn), 0)
-        };
-
-        let res = writer(&mut batch);
-
-        let (next_sn, payload_len) = batch.finalize();
-        *sn = next_sn;
-
-        if self.tx().is_streamed() {
-            let len_bytes = (payload_len as u16).to_le_bytes();
-            tx[..space].copy_from_slice(&len_bytes);
-        }
+        let (link, transport) = self.tx();
+        transport.encode(msgs.map(|body| NetworkMessage {
+            reliability: Reliability::Reliable,
+            qos: QoS::default(),
+            body: body,
+        }));
 
         async move {
-            res?;
+            if let Some(bytes) = transport.flush() {
+                link.write_all(bytes).await.map_err(|e| e.into())
+            } else {
+                Ok(())
+            }
+        }
+    }
 
-            self.tx()
-                .write_all(&tx[..payload_len + space])
-                .await
-                .map_err(|e| e.into())
+    fn send_ref<'a>(
+        &mut self,
+        msgs: impl Iterator<Item = &'a NetworkMessage<'a>>,
+    ) -> impl core::future::Future<Output = core::result::Result<(), crate::TransportLinkError>>
+    {
+        let (link, transport) = self.tx();
+        transport.encode_ref(msgs);
+
+        async move {
+            if let Some(bytes) = transport.flush() {
+                link.write_all(bytes).await.map_err(|e| e.into())
+            } else {
+                Ok(())
+            }
+        }
+    }
+
+    fn keepalive(
+        &mut self,
+    ) -> impl core::future::Future<Output = core::result::Result<(), crate::TransportLinkError>>
+    {
+        let (link, transport) = self.tx();
+        transport.encode_t(core::iter::once(TransportMessage::KeepAlive(
+            KeepAlive::default(),
+        )));
+
+        async move {
+            if let Some(bytes) = transport.flush() {
+                link.write_all(bytes).await.map_err(|e| e.into())
+            } else {
+                Ok(())
+            }
         }
     }
 }
 
 pub trait ZTransportLinkRx {
-    fn rx(&mut self) -> &mut impl ZLinkRx;
+    fn rx(&mut self) -> (&mut impl ZLinkRx, &mut impl ZTransportRx);
 
     fn recv<'a>(
         &mut self,
-        rx: &'a mut [u8],
-    ) -> impl core::future::Future<Output = core::result::Result<&'a [u8], crate::TransportLinkError>>
-    {
+    ) -> impl core::future::Future<
+        Output = core::result::Result<
+            impl Iterator<Item = NetworkMessage<'_>>,
+            crate::TransportLinkError,
+        >,
+    > {
+        let (link, transport) = self.rx();
+        let streamed = link.is_streamed();
+
         async move {
-            let n = if self.rx().is_streamed() {
-                let mut len = u16::MIN.to_le_bytes();
-                self.rx().read_exact(&mut len).await?;
-                let l = u16::from_le_bytes(len) as usize;
+            transport
+                .decode_with_async(async |bytes| {
+                    if streamed {
+                        link.read_exact(bytes).await.map(|_| bytes.len())
+                    } else {
+                        link.read(bytes).await
+                    }
+                })
+                .await?;
 
-                self.rx().read_exact(&mut rx[..l]).await?;
-
-                l
-            } else {
-                self.rx().read(rx.as_mut()).await?
-            };
-
-            let slice: &'a [u8] = &rx[..n];
-
-            Ok(slice)
+            Ok(transport.flush())
         }
     }
 }
 
-impl<Platform> ZTransportLinkTx for TransportLinkTx<'_, Platform>
+impl<Config> ZTransportLinkTx for TransportLinkTx<'_, Config>
 where
-    Platform: ZPlatform,
+    Config: ZConfig,
 {
-    fn tx(&mut self) -> &mut impl ZLinkTx {
-        &mut self.tx
+    fn tx(&mut self) -> (&mut impl ZLinkTx, &mut impl ZTransportTx) {
+        (&mut self.link, self.transport)
     }
 }
 
-impl<Platform> ZTransportLinkRx for TransportLinkRx<'_, Platform>
+impl<Config> ZTransportLinkRx for TransportLinkRx<'_, Config>
 where
-    Platform: ZPlatform,
+    Config: ZConfig,
 {
-    fn rx(&mut self) -> &mut impl ZLinkRx {
-        &mut self.rx
+    fn rx(&mut self) -> (&mut impl ZLinkRx, &mut impl ZTransportRx) {
+        (&mut self.link, self.transport)
     }
 }
 
-impl<Platform> ZTransportLinkTx for TransportLink<Platform>
+impl<Config> ZTransportLinkTx for TransportLink<Config>
 where
-    Platform: ZPlatform,
+    Config: ZConfig,
 {
-    fn tx(&mut self) -> &mut impl ZLinkTx {
-        &mut self.link
+    fn tx(&mut self) -> (&mut impl ZLinkTx, &mut impl ZTransportTx) {
+        (&mut self.link, &mut self.transport.tx)
     }
 }
 
-impl<Platform> ZTransportLinkRx for TransportLink<Platform>
+impl<Config> ZTransportLinkRx for TransportLink<Config>
 where
-    Platform: ZPlatform,
+    Config: ZConfig,
 {
-    fn rx(&mut self) -> &mut impl ZLinkRx {
-        &mut self.link
+    fn rx(&mut self) -> (&mut impl ZLinkRx, &mut impl ZTransportRx) {
+        (&mut self.link, &mut self.transport.rx)
     }
 }

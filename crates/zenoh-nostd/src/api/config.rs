@@ -11,17 +11,13 @@ where
     Self: Sized + 'static,
 {
     type Platform: ZPlatform;
+    type Buff: AsMut<[u8]> + AsRef<[u8]> + Clone;
 
     type GetCallbacks<'res>: ZCallbacks<'res, ResponseRef>;
     type SubCallbacks<'res>: ZCallbacks<'res, SampleRef>;
     type QueryableCallbacks<'res>: ZCallbacks<'res, QueryRef<'res, Self>>;
 
-    type TxBuf: AsMut<[u8]>;
-    type RxBuf: AsMut<[u8]>;
-
     fn platform(&self) -> &Self::Platform;
-
-    fn txrx(&mut self) -> (&mut Self::TxBuf, &mut Self::RxBuf);
-
-    fn into_parts(self) -> (Self::Platform, Self::TxBuf, Self::RxBuf);
+    fn buff(&self) -> Self::Buff;
+    fn into_platform(self) -> Self::Platform;
 }

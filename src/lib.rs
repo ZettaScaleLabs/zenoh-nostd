@@ -63,12 +63,11 @@ const BUFF_SIZE: u16 = u16::MAX / 2;
 
 pub struct ExampleConfig {
     platform: Platform,
-    tx: [u8; BUFF_SIZE as usize],
-    rx: [u8; BUFF_SIZE as usize],
 }
 
 impl ZConfig for ExampleConfig {
     type Platform = Platform;
+    type Buff = [u8; BUFF_SIZE as usize];
 
     type GetCallbacks<'res> = FixedCapacityGetCallbacks<'res, 8, RawOrBox<1>, RawOrBox<32>>;
 
@@ -77,19 +76,16 @@ impl ZConfig for ExampleConfig {
     type QueryableCallbacks<'res> =
         FixedCapacityQueryableCallbacks<'res, Self, 8, RawOrBox<32>, RawOrBox<952>>;
 
-    type TxBuf = [u8; BUFF_SIZE as usize];
-    type RxBuf = [u8; BUFF_SIZE as usize];
-
     fn platform(&self) -> &Self::Platform {
         &self.platform
     }
 
-    fn txrx(&mut self) -> (&mut Self::TxBuf, &mut Self::RxBuf) {
-        (&mut self.tx, &mut self.rx)
+    fn buff(&self) -> Self::Buff {
+        [0u8; BUFF_SIZE as usize]
     }
 
-    fn into_parts(self) -> (Self::Platform, Self::TxBuf, Self::RxBuf) {
-        (self.platform, self.tx, self.rx)
+    fn into_platform(self) -> Self::Platform {
+        self.platform
     }
 }
 
@@ -99,8 +95,6 @@ pub async fn init_example(spawner: &embassy_executor::Spawner) -> ExampleConfig 
         let _ = spawner;
         ExampleConfig {
             platform: Platform {},
-            tx: [0; BUFF_SIZE as usize],
-            rx: [0; BUFF_SIZE as usize],
         }
     }
     #[cfg(feature = "wasm")]
@@ -108,8 +102,6 @@ pub async fn init_example(spawner: &embassy_executor::Spawner) -> ExampleConfig 
         let _ = spawner;
         ExampleConfig {
             platform: Platform {},
-            tx: [0; BUFF_SIZE as usize],
-            rx: [0; BUFF_SIZE as usize],
         }
     }
     #[cfg(feature = "esp32s3")]
@@ -200,8 +192,6 @@ pub async fn init_example(spawner: &embassy_executor::Spawner) -> ExampleConfig 
                 buffers,
                 metadatas,
             },
-            tx: [0; BUFF_SIZE as usize],
-            rx: [0; BUFF_SIZE as usize],
         }
     }
 }

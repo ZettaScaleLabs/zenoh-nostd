@@ -9,12 +9,12 @@ use zenoh_proto::{
     keyexpr,
     msgs::*,
 };
-use zenoh_sansio::{OpenedTransport, Transport};
+use zenoh_sansio::{Transport, TransportBuilder};
 
 const BATCH_SIZE: usize = u16::MAX as usize;
 
-fn open_listen(stream: &mut std::net::TcpStream) -> OpenedTransport<[u8; BATCH_SIZE]> {
-    Transport::new([0u8; BATCH_SIZE])
+fn open_listen(stream: &mut std::net::TcpStream) -> Transport<[u8; BATCH_SIZE]> {
+    Transport::builder([0u8; BATCH_SIZE])
         .streamed()
         .listen(
             stream,
@@ -25,8 +25,8 @@ fn open_listen(stream: &mut std::net::TcpStream) -> OpenedTransport<[u8; BATCH_S
         .expect("Error doing handshake")
 }
 
-fn open_connect(stream: &mut std::net::TcpStream) -> OpenedTransport<[u8; BATCH_SIZE]> {
-    Transport::new([0u8; BATCH_SIZE])
+fn open_connect(stream: &mut std::net::TcpStream) -> Transport<[u8; BATCH_SIZE]> {
+    Transport::builder([0u8; BATCH_SIZE])
         .streamed()
         .connect(
             stream,
@@ -38,10 +38,7 @@ fn open_connect(stream: &mut std::net::TcpStream) -> OpenedTransport<[u8; BATCH_
         .expect("Error doing handshake")
 }
 
-fn handle_client(
-    mut stream: std::net::TcpStream,
-    mut transport: OpenedTransport<[u8; BATCH_SIZE]>,
-) {
+fn handle_client(mut stream: std::net::TcpStream, mut transport: Transport<[u8; BATCH_SIZE]>) {
     let put = NetworkMessage {
         reliability: Reliability::default(),
         qos: QoS::default(),
@@ -56,6 +53,7 @@ fn handle_client(
     };
 
     transport.tx.encode_ref(core::iter::repeat_n(&put, 200));
+
     let bytes = transport.tx.flush().unwrap();
 
     println!("Sending indefinitely to {:?}...", stream.peer_addr());

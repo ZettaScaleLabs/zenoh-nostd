@@ -7,34 +7,26 @@ use core::ops::{Deref, DerefMut};
 use embassy_futures::select::{Either, select};
 use embassy_sync::{blocking_mutex::raw::NoopRawMutex, mutex::Mutex};
 use embassy_time::{Instant, Timer};
-use zenoh_proto::msgs::KeepAlive;
 
 use crate::{
     api::{ZConfig, resources::SessionResources},
-    io::transport::{TransportLinkRx, TransportLinkTx, TransportMineConfig, TransportOtherConfig},
+    io::transport::{TransportLinkRx, TransportLinkTx},
 };
 
 pub struct DriverTx<'res, Config>
 where
     Config: ZConfig,
 {
-    pub(crate) tx_buf: Config::TxBuf,
-    pub(crate) tx: TransportLinkTx<'res, Config::Platform>,
-    pub(crate) sn: u32,
-
+    pub(crate) tx: TransportLinkTx<'res, Config>,
     pub(crate) next_keepalive: Instant,
-    pub(crate) config: TransportMineConfig,
 }
 
 pub struct DriverRx<'res, Config>
 where
     Config: ZConfig,
 {
-    pub(crate) rx_buf: Config::RxBuf,
-    pub(crate) rx: TransportLinkRx<'res, Config::Platform>,
-
+    pub(crate) rx: TransportLinkRx<'res, Config>,
     pub(crate) last_read: Instant,
-    pub(crate) config: TransportOtherConfig,
 }
 
 pub struct Driver<'res, Config>
@@ -82,7 +74,7 @@ where
                     if Instant::now() >= tx.next_keepalive() {
                         zenoh_proto::trace!("Sending KeepAlive");
 
-                        tx.unframed(KeepAlive {}).await?;
+                        tx.keepalive().await?;
                     }
                 }
                 Either::Second(msg) => {

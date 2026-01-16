@@ -31,7 +31,7 @@ async fn entry(spawner: embassy_executor::Spawner) -> zenoh::ZResult<()> {
     let channel = CHANNEL.init(embassy_sync::channel::Channel::new());
 
     let config = init_example(&spawner).await;
-    let session = zenoh::open!(config => ExampleConfig, zenoh::EndPoint::try_from(CONNECT)?);
+    let session = zenoh::connect!(config => ExampleConfig, zenoh::EndPoint::try_from(CONNECT)?);
 
     spawner.spawn(session_task(session)).map_err(|e| {
         zenoh::error!("Error spawning task: {}", e);

@@ -206,7 +206,9 @@ where
             ..Default::default()
         };
 
-        self.driver.send(msg).await?;
+        self.driver
+            .send(core::iter::once(NetworkBody::Request(msg)))
+            .await?;
 
         Ok(Responses {
             timedout,

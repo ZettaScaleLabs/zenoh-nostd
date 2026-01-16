@@ -8,15 +8,17 @@ pub(crate) mod establishment;
 
 mod handshake;
 mod rx;
+mod traits;
 mod tx;
 
 pub use handshake::*;
 pub use rx::*;
+pub use traits::*;
 pub use tx::*;
 
 use crate::transport::establishment::State;
 
-pub struct Transport<Buff> {
+pub struct TransportBuilder<Buff> {
     zid: ZenohIdProto,
     streamed: bool,
     batch_size: u16,
@@ -26,12 +28,12 @@ pub struct Transport<Buff> {
     buff: Buff,
 }
 
-impl<Buff> Transport<Buff> {
-    pub fn new(buff: Buff) -> Self
+impl<Buff> TransportBuilder<Buff> {
+    fn new(buff: Buff) -> Self
     where
         Buff: AsRef<[u8]>,
     {
-        Transport {
+        TransportBuilder {
             zid: ZenohIdProto::default(),
             streamed: false,
             batch_size: buff.as_ref().len() as u16,
@@ -50,6 +52,11 @@ impl<Buff> Transport<Buff> {
         self
     }
 
+    pub fn with_streamed(mut self, streamed: bool) -> Self {
+        self.streamed = streamed;
+        self
+    }
+
     pub fn with_batch_size(mut self, batch_size: u16) -> Self {
         self.batch_size = batch_size;
         self
@@ -65,8 +72,8 @@ impl<Buff> Transport<Buff> {
         self
     }
 
-    pub fn with_buff<NewBuff>(self, buff: NewBuff) -> Transport<NewBuff> {
-        Transport {
+    pub fn with_buff<NewBuff>(self, buff: NewBuff) -> TransportBuilder<NewBuff> {
+        TransportBuilder {
             zid: self.zid,
             streamed: self.streamed,
             batch_size: self.batch_size,
@@ -76,11 +83,11 @@ impl<Buff> Transport<Buff> {
         }
     }
 
-    pub fn codec(self) -> OpenedTransport<Buff>
+    pub fn codec(self) -> Transport<Buff>
     where
         Buff: Clone,
     {
-        OpenedTransport {
+        Transport {
             tx: TransportTx::new(
                 self.buff.clone(),
                 self.streamed,
@@ -148,30 +155,54 @@ impl<Buff> Transport<Buff> {
             read,
             write,
         }
+    }
 
-        // let description = loop {
-        //     if let Some(description) = state.description() {
-        //         break description;
-        //     }
+    pub fn listen_async<T, E, Read, Write>(
+        self,
+        handle: T,
+        read: Read,
+        write: Write,
+    ) -> Handshake<Buff, T, Read, Write>
+    where
+        E: Display,
+        Buff: Clone + AsMut<[u8]> + AsRef<[u8]>,
+        Read: AsyncFnMut(&mut T, &mut [u8]) -> core::result::Result<usize, E>,
+        Write: AsyncFnMut(&mut T, &[u8]) -> core::result::Result<(), E>,
+    {
+        let state = State::WaitingInitSyn {
+            mine_zid: self.zid,
+            mine_batch_size: self.batch_size,
+            mine_resolution: self.resolution,
+            mine_lease: self.lease,
+        };
 
-        //     rx.decode_with(|bytes| read(handle, bytes))?;
-        //     let resp = rx
-        //         .flush_t()
-        //         .map(|msg| state.poll(msg))
-        //         .map(|response| response.0)
-        //         .flatten();
-        //     tx.encode_t(resp);
-        //     if let Some(bytes) = tx.flush() {
-        //         write(handle, bytes).map_err(|e| {
-        //             zenoh_proto::error!("{e}");
-        //             TransportError::CouldNotRead
-        //         })?;
-        //     }
-        // };
+        let tx = TransportTx::new(
+            self.buff.clone(),
+            self.streamed,
+            self.batch_size as usize,
+            0,
+            self.resolution,
+            self.lease,
+        );
 
-        // let (tx, rx) = (tx.into_inner(), rx.into_inner());
+        let rx = TransportRx::new(
+            self.buff,
+            self.streamed,
+            self.batch_size as usize,
+            0,
+            self.resolution,
+            self.lease,
+        );
 
-        // Ok(OpenedTransport::new(description, self.streamed, tx, rx))
+        Handshake::Pending {
+            state,
+            streamed: self.streamed,
+            tx,
+            rx,
+            handle,
+            read,
+            write,
+        }
     }
 
     pub fn connect<T, E, Read, Write>(
@@ -239,35 +270,77 @@ impl<Buff> Transport<Buff> {
             read,
             write,
         })
+    }
 
-        // let description = loop {
-        //     if let Some(description) = state.description() {
-        //         break description;
-        //     }
+    pub async fn connect_async<T, E, Read, Write>(
+        self,
+        mut handle: T,
+        read: Read,
+        mut write: Write,
+    ) -> core::result::Result<Handshake<Buff, T, Read, Write>, TransportError>
+    where
+        E: Display,
+        Buff: Clone + AsMut<[u8]> + AsRef<[u8]>,
+        Read: AsyncFnMut(&mut T, &mut [u8]) -> core::result::Result<usize, E>,
+        Write: AsyncFnMut(&mut T, &[u8]) -> core::result::Result<(), E>,
+    {
+        let state = State::WaitingInitAck {
+            mine_zid: self.zid,
+            mine_batch_size: self.batch_size,
+            mine_resolution: self.resolution,
+            mine_lease: self.lease,
+        };
 
-        //     rx.decode_with(|bytes| read(handle, bytes))?;
-        //     let resp = rx
-        //         .flush_t()
-        //         .map(|msg| state.poll(msg))
-        //         .map(|response| response.0)
-        //         .flatten();
+        let mut tx = TransportTx::new(
+            self.buff.clone(),
+            self.streamed,
+            self.batch_size as usize,
+            0,
+            self.resolution,
+            self.lease,
+        );
 
-        //     tx.encode_t(resp);
-        //     if let Some(bytes) = tx.flush() {
-        //         write(handle, bytes).map_err(|e| {
-        //             zenoh_proto::error!("{e}");
-        //             TransportError::CouldNotRead
-        //         })?;
-        //     }
-        // };
+        let rx = TransportRx::new(
+            self.buff,
+            self.streamed,
+            self.batch_size as usize,
+            0,
+            self.resolution,
+            self.lease,
+        );
 
-        // let (tx, rx) = (tx.into_inner(), rx.into_inner());
+        tx.encode_t(core::iter::once(TransportMessage::InitSyn(InitSyn {
+            identifier: InitIdentifier {
+                zid: self.zid,
+                ..Default::default()
+            },
+            resolution: InitResolution {
+                resolution: self.resolution,
+                batch_size: BatchSize(self.batch_size),
+            },
+            ..Default::default()
+        })));
 
-        // Ok(OpenedTransport::new(description, self.streamed, tx, rx))
+        if let Some(bytes) = tx.flush() {
+            write(&mut handle, bytes).await.map_err(|e| {
+                zenoh_proto::error!("{e}");
+                TransportError::CouldNotRead
+            })?;
+        }
+
+        Ok(Handshake::Pending {
+            state,
+            streamed: self.streamed,
+            tx,
+            rx,
+            handle,
+            read,
+            write,
+        })
     }
 }
 
-pub struct OpenedTransport<Buff> {
+pub struct Transport<Buff> {
     pub tx: TransportTx<Buff>,
     pub rx: TransportRx<Buff>,
 
@@ -275,7 +348,14 @@ pub struct OpenedTransport<Buff> {
     pub other_zid: ZenohIdProto,
 }
 
-impl<Buff> OpenedTransport<Buff> {
+impl<Buff> Transport<Buff> {
+    pub fn builder(buff: Buff) -> TransportBuilder<Buff>
+    where
+        Buff: AsRef<[u8]>,
+    {
+        TransportBuilder::new(buff)
+    }
+
     pub(crate) fn new(description: Description, streamed: bool, tx: Buff, rx: Buff) -> Self {
         Self {
             tx: TransportTx::new(

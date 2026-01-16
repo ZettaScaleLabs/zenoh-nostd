@@ -1,12 +1,14 @@
 use crate::{
-    api::{EndPoint, Resources, ZConfig, driver::Driver, resources::SessionResources},
+    EndPoint,
+    api::{Resources, ZConfig, driver::Driver, resources::SessionResources},
     io::{
         link::Link,
-        transport::{TransportLink, TransportMineConfig},
+        transport::{TransportConfig, TransportLink},
     },
 };
 
 use embassy_time::Duration;
+use zenoh_proto::fields::{Resolution, ZenohIdProto};
 
 mod get;
 mod r#pub;
@@ -35,36 +37,62 @@ where
 }
 
 /// Create a session bounded to the lifetimes of the `zenoh_nocore::Resources`.
-pub async fn open<'res, Config>(
+pub async fn connect<'res, Config>(
     resources: &'res mut Resources<Config>,
-    mut config: Config,
+    config: Config,
     endpoint: EndPoint<'_>,
 ) -> crate::ZResult<Session<'res, Config>>
 where
     Config: ZConfig,
 {
-    let link = Link::new(config.platform(), endpoint).await?;
+    let link = Link::connect(config.platform(), endpoint).await?;
 
-    let (tx, rx) = config.txrx();
-    let (transport, tconfig) = TransportLink::open(
+    let transport = TransportLink::connect(
         link,
-        TransportMineConfig {
-            mine_zid: Default::default(),
-            mine_lease: Duration::from_secs(20),
-            keep_alive: 4,
+        TransportConfig {
+            zid: ZenohIdProto::default(),
+            lease: Duration::from_secs(20),
+            resolution: Resolution::default(),
+
             open_timeout: Duration::from_secs(5),
         },
-        tx,
-        rx,
+        config.buff(),
     )
     .await?;
 
-    Ok(resources.init(config, transport, tconfig))
+    Ok(resources.init(config, transport))
 }
 
-/// Alternative version of `zenoh_nocore::open` that creates an `'static` `zenoh_nocore::Session`.
+/// Create a session bounded to the lifetimes of the `zenoh_nocore::Resources`.
+pub async fn listen<'res, Config>(
+    resources: &'res mut Resources<Config>,
+    config: Config,
+    endpoint: EndPoint<'_>,
+) -> crate::ZResult<Session<'res, Config>>
+where
+    Config: ZConfig,
+{
+    let link = Link::listen(config.platform(), endpoint).await?;
+
+    let transport = TransportLink::listen(
+        link,
+        TransportConfig {
+            zid: ZenohIdProto::default(),
+            lease: Duration::from_secs(20),
+            resolution: Resolution::default(),
+
+            open_timeout: Duration::from_secs(5),
+        },
+        config.buff(),
+    )
+    .await?;
+
+    Ok(resources.init(config, transport))
+}
+
+/// Alternative version of `zenoh_nocore::connect` that creates an `'static` `zenoh_nocore::Session`.
 #[macro_export]
-macro_rules! open {
+macro_rules! connect {
     (
         $config:expr => $CONFIG:ty,
         $endpoint:expr
@@ -76,7 +104,31 @@ macro_rules! open {
             static_cell::StaticCell::new();
 
         SESSION.init(
-            $crate::open(
+            $crate::connect(
+                RESOURCES.init($crate::Resources::default()),
+                $config,
+                $endpoint,
+            )
+            .await?,
+        ) as &'static $crate::Session<'static, $CONFIG>
+    }};
+}
+
+/// Alternative version of `zenoh_nocore::listen` that creates an `'static` `zenoh_nocore::Session`.
+#[macro_export]
+macro_rules! listen {
+    (
+        $config:expr => $CONFIG:ty,
+        $endpoint:expr
+    ) => {{
+        static RESOURCES: static_cell::StaticCell<$crate::Resources<$CONFIG>> =
+            static_cell::StaticCell::new();
+
+        static SESSION: static_cell::StaticCell<$crate::Session<'static, $CONFIG>> =
+            static_cell::StaticCell::new();
+
+        SESSION.init(
+            $crate::listen(
                 RESOURCES.init($crate::Resources::default()),
                 $config,
                 $endpoint,

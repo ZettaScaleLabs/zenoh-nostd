@@ -6,7 +6,7 @@ use zenoh_proto::{
     msgs::{NetworkMessage, TransportMessage},
 };
 
-use crate::transport::TransportRx;
+use crate::{ZTransportTx, transport::TransportRx};
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord)]
 enum State {
@@ -25,7 +25,7 @@ pub struct TransportTx<Buff> {
 
     sn: u32,
     resolution: Resolution,
-    lease: Duration,
+    pub lease: Duration,
 
     state: State,
 }
@@ -56,10 +56,40 @@ impl<Buff> TransportTx<Buff> {
         self.buff
     }
 
-    pub(crate) fn encode_t<'a>(&mut self, msg: impl Iterator<Item = TransportMessage<'a>>)
-    where
-        Buff: AsMut<[u8]> + AsRef<[u8]>,
-    {
+    pub fn sync(&mut self, rx: &TransportRx<Buff>, now: ZInstant) {
+        if rx.closed() {
+            self.state = State::Closed;
+            return;
+        }
+
+        if let State::Synchronized { .. } = self.state
+            && now.0 > self.next_timeout().0
+        {
+            self.state = State::Closed;
+        }
+
+        if self.state == State::Used {
+            self.state = State::Synchronized { last_received: now };
+        };
+    }
+
+    pub fn next_timeout(&self) -> ZInstant {
+        match self.state {
+            State::Opened | State::Closed | State::Used => Duration::from_secs(0).into(),
+            State::Synchronized { last_received } => (last_received.0 + self.lease / 4).into(),
+        }
+    }
+
+    pub fn closed(&self) -> bool {
+        matches!(self.state, State::Closed)
+    }
+}
+
+impl<Buff> ZTransportTx for TransportTx<Buff>
+where
+    Buff: AsMut<[u8]> + AsRef<[u8]>,
+{
+    fn encode_t<'a>(&mut self, msg: impl Iterator<Item = TransportMessage<'a>>) {
         let max = core::cmp::min(self.buff.as_ref().len(), self.batch_size);
         let buff = &mut self.buff.as_mut()[self.cursor..max];
 
@@ -72,10 +102,7 @@ impl<Buff> TransportTx<Buff> {
         self.cursor += len;
     }
 
-    pub fn encode<'a>(&mut self, msgs: impl Iterator<Item = NetworkMessage<'a>>)
-    where
-        Buff: AsMut<[u8]> + AsRef<[u8]>,
-    {
+    fn encode<'a>(&mut self, msgs: impl Iterator<Item = NetworkMessage<'a>>) {
         let max = core::cmp::min(self.buff.as_ref().len(), self.batch_size);
         let buff = &mut self.buff.as_mut()[self.cursor..max];
 
@@ -89,10 +116,7 @@ impl<Buff> TransportTx<Buff> {
         self.cursor += len;
     }
 
-    pub fn encode_ref<'a>(&mut self, msgs: impl Iterator<Item = &'a NetworkMessage<'a>>)
-    where
-        Buff: AsMut<[u8]> + AsRef<[u8]>,
-    {
+    fn encode_ref<'a>(&mut self, msgs: impl Iterator<Item = &'a NetworkMessage<'a>>) {
         let max = core::cmp::min(self.buff.as_ref().len(), self.batch_size);
         let buff = &mut self.buff.as_mut()[self.cursor..max];
 
@@ -106,10 +130,7 @@ impl<Buff> TransportTx<Buff> {
         self.cursor += len;
     }
 
-    pub fn flush(&mut self) -> Option<&'_ [u8]>
-    where
-        Buff: AsMut<[u8]> + AsRef<[u8]>,
-    {
+    fn flush(&mut self) -> Option<&'_ [u8]> {
         let size = core::cmp::min(
             self.buff.as_ref().len(),
             core::cmp::min(self.batch_size, self.cursor),
@@ -129,32 +150,5 @@ impl<Buff> TransportTx<Buff> {
 
         let buff_ref = &self.buff.as_ref()[..size];
         if size > 0 { Some(buff_ref) } else { None }
-    }
-
-    pub fn sync(&mut self, rx: &TransportRx<Buff>, now: ZInstant) {
-        if rx.closed() {
-            self.state = State::Closed;
-            return;
-        }
-
-        if let State::Synchronized { .. } = self.state
-            && now.0 > self.next_timeout().0 {
-                self.state = State::Closed;
-            }
-
-        if self.state == State::Used {
-            self.state = State::Synchronized { last_received: now };
-        };
-    }
-
-    pub fn next_timeout(&self) -> ZInstant {
-        match self.state {
-            State::Opened | State::Closed | State::Used => Duration::from_secs(0).into(),
-            State::Synchronized { last_received } => (last_received.0 + self.lease / 4).into(),
-        }
-    }
-
-    pub fn closed(&self) -> bool {
-        matches!(self.state, State::Closed)
     }
 }

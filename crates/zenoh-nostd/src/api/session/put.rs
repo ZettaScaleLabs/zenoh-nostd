@@ -69,7 +69,9 @@ where
             ..Default::default()
         };
 
-        self.driver.send(msg).await
+        self.driver
+            .send(core::iter::once(NetworkBody::Push(msg)))
+            .await
     }
 }
 

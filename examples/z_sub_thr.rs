@@ -48,7 +48,8 @@ async fn entry(spawner: embassy_executor::Spawner) -> zenoh::ZResult<()> {
 
     let config = init_example(&spawner).await;
     let mut resources = zenoh::Resources::default();
-    let session = zenoh::open(&mut resources, config, zenoh::EndPoint::try_from(CONNECT)?).await?;
+    let session =
+        zenoh::connect(&mut resources, config, zenoh::EndPoint::try_from(CONNECT)?).await?;
 
     let mut stats = Stats {
         round_count: 0,

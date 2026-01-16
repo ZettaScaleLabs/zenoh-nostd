@@ -1,7 +1,7 @@
 use core::{net::SocketAddr, str::FromStr};
 
 use crate::{
-    api::EndPoint,
+    EndPoint,
     io::link::{
         tcp::{LinkTcp, LinkTcpRx, LinkTcpTx},
         udp::{LinkUdp, LinkUdpRx, LinkUdpTx},
@@ -273,7 +273,7 @@ impl<Platform> Link<Platform>
 where
     Platform: ZPlatform,
 {
-    pub(crate) async fn new(
+    pub(crate) async fn connect(
         platform: &Platform,
         endpoint: EndPoint<'_>,
     ) -> core::result::Result<Self, crate::LinkError> {
@@ -285,7 +285,7 @@ where
                 let dst_addr = SocketAddr::from_str(address.as_str())
                     .map_err(|_| crate::EndpointError::CouldNotParseAddress)?;
 
-                let stream = platform.new_tcp_stream(&dst_addr).await?;
+                let stream = platform.connect_tcp(&dst_addr).await?;
 
                 Ok(Self::Tcp(LinkTcp::new(stream)))
             }
@@ -293,7 +293,7 @@ where
                 let dst_addr = SocketAddr::from_str(address.as_str())
                     .map_err(|_| crate::EndpointError::CouldNotParseAddress)?;
 
-                let socket = platform.new_udp_socket(&dst_addr).await?;
+                let socket = platform.connect_udp(&dst_addr).await?;
 
                 Ok(Self::Udp(LinkUdp::new(socket)))
             }
@@ -301,9 +301,29 @@ where
                 let dst_addr = SocketAddr::from_str(address.as_str())
                     .map_err(|_| crate::EndpointError::CouldNotParseAddress)?;
 
-                let stream = platform.new_websocket_stream(&dst_addr).await?;
+                let stream = platform.connect_websocket(&dst_addr).await?;
 
                 Ok(Self::Ws(LinkWs::new(stream)))
+            }
+            _ => Err(crate::EndpointError::CouldNotParseProtocol.into()),
+        }
+    }
+
+    pub(crate) async fn listen(
+        platform: &Platform,
+        endpoint: EndPoint<'_>,
+    ) -> core::result::Result<Self, crate::LinkError> {
+        let protocol = endpoint.protocol();
+        let address = endpoint.address();
+
+        match protocol.as_str() {
+            "tcp" => {
+                let dst_addr = SocketAddr::from_str(address.as_str())
+                    .map_err(|_| crate::EndpointError::CouldNotParseAddress)?;
+
+                let stream = platform.listen_tcp(&dst_addr).await?;
+
+                Ok(Self::Tcp(LinkTcp::new(stream)))
             }
             _ => Err(crate::EndpointError::CouldNotParseProtocol.into()),
         }

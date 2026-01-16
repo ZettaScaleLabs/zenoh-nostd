@@ -4,6 +4,7 @@ pub(crate) use zenoh_derive::*;
 
 mod bytes;
 mod codec;
+mod endpoint;
 mod ke;
 mod zerror;
 
@@ -17,6 +18,7 @@ pub use codec::{
     decoder, encoder, encoder_ref, network_decoder, network_encoder, network_encoder_ref,
     transport_decoder, transport_encoder, transport_encoder_ref,
 };
+pub use endpoint::*;
 pub use ke::*;
 pub use msgs::{exts, fields};
 pub use zerror::*;

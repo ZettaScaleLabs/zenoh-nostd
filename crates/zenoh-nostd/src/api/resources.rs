@@ -2,7 +2,7 @@ use core::hint::unreachable_unchecked;
 
 use crate::{
     api::{Session, ZConfig, callbacks::*, driver::*},
-    io::transport::{TransportConfig, TransportLink},
+    io::transport::TransportLink,
 };
 
 use embassy_sync::{blocking_mutex::raw::NoopRawMutex, mutex::Mutex};
@@ -17,8 +17,8 @@ where
     Uninit,
     Init {
         #[allow(unused)]
-        platform: Config::Platform,
-        transport: TransportLink<Config::Platform>,
+        config: Config,
+        transport: TransportLink<Config>,
     },
 }
 
@@ -42,39 +42,26 @@ where
     pub(crate) fn init(
         &mut self,
         config: Config,
-        transport: TransportLink<Config::Platform>,
-        tconfig: TransportConfig,
+        transport: TransportLink<Config>,
     ) -> Session<'_, Config> {
-        let (platform, tx_buf, rx_buf) = config.into_parts();
-
-        self.0 = ResourcesInner::Init {
-            platform,
-            transport,
-        };
+        self.0 = ResourcesInner::Init { config, transport };
 
         let transport_ref_mut = match &mut self.0 {
             ResourcesInner::Init { transport, .. } => transport,
             _ => unsafe { unreachable_unchecked() },
         };
 
-        let (tx, rx) = {
-            let (tx, rx) = transport_ref_mut.split();
-            (
-                DriverTx {
-                    tx_buf,
-                    tx,
-                    sn: tconfig.negociated_config.mine_sn,
-                    next_keepalive: Instant::now(),
-                    config: tconfig.mine_config.clone(),
-                },
-                DriverRx {
-                    rx_buf,
-                    rx,
-                    last_read: Instant::now(),
-                    config: tconfig.other_config.clone(),
-                },
-            )
-        };
+        let (tx, rx) = transport_ref_mut.split();
+        let (tx, rx) = (
+            DriverTx {
+                tx,
+                next_keepalive: Instant::now(),
+            },
+            DriverRx {
+                rx,
+                last_read: Instant::now(),
+            },
+        );
 
         Session {
             driver: Driver::new(tx, rx),

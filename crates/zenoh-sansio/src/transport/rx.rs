@@ -7,7 +7,7 @@ use zenoh_proto::{
     msgs::{Message, NetworkMessage, TransportMessage},
 };
 
-use crate::transport::TransportTx;
+use crate::{ZTransportRx, transport::TransportTx};
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord)]
 enum State {
@@ -27,7 +27,7 @@ pub struct TransportRx<Buff> {
 
     sn: u32,
     resolution: Resolution,
-    lease: Duration,
+    pub lease: Duration,
 
     state: State,
 }
@@ -61,7 +61,53 @@ impl<Buff> TransportRx<Buff> {
         self.buff
     }
 
-    pub fn decode(&mut self, mut read: &[u8]) -> core::result::Result<(), TransportError>
+    pub(crate) fn flush_t(&mut self) -> impl Iterator<Item = (TransportMessage<'_>, &[u8])>
+    where
+        Buff: AsMut<[u8]> + AsRef<[u8]>,
+    {
+        let size = core::cmp::min(
+            self.buff.as_ref().len(),
+            core::cmp::min(self.batch_size, self.cursor),
+        );
+        let buff_ref = &self.buff.as_ref()[..size];
+        self.cursor = 0;
+
+        zenoh_proto::transport_decoder(buff_ref, &mut self.sn, self.resolution)
+    }
+
+    pub fn sync(&mut self, tx: &TransportTx<Buff>, now: ZInstant) {
+        if tx.closed() {
+            self.state = State::Closed;
+            return;
+        }
+
+        if let State::Synchronized { .. } = self.state
+            && now.0 > self.next_timeout().0
+        {
+            self.state = State::Closed;
+        }
+
+        if self.state == State::Used {
+            self.state = State::Synchronized { last_received: now };
+        };
+    }
+
+    pub fn next_timeout(&self) -> ZInstant {
+        match self.state {
+            State::Opened | State::Closed | State::Used => Duration::from_secs(0).into(),
+            State::Synchronized { last_received } => (last_received.0 + self.lease / 4).into(),
+        }
+    }
+
+    pub fn closed(&self) -> bool {
+        matches!(self.state, State::Closed)
+    }
+}
+impl<Buff> ZTransportRx for TransportRx<Buff>
+where
+    Buff: AsMut<[u8]> + AsRef<[u8]>,
+{
+    fn decode(&mut self, mut read: &[u8]) -> core::result::Result<(), TransportError>
     where
         Buff: AsMut<[u8]> + AsRef<[u8]>,
     {
@@ -78,7 +124,7 @@ impl<Buff> TransportRx<Buff> {
         })
     }
 
-    pub fn decode_with<E>(
+    fn decode_with<E>(
         &mut self,
         mut read: impl FnMut(&mut [u8]) -> core::result::Result<usize, E>,
     ) -> core::result::Result<(), TransportError>
@@ -114,7 +160,7 @@ impl<Buff> TransportRx<Buff> {
         Ok(())
     }
 
-    pub async fn decode_with_async<E>(
+    async fn decode_with_async<E>(
         &mut self,
         mut read: impl AsyncFnMut(&mut [u8]) -> core::result::Result<usize, E>,
     ) -> core::result::Result<(), TransportError>
@@ -151,20 +197,7 @@ impl<Buff> TransportRx<Buff> {
         Ok(())
     }
 
-    pub(crate) fn flush_t(&mut self) -> impl Iterator<Item = (TransportMessage<'_>, &[u8])>
-    where
-        Buff: AsMut<[u8]> + AsRef<[u8]>,
-    {
-        let size = core::cmp::min(
-            self.buff.as_ref().len(),
-            core::cmp::min(self.batch_size, self.cursor),
-        );
-        let buff_ref = &self.buff.as_ref()[..size];
-        self.cursor = 0;
-
-        zenoh_proto::transport_decoder(buff_ref, &mut self.sn, self.resolution)
-    }
-    pub fn flush(&mut self) -> impl Iterator<Item = NetworkMessage<'_>>
+    fn flush(&mut self) -> impl Iterator<Item = NetworkMessage<'_>>
     where
         Buff: AsMut<[u8]> + AsRef<[u8]>,
     {
@@ -187,34 +220,6 @@ impl<Buff> TransportRx<Buff> {
                     None
                 }
             })
-    }
-
-    pub fn sync(&mut self, tx: &TransportTx<Buff>, now: ZInstant) {
-        if tx.closed() {
-            self.state = State::Closed;
-            return;
-        }
-
-        if let State::Synchronized { .. } = self.state
-            && now.0 > self.next_timeout().0
-        {
-            self.state = State::Closed;
-        }
-
-        if self.state == State::Used {
-            self.state = State::Synchronized { last_received: now };
-        };
-    }
-
-    pub fn next_timeout(&self) -> ZInstant {
-        match self.state {
-            State::Opened | State::Closed | State::Used => Duration::from_secs(0).into(),
-            State::Synchronized { last_received } => (last_received.0 + self.lease / 4).into(),
-        }
-    }
-
-    pub fn closed(&self) -> bool {
-        matches!(self.state, State::Closed)
     }
 }
 

@@ -3,7 +3,7 @@ use core::fmt::Display;
 use zenoh_proto::TransportError;
 
 use crate::{
-    OpenedTransport, TransportRx, TransportTx,
+    Transport, TransportRx, TransportTx, ZTransportRx, ZTransportTx,
     establishment::{Description, State},
 };
 
@@ -39,7 +39,7 @@ pub struct HandshakeReady<'a, Buff, T, Read, Write> {
 }
 
 impl<'a, Buff, T, Read, Write> HandshakeReady<'a, Buff, T, Read, Write> {
-    pub fn open(self) -> OpenedTransport<Buff> {
+    pub fn open(self) -> Transport<Buff> {
         if let Handshake::Ready {
             description,
             streamed,
@@ -47,7 +47,7 @@ impl<'a, Buff, T, Read, Write> HandshakeReady<'a, Buff, T, Read, Write> {
             rx,
         } = core::mem::replace(self.handshake, Handshake::Opened)
         {
-            OpenedTransport::new(description, streamed, tx.into_inner(), rx.into_inner())
+            Transport::new(description, streamed, tx.into_inner(), rx.into_inner())
         } else {
             unreachable!()
         }
@@ -112,7 +112,66 @@ impl<Buff, T, Read, Write> Handshake<Buff, T, Read, Write> {
         }
     }
 
-    pub fn finish<E>(mut self) -> core::result::Result<OpenedTransport<Buff>, TransportError>
+    pub async fn poll_async<E>(
+        &mut self,
+    ) -> core::result::Result<Option<HandshakeReady<'_, Buff, T, Read, Write>>, TransportError>
+    where
+        E: Display,
+        Buff: Clone + AsMut<[u8]> + AsRef<[u8]>,
+        Read: AsyncFnMut(&mut T, &mut [u8]) -> core::result::Result<usize, E>,
+        Write: AsyncFnMut(&mut T, &[u8]) -> core::result::Result<(), E>,
+    {
+        match self {
+            Self::Opened => Ok(None),
+            Self::Ready { .. } => Ok(Some(HandshakeReady { handshake: self })),
+            Self::Pending {
+                state,
+                tx,
+                rx,
+                handle,
+                read,
+                write,
+                ..
+            } => {
+                if let Some(description) = state.description() {
+                    if let Self::Pending {
+                        streamed, tx, rx, ..
+                    } = core::mem::replace(self, Self::Opened)
+                    {
+                        *self = Self::Ready {
+                            description,
+                            streamed,
+                            tx,
+                            rx,
+                        };
+
+                        return Ok(Some(HandshakeReady { handshake: self }));
+                    } else {
+                        unreachable!()
+                    }
+                }
+
+                rx.decode_with_async(async |bytes| read(handle, bytes).await)
+                    .await?;
+
+                let resp = rx
+                    .flush_t()
+                    .map(|msg| state.poll(msg))
+                    .filter_map(|response| response.0);
+                tx.encode_t(resp);
+                if let Some(bytes) = tx.flush() {
+                    write(handle, bytes).await.map_err(|e| {
+                        zenoh_proto::error!("{e}");
+                        TransportError::CouldNotRead
+                    })?;
+                }
+
+                Ok(None)
+            }
+        }
+    }
+
+    pub fn finish<E>(mut self) -> core::result::Result<Transport<Buff>, TransportError>
     where
         E: Display,
         Buff: Clone + AsMut<[u8]> + AsRef<[u8]>,
@@ -121,6 +180,20 @@ impl<Buff, T, Read, Write> Handshake<Buff, T, Read, Write> {
     {
         loop {
             if let Some(ready) = self.poll()? {
+                break Ok(ready.open());
+            }
+        }
+    }
+
+    pub async fn finish_async<E>(mut self) -> core::result::Result<Transport<Buff>, TransportError>
+    where
+        E: Display,
+        Buff: Clone + AsMut<[u8]> + AsRef<[u8]>,
+        Read: AsyncFnMut(&mut T, &mut [u8]) -> core::result::Result<usize, E>,
+        Write: AsyncFnMut(&mut T, &[u8]) -> core::result::Result<(), E>,
+    {
+        loop {
+            if let Some(ready) = self.poll_async().await? {
                 break Ok(ready.open());
             }
         }

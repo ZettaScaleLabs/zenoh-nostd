@@ -1,7 +1,7 @@
 use core::ops::DerefMut;
 
-use embassy_time::Instant;
-use zenoh_proto::{exts::*, fields::*, *};
+use embassy_time::{Duration, Instant};
+use zenoh_proto::msgs::{NetworkBody, NetworkMessage};
 
 use crate::{api::ZConfig, io::transport::ZTransportLinkTx};
 
@@ -9,36 +9,35 @@ impl<'res, Config> super::DriverTx<'res, Config>
 where
     Config: ZConfig,
 {
-    async fn framed(&mut self, x: impl ZFramed) -> crate::ZResult<()> {
-        self.tx
-            .send(self.tx_buf.as_mut(), &mut self.sn, |batch| {
-                batch.framed(&x, Reliability::Reliable, QoS::default())?;
-                Ok(())
-            })
-            .await?;
-
+    async fn send<'a>(
+        &mut self,
+        msgs: impl Iterator<Item = NetworkBody<'a>>,
+    ) -> crate::ZResult<()> {
         self.next_keepalive =
-            Instant::now() + (self.config.mine_lease / (self.config.keep_alive as u32));
+            Instant::now() + (TryInto::<Duration>::try_into(self.tx.transport.lease).unwrap() / 4);
 
-        Ok(())
+        Ok(self.tx.send(msgs).await?)
     }
 
-    pub async fn unframed(&mut self, x: impl ZUnframed) -> crate::ZResult<()> {
-        self.tx
-            .send(self.tx_buf.as_mut(), &mut self.sn, |batch| {
-                batch.unframed(&x)?;
-                Ok(())
-            })
-            .await?;
-
+    async fn send_ref<'a>(
+        &mut self,
+        msgs: impl Iterator<Item = &'a NetworkMessage<'a>>,
+    ) -> crate::ZResult<()> {
         self.next_keepalive =
-            Instant::now() + (self.config.mine_lease / (self.config.keep_alive as u32));
+            Instant::now() + (TryInto::<Duration>::try_into(self.tx.transport.lease).unwrap() / 4);
 
-        Ok(())
+        Ok(self.tx.send_ref(msgs).await?)
     }
 
     pub fn next_keepalive(&self) -> Instant {
         self.next_keepalive
+    }
+
+    pub async fn keepalive(&mut self) -> crate::ZResult<()> {
+        self.next_keepalive =
+            Instant::now() + (TryInto::<Duration>::try_into(self.tx.transport.lease).unwrap() / 4);
+
+        Ok(self.tx.keepalive().await?)
     }
 }
 
@@ -46,10 +45,23 @@ impl<'res, Config> super::Driver<'res, Config>
 where
     Config: ZConfig,
 {
-    pub async fn send(&self, x: impl ZFramed) -> crate::ZResult<()> {
+    pub async fn send<'a>(
+        &self,
+        msgs: impl Iterator<Item = NetworkBody<'a>>,
+    ) -> crate::ZResult<()> {
         let mut tx_guard = self.tx.lock().await;
         let tx = tx_guard.deref_mut();
 
-        tx.framed(x).await
+        tx.send(msgs).await
+    }
+
+    pub async fn send_ref<'a>(
+        &self,
+        msgs: impl Iterator<Item = &'a NetworkMessage<'a>>,
+    ) -> crate::ZResult<()> {
+        let mut tx_guard = self.tx.lock().await;
+        let tx = tx_guard.deref_mut();
+
+        tx.send_ref(msgs).await
     }
 }

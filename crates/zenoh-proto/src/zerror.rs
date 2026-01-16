@@ -110,22 +110,6 @@ crate::declare_zerror! {
         LinkRxFailed = 34,
     }
 
-    #[doc = "Errors related to zenoh transport links."]
-    enum TransportLinkError: LinkError + CodecError {
-        #[doc = "Received invalid data."]
-        #[err = "received invalid data"]
-        InvalidRx = 40,
-        #[doc = "Transport open timed out."]
-        #[err = "transport open timed out"]
-        OpenTimeout = 41,
-        #[doc = "Transport lease timed out."]
-        #[err = "transport lease timed out"]
-        LeaseTimeout = 42,
-        #[doc = "Transport has been closed."]
-        #[err = "transport has been closed"]
-        TransportClosed = 53,
-    }
-
     #[doc = "Errors related to zenoh transports."]
     enum TransportError: CodecError {
         #[doc = "TransportIsFull."]
@@ -151,6 +135,22 @@ crate::declare_zerror! {
         #[doc = "Received an invalid attribute in a request."]
         #[err = "invalid attribute in message"]
         InvalidAttribute = 59,
+    }
+
+    #[doc = "Errors related to zenoh transport links."]
+    enum TransportLinkError: LinkError + CodecError + TransportError {
+        #[doc = "Received invalid data."]
+        #[err = "received invalid data"]
+        InvalidRx = 40,
+        #[doc = "Transport open timed out."]
+        #[err = "transport open timed out"]
+        OpenTimeout = 41,
+        #[doc = "Transport lease timed out."]
+        #[err = "transport lease timed out"]
+        LeaseTimeout = 42,
+        #[doc = "Transport has been closed."]
+        #[err = "transport has been closed"]
+        TransportClosed = 53,
     }
 
     // --- Collections related errors ---

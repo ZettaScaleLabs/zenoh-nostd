@@ -39,7 +39,9 @@ where
 
         self.resources.sub_callbacks.lock().await.remove(self.id)?;
 
-        self.driver.send(msg).await?;
+        self.driver
+            .send(core::iter::once(NetworkBody::Declare(msg)))
+            .await?;
 
         todo!("Also stop the channel if any")
     }
@@ -182,7 +184,9 @@ where
             ..Default::default()
         };
 
-        self.driver.send(msg).await?;
+        self.driver
+            .send(core::iter::once(NetworkBody::Declare(msg)))
+            .await?;
 
         Ok(Subscriber {
             id,

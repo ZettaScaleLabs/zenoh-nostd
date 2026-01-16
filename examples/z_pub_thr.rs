@@ -13,7 +13,8 @@ async fn entry(spawner: embassy_executor::Spawner) -> zenoh::ZResult<()> {
 
     let config = init_example(&spawner).await;
     let mut resources = zenoh::Resources::default();
-    let session = zenoh::open(&mut resources, config, zenoh::EndPoint::try_from(CONNECT)?).await?;
+    let session =
+        zenoh::listen(&mut resources, config, zenoh::EndPoint::try_from(CONNECT)?).await?;
 
     let payload: [u8; PAYLOAD] = core::array::from_fn(|i| (i % 10) as u8);
     let publisher = session

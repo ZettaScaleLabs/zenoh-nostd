@@ -4,7 +4,7 @@ use zenoh_proto::{
     CollectionError,
     fields::{ConsolidationMode, Encoding, WireExpr},
     keyexpr,
-    msgs::{Err, PushBody, Put, Reply, Response, ResponseBody, ResponseFinal},
+    msgs::{Err, NetworkBody, PushBody, Put, Reply, Response, ResponseBody, ResponseFinal},
 };
 
 use crate::{
@@ -74,7 +74,9 @@ where
             ..Default::default()
         };
 
-        self.driver.send(response).await
+        self.driver
+            .send(core::iter::once(NetworkBody::Response(response)))
+            .await
     }
 
     pub async fn err(&self, ke: &keyexpr, payload: &[u8]) -> crate::ZResult<()> {
@@ -91,7 +93,9 @@ where
             ..Default::default()
         };
 
-        self.driver.send(response).await
+        self.driver
+            .send(core::iter::once(NetworkBody::Response(response)))
+            .await
     }
 
     pub async fn finalize(&self) -> crate::ZResult<()> {
@@ -102,7 +106,9 @@ where
                 ..Default::default()
             };
 
-            self.driver.send(response).await?;
+            self.driver
+                .send(core::iter::once(NetworkBody::ResponseFinal(response)))
+                .await?;
         }
 
         Ok(())
@@ -158,7 +164,9 @@ where
             ..Default::default()
         };
 
-        self.driver.send(response).await
+        self.driver
+            .send(core::iter::once(NetworkBody::Response(response)))
+            .await
     }
 
     pub async fn err(&self, ke: &keyexpr, payload: &[u8]) -> crate::ZResult<()> {
@@ -175,7 +183,9 @@ where
             ..Default::default()
         };
 
-        self.driver.send(response).await
+        self.driver
+            .send(core::iter::once(NetworkBody::Response(response)))
+            .await
     }
 
     pub async fn finalize(&self) -> crate::ZResult<()> {
@@ -186,7 +196,9 @@ where
                 ..Default::default()
             };
 
-            self.driver.send(response).await?;
+            self.driver
+                .send(core::iter::once(NetworkBody::ResponseFinal(response)))
+                .await?;
         }
 
         Ok(())

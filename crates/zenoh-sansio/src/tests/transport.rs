@@ -1,4 +1,4 @@
-use crate::{Transport, transport::establishment::State};
+use crate::{Transport, ZTransportRx, ZTransportTx, transport::establishment::State};
 use core::{cell::RefCell, time::Duration};
 use zenoh_proto::{exts::*, fields::*, keyexpr, msgs::*};
 
@@ -69,8 +69,8 @@ fn transport_handshake() {
     let socket = ([0u8; 512], 0usize, 0usize);
     let socket_ref = RefCell::new(socket);
 
-    let a = Transport::new([0u8; 512]);
-    let b = Transport::new([0u8; 512]);
+    let a = Transport::builder([0u8; 512]);
+    let b = Transport::builder([0u8; 512]);
 
     let read = |socket: &mut &RefCell<([u8; 512], usize, usize)>,
                 bytes: &mut [u8]|
@@ -122,8 +122,8 @@ fn transport_handshake_streamed() {
     let socket = ([0u8; 512], 0usize, 0usize);
     let socket_ref = RefCell::new(socket);
 
-    let a = Transport::new([0u8; 512]);
-    let b = Transport::new([0u8; 512]);
+    let a = Transport::builder([0u8; 512]);
+    let b = Transport::builder([0u8; 512]);
 
     let read = |socket: &mut &RefCell<([u8; 512], usize, usize)>,
                 bytes: &mut [u8]|
@@ -172,7 +172,7 @@ fn transport_handshake_streamed() {
 
 #[test]
 fn transport_streamed_codec() {
-    let mut transport = Transport::new([0u8; 512]).streamed().codec();
+    let mut transport = Transport::builder([0u8; 512]).streamed().codec();
 
     let msg = NetworkMessage {
         reliability: Reliability::Reliable,
@@ -188,8 +188,8 @@ fn transport_streamed_codec() {
     };
 
     transport.tx.encode_ref(core::iter::once(&msg));
-    transport.rx.decode(transport.tx.flush().unwrap()).unwrap();
 
+    transport.rx.decode(transport.tx.flush().unwrap()).unwrap();
     let mut flush = transport.rx.flush();
     let m = flush.next().unwrap();
 
