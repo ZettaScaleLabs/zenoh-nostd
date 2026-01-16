@@ -1,6 +1,7 @@
 use std::{
     io::{Read, Write},
     net::{TcpListener, TcpStream},
+    time::Instant,
 };
 
 use zenoh_proto::{
@@ -9,7 +10,7 @@ use zenoh_proto::{
     keyexpr,
     msgs::*,
 };
-use zenoh_sansio::{Transport, TransportBuilder};
+use zenoh_sansio::{Transport, TransportBuilder, ZTransportTx};
 
 const BATCH_SIZE: usize = u16::MAX as usize;
 
@@ -52,12 +53,18 @@ fn handle_client(mut stream: std::net::TcpStream, mut transport: Transport<[u8; 
         }),
     };
 
-    transport.tx.encode_ref(core::iter::repeat_n(&put, 200));
+    let start = Instant::now();
+    transport.sync(start.elapsed());
 
+    transport
+        .tx
+        .encode_ref(core::iter::repeat_n(put.as_ref(), 200));
     let bytes = transport.tx.flush().unwrap();
 
     println!("Sending indefinitely to {:?}...", stream.peer_addr());
     loop {
+        let read_timeout = transport.rx.next_timeout();
+
         if stream.write_all(&bytes).is_err() {
             break;
         }

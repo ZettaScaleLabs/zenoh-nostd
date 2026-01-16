@@ -257,7 +257,7 @@ impl State {
                         mine_lease,
                         other_lease: open.lease,
                         mine_sn: sn,
-                        other_sn: open.sn,
+                        other_sn: open.sn + 1,
                         other_zid: syn.identifier.zid,
                     };
 
@@ -291,7 +291,7 @@ impl State {
                         mine_lease,
                         other_lease: ack.lease,
                         mine_sn: sn,
-                        other_sn: ack.sn,
+                        other_sn: ack.sn + 1,
                         other_zid,
                     };
 

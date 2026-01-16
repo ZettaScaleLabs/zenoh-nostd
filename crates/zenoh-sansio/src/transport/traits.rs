@@ -2,7 +2,7 @@ use core::fmt::Display;
 
 use zenoh_proto::{
     TransportError,
-    msgs::{NetworkMessage, TransportMessage},
+    msgs::{NetworkMessage, NetworkMessageRef, TransportMessage},
 };
 
 pub trait ZTransportRx {
@@ -27,6 +27,6 @@ pub trait ZTransportRx {
 pub trait ZTransportTx {
     fn encode_t<'a>(&mut self, msg: impl Iterator<Item = TransportMessage<'a>>);
     fn encode<'a>(&mut self, msgs: impl Iterator<Item = NetworkMessage<'a>>);
-    fn encode_ref<'a>(&mut self, msgs: impl Iterator<Item = &'a NetworkMessage<'a>>);
+    fn encode_ref<'a>(&mut self, msgs: impl Iterator<Item = NetworkMessageRef<'a>>);
     fn flush(&mut self) -> Option<&'_ [u8]>;
 }

@@ -27,19 +27,3 @@ pub use zerror::*;
 mod tests;
 
 pub const VERSION: u8 = 9;
-
-#[repr(transparent)]
-#[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord)]
-pub struct ZInstant(pub core::time::Duration);
-
-impl From<core::time::Duration> for ZInstant {
-    fn from(value: core::time::Duration) -> Self {
-        Self(value)
-    }
-}
-
-impl From<ZInstant> for core::time::Duration {
-    fn from(value: ZInstant) -> Self {
-        value.0
-    }
-}

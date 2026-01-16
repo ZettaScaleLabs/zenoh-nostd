@@ -252,7 +252,7 @@ pub fn transport_encoder<'a, 'b>(
         let msg = msgs.next()?;
         encode(
             &mut writer,
-            MessageRef::Transport(&msg),
+            MessageRef::Transport(msg.as_ref()),
             &mut None,
             &mut None,
             &mut 0,
@@ -263,7 +263,7 @@ pub fn transport_encoder<'a, 'b>(
 
 pub fn transport_encoder_ref<'a, 'b>(
     bytes: &'a mut [u8],
-    mut msgs: impl Iterator<Item = &'b TransportMessage<'b>>,
+    mut msgs: impl Iterator<Item = TransportMessageRef<'b>>,
 ) -> impl Iterator<Item = usize> {
     let mut writer = &mut bytes[..];
     core::iter::from_fn(move || {
@@ -292,7 +292,7 @@ pub fn network_encoder<'a, 'b>(
         let msg = msgs.next()?;
         encode(
             &mut writer,
-            MessageRef::Network(&msg),
+            MessageRef::Network(msg.as_ref()),
             &mut last_reliability,
             &mut last_qos,
             next_sn,
@@ -303,7 +303,7 @@ pub fn network_encoder<'a, 'b>(
 
 pub fn network_encoder_ref<'a, 'b>(
     bytes: &'a mut [u8],
-    mut msgs: impl Iterator<Item = &'b NetworkMessage<'b>>,
+    mut msgs: impl Iterator<Item = NetworkMessageRef<'b>>,
     next_sn: &mut u32,
     resolution: Resolution,
 ) -> impl Iterator<Item = usize> {

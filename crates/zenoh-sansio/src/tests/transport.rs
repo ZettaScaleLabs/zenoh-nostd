@@ -43,7 +43,7 @@ fn transport_state_handshake() {
         }};
     }
 
-    let mut buff = buff!(&init);
+    let mut buff = buff!(init.as_ref());
     let mut next = Some(init);
     let mut desc = None;
     let mut current = &mut a;
@@ -187,7 +187,7 @@ fn transport_streamed_codec() {
         }),
     };
 
-    transport.tx.encode_ref(core::iter::once(&msg));
+    transport.tx.encode_ref(core::iter::once(msg.as_ref()));
 
     transport.rx.decode(transport.tx.flush().unwrap()).unwrap();
     let mut flush = transport.rx.flush();

@@ -1,7 +1,7 @@
 use core::ops::DerefMut;
 
 use embassy_time::{Duration, Instant};
-use zenoh_proto::msgs::{NetworkBody, NetworkMessage};
+use zenoh_proto::msgs::{NetworkBody, NetworkMessageRef};
 
 use crate::{api::ZConfig, io::transport::ZTransportLinkTx};
 
@@ -21,7 +21,7 @@ where
 
     async fn send_ref<'a>(
         &mut self,
-        msgs: impl Iterator<Item = &'a NetworkMessage<'a>>,
+        msgs: impl Iterator<Item = NetworkMessageRef<'a>>,
     ) -> crate::ZResult<()> {
         self.next_keepalive =
             Instant::now() + (TryInto::<Duration>::try_into(self.tx.transport.lease).unwrap() / 4);
@@ -57,7 +57,7 @@ where
 
     pub async fn send_ref<'a>(
         &self,
-        msgs: impl Iterator<Item = &'a NetworkMessage<'a>>,
+        msgs: impl Iterator<Item = NetworkMessageRef<'a>>,
     ) -> crate::ZResult<()> {
         let mut tx_guard = self.tx.lock().await;
         let tx = tx_guard.deref_mut();

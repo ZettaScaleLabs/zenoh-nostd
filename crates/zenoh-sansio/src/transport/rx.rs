@@ -2,7 +2,7 @@ use core::fmt::Display;
 use core::time::Duration;
 
 use zenoh_proto::{
-    TransportError, ZInstant,
+    TransportError,
     fields::Resolution,
     msgs::{Message, NetworkMessage, TransportMessage},
 };
@@ -13,7 +13,7 @@ use crate::{ZTransportRx, transport::TransportTx};
 enum State {
     Opened,
     Used,
-    Synchronized { last_received: ZInstant },
+    Synchronized { last_received: Duration },
     Closed,
 }
 
@@ -75,14 +75,16 @@ impl<Buff> TransportRx<Buff> {
         zenoh_proto::transport_decoder(buff_ref, &mut self.sn, self.resolution)
     }
 
-    pub fn sync(&mut self, tx: &TransportTx<Buff>, now: ZInstant) {
-        if tx.closed() {
+    pub fn sync(&mut self, tx: Option<&TransportTx<Buff>>, now: Duration) {
+        if let Some(tx) = tx
+            && tx.closed()
+        {
             self.state = State::Closed;
             return;
         }
 
         if let State::Synchronized { .. } = self.state
-            && now.0 > self.next_timeout().0
+            && now > self.next_timeout()
         {
             self.state = State::Closed;
         }
@@ -92,10 +94,10 @@ impl<Buff> TransportRx<Buff> {
         };
     }
 
-    pub fn next_timeout(&self) -> ZInstant {
+    pub fn next_timeout(&self) -> Duration {
         match self.state {
             State::Opened | State::Closed | State::Used => Duration::from_secs(0).into(),
-            State::Synchronized { last_received } => (last_received.0 + self.lease / 4).into(),
+            State::Synchronized { last_received } => (last_received + self.lease / 4).into(),
         }
     }
 

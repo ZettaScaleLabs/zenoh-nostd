@@ -3,7 +3,7 @@ use std::{
     net::{TcpListener, TcpStream},
 };
 
-use zenoh_sansio::{Transport, TransportBuilder};
+use zenoh_sansio::{Transport, TransportBuilder, ZTransportTx};
 
 use zenoh_proto::{
     exts::QoS,
@@ -14,7 +14,7 @@ use zenoh_proto::{
 const BATCH_SIZE: usize = u16::MAX as usize;
 
 fn open_listen(stream: &mut std::net::TcpStream) -> Transport<[u8; BATCH_SIZE]> {
-    TransportBuilder::new([0u8; BATCH_SIZE])
+    Transport::builder([0u8; BATCH_SIZE])
         .streamed()
         .listen(
             stream,
@@ -26,7 +26,7 @@ fn open_listen(stream: &mut std::net::TcpStream) -> Transport<[u8; BATCH_SIZE]> 
 }
 
 fn open_connect(stream: &mut std::net::TcpStream) -> Transport<[u8; BATCH_SIZE]> {
-    TransportBuilder::new([0u8; BATCH_SIZE])
+    Transport::builder([0u8; BATCH_SIZE])
         .streamed()
         .connect(
             stream,

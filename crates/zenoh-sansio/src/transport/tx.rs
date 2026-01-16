@@ -1,9 +1,9 @@
 use core::time::Duration;
 
 use zenoh_proto::{
-    TransportError, ZInstant,
+    TransportError,
     fields::Resolution,
-    msgs::{NetworkMessage, TransportMessage},
+    msgs::{NetworkMessage, NetworkMessageRef, TransportMessage},
 };
 
 use crate::{ZTransportTx, transport::TransportRx};
@@ -12,7 +12,7 @@ use crate::{ZTransportTx, transport::TransportRx};
 enum State {
     Opened,
     Used,
-    Synchronized { last_received: ZInstant },
+    Synchronized { last_received: Duration },
     Closed,
 }
 
@@ -56,14 +56,16 @@ impl<Buff> TransportTx<Buff> {
         self.buff
     }
 
-    pub fn sync(&mut self, rx: &TransportRx<Buff>, now: ZInstant) {
-        if rx.closed() {
+    pub fn sync(&mut self, rx: Option<&TransportRx<Buff>>, now: Duration) {
+        if let Some(rx) = rx
+            && rx.closed()
+        {
             self.state = State::Closed;
             return;
         }
 
         if let State::Synchronized { .. } = self.state
-            && now.0 > self.next_timeout().0
+            && now > self.next_timeout()
         {
             self.state = State::Closed;
         }
@@ -73,10 +75,10 @@ impl<Buff> TransportTx<Buff> {
         };
     }
 
-    pub fn next_timeout(&self) -> ZInstant {
+    pub fn next_timeout(&self) -> Duration {
         match self.state {
             State::Opened | State::Closed | State::Used => Duration::from_secs(0).into(),
-            State::Synchronized { last_received } => (last_received.0 + self.lease / 4).into(),
+            State::Synchronized { last_received } => (last_received + self.lease / 4).into(),
         }
     }
 
@@ -116,7 +118,7 @@ where
         self.cursor += len;
     }
 
-    fn encode_ref<'a>(&mut self, msgs: impl Iterator<Item = &'a NetworkMessage<'a>>) {
+    fn encode_ref<'a>(&mut self, msgs: impl Iterator<Item = NetworkMessageRef<'a>>) {
         let max = core::cmp::min(self.buff.as_ref().len(), self.batch_size);
         let buff = &mut self.buff.as_mut()[self.cursor..max];
 

@@ -2,7 +2,7 @@ use embassy_time::{Duration, with_timeout};
 use zenoh_proto::{
     exts::QoS,
     fields::*,
-    msgs::{KeepAlive, NetworkBody, NetworkMessage, TransportMessage},
+    msgs::{KeepAlive, NetworkBody, NetworkMessage, NetworkMessageRef, TransportMessage},
     *,
 };
 use zenoh_sansio::{Transport, TransportRx, TransportTx, ZTransportRx, ZTransportTx};
@@ -160,7 +160,7 @@ pub trait ZTransportLinkTx {
 
     fn send_ref<'a>(
         &mut self,
-        msgs: impl Iterator<Item = &'a NetworkMessage<'a>>,
+        msgs: impl Iterator<Item = NetworkMessageRef<'a>>,
     ) -> impl core::future::Future<Output = core::result::Result<(), crate::TransportLinkError>>
     {
         let (link, transport) = self.tx();

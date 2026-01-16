@@ -2,7 +2,7 @@ use core::fmt::Display;
 use core::time::Duration;
 
 use establishment::Description;
-use zenoh_proto::{TransportError, ZInstant, fields::*, msgs::*};
+use zenoh_proto::{TransportError, fields::*, msgs::*};
 
 pub(crate) mod establishment;
 
@@ -379,9 +379,9 @@ impl<Buff> Transport<Buff> {
         }
     }
 
-    pub fn sync(&mut self, now: ZInstant) {
+    pub fn sync(&mut self, now: Duration) {
         let Self { tx, rx, .. } = self;
-        rx.sync(tx, now);
-        tx.sync(rx, now);
+        rx.sync(Some(tx), now);
+        tx.sync(Some(rx), now);
     }
 }
