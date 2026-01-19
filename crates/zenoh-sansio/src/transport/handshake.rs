@@ -76,6 +76,14 @@ impl<Buff, T, Read, Write> Handshake<Buff, T, Read, Write> {
         self
     }
 
+    pub fn with_prefixed(mut self, p: bool) -> Self {
+        if let Self::PendingRecv { prefixed, .. } | Self::PendingInit { prefixed, .. } = &mut self {
+            *prefixed = p;
+        }
+
+        self
+    }
+
     pub fn poll<E>(
         &mut self,
     ) -> core::result::Result<Option<HandshakeReady<'_, Buff, T, Read, Write>>, TransportError>

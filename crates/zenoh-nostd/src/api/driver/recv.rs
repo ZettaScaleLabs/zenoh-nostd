@@ -8,7 +8,9 @@ impl<'res, Config> super::DriverRx<'res, Config>
 where
     Config: ZConfig,
 {
-    pub async fn recv(&mut self) -> crate::ZResult<impl Iterator<Item = NetworkMessage<'_>>> {
+    pub async fn recv(
+        &mut self,
+    ) -> crate::ZResult<impl Iterator<Item = (NetworkMessage<'_>, &'_ [u8])>> {
         let read_lease = Timer::at(self.last_read + self.rx.transport.lease.try_into().unwrap());
 
         match select(read_lease, self.rx.recv()).await {

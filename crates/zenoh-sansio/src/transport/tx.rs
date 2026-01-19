@@ -108,7 +108,7 @@ impl<Buff> TransportTx<Buff> {
                 let header = if reliability != Some(&r) || qos != Some(&q) {
                     let header = FrameHeader {
                         reliability: r,
-                        sn: self.sn,
+                        sn: self.sn + 1,
                         qos: q,
                     };
 
@@ -129,11 +129,12 @@ impl<Buff> TransportTx<Buff> {
                 }
             }
             MessageRef::Transport(msg) => {
-                msg.z_encode(&mut buff).ok()?;
                 self.last_frame.take();
+                msg.z_encode(&mut buff).ok()?;
             }
         };
 
+        self.cursor += start - buff.len();
         Some(start - buff.len())
     }
 }
@@ -175,8 +176,6 @@ where
         if len != 0 {
             self.state = State::Closed;
         }
-
-        self.cursor += len;
     }
 
     fn transport_ref(&mut self, msg: TransportMessageRef) {
@@ -188,8 +187,6 @@ where
         if len != 0 {
             self.state = State::Closed;
         }
-
-        self.cursor += len;
     }
 
     fn encode<'a>(&mut self, msgs: impl Iterator<Item = NetworkMessage<'a>>) {
@@ -201,8 +198,6 @@ where
         if len != 0 {
             self.state = State::Used;
         }
-
-        self.cursor += len;
     }
 
     fn encode_ref<'a>(&mut self, msgs: impl Iterator<Item = NetworkMessageRef<'a>>) {
@@ -214,8 +209,6 @@ where
         if len != 0 {
             self.state = State::Used;
         }
-
-        self.cursor += len;
     }
 
     fn flush_prefixed(&mut self) -> Option<&'_ [u8]> {
@@ -231,6 +224,7 @@ where
         let len = ((size - 2) as u16).to_le_bytes();
         self.buff.as_mut()[..2].copy_from_slice(&len);
         self.cursor = 2;
+        self.last_frame.take();
 
         let buff_ref = &self.buff.as_ref()[..size];
         if size > 0 { Some(buff_ref) } else { None }
@@ -243,6 +237,7 @@ where
         );
 
         self.cursor = 2;
+        self.last_frame.take();
 
         let buff_ref = &self.buff.as_ref()[2..size];
         if size > 0 { Some(buff_ref) } else { None }

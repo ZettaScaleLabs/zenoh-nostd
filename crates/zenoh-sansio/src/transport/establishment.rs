@@ -87,13 +87,19 @@ impl State {
         match msg {
             // Don't do any computation at this stage. Pass the relevant values as the cookie
             // for future computation.
-            TransportMessage::InitSyn(_) => match *self {
+            TransportMessage::InitSyn(syn) => match *self {
                 Self::WaitingInitSyn {
                     mine_zid,
                     mine_batch_size,
                     mine_resolution,
                     mine_lease,
                 } => {
+                    zenoh_proto::debug!(
+                        "Received InitSyn on transport {:?} -> NEW!({:?})",
+                        mine_zid,
+                        syn.identifier.zid
+                    );
+
                     *self = Self::WaitingOpenSyn {
                         mine_zid,
                         mine_batch_size,
@@ -128,7 +134,7 @@ impl State {
                     mine_lease,
                 } => {
                     zenoh_proto::debug!(
-                        "Received InitAck on transport {:?} -> NEW!({:?})",
+                        "Received InitAck on transport {:?} -> ({:?})",
                         mine_zid,
                         ack.identifier.zid
                     );
@@ -204,7 +210,7 @@ impl State {
                     };
 
                     zenoh_proto::debug!(
-                        "Received OpenSyn on transport {:?} -> NEW!({:?})",
+                        "Received OpenSyn on transport {:?} -> ({:?})",
                         mine_zid,
                         syn.identifier.zid
                     );
@@ -249,7 +255,7 @@ impl State {
                         mine_lease,
                         other_lease: open.lease,
                         mine_sn: sn,
-                        other_sn: open.sn + 1,
+                        other_sn: open.sn,
                         other_zid: syn.identifier.zid,
                     };
 
@@ -276,6 +282,12 @@ impl State {
                     mine_lease,
                     other_zid,
                 } => {
+                    zenoh_proto::debug!(
+                        "Received OpenAck on transport {:?} -> ({:?})",
+                        mine_zid,
+                        other_zid,
+                    );
+
                     let description = Description {
                         mine_zid,
                         batch_size,
@@ -283,7 +295,7 @@ impl State {
                         mine_lease,
                         other_lease: ack.lease,
                         mine_sn: sn,
-                        other_sn: ack.sn + 1,
+                        other_sn: ack.sn,
                         other_zid,
                     };
 

@@ -2,7 +2,7 @@ use embassy_time::{Duration, with_timeout};
 use zenoh_proto::{
     exts::QoS,
     fields::*,
-    msgs::{KeepAlive, NetworkBody, NetworkMessage, NetworkMessageRef, TransportMessage},
+    msgs::{NetworkBody, NetworkMessage, NetworkMessageRef},
     *,
 };
 use zenoh_sansio::{Transport, TransportRx, TransportTx, ZTransportRx, ZTransportTx};
@@ -39,11 +39,12 @@ where
         buff: <Config as ZConfig>::Buff,
     ) -> core::result::Result<Self, crate::TransportLinkError> {
         let connect = async move || {
+            let streamed = link.is_streamed();
             let transport = Transport::builder(buff)
                 .with_zid(config.zid)
-                .with_streamed(link.is_streamed())
                 .with_lease(config.lease.into())
                 .with_resolution(config.resolution)
+                .with_batch_size(link.mtu())
                 .connect_async(
                     &mut link,
                     async |link, bytes| {
@@ -55,7 +56,7 @@ where
                     },
                     async |link, bytes| link.write_all(bytes).await,
                 )
-                .await?
+                .with_prefixed(streamed)
                 .finish_async()
                 .await?;
 
@@ -74,9 +75,9 @@ where
         buff: <Config as ZConfig>::Buff,
     ) -> core::result::Result<Self, crate::TransportLinkError> {
         let connect = async move || {
+            let streamed = link.is_streamed();
             let transport = Transport::builder(buff)
                 .with_zid(config.zid)
-                .with_streamed(link.is_streamed())
                 .with_lease(config.lease.into())
                 .with_resolution(config.resolution)
                 .listen_async(
@@ -90,6 +91,7 @@ where
                     },
                     async |link, bytes| link.write_all(bytes).await,
                 )
+                .with_prefixed(streamed)
                 .finish_async()
                 .await?;
 
@@ -150,7 +152,7 @@ pub trait ZTransportLinkTx {
         }));
 
         async move {
-            if let Some(bytes) = transport.flush() {
+            if let Some(bytes) = transport.flush(link.is_streamed()) {
                 link.write_all(bytes).await.map_err(|e| e.into())
             } else {
                 Ok(())
@@ -167,7 +169,9 @@ pub trait ZTransportLinkTx {
         transport.encode_ref(msgs);
 
         async move {
-            if let Some(bytes) = transport.flush() {
+            if let Some(bytes) = transport.flush(link.is_streamed()) {
+                extern crate std;
+                println!("Sending {bytes:?}");
                 link.write_all(bytes).await.map_err(|e| e.into())
             } else {
                 Ok(())
@@ -183,7 +187,7 @@ pub trait ZTransportLinkTx {
         transport.keepalive();
 
         async move {
-            if let Some(bytes) = transport.flush() {
+            if let Some(bytes) = transport.flush(link.is_streamed()) {
                 link.write_all(bytes).await.map_err(|e| e.into())
             } else {
                 Ok(())
@@ -199,7 +203,7 @@ pub trait ZTransportLinkRx {
         &mut self,
     ) -> impl core::future::Future<
         Output = core::result::Result<
-            impl Iterator<Item = NetworkMessage<'_>>,
+            impl Iterator<Item = (NetworkMessage<'_>, &'_ [u8])>,
             crate::TransportLinkError,
         >,
     > {
@@ -208,13 +212,16 @@ pub trait ZTransportLinkRx {
 
         async move {
             transport
-                .decode_with_async(async |bytes| {
-                    if streamed {
-                        link.read_exact(bytes).await.map(|_| bytes.len())
-                    } else {
-                        link.read(bytes).await
-                    }
-                })
+                .decode_with_async(
+                    async |bytes| {
+                        if streamed {
+                            link.read_exact(bytes).await.map(|_| bytes.len())
+                        } else {
+                            link.read(bytes).await
+                        }
+                    },
+                    streamed,
+                )
                 .await?;
 
             Ok(transport.flush())

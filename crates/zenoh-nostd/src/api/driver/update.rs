@@ -15,11 +15,11 @@ where
 {
     pub(crate) async fn update<'a>(
         &self,
-        msgs: impl Iterator<Item = NetworkMessage<'a>>,
+        msgs: impl Iterator<Item = (NetworkMessage<'a>, &'a [u8])>,
         resources: &SessionResources<'res, Config>,
     ) -> crate::ZResult<()> {
         for msg in msgs {
-            match msg.body {
+            match msg.0.body {
                 NetworkBody::Push(Push {
                     wire_expr,
                     payload: PushBody::Put(Put { payload, .. }),
