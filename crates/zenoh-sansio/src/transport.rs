@@ -2,7 +2,7 @@ use core::fmt::Display;
 use core::time::Duration;
 
 use establishment::Description;
-use zenoh_proto::{TransportError, fields::*, msgs::*};
+use zenoh_proto::{fields::*, msgs::*};
 
 pub(crate) mod establishment;
 
@@ -20,7 +20,6 @@ use crate::transport::establishment::State;
 
 pub struct TransportBuilder<Buff> {
     zid: ZenohIdProto,
-    streamed: bool,
     batch_size: u16,
     lease: Duration,
     resolution: Resolution,
@@ -35,7 +34,6 @@ impl<Buff> TransportBuilder<Buff> {
     {
         TransportBuilder {
             zid: ZenohIdProto::default(),
-            streamed: false,
             batch_size: buff.as_ref().len() as u16,
             lease: Duration::from_secs(10),
             resolution: Resolution::default(),
@@ -44,16 +42,6 @@ impl<Buff> TransportBuilder<Buff> {
     }
     pub fn with_zid(mut self, zid: ZenohIdProto) -> Self {
         self.zid = zid;
-        self
-    }
-
-    pub fn streamed(mut self) -> Self {
-        self.streamed = true;
-        self
-    }
-
-    pub fn with_streamed(mut self, streamed: bool) -> Self {
-        self.streamed = streamed;
         self
     }
 
@@ -75,7 +63,6 @@ impl<Buff> TransportBuilder<Buff> {
     pub fn with_buff<NewBuff>(self, buff: NewBuff) -> TransportBuilder<NewBuff> {
         TransportBuilder {
             zid: self.zid,
-            streamed: self.streamed,
             batch_size: self.batch_size,
             lease: self.lease,
             resolution: self.resolution,
@@ -90,7 +77,6 @@ impl<Buff> TransportBuilder<Buff> {
         Transport {
             tx: TransportTx::new(
                 self.buff.clone(),
-                self.streamed,
                 self.batch_size as usize,
                 0,
                 self.resolution,
@@ -98,7 +84,6 @@ impl<Buff> TransportBuilder<Buff> {
             ),
             rx: TransportRx::new(
                 self.buff,
-                self.streamed,
                 self.batch_size as usize,
                 0,
                 self.resolution,
@@ -130,7 +115,6 @@ impl<Buff> TransportBuilder<Buff> {
 
         let tx = TransportTx::new(
             self.buff.clone(),
-            self.streamed,
             self.batch_size as usize,
             0,
             self.resolution,
@@ -139,16 +123,15 @@ impl<Buff> TransportBuilder<Buff> {
 
         let rx = TransportRx::new(
             self.buff,
-            self.streamed,
             self.batch_size as usize,
             0,
             self.resolution,
             self.lease,
         );
 
-        Handshake::Pending {
+        Handshake::PendingRecv {
             state,
-            streamed: self.streamed,
+            prefixed: false,
             tx,
             rx,
             handle,
@@ -178,7 +161,6 @@ impl<Buff> TransportBuilder<Buff> {
 
         let tx = TransportTx::new(
             self.buff.clone(),
-            self.streamed,
             self.batch_size as usize,
             0,
             self.resolution,
@@ -187,16 +169,15 @@ impl<Buff> TransportBuilder<Buff> {
 
         let rx = TransportRx::new(
             self.buff,
-            self.streamed,
             self.batch_size as usize,
             0,
             self.resolution,
             self.lease,
         );
 
-        Handshake::Pending {
+        Handshake::PendingRecv {
             state,
-            streamed: self.streamed,
+            prefixed: false,
             tx,
             rx,
             handle,
@@ -207,10 +188,10 @@ impl<Buff> TransportBuilder<Buff> {
 
     pub fn connect<T, E, Read, Write>(
         self,
-        mut handle: T,
+        handle: T,
         read: Read,
-        mut write: Write,
-    ) -> core::result::Result<Handshake<Buff, T, Read, Write>, TransportError>
+        write: Write,
+    ) -> Handshake<Buff, T, Read, Write>
     where
         E: Display,
         Buff: Clone + AsMut<[u8]> + AsRef<[u8]>,
@@ -224,9 +205,8 @@ impl<Buff> TransportBuilder<Buff> {
             mine_lease: self.lease,
         };
 
-        let mut tx = TransportTx::new(
+        let tx = TransportTx::new(
             self.buff.clone(),
-            self.streamed,
             self.batch_size as usize,
             0,
             self.resolution,
@@ -235,49 +215,40 @@ impl<Buff> TransportBuilder<Buff> {
 
         let rx = TransportRx::new(
             self.buff,
-            self.streamed,
             self.batch_size as usize,
             0,
             self.resolution,
             self.lease,
         );
 
-        tx.encode_t(core::iter::once(TransportMessage::InitSyn(InitSyn {
-            identifier: InitIdentifier {
-                zid: self.zid,
+        Handshake::PendingInit {
+            state,
+            init: InitSyn {
+                identifier: InitIdentifier {
+                    zid: self.zid,
+                    ..Default::default()
+                },
+                resolution: InitResolution {
+                    resolution: self.resolution,
+                    batch_size: BatchSize(self.batch_size),
+                },
                 ..Default::default()
             },
-            resolution: InitResolution {
-                resolution: self.resolution,
-                batch_size: BatchSize(self.batch_size),
-            },
-            ..Default::default()
-        })));
-
-        if let Some(bytes) = tx.flush() {
-            write(&mut handle, bytes).map_err(|e| {
-                zenoh_proto::error!("{e}");
-                TransportError::CouldNotRead
-            })?;
-        }
-
-        Ok(Handshake::Pending {
-            state,
-            streamed: self.streamed,
+            prefixed: false,
             tx,
             rx,
             handle,
             read,
             write,
-        })
+        }
     }
 
-    pub async fn connect_async<T, E, Read, Write>(
+    pub fn connect_async<T, E, Read, Write>(
         self,
-        mut handle: T,
+        handle: T,
         read: Read,
-        mut write: Write,
-    ) -> core::result::Result<Handshake<Buff, T, Read, Write>, TransportError>
+        write: Write,
+    ) -> Handshake<Buff, T, Read, Write>
     where
         E: Display,
         Buff: Clone + AsMut<[u8]> + AsRef<[u8]>,
@@ -291,9 +262,8 @@ impl<Buff> TransportBuilder<Buff> {
             mine_lease: self.lease,
         };
 
-        let mut tx = TransportTx::new(
+        let tx = TransportTx::new(
             self.buff.clone(),
-            self.streamed,
             self.batch_size as usize,
             0,
             self.resolution,
@@ -302,41 +272,32 @@ impl<Buff> TransportBuilder<Buff> {
 
         let rx = TransportRx::new(
             self.buff,
-            self.streamed,
             self.batch_size as usize,
             0,
             self.resolution,
             self.lease,
         );
 
-        tx.encode_t(core::iter::once(TransportMessage::InitSyn(InitSyn {
-            identifier: InitIdentifier {
-                zid: self.zid,
+        Handshake::PendingInit {
+            state,
+            init: InitSyn {
+                identifier: InitIdentifier {
+                    zid: self.zid,
+                    ..Default::default()
+                },
+                resolution: InitResolution {
+                    resolution: self.resolution,
+                    batch_size: BatchSize(self.batch_size),
+                },
                 ..Default::default()
             },
-            resolution: InitResolution {
-                resolution: self.resolution,
-                batch_size: BatchSize(self.batch_size),
-            },
-            ..Default::default()
-        })));
-
-        if let Some(bytes) = tx.flush() {
-            write(&mut handle, bytes).await.map_err(|e| {
-                zenoh_proto::error!("{e}");
-                TransportError::CouldNotRead
-            })?;
-        }
-
-        Ok(Handshake::Pending {
-            state,
-            streamed: self.streamed,
+            prefixed: false,
             tx,
             rx,
             handle,
             read,
             write,
-        })
+        }
     }
 }
 
@@ -356,11 +317,10 @@ impl<Buff> Transport<Buff> {
         TransportBuilder::new(buff)
     }
 
-    pub(crate) fn new(description: Description, streamed: bool, tx: Buff, rx: Buff) -> Self {
+    pub(crate) fn new(description: Description, tx: Buff, rx: Buff) -> Self {
         Self {
             tx: TransportTx::new(
                 tx,
-                streamed,
                 description.batch_size as usize,
                 description.mine_sn,
                 description.resolution,
@@ -368,7 +328,6 @@ impl<Buff> Transport<Buff> {
             ),
             rx: TransportRx::new(
                 rx,
-                streamed,
                 description.batch_size as usize,
                 description.other_sn,
                 description.resolution,

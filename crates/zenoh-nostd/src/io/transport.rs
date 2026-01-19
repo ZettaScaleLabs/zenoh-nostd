@@ -180,9 +180,7 @@ pub trait ZTransportLinkTx {
     ) -> impl core::future::Future<Output = core::result::Result<(), crate::TransportLinkError>>
     {
         let (link, transport) = self.tx();
-        transport.encode_t(core::iter::once(TransportMessage::KeepAlive(
-            KeepAlive::default(),
-        )));
+        transport.keepalive();
 
         async move {
             if let Some(bytes) = transport.flush() {

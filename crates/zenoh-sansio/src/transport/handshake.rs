@@ -1,6 +1,6 @@
 use core::fmt::Display;
 
-use zenoh_proto::TransportError;
+use zenoh_proto::{TransportError, msgs::InitSyn};
 
 use crate::{
     Transport, TransportRx, TransportTx, ZTransportRx, ZTransportTx,
@@ -8,11 +8,27 @@ use crate::{
 };
 
 pub enum Handshake<Buff, T, Read, Write> {
-    Pending {
+    PendingInit {
         #[allow(private_interfaces)]
         state: State,
 
-        streamed: bool,
+        init: InitSyn<'static>,
+        prefixed: bool,
+
+        tx: TransportTx<Buff>,
+        rx: TransportRx<Buff>,
+
+        handle: T,
+
+        read: Read,
+        write: Write,
+    },
+
+    PendingRecv {
+        #[allow(private_interfaces)]
+        state: State,
+
+        prefixed: bool,
 
         tx: TransportTx<Buff>,
         rx: TransportRx<Buff>,
@@ -25,8 +41,6 @@ pub enum Handshake<Buff, T, Read, Write> {
     Ready {
         #[allow(private_interfaces)]
         description: Description,
-
-        streamed: bool,
 
         tx: TransportTx<Buff>,
         rx: TransportRx<Buff>,
@@ -42,12 +56,11 @@ impl<'a, Buff, T, Read, Write> HandshakeReady<'a, Buff, T, Read, Write> {
     pub fn open(self) -> Transport<Buff> {
         if let Handshake::Ready {
             description,
-            streamed,
             tx,
             rx,
         } = core::mem::replace(self.handshake, Handshake::Opened)
         {
-            Transport::new(description, streamed, tx.into_inner(), rx.into_inner())
+            Transport::new(description, tx.into_inner(), rx.into_inner())
         } else {
             unreachable!()
         }
@@ -55,6 +68,14 @@ impl<'a, Buff, T, Read, Write> HandshakeReady<'a, Buff, T, Read, Write> {
 }
 
 impl<Buff, T, Read, Write> Handshake<Buff, T, Read, Write> {
+    pub fn prefixed(mut self) -> Self {
+        if let Self::PendingRecv { prefixed, .. } | Self::PendingInit { prefixed, .. } = &mut self {
+            *prefixed = true;
+        }
+
+        self
+    }
+
     pub fn poll<E>(
         &mut self,
     ) -> core::result::Result<Option<HandshakeReady<'_, Buff, T, Read, Write>>, TransportError>
@@ -67,23 +88,63 @@ impl<Buff, T, Read, Write> Handshake<Buff, T, Read, Write> {
         match self {
             Self::Opened => Ok(None),
             Self::Ready { .. } => Ok(Some(HandshakeReady { handshake: self })),
-            Self::Pending {
+            Self::PendingInit {
+                init,
+                prefixed,
+                tx,
+                handle,
+                write,
+                ..
+            } => {
+                tx.init_syn(init);
+
+                if let Some(bytes) = tx.flush(*prefixed) {
+                    write(handle, bytes).map_err(|e| {
+                        zenoh_proto::error!("{e}");
+                        TransportError::CouldNotRead
+                    })?;
+                }
+
+                if let Self::PendingInit {
+                    state,
+                    prefixed,
+                    tx,
+                    rx,
+                    handle,
+                    read,
+                    write,
+                    ..
+                } = core::mem::replace(self, Self::Opened)
+                {
+                    *self = Self::PendingRecv {
+                        state,
+                        prefixed,
+                        tx,
+                        rx,
+                        handle,
+                        read,
+                        write,
+                    };
+                } else {
+                    unreachable!()
+                }
+
+                Ok(None)
+            }
+            Self::PendingRecv {
                 state,
+                prefixed,
                 tx,
                 rx,
                 handle,
                 read,
                 write,
-                ..
             } => {
                 if let Some(description) = state.description() {
-                    if let Self::Pending {
-                        streamed, tx, rx, ..
-                    } = core::mem::replace(self, Self::Opened)
+                    if let Self::PendingRecv { tx, rx, .. } = core::mem::replace(self, Self::Opened)
                     {
                         *self = Self::Ready {
                             description,
-                            streamed,
                             tx,
                             rx,
                         };
@@ -94,13 +155,17 @@ impl<Buff, T, Read, Write> Handshake<Buff, T, Read, Write> {
                     }
                 }
 
-                rx.decode_with(|bytes| read(handle, bytes))?;
+                rx.decode_with(|bytes| read(handle, bytes), *prefixed)?;
                 let resp = rx
-                    .flush_t()
+                    .flush_transport()
                     .map(|msg| state.poll(msg))
                     .filter_map(|response| response.0);
-                tx.encode_t(resp);
-                if let Some(bytes) = tx.flush() {
+
+                for resp in resp {
+                    tx.transport(resp)
+                }
+
+                if let Some(bytes) = tx.flush(*prefixed) {
                     write(handle, bytes).map_err(|e| {
                         zenoh_proto::error!("{e}");
                         TransportError::CouldNotRead
@@ -124,23 +189,63 @@ impl<Buff, T, Read, Write> Handshake<Buff, T, Read, Write> {
         match self {
             Self::Opened => Ok(None),
             Self::Ready { .. } => Ok(Some(HandshakeReady { handshake: self })),
-            Self::Pending {
+            Self::PendingInit {
+                init,
+                prefixed,
+                tx,
+                handle,
+                write,
+                ..
+            } => {
+                tx.init_syn(init);
+
+                if let Some(bytes) = tx.flush(*prefixed) {
+                    write(handle, bytes).await.map_err(|e| {
+                        zenoh_proto::error!("{e}");
+                        TransportError::CouldNotRead
+                    })?;
+                }
+
+                if let Self::PendingInit {
+                    state,
+                    prefixed,
+                    tx,
+                    rx,
+                    handle,
+                    read,
+                    write,
+                    ..
+                } = core::mem::replace(self, Self::Opened)
+                {
+                    *self = Self::PendingRecv {
+                        state,
+                        prefixed,
+                        tx,
+                        rx,
+                        handle,
+                        read,
+                        write,
+                    };
+                } else {
+                    unreachable!()
+                }
+
+                Ok(None)
+            }
+            Self::PendingRecv {
                 state,
+                prefixed,
                 tx,
                 rx,
                 handle,
                 read,
                 write,
-                ..
             } => {
                 if let Some(description) = state.description() {
-                    if let Self::Pending {
-                        streamed, tx, rx, ..
-                    } = core::mem::replace(self, Self::Opened)
+                    if let Self::PendingRecv { tx, rx, .. } = core::mem::replace(self, Self::Opened)
                     {
                         *self = Self::Ready {
                             description,
-                            streamed,
                             tx,
                             rx,
                         };
@@ -151,15 +256,18 @@ impl<Buff, T, Read, Write> Handshake<Buff, T, Read, Write> {
                     }
                 }
 
-                rx.decode_with_async(async |bytes| read(handle, bytes).await)
+                rx.decode_with_async(async |bytes| read(handle, bytes).await, *prefixed)
                     .await?;
 
                 let resp = rx
-                    .flush_t()
+                    .flush_transport()
                     .map(|msg| state.poll(msg))
                     .filter_map(|response| response.0);
-                tx.encode_t(resp);
-                if let Some(bytes) = tx.flush() {
+                for resp in resp {
+                    tx.transport(resp);
+                }
+
+                if let Some(bytes) = tx.flush(*prefixed) {
                     write(handle, bytes).await.map_err(|e| {
                         zenoh_proto::error!("{e}");
                         TransportError::CouldNotRead

@@ -11,13 +11,8 @@ mod zerror;
 pub mod logging;
 pub mod msgs;
 
-pub(crate) use bytes::*;
-pub(crate) use codec::*;
-
-pub use codec::{
-    decoder, encoder, encoder_ref, network_decoder, network_encoder, network_encoder_ref,
-    transport_decoder, transport_encoder, transport_encoder_ref,
-};
+pub use bytes::*;
+pub use codec::*;
 pub use endpoint::*;
 pub use ke::*;
 pub use msgs::{exts, fields};

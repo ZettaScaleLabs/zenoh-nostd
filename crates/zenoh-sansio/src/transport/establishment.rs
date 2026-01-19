@@ -5,7 +5,7 @@ use sha3::{
     digest::{ExtendableOutput, Update, XofReader},
 };
 
-use zenoh_proto::{TransportError, fields::*, msgs::*};
+use zenoh_proto::{TransportError, ZDecode, fields::*, msgs::*};
 
 /// Everything that describes an Opened Transport between two peers
 #[derive(Copy, Clone, Debug, PartialEq)]
@@ -196,18 +196,10 @@ impl State {
                     mine_lease,
                 } => {
                     // TODO: decypher cookie ChaCha20
-                    let syn = match zenoh_proto::transport_decoder(
-                        open.cookie,
-                        &mut 0,
-                        Resolution::default(),
-                    )
-                    .find_map(|msg| match msg.0 {
-                        TransportMessage::InitSyn(syn) => Some(syn),
-                        _ => None,
-                    }) {
-                        Some(syn) => syn,
-                        None => {
-                            zenoh_proto::zbail!(@ret (None, None), TransportError::InvalidAttribute)
+                    let syn = match <InitSyn as ZDecode>::z_decode(&mut &open.cookie[..]) {
+                        Ok(syn) => syn,
+                        Err(e) => {
+                            zenoh_proto::zbail!(@ret (None, None), e)
                         }
                     };
 

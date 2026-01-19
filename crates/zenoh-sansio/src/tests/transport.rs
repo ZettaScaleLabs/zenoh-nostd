@@ -20,7 +20,7 @@ fn transport_state_handshake() {
         mine_lease: Duration::from_secs(37),
     };
 
-    let init = TransportMessage::InitSyn(InitSyn {
+    let init = InitSyn {
         identifier: InitIdentifier {
             zid: b_zid,
             ..Default::default()
@@ -30,21 +30,22 @@ fn transport_state_handshake() {
             batch_size: BatchSize(1025),
         },
         ..Default::default()
-    });
+    };
 
     let mut buff = [0u8; 128];
 
     macro_rules! buff {
         ($msg:expr) => {{
-            let len: usize =
-                zenoh_proto::transport_encoder_ref(&mut buff, core::iter::once($msg)).sum();
+            let mut writer = &mut buff[..];
+            <InitSyn as zenoh_proto::ZEncode>::z_encode($msg, &mut writer).unwrap();
+            let len = 128 - writer.len();
 
             &buff[..len]
         }};
     }
 
-    let mut buff = buff!(init.as_ref());
-    let mut next = Some(init);
+    let mut buff = buff!(&init);
+    let mut next = Some(TransportMessage::InitSyn(init));
     let mut desc = None;
     let mut current = &mut a;
     let mut other = &mut b;
@@ -97,9 +98,9 @@ fn transport_handshake() {
     };
 
     let mut ha = a.listen(&socket_ref, &read, &write);
-    let mut hb = b
-        .connect(&socket_ref, &read, &write)
-        .expect("Couldn't write InitSyn");
+    let mut hb = b.connect(&socket_ref, &read, &write);
+
+    hb.poll().unwrap();
 
     for _ in 0..2 {
         ha.poll().unwrap();
@@ -149,10 +150,10 @@ fn transport_handshake_streamed() {
         Ok(())
     };
 
-    let mut ha = a.listen(&socket_ref, &read, &write);
-    let mut hb = b
-        .connect(&socket_ref, &read, &write)
-        .expect("Couldn't write InitSyn");
+    let mut ha = a.listen(&socket_ref, &read, &write).prefixed();
+    let mut hb = b.connect(&socket_ref, &read, &write).prefixed();
+
+    hb.poll().unwrap();
 
     for _ in 0..2 {
         ha.poll().unwrap();
@@ -172,7 +173,7 @@ fn transport_handshake_streamed() {
 
 #[test]
 fn transport_streamed_codec() {
-    let mut transport = Transport::builder([0u8; 512]).streamed().codec();
+    let mut transport = Transport::builder([0u8; 512]).codec();
 
     let msg = NetworkMessage {
         reliability: Reliability::Reliable,
@@ -188,10 +189,13 @@ fn transport_streamed_codec() {
     };
 
     transport.tx.encode_ref(core::iter::once(msg.as_ref()));
+    transport
+        .rx
+        .decode_prefixed(transport.tx.flush_prefixed().unwrap())
+        .unwrap();
 
-    transport.rx.decode(transport.tx.flush().unwrap()).unwrap();
     let mut flush = transport.rx.flush();
-    let m = flush.next().unwrap();
+    let m = flush.next().unwrap().0;
 
     assert_eq!(flush.count(), 0);
     assert_eq!(m, msg);

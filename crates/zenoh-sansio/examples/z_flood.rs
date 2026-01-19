@@ -10,31 +10,30 @@ use zenoh_proto::{
     keyexpr,
     msgs::*,
 };
-use zenoh_sansio::{Transport, TransportBuilder, ZTransportTx};
+use zenoh_sansio::{Transport, ZTransportTx};
 
 const BATCH_SIZE: usize = u16::MAX as usize;
 
 fn open_listen(stream: &mut std::net::TcpStream) -> Transport<[u8; BATCH_SIZE]> {
     Transport::builder([0u8; BATCH_SIZE])
-        .streamed()
         .listen(
             stream,
             |stream, bytes| stream.read_exact(bytes).map(|_| bytes.len()),
             |stream, bytes| stream.write_all(bytes),
         )
+        .prefixed()
         .finish()
         .expect("Error doing handshake")
 }
 
 fn open_connect(stream: &mut std::net::TcpStream) -> Transport<[u8; BATCH_SIZE]> {
     Transport::builder([0u8; BATCH_SIZE])
-        .streamed()
         .connect(
             stream,
             |stream, bytes| stream.read_exact(bytes).map(|_| bytes.len()),
             |stream, bytes| stream.write_all(bytes),
         )
-        .expect("Couldn't send InitSyn")
+        .prefixed()
         .finish()
         .expect("Error doing handshake")
 }
@@ -59,12 +58,10 @@ fn handle_client(mut stream: std::net::TcpStream, mut transport: Transport<[u8; 
     transport
         .tx
         .encode_ref(core::iter::repeat_n(put.as_ref(), 200));
-    let bytes = transport.tx.flush().unwrap();
+    let bytes = transport.tx.flush_prefixed().unwrap();
 
     println!("Sending indefinitely to {:?}...", stream.peer_addr());
     loop {
-        let read_timeout = transport.rx.next_timeout();
-
         if stream.write_all(&bytes).is_err() {
             break;
         }
