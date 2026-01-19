@@ -1,5 +1,16 @@
 [workspace]
-members = ["crates/zenoh-derive", "crates/zenoh-proto", "crates/zenoh-sansio", "crates/zenoh-nostd"]
+members = [
+    "crates/zenoh-derive",
+    "crates/zenoh-proto",
+    "crates/zenoh-sansio",
+
+    "crates/zenoh-io",
+
+    "crates/zenoh-client",
+    "crates/zenoh-broker",
+
+    "crates/zenoh-nostd"
+]
 exclude = ["platforms/zenoh-std", "platforms/zenoh-embassy", "platforms/zenoh-wasm"]
 
 [workspace.package]
@@ -18,6 +29,12 @@ readme = "README.md"
 zenoh-derive = { version = "0.1.0", path = "crates/zenoh-derive" }
 zenoh-proto = { version = "0.1.0", path = "crates/zenoh-proto" }
 zenoh-sansio = { version = "0.1.0", path = "crates/zenoh-sansio" }
+
+zenoh-io = { version = "0.1.0", path = "crates/zenoh-io" }
+
+zenoh-client = { version = "0.1.0", path = "crates/zenoh-client" }
+zenoh-broker = { version = "0.1.0", path = "crates/zenoh-io" }
+
 zenoh-nostd = { version = "0.1.0", path = "crates/zenoh-nostd" }
 
 # General dependencies
