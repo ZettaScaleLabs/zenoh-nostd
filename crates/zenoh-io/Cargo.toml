@@ -23,5 +23,3 @@ defmt = ["zenoh-proto/defmt", "zenoh-sansio/defmt"]
 [dependencies]
 zenoh-proto.workspace = true
 zenoh-sansio.workspace = true
-
-paste.workspace = true

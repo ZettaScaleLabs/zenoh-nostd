@@ -1,5 +1,3 @@
-use crate::ZLinkManager;
-
 mod impls;
 
 pub trait ZLinkInfo {
@@ -40,7 +38,7 @@ pub trait ZLink: ZLinkInfo + ZLinkTx + ZLinkRx {
 
 macro_rules! impl_link_traits {
     ($struct:ident<$($lt:lifetime),*>: ZLinkInfo, $($variant:ident<$($lt2:lifetime),*>),+) => {
-        impl<$($lt,)* LinkManager: ZLinkManager> ZLinkInfo for $struct<$($lt,)* LinkManager>
+        impl<$($lt,)* LinkManager: $crate::ZLinkManager> ZLinkInfo for $struct<$($lt,)* LinkManager>
         where
             $(LinkManager::$variant<$($lt2,)*>: ZLinkInfo,)+
         {
@@ -55,7 +53,7 @@ macro_rules! impl_link_traits {
     };
 
     ($struct:ident<$($lt:lifetime),*>: ZLinkTx, $($variant:ident<$($lt2:lifetime),*>),+) => {
-        impl<$($lt,)* LinkManager: ZLinkManager> ZLinkTx for $struct<$($lt,)* LinkManager>
+        impl<$($lt,)* LinkManager: $crate::ZLinkManager> ZLinkTx for $struct<$($lt,)* LinkManager>
         where
             $(LinkManager::$variant<$($lt2,)*>: ZLinkTx,)+
         {
@@ -66,7 +64,7 @@ macro_rules! impl_link_traits {
     };
 
     ($struct:ident<$($lt:lifetime),*>: ZLinkRx, $($variant:ident<$($lt2:lifetime),*>),+) => {
-        impl<$($lt,)* LinkManager: ZLinkManager> ZLinkRx for $struct<$($lt,)* LinkManager>
+        impl<$($lt,)* LinkManager: $crate::ZLinkManager> ZLinkRx for $struct<$($lt,)* LinkManager>
         where
             $(LinkManager::$variant<$($lt2,)*>: ZLinkRx,)+
         {
@@ -81,7 +79,7 @@ macro_rules! impl_link_traits {
     };
 
     ($struct:ident<$lt1:lifetime>: ZLink, $($variant:ident<$lt2:lifetime>),+) => {
-        impl<$lt1, LinkManager: ZLinkManager> ZLink for $struct<$lt1, LinkManager>
+        impl<$lt1, LinkManager: $crate::ZLinkManager> ZLink for $struct<$lt1, LinkManager>
         where
             $(LinkManager::$variant<$lt2>: ZLink,)+
         {
@@ -118,7 +116,7 @@ macro_rules! delegate_variants {
 
 macro_rules! define {
     ($($variant:ident),* $(,)?) => {
-        pub enum Link<'p, LinkManager: ZLinkManager> {
+        pub enum Link<'p, LinkManager: $crate::ZLinkManager> {
             $(
                 $variant(LinkManager::$variant<'p>),
             )*
@@ -129,7 +127,7 @@ macro_rules! define {
         impl_link_traits! { Link<'p>: ZLinkRx, $($variant<'p>),* }
         impl_link_traits! { Link<'p>: ZLink, $($variant<'p>),* }
 
-        pub enum LinkTx<'p, 'a, LinkManager: ZLinkManager>
+        pub enum LinkTx<'p, 'a, LinkManager: $crate::ZLinkManager>
         where
             Self: 'a,
         {
@@ -141,7 +139,7 @@ macro_rules! define {
         impl_link_traits! { LinkTx<'p, 'a>: ZLinkInfo, $($variant<'p>),* }
         impl_link_traits! { LinkTx<'p, 'a>: ZLinkTx, $($variant<'p>),* }
 
-        pub enum LinkRx<'p, 'a, LinkManager: ZLinkManager>
+        pub enum LinkRx<'p, 'a, LinkManager: $crate::ZLinkManager>
         where
             Self: 'a,
         {
@@ -157,7 +155,7 @@ macro_rules! define {
 
 define!(Tcp, Udp, Ws, Serial);
 
-// pub enum Link<'p, LinkManager: ZLinkManager> {
+// pub enum Link<'p, LinkManager: $crate::ZLinkManager> {
 //     Tcp(LinkManager::Tcp<'p>),
 //     Udp(LinkManager::Udp<'p>),
 //     Ws(LinkManager::Ws<'p>),
@@ -169,7 +167,7 @@ define!(Tcp, Udp, Ws, Serial);
 // impl_link_traits! { Link<'p>: ZLinkRx, Tcp<'p>, Udp<'p>, Ws<'p>, Serial<'p> }
 // impl_link_traits! { Link<'p>: ZLink, Tcp<'p>, Udp<'p>, Ws<'p>, Serial<'p> }
 
-// pub enum LinkTx<'p, 'a, LinkManager: ZLinkManager>
+// pub enum LinkTx<'p, 'a, LinkManager: $crate::ZLinkManager>
 // where
 //     Self: 'a,
 // {
@@ -182,7 +180,7 @@ define!(Tcp, Udp, Ws, Serial);
 // impl_link_traits! { LinkTx<'p, 'a>: ZLinkInfo, Tcp<'p>, Udp<'p>, Ws<'p>, Serial<'p> }
 // impl_link_traits! { LinkTx<'p, 'a>: ZLinkTx, Tcp<'p>, Udp<'p>, Ws<'p>, Serial<'p> }
 
-// pub enum LinkRx<'p, 'a, LinkManager: ZLinkManager>
+// pub enum LinkRx<'p, 'a, LinkManager: $crate::ZLinkManager>
 // where
 //     Self: 'a,
 // {

@@ -3541,18 +3541,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "zenoh-broker"
-version = "0.1.0"
-dependencies = [
- "zenoh-proto",
- "zenoh-sansio",
-]
-
-[[package]]
-name = "zenoh-client"
-version = "0.1.0"
-
-[[package]]
 name = "zenoh-derive"
 version = "0.1.0"
 dependencies = [
@@ -3601,7 +3589,6 @@ dependencies = [
 name = "zenoh-io"
 version = "0.1.0"
 dependencies = [
- "paste",
  "zenoh-proto",
  "zenoh-sansio",
 ]
