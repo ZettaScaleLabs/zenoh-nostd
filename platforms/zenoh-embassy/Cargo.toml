@@ -11,7 +11,8 @@ rust-version = "1.91.0"
 version = "0.1.0"
 
 [dependencies]
-zenoh-nostd = { version = "0.1.0", path = "../../crates/zenoh-nostd" }
+zenoh-proto = { version = "0.1.0", path = "../../crates/zenoh-proto" }
+zenoh-io = { version = "0.1.0", path = "../../crates/zenoh-io" }
 
 embassy-net = { version = "0.8.0", features = [
   "defmt",
@@ -20,5 +21,7 @@ embassy-net = { version = "0.8.0", features = [
   "tcp",
   "udp",
 ]}
+
 embedded-io-async = { version = "0.7", features = ["defmt"] }
+
 getrandom = { version = "0.2", features = ["custom"] }

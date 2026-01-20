@@ -16,7 +16,6 @@ mod ws;
 
 pub trait ZLinkInfo {
     fn mtu(&self) -> u16;
-
     fn is_streamed(&self) -> bool;
 }
 

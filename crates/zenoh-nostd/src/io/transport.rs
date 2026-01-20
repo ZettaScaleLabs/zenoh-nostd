@@ -170,8 +170,6 @@ pub trait ZTransportLinkTx {
 
         async move {
             if let Some(bytes) = transport.flush(link.is_streamed()) {
-                extern crate std;
-                println!("Sending {bytes:?}");
                 link.write_all(bytes).await.map_err(|e| e.into())
             } else {
                 Ok(())
