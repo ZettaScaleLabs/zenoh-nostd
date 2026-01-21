@@ -1,7 +1,7 @@
 use core::time::Duration;
 
 use zenoh_proto::{
-    TransportError, ZEncode,
+    TransportError, ZEncode, ZWriteable,
     fields::Resolution,
     msgs::{
         Close, FrameHeader, KeepAlive, MessageRef, NetworkMessage, NetworkMessageRef,
@@ -88,7 +88,7 @@ impl<Buff> TransportTx<Buff> {
         matches!(self.state, State::Closed)
     }
 
-    pub(crate) fn encode(&mut self, msg: MessageRef<'_>) -> Option<usize>
+    pub(crate) fn encode(&mut self, msg: MessageRef<'_>, bytes: Option<&[u8]>) -> Option<usize>
     where
         Buff: AsMut<[u8]> + AsRef<[u8]>,
     {
@@ -123,14 +123,24 @@ impl<Buff> TransportTx<Buff> {
                     None
                 };
 
-                msg.body.z_encode(&mut buff).ok()?;
+                if let Some(bytes) = bytes {
+                    buff.write_exact(bytes).ok()?;
+                } else {
+                    msg.body.z_encode(&mut buff).ok()?;
+                }
+
                 if let Some(header) = header {
                     self.last_frame = Some(header);
                 }
             }
             MessageRef::Transport(msg) => {
                 self.last_frame.take();
-                msg.z_encode(&mut buff).ok()?;
+
+                if let Some(bytes) = bytes {
+                    buff.write_exact(bytes).ok()?;
+                } else {
+                    msg.z_encode(&mut buff).ok()?;
+                }
             }
         };
 
@@ -169,7 +179,7 @@ where
 
     fn transport(&mut self, msg: TransportMessage) {
         let len = self
-            .encode(MessageRef::Transport(msg.as_ref()))
+            .encode(MessageRef::Transport(msg.as_ref()), None)
             .iter()
             .sum::<usize>();
 
@@ -180,7 +190,7 @@ where
 
     fn transport_ref(&mut self, msg: TransportMessageRef) {
         let len = self
-            .encode(MessageRef::Transport(msg))
+            .encode(MessageRef::Transport(msg), None)
             .iter()
             .sum::<usize>();
 
@@ -191,7 +201,7 @@ where
 
     fn encode<'a>(&mut self, msgs: impl Iterator<Item = NetworkMessage<'a>>) {
         let len = msgs
-            .map(|msg| self.encode(MessageRef::Network(msg.as_ref())))
+            .map(|msg| self.encode(MessageRef::Network(msg.as_ref()), None))
             .flatten()
             .sum::<usize>();
 
@@ -202,7 +212,32 @@ where
 
     fn encode_ref<'a>(&mut self, msgs: impl Iterator<Item = NetworkMessageRef<'a>>) {
         let len = msgs
-            .map(|msg| self.encode(MessageRef::Network(msg)))
+            .map(|msg| self.encode(MessageRef::Network(msg), None))
+            .flatten()
+            .sum::<usize>();
+
+        if len != 0 {
+            self.state = State::Used;
+        }
+    }
+
+    fn encode_optimized<'a>(&mut self, msgs: impl Iterator<Item = (NetworkMessage<'a>, &'a [u8])>) {
+        let len = msgs
+            .map(|msg| self.encode(MessageRef::Network(msg.0.as_ref()), Some(msg.1)))
+            .flatten()
+            .sum::<usize>();
+
+        if len != 0 {
+            self.state = State::Used;
+        }
+    }
+
+    fn encode_optimized_ref<'a>(
+        &mut self,
+        msgs: impl Iterator<Item = (NetworkMessageRef<'a>, &'a [u8])>,
+    ) {
+        let len = msgs
+            .map(|msg| self.encode(MessageRef::Network(msg.0), Some(msg.1)))
             .flatten()
             .sum::<usize>();
 

@@ -68,16 +68,11 @@ impl<Buff> TransportRx<Buff> {
         let sn = &mut self.sn;
         let resolution = self.resolution;
 
-        core::iter::from_fn(move || {
-            let (data, start) = (reader.as_ptr(), reader.len());
-            let msg = Self::decode(&mut reader, &mut last_frame, sn, resolution);
-            let len = start - reader.len();
-            msg.map(|msg| (msg, unsafe { core::slice::from_raw_parts(data, len) }))
-        })
-        .filter_map(|m| match m.0 {
-            Message::Transport(msg) => Some((msg, m.1)),
-            _ => None,
-        })
+        core::iter::from_fn(move || Self::decode(&mut reader, &mut last_frame, sn, resolution))
+            .filter_map(|m| match m.0 {
+                Message::Transport(msg) => Some((msg, m.1)),
+                _ => None,
+            })
     }
 
     pub fn sync(&mut self, tx: Option<&TransportTx<Buff>>, now: Duration) {
@@ -115,13 +110,15 @@ impl<Buff> TransportRx<Buff> {
         last_frame: &mut Option<FrameHeader>,
         sn: &mut u32,
         resolution: Resolution,
-    ) -> Option<Message<'a>>
+    ) -> Option<(Message<'a>, &'a [u8])>
     where
         Buff: AsRef<[u8]>,
     {
         if !reader.can_read() {
             return None;
         }
+
+        let (data, start) = (reader.as_ptr(), reader.len());
 
         let header = reader
             .read_u8()
@@ -208,7 +205,8 @@ impl<Buff> TransportRx<Buff> {
             }
         };
 
-        Some(body)
+        let len = start - reader.len();
+        Some((body, unsafe { core::slice::from_raw_parts(data, len) }))
     }
 }
 
@@ -438,15 +436,10 @@ where
         let sn = &mut self.sn;
         let resolution = self.resolution;
 
-        core::iter::from_fn(move || {
-            let (data, start) = (reader.as_ptr(), reader.len());
-            let msg = Self::decode(&mut reader, &mut last_frame, sn, resolution);
-            let len = start - reader.len();
-            msg.map(|msg| (msg, unsafe { core::slice::from_raw_parts(data, len) }))
-        })
-        .filter_map(|m| match m.0 {
-            Message::Network(msg) => Some((msg, m.1)),
-            _ => None,
-        })
+        core::iter::from_fn(move || Self::decode(&mut reader, &mut last_frame, sn, resolution))
+            .filter_map(|m| match m.0 {
+                Message::Network(msg) => Some((msg, m.1)),
+                _ => None,
+            })
     }
 }

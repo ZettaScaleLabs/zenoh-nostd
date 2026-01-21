@@ -96,6 +96,11 @@ pub trait ZTransportTx {
 
     fn encode<'a>(&mut self, msgs: impl Iterator<Item = NetworkMessage<'a>>);
     fn encode_ref<'a>(&mut self, msgs: impl Iterator<Item = NetworkMessageRef<'a>>);
+    fn encode_optimized<'a>(&mut self, msgs: impl Iterator<Item = (NetworkMessage<'a>, &'a [u8])>);
+    fn encode_optimized_ref<'a>(
+        &mut self,
+        msgs: impl Iterator<Item = (NetworkMessageRef<'a>, &'a [u8])>,
+    );
 
     fn flush_prefixed(&mut self) -> Option<&'_ [u8]>;
     fn flush_raw(&mut self) -> Option<&'_ [u8]>;
