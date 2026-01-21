@@ -3589,6 +3589,7 @@ dependencies = [
 name = "zenoh-io"
 version = "0.1.0"
 dependencies = [
+ "embassy-time",
  "zenoh-proto",
  "zenoh-sansio",
 ]

@@ -138,7 +138,7 @@ crate::declare_zerror! {
     }
 
     #[doc = "Errors related to zenoh transport links."]
-    enum TransportLinkError: LinkError + CodecError + TransportError {
+    enum TransportLinkError: LinkError + CodecError + TransportError + ConnectionError + EndpointError {
         #[doc = "Received invalid data."]
         #[err = "received invalid data"]
         InvalidRx = 40,

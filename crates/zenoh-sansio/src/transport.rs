@@ -343,4 +343,8 @@ impl<Buff> Transport<Buff> {
         rx.sync(Some(tx), now);
         tx.sync(Some(rx), now);
     }
+
+    pub fn split(&mut self) -> (&mut TransportTx<Buff>, &mut TransportRx<Buff>) {
+        (&mut self.tx, &mut self.rx)
+    }
 }
