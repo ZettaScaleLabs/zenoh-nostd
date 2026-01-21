@@ -5,14 +5,14 @@ pub trait ZLinkInfo {
     fn is_streamed(&self) -> bool;
 }
 
-pub trait ZLinkTx {
+pub trait ZLinkTx: ZLinkInfo {
     fn write_all(
         &mut self,
         buffer: &[u8],
     ) -> impl Future<Output = core::result::Result<(), zenoh_proto::LinkError>>;
 }
 
-pub trait ZLinkRx {
+pub trait ZLinkRx: ZLinkInfo {
     fn read(
         &mut self,
         buffer: &mut [u8],

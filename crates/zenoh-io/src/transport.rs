@@ -5,9 +5,17 @@ use zenoh_proto::{
     EndPoint, TransportLinkError,
     fields::{Resolution, ZenohIdProto},
 };
-use zenoh_sansio::{Transport, TransportRx, TransportTx};
+use zenoh_sansio::{Transport, ZTransportRx, ZTransportTx};
 
-use crate::{Link, LinkRx, LinkTx, ZLink, ZLinkInfo, ZLinkManager, ZLinkRx, ZLinkTx};
+use crate::{Link, ZLink, ZLinkInfo, ZLinkManager, ZLinkRx, ZLinkTx};
+
+mod rx;
+mod traits;
+mod tx;
+
+pub use rx::*;
+pub use traits::*;
+pub use tx::*;
 
 pub struct TransportLink<'a, LinkManager, Buff>
 where
@@ -41,37 +49,23 @@ where
     }
 }
 
-pub struct TransportLinkTx<'p, 'a, LinkManager, Buff>
+impl<'a, LinkManager, Buff> ZTransportLinkTx for TransportLink<'a, LinkManager, Buff>
 where
     LinkManager: ZLinkManager,
+    Buff: AsMut<[u8]> + AsRef<[u8]>,
 {
-    link: LinkTx<'p, 'a, LinkManager>,
-    transport: &'p mut TransportTx<Buff>,
-}
-
-impl<'p, 'a, LinkManager, Buff> TransportLinkTx<'p, 'a, LinkManager, Buff>
-where
-    LinkManager: ZLinkManager,
-{
-    pub fn new(link: LinkTx<'p, 'a, LinkManager>, transport: &'p mut TransportTx<Buff>) -> Self {
-        Self { link, transport }
+    fn tx(&mut self) -> (&mut impl ZLinkTx, &mut impl ZTransportTx) {
+        (&mut self.link, &mut self.transport.tx)
     }
 }
 
-pub struct TransportLinkRx<'p, 'a, LinkManager, Buff>
+impl<'a, LinkManager, Buff> ZTransportLinkRx for TransportLink<'a, LinkManager, Buff>
 where
     LinkManager: ZLinkManager,
+    Buff: AsMut<[u8]> + AsRef<[u8]>,
 {
-    link: LinkRx<'p, 'a, LinkManager>,
-    transport: &'p mut TransportRx<Buff>,
-}
-
-impl<'p, 'a, LinkManager, Buff> TransportLinkRx<'p, 'a, LinkManager, Buff>
-where
-    LinkManager: ZLinkManager,
-{
-    pub fn new(link: LinkRx<'p, 'a, LinkManager>, transport: &'p mut TransportRx<Buff>) -> Self {
-        Self { link, transport }
+    fn rx(&mut self) -> (&mut impl ZLinkRx, &mut impl ZTransportRx) {
+        (&mut self.link, &mut self.transport.rx)
     }
 }
 
