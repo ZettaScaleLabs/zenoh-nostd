@@ -1,6 +1,6 @@
 use zenoh_sansio::{TransportTx, ZTransportTx};
 
-use crate::{LinkTx, ZLinkManager, ZLinkTx, ZTransportLinkTx};
+use super::{LinkTx, ZLinkManager, ZLinkTx, ZTransportLinkTx};
 
 pub struct TransportLinkTx<'p, 'a, LinkManager, Buff>
 where

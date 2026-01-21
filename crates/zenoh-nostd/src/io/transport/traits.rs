@@ -1,7 +1,7 @@
 use zenoh_proto::msgs::{NetworkMessage, NetworkMessageRef};
 use zenoh_sansio::{ZTransportRx, ZTransportTx};
 
-use crate::{ZLinkInfo, ZLinkRx, ZLinkTx};
+use super::{ZLinkInfo, ZLinkRx, ZLinkTx};
 
 pub trait ZTransportLinkTx {
     fn tx(&mut self) -> (&mut impl ZLinkTx, &mut impl ZTransportTx);

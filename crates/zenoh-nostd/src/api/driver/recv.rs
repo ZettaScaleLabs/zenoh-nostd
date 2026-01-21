@@ -2,7 +2,7 @@ use embassy_futures::select::{Either, select};
 use embassy_time::Timer;
 use zenoh_proto::msgs::NetworkMessage;
 
-use crate::{api::ZConfig, io::transport::ZTransportLinkRx};
+use crate::{api::ZConfig, io::ZTransportLinkRx};
 
 impl<'res, Config> super::DriverRx<'res, Config>
 where

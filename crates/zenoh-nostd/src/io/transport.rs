@@ -1,50 +1,134 @@
-use embassy_time::{Duration, with_timeout};
+use core::{net::SocketAddr, str::FromStr, time::Duration};
+
+use embassy_time::with_timeout;
 use zenoh_proto::{
-    exts::QoS,
-    fields::*,
-    msgs::{NetworkBody, NetworkMessage, NetworkMessageRef},
-    *,
+    EndPoint, TransportLinkError,
+    fields::{Resolution, ZenohIdProto},
 };
-use zenoh_sansio::{Transport, TransportRx, TransportTx, ZTransportRx, ZTransportTx};
+use zenoh_sansio::{Transport, ZTransportRx, ZTransportTx};
 
-use crate::{
-    ZConfig,
-    io::link::{Link, LinkRx, LinkTx, ZLink, ZLinkInfo, ZLinkRx, ZLinkTx},
-};
+use super::{Link, LinkRx, LinkTx, ZLink, ZLinkInfo, ZLinkManager, ZLinkRx, ZLinkTx};
 
-#[derive(Clone)]
-pub struct TransportConfig {
-    pub zid: ZenohIdProto,
-    pub lease: Duration,
-    pub resolution: Resolution,
+mod rx;
+mod traits;
+mod tx;
 
-    pub open_timeout: Duration,
+pub use rx::*;
+pub use traits::*;
+pub use tx::*;
+
+pub struct TransportLink<'a, LinkManager, Buff>
+where
+    LinkManager: ZLinkManager,
+{
+    link: Link<'a, LinkManager>,
+    transport: Transport<Buff>,
 }
 
-pub struct TransportLink<Config>
+impl<'a, LinkManager, Buff> TransportLink<'a, LinkManager, Buff>
 where
-    Config: ZConfig,
+    LinkManager: ZLinkManager,
 {
-    link: Link<<Config as ZConfig>::Platform>,
-    transport: Transport<<Config as ZConfig>::Buff>,
+    pub fn new(link: Link<'a, LinkManager>, transport: Transport<Buff>) -> Self {
+        Self { link, transport }
+    }
+
+    pub fn split(
+        &mut self,
+    ) -> (
+        TransportLinkTx<'_, 'a, LinkManager, Buff>,
+        TransportLinkRx<'_, 'a, LinkManager, Buff>,
+    ) {
+        let (link_tx, link_rx) = self.link.split();
+        let (transport_tx, transport_rx) = self.transport.split();
+
+        (
+            TransportLinkTx::new(link_tx, transport_tx),
+            TransportLinkRx::new(link_rx, transport_rx),
+        )
+    }
 }
 
-impl<Config> TransportLink<Config>
+impl<'a, LinkManager, Buff> ZTransportLinkTx for TransportLink<'a, LinkManager, Buff>
 where
-    Config: ZConfig,
+    LinkManager: ZLinkManager,
+    Buff: AsMut<[u8]> + AsRef<[u8]>,
 {
-    pub async fn connect(
-        mut link: Link<<Config as ZConfig>::Platform>,
-        config: TransportConfig,
-        buff: <Config as ZConfig>::Buff,
-    ) -> core::result::Result<Self, crate::TransportLinkError> {
-        let connect = async move || {
+    fn tx(&mut self) -> (&mut impl ZLinkTx, &mut impl ZTransportTx) {
+        (&mut self.link, &mut self.transport.tx)
+    }
+}
+
+impl<'a, LinkManager, Buff> ZTransportLinkRx for TransportLink<'a, LinkManager, Buff>
+where
+    LinkManager: ZLinkManager,
+    Buff: AsMut<[u8]> + AsRef<[u8]>,
+{
+    fn rx(&mut self) -> (&mut impl ZLinkRx, &mut impl ZTransportRx) {
+        (&mut self.link, &mut self.transport.rx)
+    }
+}
+
+pub struct TransportLinkManager<LinkManager> {
+    link_manager: LinkManager,
+
+    open_timeout: Duration,
+    zid: ZenohIdProto,
+    lease: Duration,
+    resolution: Resolution,
+}
+
+impl<LinkManager> TransportLinkManager<LinkManager> {
+    pub fn new(
+        link_manager: LinkManager,
+        open_timeout: Duration,
+        zid: ZenohIdProto,
+        lease: Duration,
+        resolution: Resolution,
+    ) -> Self {
+        Self {
+            link_manager,
+            open_timeout,
+            zid,
+            lease,
+            resolution,
+        }
+    }
+
+    pub async fn connect<Buff>(
+        &self,
+        endpoint: EndPoint<'_>,
+        buff: Buff,
+    ) -> core::result::Result<TransportLink<'_, LinkManager, Buff>, TransportLinkError>
+    where
+        LinkManager: ZLinkManager,
+        Buff: AsMut<[u8]> + AsRef<[u8]> + Clone,
+    {
+        let protocol = endpoint.protocol();
+        let address = endpoint.address();
+
+        let mut link = match protocol.as_str() {
+            "tcp" => {
+                let dst_addr = SocketAddr::from_str(address.as_str())
+                    .map_err(|_| zenoh_proto::EndpointError::CouldNotParseAddress)?;
+
+                self.link_manager.connect_tcp(&dst_addr).await?
+            }
+            "udp" => {
+                let dst_addr = SocketAddr::from_str(address.as_str())
+                    .map_err(|_| zenoh_proto::EndpointError::CouldNotParseAddress)?;
+
+                self.link_manager.connect_udp(&dst_addr).await?
+            }
+            _ => zenoh_proto::zbail!(zenoh_proto::EndpointError::CouldNotParseProtocol),
+        };
+
+        let connect = async || {
             let streamed = link.is_streamed();
-            let transport = Transport::builder(buff)
-                .with_zid(config.zid)
-                .with_lease(config.lease.into())
-                .with_resolution(config.resolution)
-                .with_batch_size(link.mtu())
+            Transport::builder(buff)
+                .with_zid(self.zid)
+                .with_lease(self.lease)
+                .with_resolution(self.resolution)
                 .connect_async(
                     &mut link,
                     async |link, bytes| {
@@ -58,28 +142,50 @@ where
                 )
                 .with_prefixed(streamed)
                 .finish_async()
-                .await?;
-
-            Ok(Self { link, transport })
+                .await
         };
 
-        with_timeout(config.open_timeout, connect())
+        let transport = with_timeout(self.open_timeout.try_into().unwrap(), connect())
             .await
-            .map_err(|_| TransportLinkError::OpenTimeout)
-            .flatten()
+            .map_err(|_| TransportLinkError::OpenTimeout)??;
+
+        Ok(TransportLink::new(link, transport))
     }
 
-    pub async fn listen(
-        mut link: Link<<Config as ZConfig>::Platform>,
-        config: TransportConfig,
-        buff: <Config as ZConfig>::Buff,
-    ) -> core::result::Result<Self, crate::TransportLinkError> {
-        let connect = async move || {
+    pub async fn listen<Buff>(
+        &self,
+        endpoint: EndPoint<'_>,
+        buff: Buff,
+    ) -> core::result::Result<TransportLink<'_, LinkManager, Buff>, TransportLinkError>
+    where
+        LinkManager: ZLinkManager,
+        Buff: AsMut<[u8]> + AsRef<[u8]> + Clone,
+    {
+        let protocol = endpoint.protocol();
+        let address = endpoint.address();
+
+        let mut link = match protocol.as_str() {
+            "tcp" => {
+                let dst_addr = SocketAddr::from_str(address.as_str())
+                    .map_err(|_| zenoh_proto::EndpointError::CouldNotParseAddress)?;
+
+                self.link_manager.listen_tcp(&dst_addr).await?
+            }
+            "udp" => {
+                let dst_addr = SocketAddr::from_str(address.as_str())
+                    .map_err(|_| zenoh_proto::EndpointError::CouldNotParseAddress)?;
+
+                self.link_manager.listen_udp(&dst_addr).await?
+            }
+            _ => zenoh_proto::zbail!(zenoh_proto::EndpointError::CouldNotParseProtocol),
+        };
+
+        let listen = async || {
             let streamed = link.is_streamed();
-            let transport = Transport::builder(buff)
-                .with_zid(config.zid)
-                .with_lease(config.lease.into())
-                .with_resolution(config.resolution)
+            Transport::builder(buff)
+                .with_zid(self.zid)
+                .with_lease(self.lease)
+                .with_resolution(self.resolution)
                 .listen_async(
                     &mut link,
                     async |link, bytes| {
@@ -93,172 +199,13 @@ where
                 )
                 .with_prefixed(streamed)
                 .finish_async()
-                .await?;
-
-            Ok(Self { link, transport })
+                .await
         };
 
-        with_timeout(config.open_timeout, connect())
+        let transport = with_timeout(self.open_timeout.try_into().unwrap(), listen())
             .await
-            .map_err(|_| TransportLinkError::OpenTimeout)
-            .flatten()
-    }
+            .map_err(|_| TransportLinkError::OpenTimeout)??;
 
-    pub fn split(&mut self) -> (TransportLinkTx<'_, Config>, TransportLinkRx<'_, Config>) {
-        let (link_tx, link_rx) = self.link.split();
-
-        (
-            TransportLinkTx {
-                link: link_tx,
-                transport: &mut self.transport.tx,
-            },
-            TransportLinkRx {
-                link: link_rx,
-                transport: &mut self.transport.rx,
-            },
-        )
-    }
-}
-
-pub struct TransportLinkTx<'a, Config>
-where
-    Config: ZConfig,
-{
-    pub link: LinkTx<'a, <Config as ZConfig>::Platform>,
-    pub transport: &'a mut TransportTx<<Config as ZConfig>::Buff>,
-}
-
-pub struct TransportLinkRx<'a, Config>
-where
-    Config: ZConfig,
-{
-    pub link: LinkRx<'a, <Config as ZConfig>::Platform>,
-    pub transport: &'a mut TransportRx<<Config as ZConfig>::Buff>,
-}
-
-pub trait ZTransportLinkTx {
-    fn tx(&mut self) -> (&mut impl ZLinkTx, &mut impl ZTransportTx);
-
-    fn send<'a>(
-        &mut self,
-        msgs: impl Iterator<Item = NetworkBody<'a>>,
-    ) -> impl core::future::Future<Output = core::result::Result<(), crate::TransportLinkError>>
-    {
-        let (link, transport) = self.tx();
-        transport.encode(msgs.map(|body| NetworkMessage {
-            reliability: Reliability::Reliable,
-            qos: QoS::default(),
-            body: body,
-        }));
-
-        async move {
-            if let Some(bytes) = transport.flush(link.is_streamed()) {
-                link.write_all(bytes).await.map_err(|e| e.into())
-            } else {
-                Ok(())
-            }
-        }
-    }
-
-    fn send_ref<'a>(
-        &mut self,
-        msgs: impl Iterator<Item = NetworkMessageRef<'a>>,
-    ) -> impl core::future::Future<Output = core::result::Result<(), crate::TransportLinkError>>
-    {
-        let (link, transport) = self.tx();
-        transport.encode_ref(msgs);
-
-        async move {
-            if let Some(bytes) = transport.flush(link.is_streamed()) {
-                link.write_all(bytes).await.map_err(|e| e.into())
-            } else {
-                Ok(())
-            }
-        }
-    }
-
-    fn keepalive(
-        &mut self,
-    ) -> impl core::future::Future<Output = core::result::Result<(), crate::TransportLinkError>>
-    {
-        let (link, transport) = self.tx();
-        transport.keepalive();
-
-        async move {
-            if let Some(bytes) = transport.flush(link.is_streamed()) {
-                link.write_all(bytes).await.map_err(|e| e.into())
-            } else {
-                Ok(())
-            }
-        }
-    }
-}
-
-pub trait ZTransportLinkRx {
-    fn rx(&mut self) -> (&mut impl ZLinkRx, &mut impl ZTransportRx);
-
-    fn recv<'a>(
-        &mut self,
-    ) -> impl core::future::Future<
-        Output = core::result::Result<
-            impl Iterator<Item = (NetworkMessage<'_>, &'_ [u8])>,
-            crate::TransportLinkError,
-        >,
-    > {
-        let (link, transport) = self.rx();
-        let streamed = link.is_streamed();
-
-        async move {
-            transport
-                .decode_with_async(
-                    async |bytes| {
-                        if streamed {
-                            link.read_exact(bytes).await.map(|_| bytes.len())
-                        } else {
-                            link.read(bytes).await
-                        }
-                    },
-                    streamed,
-                )
-                .await?;
-
-            Ok(transport.flush())
-        }
-    }
-}
-
-impl<Config> ZTransportLinkTx for TransportLinkTx<'_, Config>
-where
-    Config: ZConfig,
-{
-    fn tx(&mut self) -> (&mut impl ZLinkTx, &mut impl ZTransportTx) {
-        (&mut self.link, self.transport)
-    }
-}
-
-impl<Config> ZTransportLinkRx for TransportLinkRx<'_, Config>
-where
-    Config: ZConfig,
-{
-    fn rx(&mut self) -> (&mut impl ZLinkRx, &mut impl ZTransportRx) {
-        (&mut self.link, self.transport)
-    }
-}
-
-impl<Config> ZTransportLinkTx for TransportLink<Config>
-where
-    Config: ZConfig,
-{
-    fn tx(&mut self) -> (&mut impl ZLinkTx, &mut impl ZTransportTx) {
-        (&mut self.link, &mut self.transport.tx)
-    }
-}
-
-impl<Config> ZTransportLinkRx for TransportLink<Config>
-where
-    Config: ZConfig,
-{
-    fn rx(&mut self) -> (&mut impl ZLinkRx, &mut impl ZTransportRx) {
-        (&mut self.link, &mut self.transport.rx)
+        Ok(TransportLink::new(link, transport))
     }
 }

@@ -10,7 +10,7 @@ mod resources;
 
 mod session;
 
-pub type ZResult<T> = core::result::Result<T, crate::Error>;
+pub type ZResult<T> = core::result::Result<T, zenoh_proto::Error>;
 
 pub use callbacks::{
     FixedCapacityGetCallbacks, FixedCapacityQueryableCallbacks, FixedCapacitySubCallbacks, storage,
@@ -21,4 +21,3 @@ pub use resources::Resources;
 pub use response::*;
 pub use sample::*;
 pub use session::*;
-pub use zenoh_proto::{fields::Encoding, keyexpr};

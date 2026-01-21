@@ -3556,8 +3556,7 @@ dependencies = [
  "embassy-net",
  "embedded-io-async 0.7.0",
  "getrandom",
- "zenoh-io",
- "zenoh-proto",
+ "zenoh-nostd",
 ]
 
 [[package]]
@@ -3583,15 +3582,6 @@ dependencies = [
  "zenoh-nostd",
  "zenoh-std",
  "zenoh-wasm",
-]
-
-[[package]]
-name = "zenoh-io"
-version = "0.1.0"
-dependencies = [
- "embassy-time",
- "zenoh-proto",
- "zenoh-sansio",
 ]
 
 [[package]]

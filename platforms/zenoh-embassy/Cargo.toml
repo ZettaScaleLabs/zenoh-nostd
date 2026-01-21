@@ -11,8 +11,7 @@ rust-version = "1.91.0"
 version = "0.1.0"
 
 [dependencies]
-zenoh-proto = { version = "0.1.0", path = "../../crates/zenoh-proto" }
-zenoh-io = { version = "0.1.0", path = "../../crates/zenoh-io" }
+zenoh-nostd = { version = "0.1.0", path = "../../crates/zenoh-nostd" }
 
 embassy-net = { version = "0.8.0", features = [
   "defmt",

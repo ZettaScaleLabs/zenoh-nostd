@@ -3,7 +3,7 @@ use core::ops::DerefMut;
 use embassy_time::{Duration, Instant};
 use zenoh_proto::msgs::{NetworkBody, NetworkMessageRef};
 
-use crate::{api::ZConfig, io::transport::ZTransportLinkTx};
+use crate::{api::ZConfig, io::ZTransportLinkTx};
 
 impl<'res, Config> super::DriverTx<'res, Config>
 where

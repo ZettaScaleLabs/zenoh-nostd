@@ -171,9 +171,9 @@ where
                     if let Ok(resp) = OwnedQuery::try_from((resp, self.driver, self.resources)) {
                         sender.send(resp).await;
                     } else {
-                        crate::error!(
+                        zenoh_proto::error!(
                             "{}: Couldn't convert to a transferable query",
-                            crate::zctx!()
+                            zenoh_proto::zctx!()
                         )
                     }
                 },

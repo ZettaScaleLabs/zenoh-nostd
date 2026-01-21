@@ -137,9 +137,9 @@ where
                     if let Ok(resp) = OwnedResponse::try_from(resp) {
                         sender.send(resp).await;
                     } else {
-                        crate::error!(
+                        zenoh_proto::error!(
                             "{}: Couldn't convert to a transferable response",
-                            crate::zctx!()
+                            zenoh_proto::zctx!()
                         )
                     }
                 },

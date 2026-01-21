@@ -1,4 +1,4 @@
-use crate::{ZLink, ZLinkInfo, ZLinkRx, ZLinkTx};
+use super::{ZLink, ZLinkInfo, ZLinkRx, ZLinkTx};
 
 impl ZLinkInfo for () {
     fn mtu(&self) -> u16 {

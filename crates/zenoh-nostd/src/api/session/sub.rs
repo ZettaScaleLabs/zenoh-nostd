@@ -148,9 +148,9 @@ where
                     if let Ok(resp) = OwnedSample::try_from(resp) {
                         sender.send(resp).await;
                     } else {
-                        crate::error!(
+                        zenoh_proto::error!(
                             "{}: Couldn't convert to a transferable sample",
-                            crate::zctx!()
+                            zenoh_proto::zctx!()
                         )
                     }
                 },

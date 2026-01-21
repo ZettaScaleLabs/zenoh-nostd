@@ -3,21 +3,21 @@ use crate::{
         arg::{QueryRef, ResponseRef, SampleRef},
         callbacks::ZCallbacks,
     },
-    platform::ZPlatform,
+    io::ZLinkManager,
 };
 
-pub trait ZConfig
-where
-    Self: Sized + 'static,
-{
-    type Platform: ZPlatform;
+pub trait ZTransportConfig {
     type Buff: AsMut<[u8]> + AsRef<[u8]> + Clone;
+    type LinkManager: ZLinkManager;
 
+    fn into_inner(self) -> (Self::Buff, Self::Buff, Self::LinkManager);
+}
+
+pub trait ZConfig: Sized {
     type GetCallbacks<'res>: ZCallbacks<'res, ResponseRef>;
     type SubCallbacks<'res>: ZCallbacks<'res, SampleRef>;
-    type QueryableCallbacks<'res>: ZCallbacks<'res, QueryRef<'res, Self>>;
 
-    fn platform(&self) -> &Self::Platform;
-    fn buff(&self) -> Self::Buff;
-    fn into_platform(self) -> Self::Platform;
+    type QueryableCallbacks<'res>: ZCallbacks<'res, QueryRef<'res, Self>>
+    where
+        Self: 'res;
 }

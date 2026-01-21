@@ -2,23 +2,24 @@ use core::hint::unreachable_unchecked;
 
 use crate::{
     api::{Session, ZConfig, callbacks::*, driver::*},
-    io::transport::TransportLink,
+    io::{TransportLink, ZLinkManager},
 };
 
 use embassy_sync::{blocking_mutex::raw::NoopRawMutex, mutex::Mutex};
 use embassy_time::Instant;
 
 #[derive(Default)]
-pub enum ResourcesInner<Config>
+pub enum ResourcesInner<'a, Config, LinkManager>
 where
     Config: ZConfig,
+    LinkManager: ZLinkManager,
 {
     #[default]
     Uninit,
     Init {
         #[allow(unused)]
         config: Config,
-        transport: TransportLink<Config>,
+        transport: TransportLink<'a, LinkManager>,
     },
 }
 
