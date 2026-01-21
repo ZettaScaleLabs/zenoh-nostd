@@ -344,6 +344,10 @@ impl<Buff> Transport<Buff> {
         tx.sync(Some(rx), now);
     }
 
+    pub fn closed(&self) -> bool {
+        self.tx.closed() || self.rx.closed()
+    }
+
     pub fn split(&mut self) -> (&mut TransportTx<Buff>, &mut TransportRx<Buff>) {
         (&mut self.tx, &mut self.rx)
     }

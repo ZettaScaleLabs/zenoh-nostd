@@ -15,7 +15,7 @@ use crate::{ZTransportTx, transport::TransportRx};
 enum State {
     Opened,
     Used,
-    Synchronized { last_received: Duration },
+    Synchronized { last_sent: Duration },
     Closed,
 }
 
@@ -28,7 +28,7 @@ pub struct TransportTx<Buff> {
     sn: u32,
     resolution: Resolution,
     last_frame: Option<FrameHeader>,
-    pub lease: Duration,
+    lease: Duration,
 
     state: State,
 }
@@ -66,21 +66,33 @@ impl<Buff> TransportTx<Buff> {
             return;
         }
 
-        if let State::Synchronized { .. } = self.state
-            && now > self.next_timeout()
-        {
+        if self.should_close(now) {
             self.state = State::Closed;
         }
 
-        if self.state == State::Used {
-            self.state = State::Synchronized { last_received: now };
+        if matches!(self.state, State::Used | State::Opened) {
+            self.state = State::Synchronized { last_sent: now };
         };
     }
 
     pub fn next_timeout(&self) -> Duration {
         match self.state {
-            State::Opened | State::Closed | State::Used => Duration::from_secs(0).into(),
-            State::Synchronized { last_received } => (last_received + self.lease / 4).into(),
+            State::Opened | State::Closed | State::Used => Duration::from_secs(0),
+            State::Synchronized { last_sent } => last_sent + self.lease / 4,
+        }
+    }
+
+    pub fn should_send_keepalive(&self, now: Duration) -> bool {
+        match self.state {
+            State::Opened | State::Closed | State::Used => false,
+            State::Synchronized { last_sent } => now > last_sent + self.lease / 4,
+        }
+    }
+
+    pub fn should_close(&self, now: Duration) -> bool {
+        match self.state {
+            State::Opened | State::Closed | State::Used => false,
+            State::Synchronized { last_sent } => now > last_sent + self.lease,
         }
     }
 
@@ -154,7 +166,7 @@ where
     Buff: AsMut<[u8]> + AsRef<[u8]>,
 {
     fn keepalive(&mut self) {
-        self.transport(TransportMessage::KeepAlive(KeepAlive::default()));
+        self.transport(TransportMessage::KeepAlive(KeepAlive));
     }
 
     fn init_syn(&mut self, syn: &zenoh_proto::msgs::InitSyn) {
@@ -184,7 +196,7 @@ where
             .sum::<usize>();
 
         if len != 0 {
-            self.state = State::Closed;
+            self.state = State::Used;
         }
     }
 
@@ -195,14 +207,13 @@ where
             .sum::<usize>();
 
         if len != 0 {
-            self.state = State::Closed;
+            self.state = State::Used;
         }
     }
 
     fn encode<'a>(&mut self, msgs: impl Iterator<Item = NetworkMessage<'a>>) {
         let len = msgs
-            .map(|msg| self.encode(MessageRef::Network(msg.as_ref()), None))
-            .flatten()
+            .filter_map(|msg| self.encode(MessageRef::Network(msg.as_ref()), None))
             .sum::<usize>();
 
         if len != 0 {
@@ -212,8 +223,7 @@ where
 
     fn encode_ref<'a>(&mut self, msgs: impl Iterator<Item = NetworkMessageRef<'a>>) {
         let len = msgs
-            .map(|msg| self.encode(MessageRef::Network(msg), None))
-            .flatten()
+            .filter_map(|msg| self.encode(MessageRef::Network(msg), None))
             .sum::<usize>();
 
         if len != 0 {
@@ -223,8 +233,7 @@ where
 
     fn encode_optimized<'a>(&mut self, msgs: impl Iterator<Item = (NetworkMessage<'a>, &'a [u8])>) {
         let len = msgs
-            .map(|msg| self.encode(MessageRef::Network(msg.0.as_ref()), Some(msg.1)))
-            .flatten()
+            .filter_map(|msg| self.encode(MessageRef::Network(msg.0.as_ref()), Some(msg.1)))
             .sum::<usize>();
 
         if len != 0 {
@@ -237,8 +246,7 @@ where
         msgs: impl Iterator<Item = (NetworkMessageRef<'a>, &'a [u8])>,
     ) {
         let len = msgs
-            .map(|msg| self.encode(MessageRef::Network(msg.0), Some(msg.1)))
-            .flatten()
+            .filter_map(|msg| self.encode(MessageRef::Network(msg.0), Some(msg.1)))
             .sum::<usize>();
 
         if len != 0 {
@@ -258,8 +266,7 @@ where
 
         let len = ((size - 2) as u16).to_le_bytes();
         self.buff.as_mut()[..2].copy_from_slice(&len);
-        self.cursor = 2;
-        self.last_frame.take();
+        self.clear();
 
         let buff_ref = &self.buff.as_ref()[..size];
         if size > 0 { Some(buff_ref) } else { None }
@@ -271,10 +278,14 @@ where
             core::cmp::min(self.batch_size, self.cursor),
         );
 
-        self.cursor = 2;
-        self.last_frame.take();
+        self.clear();
 
         let buff_ref = &self.buff.as_ref()[2..size];
         if size > 0 { Some(buff_ref) } else { None }
+    }
+
+    fn clear(&mut self) {
+        self.cursor = 2;
+        self.last_frame.take();
     }
 }

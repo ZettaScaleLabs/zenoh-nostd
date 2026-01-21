@@ -1,7 +1,6 @@
 use std::{
     io::{Read, Write},
     net::{TcpListener, TcpStream},
-    time::Instant,
 };
 
 use zenoh_proto::{
@@ -52,9 +51,6 @@ fn handle_client(mut stream: std::net::TcpStream, mut transport: Transport<[u8; 
         }),
     };
 
-    let start = Instant::now();
-    transport.sync(start.elapsed());
-
     transport
         .tx
         .encode_ref(core::iter::repeat_n(put.as_ref(), 200));
@@ -62,7 +58,7 @@ fn handle_client(mut stream: std::net::TcpStream, mut transport: Transport<[u8; 
 
     println!("Sending indefinitely to {:?}...", stream.peer_addr());
     loop {
-        if stream.write_all(&bytes).is_err() {
+        if stream.write_all(bytes).is_err() {
             break;
         }
     }

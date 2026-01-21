@@ -8,6 +8,27 @@ use zenoh_proto::{
     },
 };
 
+#[derive(Debug)]
+pub enum WithError<E> {
+    Transport(TransportError),
+    Other(E),
+}
+
+impl WithError<TransportError> {
+    pub fn flatten(self) -> TransportError {
+        match self {
+            Self::Transport(e) => e,
+            Self::Other(e) => e,
+        }
+    }
+}
+
+impl<E> From<TransportError> for WithError<E> {
+    fn from(value: TransportError) -> Self {
+        Self::Transport(value)
+    }
+}
+
 pub trait ZTransportRx {
     fn decode_prefixed(&mut self, read: &[u8]) -> core::result::Result<(), TransportError>;
     fn decode_raw(&mut self, read: &[u8]) -> core::result::Result<(), TransportError>;
@@ -23,14 +44,14 @@ pub trait ZTransportRx {
     fn decode_prefixed_with<E>(
         &mut self,
         read: impl FnMut(&mut [u8]) -> core::result::Result<usize, E>,
-    ) -> core::result::Result<(), TransportError>
+    ) -> core::result::Result<(), WithError<E>>
     where
         E: Display;
 
     fn decode_raw_with<E>(
         &mut self,
         read: impl FnMut(&mut [u8]) -> core::result::Result<usize, E>,
-    ) -> core::result::Result<(), TransportError>
+    ) -> core::result::Result<(), WithError<E>>
     where
         E: Display;
 
@@ -38,7 +59,7 @@ pub trait ZTransportRx {
         &mut self,
         read: impl FnMut(&mut [u8]) -> core::result::Result<usize, E>,
         prefixed: bool,
-    ) -> core::result::Result<(), TransportError>
+    ) -> core::result::Result<(), WithError<E>>
     where
         E: Display,
     {
@@ -52,14 +73,14 @@ pub trait ZTransportRx {
     fn decode_prefixed_with_async<E>(
         &mut self,
         read: impl AsyncFnMut(&mut [u8]) -> core::result::Result<usize, E>,
-    ) -> impl Future<Output = core::result::Result<(), TransportError>>
+    ) -> impl Future<Output = core::result::Result<(), WithError<E>>>
     where
         E: Display;
 
     fn decode_raw_with_async<E>(
         &mut self,
         read: impl AsyncFnMut(&mut [u8]) -> core::result::Result<usize, E>,
-    ) -> impl Future<Output = core::result::Result<(), TransportError>>
+    ) -> impl Future<Output = core::result::Result<(), WithError<E>>>
     where
         E: Display;
 
@@ -67,7 +88,7 @@ pub trait ZTransportRx {
         &mut self,
         read: impl AsyncFnMut(&mut [u8]) -> core::result::Result<usize, E>,
         prefixed: bool,
-    ) -> impl Future<Output = core::result::Result<(), TransportError>>
+    ) -> impl Future<Output = core::result::Result<(), WithError<E>>>
     where
         E: Display,
     {
@@ -81,6 +102,7 @@ pub trait ZTransportRx {
     }
 
     fn flush(&mut self) -> impl Iterator<Item = (NetworkMessage<'_>, &'_ [u8])>;
+    fn clear(&mut self);
 }
 
 pub trait ZTransportTx {
@@ -112,4 +134,5 @@ pub trait ZTransportTx {
             self.flush_raw()
         }
     }
+    fn clear(&mut self);
 }

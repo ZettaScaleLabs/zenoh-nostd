@@ -3,7 +3,7 @@ use std::{
     net::{TcpListener, TcpStream},
 };
 
-use zenoh_sansio::{Transport, ZTransportTx};
+use zenoh_sansio::{Transport, ZTransportRx, ZTransportTx};
 
 use zenoh_proto::{
     exts::QoS,
@@ -52,20 +52,20 @@ fn handle_client(mut stream: std::net::TcpStream, mut transport: Transport<[u8; 
 
     transport.tx.encode(core::iter::once(declare));
     let bytes = transport.tx.flush_prefixed().unwrap();
-    stream.write_all(&bytes).unwrap();
+    stream.write_all(bytes).unwrap();
 
     println!("Reading indefinitely from {:?}...", stream.peer_addr());
-    let mut rx = [0u8; u16::MAX as usize];
     loop {
-        let mut len = [0; 2];
-        if stream.read_exact(&mut len).is_err() {
+        if transport
+            .rx
+            .decode_prefixed_with(|bytes| stream.read_exact(bytes).map(|_| bytes.len()))
+            .is_err()
+        {
             break;
         }
 
-        let l = u16::from_le_bytes(len) as usize;
-        if stream.read_exact(&mut rx[..l]).is_err() {
-            break;
-        }
+        // We just clear, because `flush` would clear and create an iterator. Here we don't want this overhead
+        transport.rx.clear();
     }
 }
 

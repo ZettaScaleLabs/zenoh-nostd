@@ -3,7 +3,7 @@ use core::time::Duration;
 
 use zenoh_proto::{TransportError, ZBodyDecode, ZReadable, fields::Resolution, msgs::*};
 
-use crate::{ZTransportRx, transport::TransportTx};
+use crate::{WithError, ZTransportRx, transport::TransportTx};
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord)]
 enum State {
@@ -22,9 +22,11 @@ pub struct TransportRx<Buff> {
 
     sn: u32,
     resolution: Resolution,
-    pub lease: Duration,
+    lease: Duration,
 
     state: State,
+
+    ignore_invalid_sn: bool,
 }
 
 impl<Buff> TransportRx<Buff> {
@@ -47,6 +49,7 @@ impl<Buff> TransportRx<Buff> {
             lease,
 
             state: State::Opened,
+            ignore_invalid_sn: false,
         }
     }
 
@@ -67,12 +70,19 @@ impl<Buff> TransportRx<Buff> {
         let mut last_frame = None;
         let sn = &mut self.sn;
         let resolution = self.resolution;
+        let ignore = self.ignore_invalid_sn;
 
-        core::iter::from_fn(move || Self::decode(&mut reader, &mut last_frame, sn, resolution))
-            .filter_map(|m| match m.0 {
-                Message::Transport(msg) => Some((msg, m.1)),
-                _ => None,
-            })
+        core::iter::from_fn(move || {
+            Self::decode(&mut reader, &mut last_frame, sn, resolution, ignore)
+        })
+        .filter_map(|m| match m.0 {
+            Message::Transport(msg) => Some((msg, m.1)),
+            _ => None,
+        })
+    }
+
+    pub fn ignore_invalid_sn(&mut self) {
+        self.ignore_invalid_sn = true;
     }
 
     pub fn sync(&mut self, tx: Option<&TransportTx<Buff>>, now: Duration) {
@@ -83,21 +93,26 @@ impl<Buff> TransportRx<Buff> {
             return;
         }
 
-        if let State::Synchronized { .. } = self.state
-            && now > self.next_timeout()
-        {
+        if self.should_close(now) {
             self.state = State::Closed;
         }
 
-        if self.state == State::Used {
+        if matches!(self.state, State::Used | State::Opened) {
             self.state = State::Synchronized { last_received: now };
         };
     }
 
     pub fn next_timeout(&self) -> Duration {
         match self.state {
-            State::Opened | State::Closed | State::Used => Duration::from_secs(0).into(),
-            State::Synchronized { last_received } => (last_received + self.lease / 4).into(),
+            State::Opened | State::Closed | State::Used => Duration::from_secs(0),
+            State::Synchronized { last_received } => last_received + self.lease,
+        }
+    }
+
+    pub fn should_close(&self, now: Duration) -> bool {
+        match self.state {
+            State::Opened | State::Closed | State::Used => false,
+            State::Synchronized { last_received } => now > last_received + self.lease,
         }
     }
 
@@ -110,6 +125,7 @@ impl<Buff> TransportRx<Buff> {
         last_frame: &mut Option<FrameHeader>,
         sn: &mut u32,
         resolution: Resolution,
+        ignore: bool,
     ) -> Option<(Message<'a>, &'a [u8])>
     where
         Buff: AsRef<[u8]>,
@@ -164,23 +180,25 @@ impl<Buff> TransportRx<Buff> {
             FrameHeader::ID => {
                 let header = decode!(FrameHeader);
 
-                // Check for missed messages regarding resolution
-                let _ = resolution;
-                if header.sn <= *sn && *sn != 0 {
-                    zenoh_proto::error!(
-                        "Inconsistent `SN` value {}, expected higher than {}",
-                        header.sn,
-                        *sn
-                    );
-                    return None;
-                } else if header.sn != *sn + 1 && *sn != 0 {
-                    zenoh_proto::debug!("Transport missed {} messages", header.sn - *sn - 1);
+                if !ignore {
+                    // Check for missed messages regarding resolution
+                    let _ = resolution;
+                    if header.sn <= *sn && *sn != 0 {
+                        zenoh_proto::error!(
+                            "Inconsistent `SN` value {}, expected higher than {}",
+                            header.sn,
+                            *sn
+                        );
+                        return None;
+                    } else if header.sn != *sn + 1 && *sn != 0 {
+                        zenoh_proto::debug!("Transport missed {} messages", header.sn - *sn - 1);
+                    }
                 }
 
                 last_frame.replace(header);
                 *sn = header.sn;
 
-                return Self::decode(reader, last_frame, sn, resolution);
+                return Self::decode(reader, last_frame, sn, resolution, ignore);
             }
             InitAck::ID if ack => decode!(@Transport InitAck),
             InitSyn::ID => decode!(@Transport InitSyn),
@@ -229,6 +247,7 @@ where
             read = remain;
             Ok::<_, TransportError>(size)
         })
+        .map_err(|e| e.flatten())
     }
 
     fn decode_raw(&mut self, read: &[u8]) -> core::result::Result<(), TransportError>
@@ -261,7 +280,7 @@ where
     fn decode_prefixed_with<E>(
         &mut self,
         mut read: impl FnMut(&mut [u8]) -> core::result::Result<usize, E>,
-    ) -> core::result::Result<(), TransportError>
+    ) -> core::result::Result<(), WithError<E>>
     where
         Buff: AsMut<[u8]> + AsRef<[u8]>,
         E: Display,
@@ -278,10 +297,7 @@ where
         }
 
         let mut len = [0u8; 2];
-        let l = read(&mut len).map_err(|e| {
-            zenoh_proto::error!("{e}");
-            TransportError::CouldNotRead
-        })?;
+        let l = read(&mut len).map_err(WithError::Other)?;
 
         if l == 0 {
             return Ok(());
@@ -294,11 +310,7 @@ where
             zenoh_proto::zbail!(@log TransportError::InvalidAttribute);
         }
 
-        if read(&mut buff[..len]).map_err(|e| {
-            zenoh_proto::error!("{e}");
-            TransportError::CouldNotRead
-        })? != len
-        {
+        if read(&mut buff[..len]).map_err(WithError::Other)? != len {
             zenoh_proto::zbail!(@log TransportError::InvalidAttribute)
         }
 
@@ -314,7 +326,7 @@ where
     fn decode_raw_with<E>(
         &mut self,
         mut read: impl FnMut(&mut [u8]) -> core::result::Result<usize, E>,
-    ) -> core::result::Result<(), TransportError>
+    ) -> core::result::Result<(), WithError<E>>
     where
         Buff: AsMut<[u8]> + AsRef<[u8]>,
         E: Display,
@@ -326,10 +338,7 @@ where
         let max = core::cmp::min(self.buff.as_ref().len(), self.batch_size);
         let buff = &mut self.buff.as_mut()[self.cursor..max];
 
-        let len = read(buff).map_err(|e| {
-            zenoh_proto::error!("{e}");
-            TransportError::CouldNotRead
-        })?;
+        let len = read(buff).map_err(WithError::Other)?;
 
         if len > 0 {
             self.state = State::Used;
@@ -343,7 +352,7 @@ where
     async fn decode_prefixed_with_async<E>(
         &mut self,
         mut read: impl AsyncFnMut(&mut [u8]) -> core::result::Result<usize, E>,
-    ) -> core::result::Result<(), TransportError>
+    ) -> core::result::Result<(), WithError<E>>
     where
         Buff: AsMut<[u8]> + AsRef<[u8]>,
         E: Display,
@@ -360,10 +369,7 @@ where
         }
 
         let mut len = [0u8; 2];
-        let l = read(&mut len).await.map_err(|e| {
-            zenoh_proto::error!("{e}");
-            TransportError::CouldNotRead
-        })?;
+        let l = read(&mut len).await.map_err(WithError::Other)?;
 
         if l == 0 {
             return Ok(());
@@ -376,11 +382,7 @@ where
             zenoh_proto::zbail!(@log TransportError::InvalidAttribute);
         }
 
-        if read(&mut buff[..len]).await.map_err(|e| {
-            zenoh_proto::error!("{e}");
-            TransportError::CouldNotRead
-        })? != len
-        {
+        if read(&mut buff[..len]).await.map_err(WithError::Other)? != len {
             zenoh_proto::zbail!(@log TransportError::InvalidAttribute)
         }
 
@@ -396,7 +398,7 @@ where
     async fn decode_raw_with_async<E>(
         &mut self,
         mut read: impl AsyncFnMut(&mut [u8]) -> core::result::Result<usize, E>,
-    ) -> core::result::Result<(), TransportError>
+    ) -> core::result::Result<(), WithError<E>>
     where
         Buff: AsMut<[u8]> + AsRef<[u8]>,
         E: Display,
@@ -408,10 +410,7 @@ where
         let max = core::cmp::min(self.buff.as_ref().len(), self.batch_size);
         let buff = &mut self.buff.as_mut()[self.cursor..max];
 
-        let len = read(buff).await.map_err(|e| {
-            zenoh_proto::error!("{e}");
-            TransportError::CouldNotRead
-        })?;
+        let len = read(buff).await.map_err(WithError::Other)?;
 
         if len > 0 {
             self.state = State::Used;
@@ -430,16 +429,23 @@ where
             self.buff.as_ref().len(),
             core::cmp::min(self.batch_size, self.cursor),
         );
-        self.cursor = 0;
+        self.clear();
         let mut reader = &self.buff.as_ref()[..size];
         let mut last_frame = None;
         let sn = &mut self.sn;
         let resolution = self.resolution;
+        let ignore = self.ignore_invalid_sn;
 
-        core::iter::from_fn(move || Self::decode(&mut reader, &mut last_frame, sn, resolution))
-            .filter_map(|m| match m.0 {
-                Message::Network(msg) => Some((msg, m.1)),
-                _ => None,
-            })
+        core::iter::from_fn(move || {
+            Self::decode(&mut reader, &mut last_frame, sn, resolution, ignore)
+        })
+        .filter_map(|m| match m.0 {
+            Message::Network(msg) => Some((msg, m.1)),
+            _ => None,
+        })
+    }
+
+    fn clear(&mut self) {
+        self.cursor = 0;
     }
 }
