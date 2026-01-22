@@ -2,24 +2,36 @@ use zenoh_sansio::{TransportTx, ZTransportTx};
 
 use super::{LinkTx, ZLinkManager, ZLinkTx, ZTransportLinkTx};
 
-pub struct TransportLinkTx<'p, 'a, LinkManager, Buff>
+pub struct TransportLinkTx<'res, 'transport, LinkManager, Buff>
 where
     LinkManager: ZLinkManager,
 {
-    link: LinkTx<'p, 'a, LinkManager>,
-    transport: &'p mut TransportTx<Buff>,
+    link: LinkTx<'res, 'transport, LinkManager>,
+    transport: &'transport mut TransportTx<Buff>,
 }
 
-impl<'p, 'a, LinkManager, Buff> TransportLinkTx<'p, 'a, LinkManager, Buff>
+impl<'res, 'transport, LinkManager, Buff> TransportLinkTx<'res, 'transport, LinkManager, Buff>
 where
     LinkManager: ZLinkManager,
 {
-    pub fn new(link: LinkTx<'p, 'a, LinkManager>, transport: &'p mut TransportTx<Buff>) -> Self {
+    pub fn new(
+        link: LinkTx<'res, 'transport, LinkManager>,
+        transport: &'transport mut TransportTx<Buff>,
+    ) -> Self {
         Self { link, transport }
+    }
+
+    pub fn transport(&self) -> &TransportTx<Buff> {
+        &self.transport
+    }
+
+    pub fn transport_mut(&mut self) -> &mut TransportTx<Buff> {
+        &mut self.transport
     }
 }
 
-impl<'p, 'a, LinkManager, Buff> ZTransportLinkTx for TransportLinkTx<'p, 'a, LinkManager, Buff>
+impl<'res, 'transport, LinkManager, Buff> ZTransportLinkTx
+    for TransportLinkTx<'res, 'transport, LinkManager, Buff>
 where
     LinkManager: ZLinkManager,
     Buff: AsMut<[u8]> + AsRef<[u8]>,

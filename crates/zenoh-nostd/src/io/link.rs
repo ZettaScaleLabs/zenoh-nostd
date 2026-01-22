@@ -1,4 +1,41 @@
+use core::net::SocketAddr;
+
 mod impls;
+
+pub trait ZLinkManager: Sized {
+    type Tcp<'res>: ZLink;
+    type Udp<'res>: ZLink;
+    type Ws<'res>: ZLink;
+    type Serial<'res>: ZLink;
+
+    fn connect_tcp(
+        &self,
+        addr: &SocketAddr,
+    ) -> impl Future<Output = core::result::Result<Link<'_, Self>, zenoh_proto::LinkError>> {
+        async move { unimplemented!("{addr}") }
+    }
+
+    fn listen_tcp(
+        &self,
+        addr: &SocketAddr,
+    ) -> impl Future<Output = core::result::Result<Link<'_, Self>, zenoh_proto::LinkError>> {
+        async move { unimplemented!("{addr}") }
+    }
+
+    fn connect_udp(
+        &self,
+        addr: &SocketAddr,
+    ) -> impl Future<Output = core::result::Result<Link<'_, Self>, zenoh_proto::LinkError>> {
+        async move { unimplemented!("{addr}") }
+    }
+
+    fn listen_udp(
+        &self,
+        addr: &SocketAddr,
+    ) -> impl Future<Output = core::result::Result<Link<'_, Self>, zenoh_proto::LinkError>> {
+        async move { unimplemented!("{addr}") }
+    }
+}
 
 pub trait ZLinkInfo {
     fn mtu(&self) -> u16;
@@ -25,20 +62,20 @@ pub trait ZLinkRx: ZLinkInfo {
 }
 
 pub trait ZLink: ZLinkInfo + ZLinkTx + ZLinkRx {
-    type Tx<'a>: ZLinkTx + ZLinkInfo
+    type Tx<'link>: ZLinkTx + ZLinkInfo
     where
-        Self: 'a;
+        Self: 'link;
 
-    type Rx<'a>: ZLinkRx + ZLinkInfo
+    type Rx<'link>: ZLinkRx + ZLinkInfo
     where
-        Self: 'a;
+        Self: 'link;
 
     fn split(&mut self) -> (Self::Tx<'_>, Self::Rx<'_>);
 }
 
 macro_rules! impl_link_traits {
     ($struct:ident<$($lt:lifetime),*>: ZLinkInfo, $($variant:ident<$($lt2:lifetime),*>),+) => {
-        impl<$($lt,)* LinkManager: super::ZLinkManager> ZLinkInfo for $struct<$($lt,)* LinkManager>
+        impl<$($lt,)* LinkManager: ZLinkManager> ZLinkInfo for $struct<$($lt,)* LinkManager>
         where
             $(LinkManager::$variant<$($lt2,)*>: ZLinkInfo,)+
         {
@@ -53,7 +90,7 @@ macro_rules! impl_link_traits {
     };
 
     ($struct:ident<$($lt:lifetime),*>: ZLinkTx, $($variant:ident<$($lt2:lifetime),*>),+) => {
-        impl<$($lt,)* LinkManager: super::ZLinkManager> ZLinkTx for $struct<$($lt,)* LinkManager>
+        impl<$($lt,)* LinkManager: ZLinkManager> ZLinkTx for $struct<$($lt,)* LinkManager>
         where
             $(LinkManager::$variant<$($lt2,)*>: ZLinkTx,)+
         {
@@ -64,7 +101,7 @@ macro_rules! impl_link_traits {
     };
 
     ($struct:ident<$($lt:lifetime),*>: ZLinkRx, $($variant:ident<$($lt2:lifetime),*>),+) => {
-        impl<$($lt,)* LinkManager: super::ZLinkManager> ZLinkRx for $struct<$($lt,)* LinkManager>
+        impl<$($lt,)* LinkManager: ZLinkManager> ZLinkRx for $struct<$($lt,)* LinkManager>
         where
             $(LinkManager::$variant<$($lt2,)*>: ZLinkRx,)+
         {
@@ -79,12 +116,12 @@ macro_rules! impl_link_traits {
     };
 
     ($struct:ident<$lt1:lifetime>: ZLink, $($variant:ident<$lt2:lifetime>),+) => {
-        impl<$lt1, LinkManager: super::ZLinkManager> ZLink for $struct<$lt1, LinkManager>
+        impl<$lt1, LinkManager: ZLinkManager> ZLink for $struct<$lt1, LinkManager>
         where
             $(LinkManager::$variant<$lt2>: ZLink,)+
         {
-            type Tx<'a> = LinkTx<$lt1, 'a, LinkManager> where Self: 'a;
-            type Rx<'a> = LinkRx<$lt1, 'a, LinkManager> where Self: 'a;
+            type Tx<'link> = LinkTx<$lt1, 'link, LinkManager> where Self: 'link;
+            type Rx<'link> = LinkRx<$lt1, 'link, LinkManager> where Self: 'link;
 
             fn split(&mut self) -> (Self::Tx<'_>, Self::Rx<'_>) {
                 match self {
@@ -116,40 +153,40 @@ macro_rules! delegate_variants {
 
 macro_rules! define {
     ($($variant:ident),* $(,)?) => {
-        pub enum Link<'p, LinkManager: super::ZLinkManager> {
+        pub enum Link<'res, LinkManager: ZLinkManager> {
             $(
-                $variant(LinkManager::$variant<'p>),
+                $variant(LinkManager::$variant<'res>),
             )*
         }
 
-        impl_link_traits! { Link<'p>: ZLinkInfo, $($variant<'p>),* }
-        impl_link_traits! { Link<'p>: ZLinkTx, $($variant<'p>),* }
-        impl_link_traits! { Link<'p>: ZLinkRx, $($variant<'p>),* }
-        impl_link_traits! { Link<'p>: ZLink, $($variant<'p>),* }
+        impl_link_traits! { Link<'res>: ZLinkInfo, $($variant<'res>),* }
+        impl_link_traits! { Link<'res>: ZLinkTx, $($variant<'res>),* }
+        impl_link_traits! { Link<'res>: ZLinkRx, $($variant<'res>),* }
+        impl_link_traits! { Link<'res>: ZLink, $($variant<'res>),* }
 
-        pub enum LinkTx<'p, 'a, LinkManager: super::ZLinkManager>
+        pub enum LinkTx<'res, 'link, LinkManager: ZLinkManager>
         where
-            Self: 'a,
+            Self: 'link,
         {
             $(
-                $variant(<LinkManager::$variant<'p> as ZLink>::Tx<'a>),
+                $variant(<LinkManager::$variant<'res> as ZLink>::Tx<'link>),
             )*
         }
 
-        impl_link_traits! { LinkTx<'p, 'a>: ZLinkInfo, $($variant<'p>),* }
-        impl_link_traits! { LinkTx<'p, 'a>: ZLinkTx, $($variant<'p>),* }
+        impl_link_traits! { LinkTx<'res, 'link>: ZLinkInfo, $($variant<'res>),* }
+        impl_link_traits! { LinkTx<'res, 'link>: ZLinkTx, $($variant<'res>),* }
 
-        pub enum LinkRx<'p, 'a, LinkManager: super::ZLinkManager>
+        pub enum LinkRx<'res, 'link, LinkManager: ZLinkManager>
         where
-            Self: 'a,
+            Self: 'link,
         {
             $(
-                $variant(<LinkManager::$variant<'p> as ZLink>::Rx<'a>),
+                $variant(<LinkManager::$variant<'res> as ZLink>::Rx<'link>),
             )*
         }
 
-        impl_link_traits! { LinkRx<'p, 'a>: ZLinkInfo, $($variant<'p>),* }
-        impl_link_traits! { LinkRx<'p, 'a>: ZLinkRx, $($variant<'p>),* }
+        impl_link_traits! { LinkRx<'res, 'link>: ZLinkInfo, $($variant<'res>),* }
+        impl_link_traits! { LinkRx<'res, 'link>: ZLinkRx, $($variant<'res>),* }
     };
 }
 

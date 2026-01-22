@@ -116,7 +116,7 @@ fn handle_client(mut stream: std::net::TcpStream, mut transport: Transport<[u8; 
         {
             Ok(_) => {}
             Err(e) => match e {
-                WithError::Other(e) if e.kind() == std::io::ErrorKind::WouldBlock => continue,
+                EitherError::Other(e) if e.kind() == std::io::ErrorKind::WouldBlock => continue,
                 _ => break,
             },
         };

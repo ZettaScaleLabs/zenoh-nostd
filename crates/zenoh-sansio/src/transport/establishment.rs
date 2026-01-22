@@ -123,7 +123,7 @@ impl State {
                         None,
                     )
                 }
-                _ => zenoh_proto::zbail!(@ret (None, None), TransportError::StateCantHandle),
+                _ => zenoh_proto::zbail!(@ret (None, None), TransportError::InvalidState),
             },
             // Negotiate values, pass the cookie back
             TransportMessage::InitAck(ack) => match *self {
@@ -191,7 +191,7 @@ impl State {
                         None,
                     )
                 }
-                _ => zenoh_proto::zbail!(@ret (None, None), TransportError::StateCantHandle),
+                _ => zenoh_proto::zbail!(@ret (None, None), TransportError::InvalidState),
             },
             // Negotiate values, open the transport. Ack the open
             TransportMessage::OpenSyn(open) => match *self {
@@ -270,7 +270,7 @@ impl State {
                         Some(description),
                     )
                 }
-                _ => zenoh_proto::zbail!(@ret (None, None), TransportError::StateCantHandle),
+                _ => zenoh_proto::zbail!(@ret (None, None), TransportError::InvalidState),
             },
             // Open the transport
             TransportMessage::OpenAck(ack) => match *self {
@@ -303,9 +303,9 @@ impl State {
 
                     (None, Some(description))
                 }
-                _ => zenoh_proto::zbail!(@ret (None, None), TransportError::StateCantHandle),
+                _ => zenoh_proto::zbail!(@ret (None, None), TransportError::InvalidState),
             },
-            _ => zenoh_proto::zbail!(@ret (None, None), TransportError::StateCantHandle),
+            _ => zenoh_proto::zbail!(@ret (None, None), TransportError::InvalidState),
         }
     }
 

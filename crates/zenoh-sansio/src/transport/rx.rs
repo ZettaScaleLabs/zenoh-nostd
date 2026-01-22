@@ -1,9 +1,11 @@
 use core::fmt::Display;
 use core::time::Duration;
 
-use zenoh_proto::{TransportError, ZBodyDecode, ZReadable, fields::Resolution, msgs::*};
+use zenoh_proto::{
+    EitherError, TransportError, ZBodyDecode, ZReadable, fields::Resolution, msgs::*,
+};
 
-use crate::{WithError, ZTransportRx, transport::TransportTx};
+use crate::{ZTransportRx, transport::TransportTx};
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord)]
 enum State {
@@ -263,7 +265,7 @@ where
 
         let len = read.len();
         if buff.len() < read.len() {
-            zenoh_proto::zbail!(@log TransportError::TransportIsFull);
+            zenoh_proto::zbail!(@log TransportError::TransportRxFull);
         }
 
         buff[..len].copy_from_slice(read);
@@ -280,7 +282,7 @@ where
     fn decode_prefixed_with<E>(
         &mut self,
         mut read: impl FnMut(&mut [u8]) -> core::result::Result<usize, E>,
-    ) -> core::result::Result<(), WithError<E>>
+    ) -> core::result::Result<(), EitherError<TransportError, E>>
     where
         Buff: AsMut<[u8]> + AsRef<[u8]>,
         E: Display,
@@ -293,11 +295,11 @@ where
         let buff = &mut self.buff.as_mut()[self.cursor..max];
 
         if 2 > buff.len() {
-            zenoh_proto::zbail!(@log TransportError::TransportTooSmall);
+            zenoh_proto::zbail!(@log TransportError::TransportRxFull);
         }
 
         let mut len = [0u8; 2];
-        let l = read(&mut len).map_err(WithError::Other)?;
+        let l = read(&mut len).map_err(EitherError::B)?;
 
         if l == 0 {
             return Ok(());
@@ -310,7 +312,7 @@ where
             zenoh_proto::zbail!(@log TransportError::InvalidAttribute);
         }
 
-        if read(&mut buff[..len]).map_err(WithError::Other)? != len {
+        if read(&mut buff[..len]).map_err(EitherError::B)? != len {
             zenoh_proto::zbail!(@log TransportError::InvalidAttribute)
         }
 
@@ -326,7 +328,7 @@ where
     fn decode_raw_with<E>(
         &mut self,
         mut read: impl FnMut(&mut [u8]) -> core::result::Result<usize, E>,
-    ) -> core::result::Result<(), WithError<E>>
+    ) -> core::result::Result<(), EitherError<TransportError, E>>
     where
         Buff: AsMut<[u8]> + AsRef<[u8]>,
         E: Display,
@@ -338,7 +340,7 @@ where
         let max = core::cmp::min(self.buff.as_ref().len(), self.batch_size);
         let buff = &mut self.buff.as_mut()[self.cursor..max];
 
-        let len = read(buff).map_err(WithError::Other)?;
+        let len = read(buff).map_err(EitherError::B)?;
 
         if len > 0 {
             self.state = State::Used;
@@ -352,7 +354,7 @@ where
     async fn decode_prefixed_with_async<E>(
         &mut self,
         mut read: impl AsyncFnMut(&mut [u8]) -> core::result::Result<usize, E>,
-    ) -> core::result::Result<(), WithError<E>>
+    ) -> core::result::Result<(), EitherError<TransportError, E>>
     where
         Buff: AsMut<[u8]> + AsRef<[u8]>,
         E: Display,
@@ -365,11 +367,11 @@ where
         let buff = &mut self.buff.as_mut()[self.cursor..max];
 
         if 2 > buff.len() {
-            zenoh_proto::zbail!(@log TransportError::TransportTooSmall);
+            zenoh_proto::zbail!(@log TransportError::TransportRxFull);
         }
 
         let mut len = [0u8; 2];
-        let l = read(&mut len).await.map_err(WithError::Other)?;
+        let l = read(&mut len).await.map_err(EitherError::B)?;
 
         if l == 0 {
             return Ok(());
@@ -382,7 +384,7 @@ where
             zenoh_proto::zbail!(@log TransportError::InvalidAttribute);
         }
 
-        if read(&mut buff[..len]).await.map_err(WithError::Other)? != len {
+        if read(&mut buff[..len]).await.map_err(EitherError::B)? != len {
             zenoh_proto::zbail!(@log TransportError::InvalidAttribute)
         }
 
@@ -398,7 +400,7 @@ where
     async fn decode_raw_with_async<E>(
         &mut self,
         mut read: impl AsyncFnMut(&mut [u8]) -> core::result::Result<usize, E>,
-    ) -> core::result::Result<(), WithError<E>>
+    ) -> core::result::Result<(), EitherError<TransportError, E>>
     where
         Buff: AsMut<[u8]> + AsRef<[u8]>,
         E: Display,
@@ -410,7 +412,7 @@ where
         let max = core::cmp::min(self.buff.as_ref().len(), self.batch_size);
         let buff = &mut self.buff.as_mut()[self.cursor..max];
 
-        let len = read(buff).await.map_err(WithError::Other)?;
+        let len = read(buff).await.map_err(EitherError::B)?;
 
         if len > 0 {
             self.state = State::Used;

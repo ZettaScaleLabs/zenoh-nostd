@@ -1,4 +1,7 @@
-use zenoh_proto::msgs::{NetworkMessage, NetworkMessageRef};
+use zenoh_proto::{
+    TransportLinkError,
+    msgs::{NetworkMessage, NetworkMessageRef},
+};
 use zenoh_sansio::{ZTransportRx, ZTransportTx};
 
 use super::{ZLinkInfo, ZLinkRx, ZLinkTx};
@@ -80,7 +83,8 @@ pub trait ZTransportLinkRx {
                     },
                     streamed,
                 )
-                .await?;
+                .await
+                .map_err(|e| e.flatten_map::<TransportLinkError>())?;
 
             Ok(transport.flush())
         }

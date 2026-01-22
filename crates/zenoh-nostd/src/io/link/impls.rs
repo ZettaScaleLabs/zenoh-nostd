@@ -36,14 +36,14 @@ impl ZLinkRx for () {
 }
 
 impl ZLink for () {
-    type Rx<'a>
+    type Rx<'link>
         = ()
     where
-        Self: 'a;
-    type Tx<'a>
+        Self: 'link;
+    type Tx<'link>
         = ()
     where
-        Self: 'a;
+        Self: 'link;
 
     fn split(&mut self) -> (Self::Tx<'_>, Self::Rx<'_>) {
         unimplemented!()

@@ -1,9 +1,9 @@
 use core::fmt::Display;
 
-use zenoh_proto::{TransportError, msgs::InitSyn};
+use zenoh_proto::{EitherError, TransportError, msgs::InitSyn};
 
 use crate::{
-    Transport, TransportRx, TransportTx, WithError, ZTransportRx, ZTransportTx,
+    Transport, TransportRx, TransportTx, ZTransportRx, ZTransportTx,
     establishment::{Description, State},
 };
 
@@ -87,7 +87,10 @@ impl<Buff, T, Read, Write> Handshake<Buff, T, Read, Write> {
     #[allow(clippy::type_complexity)]
     pub fn poll<E>(
         &mut self,
-    ) -> core::result::Result<Option<HandshakeReady<'_, Buff, T, Read, Write>>, WithError<E>>
+    ) -> core::result::Result<
+        Option<HandshakeReady<'_, Buff, T, Read, Write>>,
+        EitherError<TransportError, E>,
+    >
     where
         E: Display,
         Buff: Clone + AsMut<[u8]> + AsRef<[u8]>,
@@ -188,7 +191,10 @@ impl<Buff, T, Read, Write> Handshake<Buff, T, Read, Write> {
 
     pub async fn poll_async<E>(
         &mut self,
-    ) -> core::result::Result<Option<HandshakeReady<'_, Buff, T, Read, Write>>, WithError<E>>
+    ) -> core::result::Result<
+        Option<HandshakeReady<'_, Buff, T, Read, Write>>,
+        EitherError<TransportError, E>,
+    >
     where
         E: Display,
         Buff: Clone + AsMut<[u8]> + AsRef<[u8]>,
@@ -288,7 +294,9 @@ impl<Buff, T, Read, Write> Handshake<Buff, T, Read, Write> {
         }
     }
 
-    pub fn finish<E>(mut self) -> core::result::Result<Transport<Buff>, WithError<E>>
+    pub fn finish<E>(
+        mut self,
+    ) -> core::result::Result<Transport<Buff>, EitherError<TransportError, E>>
     where
         E: Display,
         Buff: Clone + AsMut<[u8]> + AsRef<[u8]>,
@@ -302,7 +310,9 @@ impl<Buff, T, Read, Write> Handshake<Buff, T, Read, Write> {
         }
     }
 
-    pub async fn finish_async<E>(mut self) -> core::result::Result<Transport<Buff>, WithError<E>>
+    pub async fn finish_async<E>(
+        mut self,
+    ) -> core::result::Result<Transport<Buff>, EitherError<TransportError, E>>
     where
         E: Display,
         Buff: Clone + AsMut<[u8]> + AsRef<[u8]>,

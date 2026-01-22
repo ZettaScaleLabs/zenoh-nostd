@@ -1,4 +1,4 @@
-use core::{net::SocketAddr, str::FromStr, time::Duration};
+use core::{net::SocketAddr, time::Duration};
 
 use embassy_time::with_timeout;
 use zenoh_proto::{
@@ -17,27 +17,27 @@ pub use rx::*;
 pub use traits::*;
 pub use tx::*;
 
-pub struct TransportLink<'a, LinkManager, Buff>
+pub struct TransportLink<'res, LinkManager, Buff>
 where
     LinkManager: ZLinkManager,
 {
-    link: Link<'a, LinkManager>,
+    link: Link<'res, LinkManager>,
     transport: Transport<Buff>,
 }
 
-impl<'a, LinkManager, Buff> TransportLink<'a, LinkManager, Buff>
+impl<'res, LinkManager, Buff> TransportLink<'res, LinkManager, Buff>
 where
     LinkManager: ZLinkManager,
 {
-    pub fn new(link: Link<'a, LinkManager>, transport: Transport<Buff>) -> Self {
+    pub fn new(link: Link<'res, LinkManager>, transport: Transport<Buff>) -> Self {
         Self { link, transport }
     }
 
     pub fn split(
         &mut self,
     ) -> (
-        TransportLinkTx<'_, 'a, LinkManager, Buff>,
-        TransportLinkRx<'_, 'a, LinkManager, Buff>,
+        TransportLinkTx<'res, '_, LinkManager, Buff>,
+        TransportLinkRx<'res, '_, LinkManager, Buff>,
     ) {
         let (link_tx, link_rx) = self.link.split();
         let (transport_tx, transport_rx) = self.transport.split();
@@ -47,9 +47,13 @@ where
             TransportLinkRx::new(link_rx, transport_rx),
         )
     }
+
+    pub fn transport(&self) -> &Transport<Buff> {
+        &self.transport
+    }
 }
 
-impl<'a, LinkManager, Buff> ZTransportLinkTx for TransportLink<'a, LinkManager, Buff>
+impl<'res, LinkManager, Buff> ZTransportLinkTx for TransportLink<'res, LinkManager, Buff>
 where
     LinkManager: ZLinkManager,
     Buff: AsMut<[u8]> + AsRef<[u8]>,
@@ -59,7 +63,7 @@ where
     }
 }
 
-impl<'a, LinkManager, Buff> ZTransportLinkRx for TransportLink<'a, LinkManager, Buff>
+impl<'res, LinkManager, Buff> ZTransportLinkRx for TransportLink<'res, LinkManager, Buff>
 where
     LinkManager: ZLinkManager,
     Buff: AsMut<[u8]> + AsRef<[u8]>,
@@ -109,15 +113,11 @@ impl<LinkManager> TransportLinkManager<LinkManager> {
 
         let mut link = match protocol.as_str() {
             "tcp" => {
-                let dst_addr = SocketAddr::from_str(address.as_str())
-                    .map_err(|_| zenoh_proto::EndpointError::CouldNotParseAddress)?;
-
+                let dst_addr = SocketAddr::try_from(address)?;
                 self.link_manager.connect_tcp(&dst_addr).await?
             }
             "udp" => {
-                let dst_addr = SocketAddr::from_str(address.as_str())
-                    .map_err(|_| zenoh_proto::EndpointError::CouldNotParseAddress)?;
-
+                let dst_addr = SocketAddr::try_from(address)?;
                 self.link_manager.connect_udp(&dst_addr).await?
             }
             _ => zenoh_proto::zbail!(zenoh_proto::EndpointError::CouldNotParseProtocol),
@@ -147,7 +147,8 @@ impl<LinkManager> TransportLinkManager<LinkManager> {
 
         let transport = with_timeout(self.open_timeout.try_into().unwrap(), connect())
             .await
-            .map_err(|_| TransportLinkError::OpenTimeout)??;
+            .map_err(|_| TransportLinkError::OpenTimeout)?
+            .map_err(|e| e.flatten_map::<TransportLinkError>())?;
 
         Ok(TransportLink::new(link, transport))
     }
@@ -166,15 +167,11 @@ impl<LinkManager> TransportLinkManager<LinkManager> {
 
         let mut link = match protocol.as_str() {
             "tcp" => {
-                let dst_addr = SocketAddr::from_str(address.as_str())
-                    .map_err(|_| zenoh_proto::EndpointError::CouldNotParseAddress)?;
-
+                let dst_addr = SocketAddr::try_from(address)?;
                 self.link_manager.listen_tcp(&dst_addr).await?
             }
             "udp" => {
-                let dst_addr = SocketAddr::from_str(address.as_str())
-                    .map_err(|_| zenoh_proto::EndpointError::CouldNotParseAddress)?;
-
+                let dst_addr = SocketAddr::try_from(address)?;
                 self.link_manager.listen_udp(&dst_addr).await?
             }
             _ => zenoh_proto::zbail!(zenoh_proto::EndpointError::CouldNotParseProtocol),
@@ -204,7 +201,8 @@ impl<LinkManager> TransportLinkManager<LinkManager> {
 
         let transport = with_timeout(self.open_timeout.try_into().unwrap(), listen())
             .await
-            .map_err(|_| TransportLinkError::OpenTimeout)??;
+            .map_err(|_| TransportLinkError::OpenTimeout)?
+            .map_err(|e| e.flatten_map::<TransportLinkError>())?;
 
         Ok(TransportLink::new(link, transport))
     }

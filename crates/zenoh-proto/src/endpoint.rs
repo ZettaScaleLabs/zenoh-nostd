@@ -1,4 +1,4 @@
-use core::{convert::TryFrom, fmt};
+use core::{convert::TryFrom, fmt, net::SocketAddr, str::FromStr};
 
 const PROTO_SEPARATOR: char = '/';
 const METADATA_SEPARATOR: char = '?';
@@ -14,6 +14,15 @@ fn address(s: &str) -> &str {
     let midx = s.find(METADATA_SEPARATOR).unwrap_or(s.len());
     let cidx = s.find(CONFIG_SEPARATOR).unwrap_or(s.len());
     &s[pdix + 1..midx.min(cidx)]
+}
+
+#[repr(u8)]
+#[derive(Copy, Clone, PartialEq, Eq, Hash)]
+pub enum ProtocolId {
+    Tcp,
+    Udp,
+    WebSocket,
+    Serial,
 }
 
 #[repr(transparent)]
@@ -41,6 +50,20 @@ impl fmt::Display for Protocol<'_> {
 impl fmt::Debug for Protocol<'_> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{self}")
+    }
+}
+
+impl TryFrom<Protocol<'_>> for ProtocolId {
+    type Error = crate::EndpointError;
+
+    fn try_from(value: Protocol<'_>) -> Result<Self, Self::Error> {
+        Ok(match value.as_str() {
+            "tcp" => Self::Tcp,
+            "udp" => Self::Udp,
+            "ws" => Self::WebSocket,
+            "serial" => Self::Serial,
+            _ => crate::zbail!(crate::EndpointError::CouldNotParseProtocol),
+        })
     }
 }
 
@@ -75,6 +98,14 @@ impl fmt::Debug for Address<'_> {
 impl<'a> From<&'a str> for Address<'a> {
     fn from(value: &'a str) -> Self {
         Address(value)
+    }
+}
+
+impl TryFrom<Address<'_>> for SocketAddr {
+    type Error = crate::EndpointError;
+
+    fn try_from(value: Address<'_>) -> Result<Self, Self::Error> {
+        SocketAddr::from_str(value.as_str()).map_err(|_| crate::EndpointError::CouldNotParseAddress)
     }
 }
 

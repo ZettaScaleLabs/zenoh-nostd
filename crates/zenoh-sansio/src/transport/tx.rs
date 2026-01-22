@@ -261,7 +261,7 @@ where
         );
 
         if size < 2 {
-            zenoh_proto::zbail!(@None TransportError::TransportTooSmall);
+            zenoh_proto::zbail!(@None TransportError::TransportTxFull);
         }
 
         let len = ((size - 2) as u16).to_le_bytes();
