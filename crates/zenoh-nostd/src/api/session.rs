@@ -1,139 +1,67 @@
+use core::hint::unreachable_unchecked;
+
+use zenoh_proto::Endpoint;
+
 use crate::{
-    EndPoint,
-    api::{Resources, ZConfig, driver::Driver, resources::SessionResources},
-    io::{
-        link::Link,
-        transport::{TransportConfig, TransportLink},
-    },
+    config::ZSessionConfig,
+    io::{Driver, TransportLink},
+    resources::SessionResourcesInner,
+    session::SessionResources,
 };
 
-use embassy_time::Duration;
-use zenoh_proto::fields::{Resolution, ZenohIdProto};
-
-mod get;
-mod r#pub;
-mod put;
-mod querier;
-mod queryable;
-mod sub;
-
-pub struct Session<'res, Config>
+pub struct Session<'ext, 'res, Config>
 where
-    Config: ZConfig,
+    Config: ZSessionConfig,
 {
-    pub(crate) driver: Driver<'res, Config>,
-    pub(crate) resources: SessionResources<'res, Config>,
+    pub(crate) driver: Driver<'ext, 'res, Config::LinkManager, Config::Buff>,
 }
 
-impl<Config> Session<'_, Config>
+pub async fn session_connect<'ext, 'res, Config>(
+    resources: &'res mut SessionResources<'ext, Config>,
+    config: &'ext Config,
+    endpoint: Endpoint<'_>,
+) -> Session<'ext, 'res, Config>
 where
-    Config: ZConfig,
+    Config: ZSessionConfig,
 {
-    pub async fn run(&self) -> crate::ZResult<()> {
-        self.driver.run(&self.resources).await?;
+    let transport: TransportLink<'ext, Config::LinkManager, Config::Buff> = config
+        .transports()
+        .connect(endpoint, config.buff())
+        .await
+        .unwrap();
 
-        todo!("implement a `session.close` method that should undeclare all resources")
-    }
+    resources.inner = SessionResourcesInner::Init { transport };
+    let transport = match &mut resources.inner {
+        SessionResourcesInner::Init { transport } => transport,
+        _ => unsafe { unreachable_unchecked() },
+    };
+
+    let driver: Driver<'ext, 'res, Config::LinkManager, Config::Buff> = Driver::new(transport);
+
+    Session { driver }
 }
 
-/// Create a session bounded to the lifetimes of the `zenoh_nocore::Resources`.
-pub async fn connect<'res, Config>(
-    resources: &'res mut Resources<Config>,
-    config: Config,
-    endpoint: EndPoint<'_>,
-) -> crate::ZResult<Session<'res, Config>>
+pub async fn session_listen<'ext, 'res, Config>(
+    resources: &'res mut SessionResources<'ext, Config>,
+    config: &'ext Config,
+    endpoint: Endpoint<'_>,
+) -> Session<'ext, 'res, Config>
 where
-    Config: ZConfig,
+    Config: ZSessionConfig,
 {
-    let link = Link::connect(config.platform(), endpoint).await?;
+    let transport: TransportLink<'ext, Config::LinkManager, Config::Buff> = config
+        .transports()
+        .listen(endpoint, config.buff())
+        .await
+        .unwrap();
 
-    let transport = TransportLink::connect(
-        link,
-        TransportConfig {
-            zid: ZenohIdProto::default(),
-            lease: Duration::from_secs(20),
-            resolution: Resolution::default(),
+    resources.inner = SessionResourcesInner::Init { transport };
+    let transport = match &mut resources.inner {
+        SessionResourcesInner::Init { transport } => transport,
+        _ => unsafe { unreachable_unchecked() },
+    };
 
-            open_timeout: Duration::from_secs(5),
-        },
-        config.buff(),
-    )
-    .await?;
+    let driver: Driver<'ext, 'res, Config::LinkManager, Config::Buff> = Driver::new(transport);
 
-    Ok(resources.init(config, transport))
-}
-
-/// Create a session bounded to the lifetimes of the `zenoh_nocore::Resources`.
-pub async fn listen<'res, Config>(
-    resources: &'res mut Resources<Config>,
-    config: Config,
-    endpoint: EndPoint<'_>,
-) -> crate::ZResult<Session<'res, Config>>
-where
-    Config: ZConfig,
-{
-    let link = Link::listen(config.platform(), endpoint).await?;
-
-    let transport = TransportLink::listen(
-        link,
-        TransportConfig {
-            zid: ZenohIdProto::default(),
-            lease: Duration::from_secs(20),
-            resolution: Resolution::default(),
-
-            open_timeout: Duration::from_secs(5),
-        },
-        config.buff(),
-    )
-    .await?;
-
-    Ok(resources.init(config, transport))
-}
-
-/// Alternative version of `zenoh_nocore::connect` that creates an `'static` `zenoh_nocore::Session`.
-#[macro_export]
-macro_rules! connect {
-    (
-        $config:expr => $CONFIG:ty,
-        $endpoint:expr
-    ) => {{
-        static RESOURCES: static_cell::StaticCell<$crate::Resources<$CONFIG>> =
-            static_cell::StaticCell::new();
-
-        static SESSION: static_cell::StaticCell<$crate::Session<'static, $CONFIG>> =
-            static_cell::StaticCell::new();
-
-        SESSION.init(
-            $crate::connect(
-                RESOURCES.init($crate::Resources::default()),
-                $config,
-                $endpoint,
-            )
-            .await?,
-        ) as &'static $crate::Session<'static, $CONFIG>
-    }};
-}
-
-/// Alternative version of `zenoh_nocore::listen` that creates an `'static` `zenoh_nocore::Session`.
-#[macro_export]
-macro_rules! listen {
-    (
-        $config:expr => $CONFIG:ty,
-        $endpoint:expr
-    ) => {{
-        static RESOURCES: static_cell::StaticCell<$crate::Resources<$CONFIG>> =
-            static_cell::StaticCell::new();
-
-        static SESSION: static_cell::StaticCell<$crate::Session<'static, $CONFIG>> =
-            static_cell::StaticCell::new();
-
-        SESSION.init(
-            $crate::listen(
-                RESOURCES.init($crate::Resources::default()),
-                $config,
-                $endpoint,
-            )
-            .await?,
-        ) as &'static $crate::Session<'static, $CONFIG>
-    }};
+    Session { driver }
 }

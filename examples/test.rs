@@ -21,6 +21,7 @@ impl<'ext> ZSessionConfig for Config<'ext> {
 #[embassy_executor::main]
 async fn main(spawner: embassy_executor::Spawner) {
     let config: Config<'_> = unsafe { core::mem::transmute_copy(&()) };
+
     let mut resources = SessionResources::new();
     let session = zenoh::connect(&mut resources, &config, Endpoint::try_from("").unwrap()).await;
 }
