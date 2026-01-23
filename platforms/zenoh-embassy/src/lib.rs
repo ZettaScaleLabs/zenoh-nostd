@@ -6,7 +6,7 @@ use embassy_net::{
     tcp::TcpSocket,
     udp::{PacketMetadata, UdpSocket},
 };
-use zenoh_io::{Link, ZLinkManager};
+use zenoh_nostd::platform::*;
 
 pub mod tcp;
 pub mod udp;
@@ -37,7 +37,7 @@ impl<T, const MTU: usize, const SOCKS: usize> BufferPool<T, MTU, SOCKS> {
     }
 }
 
-pub trait BufferPoolDrop {
+pub(crate) trait BufferPoolDrop {
     fn release(&mut self, idx: usize);
 }
 
@@ -98,24 +98,22 @@ impl<'a, const MTU: usize, const SOCKS: usize> ZLinkManager for EmbassyLinkManag
     async fn connect_tcp(
         &self,
         addr: &core::net::SocketAddr,
-    ) -> core::result::Result<Link<'_, Self>, zenoh_proto::ConnectionError> {
-        let (idx, tx, rx) = self
-            .allocate_buffers()
-            .ok_or(zenoh_proto::ConnectionError::CouldNotConnect)?;
+    ) -> core::result::Result<Link<'_, Self>, LinkError> {
+        let (idx, tx, rx) = self.allocate_buffers().ok_or(LinkError::CouldNotConnect)?;
         let mut socket = TcpSocket::new(self.stack.clone(), rx, tx);
 
         let address: IpAddress = match addr.ip() {
             core::net::IpAddr::V4(v4) => IpAddress::Ipv4(v4),
             core::net::IpAddr::V6(_) => {
-                zenoh_proto::zbail!(zenoh_proto::ConnectionError::CouldNotConnect)
+                zbail!(LinkError::CouldNotConnect)
             }
         };
 
         let ip_endpoint = IpEndpoint::new(address, addr.port());
 
         socket.connect(ip_endpoint).await.map_err(|e| {
-            zenoh_proto::error!("Could not connect to {:?}: {:?}", addr, e);
-            zenoh_proto::ConnectionError::CouldNotConnect
+            error!("Could not connect to {:?}: {:?}", addr, e);
+            LinkError::CouldNotConnect
         })?;
 
         Ok(Link::Tcp(Self::Tcp::new(
@@ -129,24 +127,22 @@ impl<'a, const MTU: usize, const SOCKS: usize> ZLinkManager for EmbassyLinkManag
     async fn listen_tcp(
         &self,
         addr: &core::net::SocketAddr,
-    ) -> core::result::Result<Link<'_, Self>, zenoh_proto::ConnectionError> {
-        let (idx, tx, rx) = self
-            .allocate_buffers()
-            .ok_or(zenoh_proto::ConnectionError::CouldNotConnect)?;
+    ) -> core::result::Result<Link<'_, Self>, LinkError> {
+        let (idx, tx, rx) = self.allocate_buffers().ok_or(LinkError::CouldNotConnect)?;
         let mut socket = TcpSocket::new(self.stack.clone(), rx, tx);
 
         let address: IpAddress = match addr.ip() {
             core::net::IpAddr::V4(v4) => IpAddress::Ipv4(v4),
             core::net::IpAddr::V6(_) => {
-                zenoh_proto::zbail!(zenoh_proto::ConnectionError::CouldNotConnect)
+                zbail!(LinkError::CouldNotConnect)
             }
         };
 
         let ip_endpoint = IpEndpoint::new(address, addr.port());
 
         socket.accept(ip_endpoint).await.map_err(|e| {
-            zenoh_proto::error!("Could not connect to {:?}: {:?}", addr, e);
-            zenoh_proto::ConnectionError::CouldNotConnect
+            error!("Could not connect to {:?}: {:?}", addr, e);
+            LinkError::CouldNotConnect
         })?;
 
         Ok(Link::Tcp(Self::Tcp::new(
@@ -160,24 +156,20 @@ impl<'a, const MTU: usize, const SOCKS: usize> ZLinkManager for EmbassyLinkManag
     async fn connect_udp(
         &self,
         addr: &core::net::SocketAddr,
-    ) -> core::result::Result<Link<'_, Self>, zenoh_proto::ConnectionError> {
-        let (idx1, tx, rx) = self
-            .allocate_buffers()
-            .ok_or(zenoh_proto::ConnectionError::CouldNotConnect)?;
+    ) -> core::result::Result<Link<'_, Self>, LinkError> {
+        let (idx1, tx, rx) = self.allocate_buffers().ok_or(LinkError::CouldNotConnect)?;
 
         let (idx2, tm, rm) = self
             .allocate_metadatas()
-            .ok_or(zenoh_proto::ConnectionError::CouldNotConnect)?;
+            .ok_or(LinkError::CouldNotConnect)?;
 
         let mut socket = UdpSocket::new(self.stack, rm, rx, tm, tx);
-        socket
-            .bind(0)
-            .map_err(|_| zenoh_proto::ConnectionError::CouldNotConnect)?;
+        socket.bind(0).map_err(|_| LinkError::CouldNotConnect)?;
 
         let address: IpAddress = match addr.ip() {
             core::net::IpAddr::V4(v4) => IpAddress::Ipv4(v4),
             core::net::IpAddr::V6(_) => {
-                zenoh_proto::zbail!(zenoh_proto::ConnectionError::CouldNotConnect)
+                zbail!(LinkError::CouldNotConnect)
             }
         };
 
@@ -197,28 +189,26 @@ impl<'a, const MTU: usize, const SOCKS: usize> ZLinkManager for EmbassyLinkManag
     async fn listen_udp(
         &self,
         addr: &core::net::SocketAddr,
-    ) -> core::result::Result<Link<'_, Self>, zenoh_proto::ConnectionError> {
-        let (idx1, tx, rx) = self
-            .allocate_buffers()
-            .ok_or(zenoh_proto::ConnectionError::CouldNotConnect)?;
+    ) -> core::result::Result<Link<'_, Self>, LinkError> {
+        let (idx1, tx, rx) = self.allocate_buffers().ok_or(LinkError::CouldNotConnect)?;
 
         let (idx2, tm, rm) = self
             .allocate_metadatas()
-            .ok_or(zenoh_proto::ConnectionError::CouldNotConnect)?;
+            .ok_or(LinkError::CouldNotConnect)?;
 
         let mut socket = UdpSocket::new(self.stack, rm, rx, tm, tx);
 
         let address: IpAddress = match addr.ip() {
             core::net::IpAddr::V4(v4) => IpAddress::Ipv4(v4),
             core::net::IpAddr::V6(_) => {
-                zenoh_proto::zbail!(zenoh_proto::ConnectionError::CouldNotConnect)
+                zbail!(LinkError::CouldNotConnect)
             }
         };
 
         let ip_endpoint = IpEndpoint::new(address, addr.port());
         socket
             .bind(ip_endpoint)
-            .map_err(|_| zenoh_proto::ConnectionError::CouldNotConnect)?;
+            .map_err(|_| LinkError::CouldNotConnect)?;
 
         Ok(Link::Udp(Self::Udp::new(
             socket,

@@ -60,82 +60,83 @@ web-sys = { version = "0.3.82", features = ["console"] }
 rand = "0.8"
 criterion = "0.7"
 
-# [package]
-# name = "zenoh-examples"
-# authors.workspace = true
-# description.workspace = true
-# edition.workspace = true
-# homepage.workspace = true
-# license.workspace = true
-# repository.workspace = true
-# rust-version.workspace = true
-# version.workspace = true
-# readme.workspace = true
+[package]
+name = "zenoh-examples"
+authors.workspace = true
+description.workspace = true
+edition.workspace = true
+homepage.workspace = true
+license.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+version.workspace = true
+readme.workspace = true
 
-# [features]
-# default = ["std", "log", "platforms"]
-# log = ["zenoh-nostd/log"]
-# defmt = ["zenoh-nostd/defmt"]
-# web_console = ["zenoh-nostd/web_console"]
-# std = [
-#     "dep:zenoh-std",
+[features]
+default = ["std", "log"]
+log = ["zenoh-nostd/log"]
+defmt = ["zenoh-nostd/defmt"]
+web_console = ["zenoh-nostd/web_console"]
+std = [
+    "dep:zenoh-std",
 
-#     "dep:env_logger",
+    "dep:env_logger",
 
-#     "embassy-executor/arch-std",
-#     "embassy-executor/executor-thread",
-#     "embassy-time/std",
-# ]
-# esp32s3 = [
-#     "dep:zenoh-embassy",
-#     "dep:getrandom",
-#     "dep:esp-bootloader-esp-idf",
-#     "dep:esp-hal",
-#     "dep:embassy-net",
-#     "dep:esp-alloc",
-#     "dep:esp-println",
-#     "dep:esp-rtos",
-#     "dep:esp-radio",
-#     "embassy-executor/defmt",
-# ]
-# wasm = [
-#     "dep:zenoh-wasm",
+    "embassy-executor/arch-std",
+    "embassy-executor/executor-thread",
+    "embassy-time/std",
+]
+esp32s3 = [
+    "dep:zenoh-embassy",
+    "dep:getrandom",
+    "dep:esp-bootloader-esp-idf",
+    "dep:esp-hal",
+    "dep:embassy-net",
+    "dep:esp-alloc",
+    "dep:esp-println",
+    "dep:esp-rtos",
+    "dep:esp-radio",
+    "embassy-executor/defmt",
+]
+wasm = [
+    "dep:zenoh-wasm",
 
-#     "dep:env_logger",
+    "dep:env_logger",
 
-#     "getrandom/std",
-#     "getrandom/js",
-#     "dep:wasm-bindgen",
+    "getrandom/std",
+    "getrandom/js",
+    "dep:wasm-bindgen",
 
-#     "embassy-executor/arch-wasm",
-#     "embassy-executor/executor-thread",
-#     "embassy-time/wasm",
-# ]
-# platforms = ["dep:zenoh-std", "dep:zenoh-embassy", "dep:zenoh-wasm"]
+    "embassy-executor/arch-wasm",
+    "embassy-executor/executor-thread",
+    "embassy-time/wasm",
+]
+platforms = ["dep:zenoh-std", "dep:zenoh-embassy"]
 
-# [dependencies]
-# zenoh-nostd = { workspace = true }
-# static_cell = { workspace = true }
-# embassy-sync = { workspace = true  }
-# embassy-executor = { workspace = true }
-# embassy-time = { workspace = true }
-# embassy-futures = { workspace = true }
+[dependencies]
+zenoh-nostd = { workspace = true }
 
-# zenoh-std = { version = "0.1.0", path = "platforms/zenoh-std", optional = true }
-# zenoh-embassy = { version = "0.1.0", path = "platforms/zenoh-embassy", optional = true }
-# zenoh-wasm = { version = "0.1.0", path = "platforms/zenoh-wasm", optional = true }
+static_cell = { workspace = true }
+embassy-sync = { workspace = true  }
+embassy-executor = { workspace = true }
+embassy-time = { workspace = true }
+embassy-futures = { workspace = true }
 
-# env_logger = { version = "0.11", optional = true}
+zenoh-std = { version = "0.1.0", path = "platforms/zenoh-std", optional = true }
+zenoh-embassy = { version = "0.1.0", path = "platforms/zenoh-embassy", optional = true }
+zenoh-wasm = { version = "0.1.0", path = "platforms/zenoh-wasm", optional = true }
 
-# getrandom = { version = "0.2.16", features = ["custom"], optional = true }
-# esp-bootloader-esp-idf = { version = "0.4.0", features = ["esp32s3"], optional = true }
-# esp-hal = { version = "1.0.0", features = ["defmt", "esp32s3", "unstable"], optional = true }
-# embassy-net = { version = "0.8.0", features = ["defmt", "dhcpv4", "medium-ethernet", "tcp", "udp"], optional = true }
-# esp-alloc = { version = "0.9.0", features = ["defmt"], optional = true }
-# esp-println = { version = "0.16.1", features = ["defmt-espflash", "esp32s3"], optional = true }
-# esp-rtos = { version = "0.2.0", features = ["esp32s3", "esp-radio", "embassy"], optional = true }
-# esp-radio = { version = "0.17.0", features = ["unstable", "defmt", "esp-alloc", "esp32s3", "smoltcp", "wifi"], optional = true }
-# wasm-bindgen = { version = "0.2", optional = true }
+env_logger = { version = "0.11", optional = true}
+
+getrandom = { version = "0.2.16", features = ["custom"], optional = true }
+esp-bootloader-esp-idf = { version = "0.4.0", features = ["esp32s3"], optional = true }
+esp-hal = { version = "1.0.0", features = ["defmt", "esp32s3", "unstable"], optional = true }
+embassy-net = { version = "0.8.0", features = ["defmt", "dhcpv4", "medium-ethernet", "tcp", "udp"], optional = true }
+esp-alloc = { version = "0.9.0", features = ["defmt"], optional = true }
+esp-println = { version = "0.16.1", features = ["defmt-espflash", "esp32s3"], optional = true }
+esp-rtos = { version = "0.2.0", features = ["esp32s3", "esp-radio", "embassy"], optional = true }
+esp-radio = { version = "0.17.0", features = ["unstable", "defmt", "esp-alloc", "esp32s3", "smoltcp", "wifi"], optional = true }
+wasm-bindgen = { version = "0.2", optional = true }
 
 [profile.dev]
 opt-level = "s"

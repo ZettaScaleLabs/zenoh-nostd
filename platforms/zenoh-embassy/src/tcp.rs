@@ -2,7 +2,7 @@ use core::cell::RefCell;
 
 use embassy_net::tcp::{TcpReader, TcpSocket, TcpWriter};
 use embedded_io_async::{Read, Write};
-use zenoh_io::{ZLink, ZLinkInfo, ZLinkRx, ZLinkTx};
+use zenoh_nostd::platform::*;
 
 use crate::BufferPoolDrop;
 
@@ -15,7 +15,7 @@ pub struct EmbassyTcpLink<'a> {
 }
 
 impl<'a> EmbassyTcpLink<'a> {
-    pub fn new(
+    pub(crate) fn new(
         socket: TcpSocket<'a>,
         mtu: u16,
         idx: usize,
@@ -77,70 +77,52 @@ impl<'a> ZLinkInfo for EmbassyTcpLinkRx<'a> {
 }
 
 impl<'a> ZLinkTx for EmbassyTcpLink<'a> {
-    async fn write_all(
-        &mut self,
-        buffer: &[u8],
-    ) -> core::result::Result<(), zenoh_proto::LinkError> {
+    async fn write_all(&mut self, buffer: &[u8]) -> core::result::Result<(), LinkError> {
         self.socket
             .write_all(buffer)
             .await
-            .map_err(|_| zenoh_proto::LinkError::CouldNotWrite)
+            .map_err(|_| LinkError::LinkTxFailed)
     }
 }
 
 impl<'a> ZLinkTx for EmbassyTcpLinkTx<'a> {
-    async fn write_all(
-        &mut self,
-        buffer: &[u8],
-    ) -> core::result::Result<(), zenoh_proto::LinkError> {
+    async fn write_all(&mut self, buffer: &[u8]) -> core::result::Result<(), LinkError> {
         self.socket
             .write_all(buffer)
             .await
-            .map_err(|_| zenoh_proto::LinkError::CouldNotWrite)
+            .map_err(|_| LinkError::LinkTxFailed)
     }
 }
 
 impl<'a> ZLinkRx for EmbassyTcpLink<'a> {
-    async fn read(
-        &mut self,
-        buffer: &mut [u8],
-    ) -> core::result::Result<usize, zenoh_proto::LinkError> {
+    async fn read(&mut self, buffer: &mut [u8]) -> core::result::Result<usize, LinkError> {
         self.socket
             .read(buffer)
             .await
-            .map_err(|_| zenoh_proto::LinkError::CouldNotRead)
+            .map_err(|_| LinkError::LinkRxFailed)
     }
 
-    async fn read_exact(
-        &mut self,
-        buffer: &mut [u8],
-    ) -> core::result::Result<(), zenoh_proto::LinkError> {
+    async fn read_exact(&mut self, buffer: &mut [u8]) -> core::result::Result<(), LinkError> {
         self.socket
             .read_exact(buffer)
             .await
-            .map_err(|_| zenoh_proto::LinkError::CouldNotRead)
+            .map_err(|_| LinkError::LinkRxFailed)
     }
 }
 
 impl<'a> ZLinkRx for EmbassyTcpLinkRx<'a> {
-    async fn read(
-        &mut self,
-        buffer: &mut [u8],
-    ) -> core::result::Result<usize, zenoh_proto::LinkError> {
+    async fn read(&mut self, buffer: &mut [u8]) -> core::result::Result<usize, LinkError> {
         self.socket
             .read(buffer)
             .await
-            .map_err(|_| zenoh_proto::LinkError::CouldNotRead)
+            .map_err(|_| LinkError::LinkRxFailed)
     }
 
-    async fn read_exact(
-        &mut self,
-        buffer: &mut [u8],
-    ) -> core::result::Result<(), zenoh_proto::LinkError> {
+    async fn read_exact(&mut self, buffer: &mut [u8]) -> core::result::Result<(), LinkError> {
         self.socket
             .read_exact(buffer)
             .await
-            .map_err(|_| zenoh_proto::LinkError::CouldNotRead)
+            .map_err(|_| LinkError::LinkRxFailed)
     }
 }
 

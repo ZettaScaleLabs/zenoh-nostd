@@ -3,10 +3,10 @@ use core::net::SocketAddr;
 mod impls;
 
 pub trait ZLinkManager: Sized {
-    type Tcp<'res>: ZLink;
-    type Udp<'res>: ZLink;
-    type Ws<'res>: ZLink;
-    type Serial<'res>: ZLink;
+    type Tcp<'ext>: ZLink;
+    type Udp<'ext>: ZLink;
+    type Ws<'ext>: ZLink;
+    type Serial<'ext>: ZLink;
 
     fn connect_tcp(
         &self,
@@ -153,40 +153,40 @@ macro_rules! delegate_variants {
 
 macro_rules! define {
     ($($variant:ident),* $(,)?) => {
-        pub enum Link<'res, LinkManager: ZLinkManager> {
+        pub enum Link<'ext, LinkManager: ZLinkManager> {
             $(
-                $variant(LinkManager::$variant<'res>),
+                $variant(LinkManager::$variant<'ext>),
             )*
         }
 
-        impl_link_traits! { Link<'res>: ZLinkInfo, $($variant<'res>),* }
-        impl_link_traits! { Link<'res>: ZLinkTx, $($variant<'res>),* }
-        impl_link_traits! { Link<'res>: ZLinkRx, $($variant<'res>),* }
-        impl_link_traits! { Link<'res>: ZLink, $($variant<'res>),* }
+        impl_link_traits! { Link<'ext>: ZLinkInfo, $($variant<'ext>),* }
+        impl_link_traits! { Link<'ext>: ZLinkTx, $($variant<'ext>),* }
+        impl_link_traits! { Link<'ext>: ZLinkRx, $($variant<'ext>),* }
+        impl_link_traits! { Link<'ext>: ZLink, $($variant<'ext>),* }
 
-        pub enum LinkTx<'res, 'link, LinkManager: ZLinkManager>
+        pub enum LinkTx<'ext, 'link, LinkManager: ZLinkManager>
         where
             Self: 'link,
         {
             $(
-                $variant(<LinkManager::$variant<'res> as ZLink>::Tx<'link>),
+                $variant(<LinkManager::$variant<'ext> as ZLink>::Tx<'link>),
             )*
         }
 
-        impl_link_traits! { LinkTx<'res, 'link>: ZLinkInfo, $($variant<'res>),* }
-        impl_link_traits! { LinkTx<'res, 'link>: ZLinkTx, $($variant<'res>),* }
+        impl_link_traits! { LinkTx<'ext, 'link>: ZLinkInfo, $($variant<'ext>),* }
+        impl_link_traits! { LinkTx<'ext, 'link>: ZLinkTx, $($variant<'ext>),* }
 
-        pub enum LinkRx<'res, 'link, LinkManager: ZLinkManager>
+        pub enum LinkRx<'ext, 'link, LinkManager: ZLinkManager>
         where
             Self: 'link,
         {
             $(
-                $variant(<LinkManager::$variant<'res> as ZLink>::Rx<'link>),
+                $variant(<LinkManager::$variant<'ext> as ZLink>::Rx<'link>),
             )*
         }
 
-        impl_link_traits! { LinkRx<'res, 'link>: ZLinkInfo, $($variant<'res>),* }
-        impl_link_traits! { LinkRx<'res, 'link>: ZLinkRx, $($variant<'res>),* }
+        impl_link_traits! { LinkRx<'ext, 'link>: ZLinkInfo, $($variant<'ext>),* }
+        impl_link_traits! { LinkRx<'ext, 'link>: ZLinkRx, $($variant<'ext>),* }
     };
 }
 

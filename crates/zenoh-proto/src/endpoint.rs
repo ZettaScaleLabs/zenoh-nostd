@@ -110,11 +110,11 @@ impl TryFrom<Address<'_>> for SocketAddr {
 }
 
 #[derive(Clone, PartialEq, Eq, Hash)]
-pub struct EndPoint<'a> {
+pub struct Endpoint<'a> {
     pub(super) inner: &'a str,
 }
 
-impl EndPoint<'_> {
+impl Endpoint<'_> {
     pub fn protocol(&self) -> Protocol<'_> {
         Protocol(protocol(self.inner))
     }
@@ -124,19 +124,19 @@ impl EndPoint<'_> {
     }
 }
 
-impl fmt::Display for EndPoint<'_> {
+impl fmt::Display for Endpoint<'_> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.write_str(self.inner)
     }
 }
 
-impl fmt::Debug for EndPoint<'_> {
+impl fmt::Debug for Endpoint<'_> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{self}")
     }
 }
 
-impl<'a> TryFrom<&'a str> for EndPoint<'a> {
+impl<'a> TryFrom<&'a str> for Endpoint<'a> {
     type Error = crate::EndpointError;
 
     fn try_from(s: &'a str) -> Result<Self, Self::Error> {
@@ -146,7 +146,7 @@ impl<'a> TryFrom<&'a str> for EndPoint<'a> {
             .ok_or(crate::EndpointError::NoProtocolSeparator)?;
 
         match (s.find(METADATA_SEPARATOR), s.find(CONFIG_SEPARATOR)) {
-            (None, None) => Ok(EndPoint { inner: s }),
+            (None, None) => Ok(Endpoint { inner: s }),
 
             (Some(midx), None) if midx > pidx && !s[midx + 1..].is_empty() => {
                 crate::zbail!(crate::EndpointError::MetadataNotSupported)

@@ -2,7 +2,7 @@ use core::{net::SocketAddr, time::Duration};
 
 use embassy_time::with_timeout;
 use zenoh_proto::{
-    EndPoint, TransportLinkError,
+    Endpoint, TransportLinkError,
     fields::{Resolution, ZenohIdProto},
 };
 use zenoh_sansio::{Transport, ZTransportRx, ZTransportTx};
@@ -17,27 +17,27 @@ pub use rx::*;
 pub use traits::*;
 pub use tx::*;
 
-pub struct TransportLink<'res, LinkManager, Buff>
+pub struct TransportLink<'ext, LinkManager, Buff>
 where
     LinkManager: ZLinkManager,
 {
-    link: Link<'res, LinkManager>,
+    link: Link<'ext, LinkManager>,
     transport: Transport<Buff>,
 }
 
-impl<'res, LinkManager, Buff> TransportLink<'res, LinkManager, Buff>
+impl<'ext, LinkManager, Buff> TransportLink<'ext, LinkManager, Buff>
 where
     LinkManager: ZLinkManager,
 {
-    pub fn new(link: Link<'res, LinkManager>, transport: Transport<Buff>) -> Self {
+    pub fn new(link: Link<'ext, LinkManager>, transport: Transport<Buff>) -> Self {
         Self { link, transport }
     }
 
     pub fn split(
         &mut self,
     ) -> (
-        TransportLinkTx<'res, '_, LinkManager, Buff>,
-        TransportLinkRx<'res, '_, LinkManager, Buff>,
+        TransportLinkTx<'ext, '_, LinkManager, Buff>,
+        TransportLinkRx<'ext, '_, LinkManager, Buff>,
     ) {
         let (link_tx, link_rx) = self.link.split();
         let (transport_tx, transport_rx) = self.transport.split();
@@ -53,7 +53,7 @@ where
     }
 }
 
-impl<'res, LinkManager, Buff> ZTransportLinkTx for TransportLink<'res, LinkManager, Buff>
+impl<'ext, LinkManager, Buff> ZTransportLinkTx for TransportLink<'ext, LinkManager, Buff>
 where
     LinkManager: ZLinkManager,
     Buff: AsMut<[u8]> + AsRef<[u8]>,
@@ -63,7 +63,7 @@ where
     }
 }
 
-impl<'res, LinkManager, Buff> ZTransportLinkRx for TransportLink<'res, LinkManager, Buff>
+impl<'ext, LinkManager, Buff> ZTransportLinkRx for TransportLink<'ext, LinkManager, Buff>
 where
     LinkManager: ZLinkManager,
     Buff: AsMut<[u8]> + AsRef<[u8]>,
@@ -82,8 +82,20 @@ pub struct TransportLinkManager<LinkManager> {
     resolution: Resolution,
 }
 
+impl<LinkManager> From<LinkManager> for TransportLinkManager<LinkManager> {
+    fn from(value: LinkManager) -> Self {
+        Self {
+            link_manager: value,
+            open_timeout: Duration::from_secs(10),
+            zid: ZenohIdProto::default(),
+            lease: Duration::from_secs(10),
+            resolution: Resolution::default(),
+        }
+    }
+}
+
 impl<LinkManager> TransportLinkManager<LinkManager> {
-    pub fn new(
+    pub(crate) fn new(
         link_manager: LinkManager,
         open_timeout: Duration,
         zid: ZenohIdProto,
@@ -99,9 +111,9 @@ impl<LinkManager> TransportLinkManager<LinkManager> {
         }
     }
 
-    pub async fn connect<Buff>(
+    pub(crate) async fn connect<Buff>(
         &self,
-        endpoint: EndPoint<'_>,
+        endpoint: Endpoint<'_>,
         buff: Buff,
     ) -> core::result::Result<TransportLink<'_, LinkManager, Buff>, TransportLinkError>
     where
@@ -153,9 +165,9 @@ impl<LinkManager> TransportLinkManager<LinkManager> {
         Ok(TransportLink::new(link, transport))
     }
 
-    pub async fn listen<Buff>(
+    pub(crate) async fn listen<Buff>(
         &self,
-        endpoint: EndPoint<'_>,
+        endpoint: Endpoint<'_>,
         buff: Buff,
     ) -> core::result::Result<TransportLink<'_, LinkManager, Buff>, TransportLinkError>
     where

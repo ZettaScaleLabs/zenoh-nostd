@@ -22,5 +22,4 @@ embassy-net = { version = "0.8.0", features = [
 ]}
 
 embedded-io-async = { version = "0.7", features = ["defmt"] }
-
 getrandom = { version = "0.2", features = ["custom"] }
