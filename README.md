@@ -67,7 +67,7 @@ Here’s a simple example of sending a payload with `zenoh-nostd`:
 async fn entry(spawner: embassy_executor::Spawner) -> zenoh_nostd::ZResult<()> {
     let config = init_example(&spawner).await;
     let mut resources = zenoh::Resources::default();
-    let session = zenoh::open(&mut resources, config, zenoh::EndPoint::try_from(CONNECT)?).await?;
+    let session = zenoh::open(&mut resources, config, Endpoint::try_from(CONNECT)?).await?;
 
     let ke = keyexpr::new("demo/example")?;
     let payload = b"Hello, from no-std!";

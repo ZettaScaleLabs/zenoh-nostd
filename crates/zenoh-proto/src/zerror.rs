@@ -140,41 +140,32 @@ crate::declare_zerror! {
         // Reserved: 124-139 for future TransportLinkError variants
     }
 
-    // // --- Collections related errors ---
+    #[doc = "Errors related to zenoh collections."]
+    enum CollectionError {
+        #[doc = "Key not found in collection."]
+        #[err = "key not found in collection"]
+        KeyNotFound = 140,
+        #[doc = "Key already exists in collection."]
+        #[err = "key already exists in collection"]
+        KeyAlreadyExists = 141,
+        #[doc = "Collection is full."]
+        #[err = "collection is full"]
+        CollectionIsFull = 142,
+        #[doc = "Collection is empty."]
+        #[err = "collection is empty"]
+        CollectionIsEmpty = 143,
+        #[doc = "Collection too small."]
+        #[err = "collection is too small"]
+        CollectionTooSmall = 144,
+        //Reserved: 145-149 for future CollectionError variants
+    }
 
-    // #[doc = "Errors related to zenoh collections."]
-    // enum CollectionError {
-    //     #[doc = "Key not found in collection."]
-    //     #[err = "key not found in collection"]
-    //     KeyNotFound = 60,
-    //     #[doc = "Key already exists in collection."]
-    //     #[err = "key already exists in collection"]
-    //     KeyAlreadyExists = 61,
-    //     #[doc = "Collection is full."]
-    //     #[err = "collection is full"]
-    //     CollectionIsFull = 62,
-    //     #[doc = "Collection is empty."]
-    //     #[err = "collection is empty"]
-    //     CollectionIsEmpty = 63,
-    //     #[doc = "Collection too small."]
-    //     #[err = "collection is too small"]
-    //     CollectionTooSmall = 64,
-    // }
-
-    // // --- Session related errors ---
-
-    // #[doc = "Errors related to zenoh embassy integration."]
-    // enum SessionError {
-    //     #[doc = "Could not spawn embassy task."]
-    //     #[err = "could not spawn embassy task"]
-    //     CouldNotSpawnEmbassyTask = 70,
-    //     #[doc = "Channel is closed."]
-    //     #[err = "channel is closed"]
-    //     ChannelClosed = 80,
-    //     #[doc = "Request timed out."]
-    //     #[err = "request timed out"]
-    //     RequestTimedout = 81,
-    // }
+    #[doc = "Errors related to zenoh session."]
+    enum SessionError: TransportLinkError + CollectionError + KeyexprError {
+        #[doc = "Request timed out."]
+        #[err = "request timed out"]
+        RequestTimedout = 150,
+    }
 }
 
 #[derive(Debug)]

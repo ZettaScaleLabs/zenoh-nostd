@@ -2,11 +2,32 @@
 #![cfg_attr(feature = "esp32s3", no_main)]
 #![cfg_attr(feature = "wasm", no_main)]
 
+use core::time::Duration;
+
 use zenoh_examples::*;
-use zenoh_nostd as zenoh;
+use zenoh_nostd::session::*;
+
+fn response_callback(resp: &GetResponse<'_>) {
+    match resp {
+        GetResponse::Ok(reply) => {
+            zenoh::info!(
+                "[Querier] Received OK Reply ('{}': '{:?}')",
+                reply.keyexpr().as_str(),
+                core::str::from_utf8(reply.payload()).unwrap()
+            );
+        }
+        GetResponse::Err(reply) => {
+            zenoh::error!(
+                "[Querier] Received ERR Reply ('{}': '{:?}')",
+                reply.keyexpr().as_str(),
+                core::str::from_utf8(reply.payload()).unwrap()
+            );
+        }
+    }
+}
 
 #[embassy_executor::task]
-async fn session_task(session: &'static zenoh::Session<'static, ExampleConfig>) {
+async fn session_task(session: &'static zenoh::Session<'static, 'static, ExampleConfig>) {
     if let Err(e) = session.run().await {
         zenoh::error!("Error in session task: {}", e);
     }
@@ -16,22 +37,26 @@ async fn entry(spawner: embassy_executor::Spawner) -> zenoh::ZResult<()> {
     #[cfg(feature = "log")]
     env_logger::init();
 
-    zenoh::info!("zenoh-nostd z_open example");
+    zenoh::info!("zenoh-nostd z_querier example");
 
     let config = init_example(&spawner).await;
-    let session = zenoh::connect!(config => ExampleConfig, zenoh::EndPoint::try_from(CONNECT)?);
+    let session = zenoh::connect!(ExampleConfig: config, Endpoint::try_from(CONNECT)?);
 
-    // In this example we care about maintaining the session alive, we then have two choices:
-    //  1) Spawn a new task to run the `session.run()` in background, but it requires the `session` to be `'static`.
-    //  2) Use `select` or `join` to run both the session and the subscriber in the same task.
-    // Here we use the first approach. For a demonstration of the second approach, see the `z_put` example.
+    spawner.spawn(session_task(session)).unwrap();
 
-    spawner.spawn(session_task(session)).map_err(|e| {
-        zenoh::error!("Error spawning task: {}", e);
-        zenoh::SessionError::CouldNotSpawnEmbassyTask
-    })?;
+    let querier = session
+        .declare_querier(zenoh::keyexpr::new("demo/example/**")?)
+        .timeout(Duration::from_secs(1))
+        .finish()
+        .await?;
 
     loop {
+        querier
+            .get()
+            .callback_sync(response_callback)
+            .finish()
+            .await?;
+
         embassy_time::Timer::after(embassy_time::Duration::from_secs(1)).await;
     }
 }

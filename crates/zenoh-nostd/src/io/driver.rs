@@ -79,6 +79,7 @@ where
                         .transport()
                         .should_send_keepalive(start.elapsed().try_into().unwrap())
                     {
+                        zenoh_proto::trace!("Sending Keepalive");
                         tx.keepalive().await?;
                     }
 

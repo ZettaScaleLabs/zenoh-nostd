@@ -3,46 +3,34 @@
 #![cfg_attr(feature = "wasm", no_main)]
 
 use zenoh_examples::*;
-use zenoh_nostd as zenoh;
+use zenoh_nostd::session::*;
+
+#[embassy_executor::task]
+async fn session_task(session: &'static zenoh::Session<'static, 'static, ExampleConfig>) {
+    if let Err(e) = session.run().await {
+        zenoh::error!("Error in session task: {}", e);
+    }
+}
 
 async fn entry(spawner: embassy_executor::Spawner) -> zenoh::ZResult<()> {
     #[cfg(feature = "log")]
     env_logger::init();
 
-    zenoh::info!("zenoh-nostd z_put example");
+    zenoh::info!("zenoh-nostd z_open example");
 
     let config = init_example(&spawner).await;
-    let mut resources = zenoh::Resources::default();
-    let session =
-        zenoh::connect(&mut resources, config, zenoh::EndPoint::try_from(CONNECT)?).await?;
+    let session = zenoh::connect!(ExampleConfig: config, Endpoint::try_from(CONNECT)?);
 
-    // In this example we don't care about maintaining the session alive but we do it anyway for demonstration purpose. Know
-    // that it's not mandatory to do a `session.run()` if you just need to `put` a value on the network.
-    // We then have two choices:
+    // In this example we care about maintaining the session alive, we then have two choices:
     //  1) Spawn a new task to run the `session.run()` in background, but it requires the `session` to be `'static`.
     //  2) Use `select` or `join` to run both the session and the subscriber in the same task.
-    // Here we use the second approach. For a demonstration of the first approach, see the `z_open` example.
+    // Here we use the first approach. For a demonstration of the second approach, see the `z_put` example.
 
-    let ke = zenoh::keyexpr::new("demo/example")?;
-    let payload = b"Hello, from no-std!";
+    spawner.spawn(session_task(session)).unwrap();
 
-    embassy_futures::select::select(session.run(), async {
-        match session.put(ke, payload).finish().await {
-            Ok(_) => {
-                zenoh::info!(
-                    "[Put] Sent PUT ('{}': '{}')",
-                    ke.as_str(),
-                    core::str::from_utf8(payload).unwrap()
-                );
-            }
-            Err(e) => {
-                zenoh::error!("{}", e)
-            }
-        };
-    })
-    .await;
-
-    Ok(())
+    loop {
+        embassy_time::Timer::after(embassy_time::Duration::from_secs(1)).await;
+    }
 }
 
 #[cfg_attr(feature = "std", embassy_executor::main)]

@@ -182,23 +182,24 @@ impl<Buff> TransportRx<Buff> {
             FrameHeader::ID => {
                 let header = decode!(FrameHeader);
 
+                *sn = sn.wrapping_add(1);
+
                 if !ignore {
                     // Check for missed messages regarding resolution
                     let _ = resolution;
-                    if header.sn <= *sn && *sn != 0 {
+                    if header.sn < *sn - 1 {
                         zenoh_proto::error!(
                             "Inconsistent `SN` value {}, expected higher than {}",
                             header.sn,
                             *sn
                         );
                         return None;
-                    } else if header.sn != *sn + 1 && *sn != 0 {
-                        zenoh_proto::debug!("Transport missed {} messages", header.sn - *sn - 1);
+                    } else if header.sn != *sn - 1 {
+                        zenoh_proto::debug!("Transport missed {} messages", header.sn - *sn + 1);
                     }
                 }
 
                 last_frame.replace(header);
-                *sn = header.sn;
 
                 return Self::decode(reader, last_frame, sn, resolution, ignore);
             }

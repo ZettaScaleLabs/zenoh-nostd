@@ -3,49 +3,47 @@
 #![cfg_attr(feature = "wasm", no_main)]
 
 use zenoh_examples::*;
-use zenoh_nostd as zenoh;
-
-#[embassy_executor::task]
-async fn session_task(session: &'static zenoh::Session<'static, ExampleConfig>) {
-    if let Err(e) = session.run().await {
-        zenoh::error!("Error in session task: {}", e);
-    }
-}
+use zenoh_nostd::session::*;
 
 async fn entry(spawner: embassy_executor::Spawner) -> zenoh::ZResult<()> {
     #[cfg(feature = "log")]
     env_logger::init();
 
-    zenoh::info!("zenoh-nostd z_pub example");
+    zenoh::info!("zenoh-nostd z_sub example");
+
+    // All channels that will be used must outlive `Resources`.
+    // **Note**: as a direct implication, you may need to make static channels
+    // if you want a `'static` session.
+    let channel = embassy_sync::channel::Channel::<
+        embassy_sync::blocking_mutex::raw::NoopRawMutex,
+        OwnedSample<128, 128>,
+        8,
+    >::new();
 
     let config = init_example(&spawner).await;
-    let session = zenoh::connect!(config => ExampleConfig, zenoh::EndPoint::try_from(CONNECT)?);
+    let mut resources = SessionResources::default();
+    let session = zenoh::connect(&mut resources, &config, Endpoint::try_from(CONNECT)?).await?;
 
-    spawner.spawn(session_task(session)).map_err(|e| {
-        zenoh::error!("Error spawning task: {}", e);
-        zenoh::SessionError::CouldNotSpawnEmbassyTask
-    })?;
-
-    zenoh::info!("Declaring publisher");
-
-    let publisher = session
-        .declare_publisher(zenoh::keyexpr::new("demo/example")?)
+    let subscriber = session
+        .declare_subscriber(zenoh::keyexpr::new("demo/example/**")?)
+        .channel(channel.dyn_sender(), channel.dyn_receiver())
         .finish()
         .await?;
 
-    let payload = b"Hello, from no-std!";
-
-    loop {
-        if publisher.put(payload).finish().await.is_ok() {
+    embassy_futures::select::select(session.run(), async {
+        while let Some(sample) = subscriber.recv().await {
             zenoh::info!(
-                "[Publisher] Sent PUT ('{}': '{}')",
-                publisher.keyexpr().as_str(),
-                core::str::from_utf8(payload).unwrap()
+                "[Subscriber] Received sample ('{}': '{}')",
+                sample.keyexpr().as_str(),
+                core::str::from_utf8(sample.payload()).unwrap()
             );
         }
 
-        embassy_time::Timer::after(embassy_time::Duration::from_secs(1)).await;
-    }
+        Ok::<(), Error>(())
+    })
+    .await;
+
+    Ok(())
 }
 
 #[cfg_attr(feature = "std", embassy_executor::main)]

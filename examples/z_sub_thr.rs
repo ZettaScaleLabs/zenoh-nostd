@@ -3,7 +3,7 @@
 #![cfg_attr(feature = "wasm", no_main)]
 
 use zenoh_examples::*;
-use zenoh_nostd as zenoh;
+use zenoh_nostd::session::*;
 
 struct Stats {
     round_count: usize,
@@ -47,9 +47,14 @@ async fn entry(spawner: embassy_executor::Spawner) -> zenoh::ZResult<()> {
         embassy_sync::signal::Signal::<embassy_sync::blocking_mutex::raw::NoopRawMutex, ()>::new();
 
     let config = init_example(&spawner).await;
-    let mut resources = zenoh::Resources::default();
-    let session =
-        zenoh::connect(&mut resources, config, zenoh::EndPoint::try_from(CONNECT)?).await?;
+    let mut resources = SessionResources::default();
+    let session = if LISTEN > 0 {
+        zenoh::listen_ignore_invalid_sn(&mut resources, &config, Endpoint::try_from(CONNECT)?)
+            .await?
+    } else {
+        zenoh::connect_ignore_invalid_sn(&mut resources, &config, Endpoint::try_from(CONNECT)?)
+            .await?
+    };
 
     let mut stats = Stats {
         round_count: 0,

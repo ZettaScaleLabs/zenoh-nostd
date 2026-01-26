@@ -1,14 +1,11 @@
 use core::marker::PhantomData;
 
-use dyn_utils::{
-    DynObject,
-    storage::{RawOrBox, Storage},
-};
+use dyn_utils::{DynObject, storage::Storage};
 use embassy_time::Instant;
 use heapless::FnvIndexMap;
 use zenoh_proto::keyexpr;
 
-use crate::api::arg::{QueryRef, ResponseRef, SampleRef, ZArg};
+use crate::api::arg::ZArg;
 
 #[dyn_utils::dyn_trait(trait = ZDynCallback)]
 #[dyn_trait(dyn_utils::dyn_object)]
@@ -200,28 +197,6 @@ impl<'a, Arg: ZArg + 'a, const CAPACITY: usize, Callback: Storage, Future: Stora
 pub mod storage {
     pub use dyn_utils::storage::{Raw, RawOrBox};
 }
-
-pub type FixedCapacityGetCallbacks<
-    'a,
-    const CAPACITY: usize,
-    Callback = RawOrBox<16>,
-    Future = RawOrBox<128>,
-> = FixedCapacityCallbacks<'a, ResponseRef, CAPACITY, Callback, Future>;
-
-pub type FixedCapacitySubCallbacks<
-    'a,
-    const CAPACITY: usize,
-    Callback = RawOrBox<16>,
-    Future = RawOrBox<128>,
-> = FixedCapacityCallbacks<'a, SampleRef, CAPACITY, Callback, Future>;
-
-pub type FixedCapacityQueryableCallbacks<
-    'a,
-    Config,
-    const CAPACITY: usize,
-    Callback = RawOrBox<16>,
-    Future = RawOrBox<128>,
-> = FixedCapacityCallbacks<'a, QueryRef<'a, Config>, CAPACITY, Callback, Future>;
 
 pub struct SyncCallback<Arg, F>(F, PhantomData<Arg>);
 

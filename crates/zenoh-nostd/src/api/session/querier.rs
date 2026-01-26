@@ -1,29 +1,26 @@
-use embassy_time::Duration;
-use zenoh_proto::keyexpr;
+use core::time::Duration;
+use zenoh_proto::{SessionError, keyexpr};
 
-use crate::api::{ZConfig, driver::Driver, resources::SessionResources, session::get::GetBuilder};
+use crate::{api::session::Session, config::ZSessionConfig, session::GetBuilder};
 
-pub struct Querier<'a, 'res, Config>
+pub struct Querier<'parameters, 'session, 'ext, 'res, Config>
 where
-    Config: ZConfig,
+    Config: ZSessionConfig,
 {
-    driver: &'a Driver<'res, Config>,
-    resources: &'a SessionResources<'res, Config>,
-
+    session: &'session Session<'ext, 'res, Config>,
     ke: &'static keyexpr,
-    parameters: Option<&'a str>,
-    payload: Option<&'a [u8]>,
+    parameters: Option<&'parameters str>,
+    payload: Option<&'parameters [u8]>,
     timeout: Option<Duration>,
 }
 
-impl<'a, 'res, Config> Querier<'a, 'res, Config>
+impl<'parameters, 'session, 'ext, 'res, Config> Querier<'parameters, 'session, 'ext, 'res, Config>
 where
-    Config: ZConfig,
+    Config: ZSessionConfig,
 {
-    pub fn get(&self) -> GetBuilder<'a, 'res, Config> {
+    pub fn get(&self) -> GetBuilder<'parameters, 'session, 'ext, 'res, Config> {
         GetBuilder {
-            driver: self.driver,
-            resources: self.resources,
+            session: self.session,
             ke: self.ke,
             parameters: self.parameters,
             payload: self.payload,
@@ -34,7 +31,7 @@ where
     }
 
     #[allow(dead_code)]
-    async fn undeclare(self) -> crate::ZResult<()> {
+    async fn undeclare(self) -> core::result::Result<(), SessionError> {
         todo!("send undeclare interest")
     }
 
@@ -43,31 +40,28 @@ where
     }
 }
 
-pub struct QuerierBuilder<'a, 'res, Config>
+pub struct QuerierBuilder<'parameters, 'session, 'ext, 'res, Config>
 where
-    Config: ZConfig,
+    Config: ZSessionConfig,
 {
-    driver: &'a Driver<'res, Config>,
-    resources: &'a SessionResources<'res, Config>,
-
+    session: &'session Session<'ext, 'res, Config>,
     ke: &'static keyexpr,
-    parameters: Option<&'a str>,
-    payload: Option<&'a [u8]>,
+    parameters: Option<&'parameters str>,
+    payload: Option<&'parameters [u8]>,
     timeout: Option<Duration>,
 }
 
-impl<'a, 'res, Config> QuerierBuilder<'a, 'res, Config>
+impl<'parameters, 'session, 'ext, 'res, Config>
+    QuerierBuilder<'parameters, 'session, 'ext, 'res, Config>
 where
-    Config: ZConfig,
+    Config: ZSessionConfig,
 {
     pub(crate) fn new(
-        driver: &'a Driver<'res, Config>,
-        resources: &'a SessionResources<'res, Config>,
+        session: &'session Session<'ext, 'res, Config>,
         ke: &'static keyexpr,
     ) -> Self {
         Self {
-            driver,
-            resources,
+            session,
             ke,
             parameters: None,
             payload: None,
@@ -75,12 +69,12 @@ where
         }
     }
 
-    pub fn parameters(mut self, parameters: &'a str) -> Self {
+    pub fn parameters(mut self, parameters: &'parameters str) -> Self {
         self.parameters = Some(parameters);
         self
     }
 
-    pub fn payload(mut self, payload: &'a [u8]) -> Self {
+    pub fn payload(mut self, payload: &'parameters [u8]) -> Self {
         self.payload = Some(payload);
         self
     }
@@ -90,11 +84,13 @@ where
         self
     }
 
-    pub async fn finish(self) -> crate::ZResult<Querier<'a, 'res, Config>> {
+    pub async fn finish(
+        self,
+    ) -> core::result::Result<Querier<'parameters, 'session, 'ext, 'res, Config>, SessionError>
+    {
         // TODO: send interest msg
         Ok(Querier {
-            driver: self.driver,
-            resources: self.resources,
+            session: self.session,
             ke: self.ke,
             parameters: self.parameters,
             payload: self.payload,
@@ -103,11 +99,14 @@ where
     }
 }
 
-impl<'res, Config> super::Session<'res, Config>
+impl<'ext, 'res, Config> Session<'ext, 'res, Config>
 where
-    Config: ZConfig,
+    Config: ZSessionConfig,
 {
-    pub fn declare_querier(&self, ke: &'static keyexpr) -> QuerierBuilder<'_, 'res, Config> {
-        QuerierBuilder::new(&self.driver, &self.resources, ke)
+    pub fn declare_querier<'parameters>(
+        &self,
+        ke: &'static keyexpr,
+    ) -> QuerierBuilder<'parameters, '_, 'ext, 'res, Config> {
+        QuerierBuilder::new(self, ke)
     }
 }

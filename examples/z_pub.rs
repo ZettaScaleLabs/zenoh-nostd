@@ -3,7 +3,7 @@
 #![cfg_attr(feature = "wasm", no_main)]
 
 use zenoh_examples::*;
-use zenoh_nostd as zenoh;
+use zenoh_nostd::session::*;
 
 #[embassy_executor::task]
 async fn session_task(session: &'static zenoh::Session<'static, ExampleConfig>) {
@@ -16,43 +16,33 @@ async fn entry(spawner: embassy_executor::Spawner) -> zenoh::ZResult<()> {
     #[cfg(feature = "log")]
     env_logger::init();
 
-    zenoh::info!("zenoh-nostd z_pong example");
-
-    // All channels that will be used must outlive `Resources`.
-    // **Note**: as a direct implication, here you need to make a static channel.
-    static CHANNEL: static_cell::StaticCell<
-        embassy_sync::channel::Channel<
-            embassy_sync::blocking_mutex::raw::NoopRawMutex,
-            zenoh::OwnedSample<128, 128>,
-            8,
-        >,
-    > = static_cell::StaticCell::new();
-    let channel = CHANNEL.init(embassy_sync::channel::Channel::new());
+    zenoh::info!("zenoh-nostd z_pub example");
 
     let config = init_example(&spawner).await;
-    let session = zenoh::connect!(config => ExampleConfig, zenoh::EndPoint::try_from(CONNECT)?);
+    let session = zenoh::connect!(ExampleConfig: config, Endpoint::try_from(CONNECT)?);
 
-    spawner.spawn(session_task(session)).map_err(|e| {
-        zenoh::error!("Error spawning task: {}", e);
-        zenoh::SessionError::CouldNotSpawnEmbassyTask
-    })?;
+    spawner.spawn(session_task(session)).unwrap();
 
-    let ping = session
-        .declare_subscriber(zenoh::keyexpr::new("test/ping")?)
-        .channel(channel.dyn_sender(), channel.dyn_receiver())
+    zenoh::info!("Declaring publisher");
+
+    let publisher = session
+        .declare_publisher(zenoh::keyexpr::new("demo/example")?)
         .finish()
         .await?;
 
-    let pong = session
-        .declare_publisher(zenoh::keyexpr::new("test/pong")?)
-        .finish()
-        .await?;
+    let payload = b"Hello, from no-std!";
 
-    while let Some(sample) = ping.recv().await {
-        pong.put(sample.payload()).finish().await?;
+    loop {
+        if publisher.put(payload).finish().await.is_ok() {
+            zenoh::info!(
+                "[Publisher] Sent PUT ('{}': '{}')",
+                publisher.keyexpr().as_str(),
+                core::str::from_utf8(payload).unwrap()
+            );
+        }
+
+        embassy_time::Timer::after(embassy_time::Duration::from_secs(1)).await;
     }
-
-    Ok(())
 }
 
 #[cfg_attr(feature = "std", embassy_executor::main)]

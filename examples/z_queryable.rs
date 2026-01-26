@@ -3,7 +3,7 @@
 #![cfg_attr(feature = "wasm", no_main)]
 
 use zenoh_examples::*;
-use zenoh_nostd as zenoh;
+use zenoh_nostd::session::*;
 
 #[embassy_executor::task]
 async fn session_task(session: &'static zenoh::Session<'static, ExampleConfig>) {
@@ -30,12 +30,9 @@ async fn entry(spawner: embassy_executor::Spawner) -> zenoh::ZResult<()> {
     let channel = CHANNEL.init(embassy_sync::channel::Channel::new());
 
     let config = init_example(&spawner).await;
-    let session = zenoh::connect!(config => ExampleConfig, zenoh::EndPoint::try_from(CONNECT)?);
+    let session = zenoh::connect!(ExampleConfig: config, Endpoint::try_from(CONNECT)?);
 
-    spawner.spawn(session_task(session)).map_err(|e| {
-        zenoh::error!("Error spawning task: {}", e);
-        zenoh::SessionError::CouldNotSpawnEmbassyTask
-    })?;
+    spawner.spawn(session_task(session)).unwrap();
 
     // Because of known limitations, the `Queryable` API (both callbacks and channels) needs the `session` to be static.
     // This may change in the future.

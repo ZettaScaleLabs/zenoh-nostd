@@ -3,23 +3,23 @@
 #![cfg_attr(feature = "wasm", no_main)]
 
 use zenoh_examples::*;
-use zenoh_nostd::{self as zenoh};
+use zenoh_nostd::session::*;
 
-async fn response_callback(resp: &zenoh::Response<'_>) {
+async fn response_callback(resp: &GetResponse<'_>) {
     response_callback_sync(resp);
 }
 
-fn response_callback_sync(resp: &zenoh::Response<'_>) {
+fn response_callback_sync(resp: &GetResponse<'_>) {
     match resp {
-        zenoh::Response::Ok(reply) => {
-            zenoh_nostd::info!(
+        GetResponse::Ok(reply) => {
+            zenoh::info!(
                 "[Get] Received OK Reply ('{}': '{:?}')",
                 reply.keyexpr().as_str(),
                 core::str::from_utf8(reply.payload()).unwrap()
             );
         }
-        zenoh::Response::Err(reply) => {
-            zenoh_nostd::error!(
+        GetResponse::Err(reply) => {
+            zenoh::error!(
                 "[Get] Received ERR Reply ('{}': '{:?}')",
                 reply.keyexpr().as_str(),
                 core::str::from_utf8(reply.payload()).unwrap()
@@ -35,9 +35,8 @@ async fn entry(spawner: embassy_executor::Spawner) -> zenoh::ZResult<()> {
     zenoh::info!("zenoh-nostd z_get example");
 
     let config = init_example(&spawner).await;
-    let mut resources = zenoh::Resources::default();
-    let session =
-        zenoh::connect(&mut resources, config, zenoh::EndPoint::try_from(CONNECT)?).await?;
+    let mut resources = SessionResources::default();
+    let session = zenoh::connect(&mut resources, &config, Endpoint::try_from(CONNECT)?).await?;
 
     // In the following code we use the direct `callback` API. `zenoh` lets you provide either `sync` or `async` callbacks for your convenience.
     // **Be careful**, in both case the callback should resolve almost instantly as it will `stop` the `reading` task of the session!
@@ -57,7 +56,7 @@ async fn entry(spawner: embassy_executor::Spawner) -> zenoh::ZResult<()> {
         .finish()
         .await?;
 
-    session.run().await
+    Ok(session.run().await?)
 }
 
 #[cfg_attr(feature = "std", embassy_executor::main)]

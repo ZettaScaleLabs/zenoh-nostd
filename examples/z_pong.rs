@@ -3,26 +3,7 @@
 #![cfg_attr(feature = "wasm", no_main)]
 
 use zenoh_examples::*;
-use zenoh_nostd::{self as zenoh};
-
-fn response_callback(resp: &zenoh::Response<'_>) {
-    match resp {
-        zenoh::Response::Ok(reply) => {
-            zenoh_nostd::info!(
-                "[Querier] Received OK Reply ('{}': '{:?}')",
-                reply.keyexpr().as_str(),
-                core::str::from_utf8(reply.payload()).unwrap()
-            );
-        }
-        zenoh::Response::Err(reply) => {
-            zenoh_nostd::error!(
-                "[Querier] Received ERR Reply ('{}': '{:?}')",
-                reply.keyexpr().as_str(),
-                core::str::from_utf8(reply.payload()).unwrap()
-            );
-        }
-    }
-}
+use zenoh_nostd::session::*;
 
 #[embassy_executor::task]
 async fn session_task(session: &'static zenoh::Session<'static, ExampleConfig>) {
@@ -35,31 +16,40 @@ async fn entry(spawner: embassy_executor::Spawner) -> zenoh::ZResult<()> {
     #[cfg(feature = "log")]
     env_logger::init();
 
-    zenoh::info!("zenoh-nostd z_querier example");
+    zenoh::info!("zenoh-nostd z_pong example");
+
+    // All channels that will be used must outlive `Resources`.
+    // **Note**: as a direct implication, here you need to make a static channel.
+    static CHANNEL: static_cell::StaticCell<
+        embassy_sync::channel::Channel<
+            embassy_sync::blocking_mutex::raw::NoopRawMutex,
+            zenoh::OwnedSample<128, 128>,
+            8,
+        >,
+    > = static_cell::StaticCell::new();
+    let channel = CHANNEL.init(embassy_sync::channel::Channel::new());
 
     let config = init_example(&spawner).await;
-    let session = zenoh::listen!(config => ExampleConfig, zenoh::EndPoint::try_from(CONNECT)?);
+    let session = zenoh::connect!(ExampleConfig: config, Endpoint::try_from(CONNECT)?);
 
-    spawner.spawn(session_task(session)).map_err(|e| {
-        zenoh::error!("Error spawning task: {}", e);
-        zenoh::SessionError::CouldNotSpawnEmbassyTask
-    })?;
+    spawner.spawn(session_task(session)).unwrap();
 
-    let querier = session
-        .declare_querier(zenoh::keyexpr::new("demo/example/**")?)
-        .timeout(embassy_time::Duration::from_secs(1))
+    let ping = session
+        .declare_subscriber(zenoh::keyexpr::new("test/ping")?)
+        .channel(channel.dyn_sender(), channel.dyn_receiver())
         .finish()
         .await?;
 
-    loop {
-        querier
-            .get()
-            .callback_sync(response_callback)
-            .finish()
-            .await?;
+    let pong = session
+        .declare_publisher(zenoh::keyexpr::new("test/pong")?)
+        .finish()
+        .await?;
 
-        embassy_time::Timer::after(embassy_time::Duration::from_secs(1)).await;
+    while let Some(sample) = ping.recv().await {
+        pong.put(sample.payload()).finish().await?;
     }
+
+    Ok(())
 }
 
 #[cfg_attr(feature = "std", embassy_executor::main)]

@@ -3,45 +3,41 @@
 #![cfg_attr(feature = "wasm", no_main)]
 
 use zenoh_examples::*;
-use zenoh_nostd as zenoh;
+use zenoh_nostd::session::*;
 
 async fn entry(spawner: embassy_executor::Spawner) -> zenoh::ZResult<()> {
     #[cfg(feature = "log")]
     env_logger::init();
 
-    zenoh::info!("zenoh-nostd z_pub_thr example");
+    zenoh::info!("zenoh-nostd z_put example");
 
     let config = init_example(&spawner).await;
     let mut resources = zenoh::Resources::default();
-    let session =
-        zenoh::listen(&mut resources, config, zenoh::EndPoint::try_from(CONNECT)?).await?;
+    let session = zenoh::connect(&mut resources, config, Endpoint::try_from(CONNECT)?).await?;
 
-    let payload: [u8; PAYLOAD] = core::array::from_fn(|i| (i % 10) as u8);
-    let publisher = session
-        .declare_publisher(zenoh::keyexpr::new("test/thr")?)
-        .finish()
-        .await?;
+    // In this example we don't care about maintaining the session alive but we do it anyway for demonstration purpose. Know
+    // that it's not mandatory to do a `session.run()` if you just need to `put` a value on the network.
+    // We then have two choices:
+    //  1) Spawn a new task to run the `session.run()` in background, but it requires the `session` to be `'static`.
+    //  2) Use `select` or `join` to run both the session and the subscriber in the same task.
+    // Here we use the second approach. For a demonstration of the first approach, see the `z_open` example.
 
-    let mut count: usize = 0;
-    let mut start = embassy_time::Instant::now();
+    let ke = zenoh::keyexpr::new("demo/example")?;
+    let payload = b"Hello, from no-std!";
+
     embassy_futures::select::select(session.run(), async {
-        loop {
-            if let Err(e) = publisher.put(&payload).finish().await {
-                zenoh::error!("Error publishing message: {}", e);
-                break;
+        match session.put(ke, payload).finish().await {
+            Ok(_) => {
+                zenoh::info!(
+                    "[Put] Sent PUT ('{}': '{}')",
+                    ke.as_str(),
+                    core::str::from_utf8(payload).unwrap()
+                );
             }
-
-            if count < 100_000 {
-                count += 1;
-            } else {
-                let thpt = count as f64 / (start.elapsed().as_micros() as f64 / 1_000_000.0);
-                zenoh::info!("{} msgs/s", thpt);
-                count = 0;
-                start = embassy_time::Instant::now();
+            Err(e) => {
+                zenoh::error!("{}", e)
             }
-        }
-
-        Ok::<(), zenoh::Error>(())
+        };
     })
     .await;
 
@@ -49,8 +45,8 @@ async fn entry(spawner: embassy_executor::Spawner) -> zenoh::ZResult<()> {
 }
 
 #[cfg_attr(feature = "std", embassy_executor::main)]
-#[cfg_attr(feature = "esp32s3", esp_rtos::main)]
 #[cfg_attr(feature = "wasm", embassy_executor::main)]
+#[cfg_attr(feature = "esp32s3", esp_rtos::main)]
 async fn main(spawner: embassy_executor::Spawner) {
     if let Err(e) = entry(spawner).await {
         zenoh::error!("Error in main: {}", e);

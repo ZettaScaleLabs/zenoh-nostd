@@ -1,34 +1,42 @@
-use dyn_utils::DynObject;
+use dyn_utils::{DynObject, storage::RawOrBox};
 use embassy_sync::channel::{DynamicReceiver, DynamicSender};
-use zenoh_proto::{fields::*, msgs::*, *};
+use zenoh_proto::{exts::QoS, fields::*, msgs::*, *};
 
-use crate::api::{
-    ZConfig,
-    arg::SampleRef,
-    callbacks::{AsyncCallback, DynCallback, SyncCallback, ZCallbacks},
-    driver::Driver,
-    resources::SessionResources,
+use crate::{
+    api::{
+        arg::SampleRef,
+        callbacks::{AsyncCallback, DynCallback, FixedCapacityCallbacks, SyncCallback, ZCallbacks},
+        session::Session,
+    },
+    config::ZSessionConfig,
+    io::ZTransportLinkTx,
+    session::Sample,
 };
 
-pub struct Subscriber<'a, 'res, Config, OwnedSample = (), const CHANNEL: bool = false>
+pub type FixedCapacitySubCallbacks<
+    'a,
+    const CAPACITY: usize,
+    Callback = RawOrBox<16>,
+    Future = RawOrBox<128>,
+> = FixedCapacityCallbacks<'a, SampleRef, CAPACITY, Callback, Future>;
+
+pub struct Subscriber<'session, 'ext, 'res, Config, OwnedSample = (), const CHANNEL: bool = false>
 where
-    Config: ZConfig,
+    Config: ZSessionConfig,
 {
     id: u32,
-
-    driver: &'a Driver<'res, Config>,
-    resources: &'a SessionResources<'res, Config>,
-
+    ke: &'static keyexpr,
+    session: &'session Session<'ext, 'res, Config>,
     receiver: Option<DynamicReceiver<'res, OwnedSample>>,
 }
 
-impl<'a, 'res, Config, OwnedSample, const CHANNEL: bool>
-    Subscriber<'a, 'res, Config, OwnedSample, CHANNEL>
+impl<'session, 'ext, 'res, Config, OwnedSample, const CHANNEL: bool>
+    Subscriber<'session, 'ext, 'res, Config, OwnedSample, CHANNEL>
 where
-    Config: ZConfig,
+    Config: ZSessionConfig,
 {
     #[allow(dead_code)]
-    async fn undeclare(self) -> crate::ZResult<()> {
+    async fn undeclare(self) -> core::result::Result<(), SessionError> {
         let msg = Declare {
             body: DeclareBody::UndeclareSubscriber(UndeclareSubscriber {
                 id: self.id,
@@ -37,19 +45,31 @@ where
             ..Default::default()
         };
 
-        self.resources.sub_callbacks.lock().await.remove(self.id)?;
+        self.session.state().await.sub_callbacks.remove(self.id)?;
 
-        self.driver
-            .send(core::iter::once(NetworkBody::Declare(msg)))
+        self.session
+            .driver
+            .tx()
+            .await
+            .send(core::iter::once(NetworkMessage {
+                reliability: Reliability::default(),
+                qos: exts::QoS::default(),
+                body: NetworkBody::Declare(msg),
+            }))
             .await?;
 
         todo!("Also stop the channel if any")
     }
+
+    pub fn keyexpr(&self) -> &keyexpr {
+        &self.ke
+    }
 }
 
-impl<'a, 'res, Config, OwnedSample> Subscriber<'a, 'res, Config, OwnedSample, true>
+impl<'session, 'ext, 'res, Config, OwnedSample>
+    Subscriber<'session, 'ext, 'res, Config, OwnedSample, true>
 where
-    Config: ZConfig,
+    Config: ZSessionConfig,
 {
     pub fn try_recv(&self) -> Option<OwnedSample> {
         self.receiver.as_ref().unwrap().try_receive().ok()
@@ -61,44 +81,40 @@ where
 }
 
 type CallbackStorage<'res, Config> =
-    <<Config as ZConfig>::SubCallbacks<'res> as ZCallbacks<'res, SampleRef>>::Callback;
+    <<Config as ZSessionConfig>::SubCallbacks<'res> as ZCallbacks<'res, SampleRef>>::Callback;
 
 type FutureStorage<'res, Config> =
-    <<Config as ZConfig>::SubCallbacks<'res> as ZCallbacks<'res, SampleRef>>::Future;
+    <<Config as ZSessionConfig>::SubCallbacks<'res> as ZCallbacks<'res, SampleRef>>::Future;
 
 pub struct SubscriberBuilder<
-    'a,
+    'session,
+    'ext,
     'res,
     Config,
     OwnedSample = (),
     const READY: bool = false,
     const CHANNEL: bool = false,
 > where
-    Config: ZConfig,
+    Config: ZSessionConfig,
 {
-    driver: &'a Driver<'res, Config>,
-    resources: &'a SessionResources<'res, Config>,
-
+    session: &'session Session<'ext, 'res, Config>,
     ke: &'static keyexpr,
-
     callback: Option<
         DynCallback<'res, CallbackStorage<'res, Config>, FutureStorage<'res, Config>, SampleRef>,
     >,
     receiver: Option<DynamicReceiver<'res, OwnedSample>>,
 }
 
-impl<'a, 'res, Config> SubscriberBuilder<'a, 'res, Config, (), false, false>
+impl<'session, 'ext, 'res, Config> SubscriberBuilder<'session, 'ext, 'res, Config, (), false, false>
 where
-    Config: ZConfig,
+    Config: ZSessionConfig,
 {
     pub(crate) fn new(
-        driver: &'a Driver<'res, Config>,
-        resources: &'a SessionResources<'res, Config>,
+        session: &'session Session<'ext, 'res, Config>,
         ke: &'static keyexpr,
     ) -> Self {
         Self {
-            driver,
-            resources,
+            session,
             ke,
             callback: None,
             receiver: None,
@@ -107,11 +123,10 @@ where
 
     pub fn callback(
         self,
-        callback: impl AsyncFnMut(&crate::Sample<'_>) + 'res,
-    ) -> SubscriberBuilder<'a, 'res, Config, (), true, false> {
+        callback: impl AsyncFnMut(&Sample<'_>) + 'res,
+    ) -> SubscriberBuilder<'session, 'ext, 'res, Config, (), true, false> {
         SubscriberBuilder {
-            driver: self.driver,
-            resources: self.resources,
+            session: self.session,
             ke: self.ke,
             callback: Some(DynObject::new(AsyncCallback::new(callback))),
             receiver: None,
@@ -120,11 +135,10 @@ where
 
     pub fn callback_sync(
         self,
-        callback: impl FnMut(&crate::Sample<'_>) + 'res,
-    ) -> SubscriberBuilder<'a, 'res, Config, (), true, false> {
+        callback: impl FnMut(&Sample<'_>) + 'res,
+    ) -> SubscriberBuilder<'session, 'ext, 'res, Config, (), true, false> {
         SubscriberBuilder {
-            driver: self.driver,
-            resources: self.resources,
+            session: self.session,
             ke: self.ke,
             callback: Some(DynObject::new(SyncCallback::new(callback))),
             receiver: None,
@@ -135,16 +149,15 @@ where
         self,
         sender: DynamicSender<'res, OwnedSample>,
         receiver: DynamicReceiver<'res, OwnedSample>,
-    ) -> SubscriberBuilder<'a, 'res, Config, OwnedSample, true, true>
+    ) -> SubscriberBuilder<'session, 'ext, 'res, Config, OwnedSample, true, true>
     where
-        OwnedSample: for<'any> TryFrom<&'any crate::Sample<'any>, Error = E>,
+        OwnedSample: for<'any> TryFrom<&'any Sample<'any>, Error = E>,
     {
         SubscriberBuilder {
-            driver: self.driver,
-            resources: self.resources,
+            session: self.session,
             ke: self.ke,
             callback: Some(DynObject::new(AsyncCallback::new(
-                async move |resp: &'_ crate::Sample<'_>| {
+                async move |resp: &'_ Sample<'_>| {
                     if let Ok(resp) = OwnedSample::try_from(resp) {
                         sender.send(resp).await;
                     } else {
@@ -160,20 +173,22 @@ where
     }
 }
 
-impl<'a, 'res, Config, OwnedSample, const CHANNEL: bool>
-    SubscriberBuilder<'a, 'res, Config, OwnedSample, true, CHANNEL>
+impl<'session, 'ext, 'res, Config, OwnedSample, const CHANNEL: bool>
+    SubscriberBuilder<'session, 'ext, 'res, Config, OwnedSample, true, CHANNEL>
 where
-    Config: ZConfig,
+    Config: ZSessionConfig,
 {
     pub async fn finish(
         self,
-    ) -> crate::ZResult<Subscriber<'a, 'res, Config, OwnedSample, CHANNEL>> {
-        let id = self.resources.next().await;
+    ) -> core::result::Result<
+        Subscriber<'session, 'ext, 'res, Config, OwnedSample, CHANNEL>,
+        SessionError,
+    > {
+        let mut state = self.session.state().await;
+        let id = state.next();
 
         if let Some(callback) = self.callback {
-            let mut subs = self.resources.sub_callbacks.lock().await;
-            subs.drop_timedout();
-            subs.insert(id, self.ke, None, callback)?;
+            state.sub_callbacks.insert(id, self.ke, None, callback)?;
         }
 
         let msg = Declare {
@@ -184,24 +199,34 @@ where
             ..Default::default()
         };
 
-        self.driver
-            .send(core::iter::once(NetworkBody::Declare(msg)))
+        self.session
+            .driver
+            .tx()
+            .await
+            .send(core::iter::once(NetworkMessage {
+                reliability: Reliability::default(),
+                qos: QoS::default(),
+                body: NetworkBody::Declare(msg),
+            }))
             .await?;
 
         Ok(Subscriber {
+            ke: self.ke,
             id,
-            driver: self.driver,
-            resources: self.resources,
+            session: self.session,
             receiver: self.receiver,
         })
     }
 }
 
-impl<'res, Config> super::Session<'res, Config>
+impl<'ext, 'res, Config> Session<'ext, 'res, Config>
 where
-    Config: ZConfig,
+    Config: ZSessionConfig,
 {
-    pub fn declare_subscriber(&self, ke: &'static keyexpr) -> SubscriberBuilder<'_, 'res, Config> {
-        SubscriberBuilder::new(&self.driver, &self.resources, ke)
+    pub fn declare_subscriber(
+        &self,
+        ke: &'static keyexpr,
+    ) -> SubscriberBuilder<'_, 'ext, 'res, Config> {
+        SubscriberBuilder::new(self, ke)
     }
 }

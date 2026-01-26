@@ -51,6 +51,10 @@ where
     pub fn transport(&self) -> &Transport<Buff> {
         &self.transport
     }
+
+    pub fn transport_mut(&mut self) -> &mut Transport<Buff> {
+        &mut self.transport
+    }
 }
 
 impl<'ext, LinkManager, Buff> ZTransportLinkTx for TransportLink<'ext, LinkManager, Buff>
@@ -111,7 +115,7 @@ impl<LinkManager> TransportLinkManager<LinkManager> {
         }
     }
 
-    pub(crate) async fn connect<Buff>(
+    pub async fn connect<Buff>(
         &self,
         endpoint: Endpoint<'_>,
         buff: Buff,
@@ -165,7 +169,7 @@ impl<LinkManager> TransportLinkManager<LinkManager> {
         Ok(TransportLink::new(link, transport))
     }
 
-    pub(crate) async fn listen<Buff>(
+    pub async fn listen<Buff>(
         &self,
         endpoint: Endpoint<'_>,
         buff: Buff,
