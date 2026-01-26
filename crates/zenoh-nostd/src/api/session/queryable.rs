@@ -42,7 +42,9 @@ where
             .await
             .remove(self.id)?;
 
-        self.driver.send(msg).await?;
+        self.driver
+            .send(core::iter::once(NetworkBody::Declare(msg)))
+            .await?;
 
         todo!("Also stop the channel if any")
     }
@@ -169,9 +171,9 @@ where
                     if let Ok(resp) = OwnedQuery::try_from((resp, self.driver, self.resources)) {
                         sender.send(resp).await;
                     } else {
-                        crate::error!(
+                        zenoh_proto::error!(
                             "{}: Couldn't convert to a transferable query",
-                            crate::zctx!()
+                            zenoh_proto::zctx!()
                         )
                     }
                 },
@@ -203,7 +205,9 @@ where
             ..Default::default()
         };
 
-        self.driver.send(msg).await?;
+        self.driver
+            .send(core::iter::once(NetworkBody::Declare(msg)))
+            .await?;
 
         Ok(Queryable {
             id,

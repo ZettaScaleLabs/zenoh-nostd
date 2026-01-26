@@ -7,49 +7,41 @@ use core::ops::{Deref, DerefMut};
 use embassy_futures::select::{Either, select};
 use embassy_sync::{blocking_mutex::raw::NoopRawMutex, mutex::Mutex};
 use embassy_time::{Instant, Timer};
-use zenoh_proto::msgs::KeepAlive;
 
 use crate::{
     api::{ZConfig, resources::SessionResources},
-    io::transport::{TransportMineConfig, TransportOtherConfig, TransportRx, TransportTx},
+    io::transport::{TransportLinkRx, TransportLinkTx},
 };
 
-pub struct DriverTx<'transport, Config>
+pub struct DriverTx<'res, Config>
 where
     Config: ZConfig,
 {
-    pub(crate) tx_buf: Config::TxBuf,
-    pub(crate) tx: TransportTx<'transport, Config::Platform>,
-    pub(crate) sn: u32,
-
+    pub(crate) tx: TransportLinkTx<'res, Config>,
     pub(crate) next_keepalive: Instant,
-    pub(crate) config: TransportMineConfig,
 }
 
-pub struct DriverRx<'transport, Config>
+pub struct DriverRx<'res, Config>
 where
     Config: ZConfig,
 {
-    pub(crate) rx_buf: Config::RxBuf,
-    pub(crate) rx: TransportRx<'transport, Config::Platform>,
-
+    pub(crate) rx: TransportLinkRx<'res, Config>,
     pub(crate) last_read: Instant,
-    pub(crate) config: TransportOtherConfig,
 }
 
-pub struct Driver<'transport, Config>
+pub struct Driver<'res, Config>
 where
     Config: ZConfig,
 {
-    pub(crate) tx: Mutex<NoopRawMutex, DriverTx<'transport, Config>>,
-    pub(crate) rx: Mutex<NoopRawMutex, DriverRx<'transport, Config>>,
+    pub(crate) tx: Mutex<NoopRawMutex, DriverTx<'res, Config>>,
+    pub(crate) rx: Mutex<NoopRawMutex, DriverRx<'res, Config>>,
 }
 
-impl<'transport, Config> Driver<'transport, Config>
+impl<'res, Config> Driver<'res, Config>
 where
     Config: ZConfig,
 {
-    pub(crate) fn new(tx: DriverTx<'transport, Config>, rx: DriverRx<'transport, Config>) -> Self {
+    pub(crate) fn new(tx: DriverTx<'res, Config>, rx: DriverRx<'res, Config>) -> Self {
         Self {
             tx: Mutex::new(tx),
             rx: Mutex::new(rx),
@@ -82,7 +74,7 @@ where
                     if Instant::now() >= tx.next_keepalive() {
                         zenoh_proto::trace!("Sending KeepAlive");
 
-                        tx.unframed(KeepAlive {}).await?;
+                        tx.keepalive().await?;
                     }
                 }
                 Either::Second(msg) => {

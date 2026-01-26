@@ -71,17 +71,6 @@ pub trait ZReadable<'a> {
 
     fn read_u8(&mut self) -> core::result::Result<u8, crate::BytesError>;
 
-    fn read(&mut self, dst: &'_ mut [u8]) -> core::result::Result<usize, crate::BytesError> {
-        let len = dst.len().min(self.remaining());
-        let bytes = self.read_slice(len)?;
-
-        unsafe {
-            dst.get_unchecked_mut(..len).copy_from_slice(bytes);
-        }
-
-        Ok(len)
-    }
-
     fn read_exact(&mut self, dst: &'_ mut [u8]) -> core::result::Result<(), crate::BytesError> {
         let len = dst.len();
         if self.remaining() < len {
@@ -165,45 +154,6 @@ impl ZWriteable for &mut [u8] {
     }
 }
 
-#[cfg(feature = "alloc")]
-impl ZWriteable for alloc::vec::Vec<u8> {
-    fn remaining(&self) -> usize {
-        usize::MAX - self.len()
-    }
-
-    fn write_u8(&mut self, value: u8) -> core::result::Result<(), crate::BytesError> {
-        self.push(value);
-
-        Ok(())
-    }
-
-    fn write(&mut self, src: &'_ [u8]) -> core::result::Result<usize, crate::BytesError> {
-        self.extend_from_slice(src);
-
-        Ok(src.len())
-    }
-
-    fn write_slot(
-        &mut self,
-        len: usize,
-        writer: impl FnOnce(&mut [u8]) -> usize,
-    ) -> core::result::Result<usize, crate::BytesError> {
-        self.reserve(len);
-
-        let s = {
-            let slice = &mut *self.spare_capacity_mut();
-            unsafe { slice.get_unchecked_mut(..len) }
-        };
-
-        let written =
-            unsafe { writer(&mut *(s as *mut [core::mem::MaybeUninit<u8>] as *mut [u8])) };
-
-        unsafe { self.set_len(self.len() + written) };
-
-        Ok(written)
-    }
-}
-
 #[cfg(test)]
 pub struct SliceMark<'a> {
     ptr: *const u8,
@@ -224,25 +174,6 @@ impl<'a> ZStoreable<'a> for &'a mut [u8] {
 
     unsafe fn slice(&self, mark: &Self::Mark) -> &'a [u8] {
         unsafe { core::slice::from_raw_parts(mark.ptr as *mut u8, mark.len) }
-    }
-}
-
-#[cfg(test)]
-#[cfg(feature = "alloc")]
-impl<'a> ZStoreable<'a> for alloc::vec::Vec<u8> {
-    type Mark = usize;
-    fn mark(&self) -> Self::Mark {
-        self.len()
-    }
-
-    /// # Safety
-    /// This function is unsafe because it returns a slice that may outlive the vector it was created from and
-    /// may lead to undefined behavior if the vector is modified or dropped while the slice is still in use.
-    ///
-    /// In this specific testing context, it is assumed that the vector will live long enough for the slice to be valid,
-    /// and that the vector will always be extended or modified in a way that does not invalidate the slice (no reallocation occurs).
-    unsafe fn slice(&self, mark: &Self::Mark) -> &'a [u8] {
-        unsafe { core::mem::transmute(self.get_unchecked(*mark..)) }
     }
 }
 

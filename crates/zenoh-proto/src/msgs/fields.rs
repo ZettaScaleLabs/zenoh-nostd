@@ -69,14 +69,14 @@ impl<'a> ZBodyDecode<'a> for BatchSize {
         _: (),
     ) -> core::result::Result<Self, crate::CodecError> {
         let mut bytes = u16::MAX.to_le_bytes();
-        r.read(&mut bytes)?;
+        r.read_exact(&mut bytes)?;
         Ok(BatchSize(u16::from_le_bytes(bytes)))
     }
 }
 
 crate::derive_zstruct_with_body!(BatchSize);
 
-#[derive(PartialEq, Clone)]
+#[derive(Copy, Clone, Eq, PartialEq, PartialOrd, Ord, Hash)]
 #[repr(transparent)]
 pub struct ZenohIdProto(pub(crate) uhlc::ID);
 

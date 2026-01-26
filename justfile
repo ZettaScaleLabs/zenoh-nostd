@@ -36,18 +36,18 @@ loc-proto:
 # Tests and benches
 
 test filter="":
-    cargo test {{ filter }} -p zenoh-proto --features=alloc
+    cargo test {{ filter }} -p zenoh-proto -p zenoh-sansio
 
 bench filter="bench":
-    cargo test -p zenoh-proto {{ filter }} --features=alloc --profile=release -- --nocapture --ignored --test-threads=1
+    cargo test -p zenoh-proto {{ filter }} --profile=release -- --nocapture --ignored --test-threads=1
 
 # Special `std` examples
 
-flood:
-    cargo run -p zenoh-proto --release --features=std,log --example z_flood
+flood *args:
+    cargo run -p zenoh-sansio --release --features=std,log --example z_flood -- {{ args }}
 
-drain:
-    cargo run -p zenoh-proto --release --features=std,log --example z_drain
+drain *args:
+    cargo run -p zenoh-sansio --release --features=std,log --example z_drain -- {{ args }}
 
 ping:
     RUST_LOG=trace cargo run --release --features=std,log --example z_ping

@@ -1,6 +1,6 @@
 use core::str::FromStr;
 
-use zenoh_proto::{keyexpr, zerror::CollectionError};
+use zenoh_proto::{CollectionError, keyexpr};
 
 #[derive(Debug)]
 pub struct Sample<'a> {

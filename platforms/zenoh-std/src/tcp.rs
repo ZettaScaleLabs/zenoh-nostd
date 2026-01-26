@@ -1,193 +1,123 @@
 use futures_lite::{AsyncReadExt, AsyncWriteExt};
 
-use zenoh_nostd::platform::tcp::{ZTcpRx, ZTcpStream, ZTcpTx};
+use zenoh_nostd::platform::*;
 
-pub struct StdTcpStream {
+pub struct StdTcpLink {
     stream: async_net::TcpStream,
     mtu: u16,
 }
 
-impl StdTcpStream {
+impl StdTcpLink {
     pub fn new(stream: async_net::TcpStream, mtu: u16) -> Self {
         Self { stream, mtu }
     }
 }
 
-pub struct StdTcpTx {
+pub struct StdTcpLinkTx {
     stream: async_net::TcpStream,
+    mtu: u16,
 }
 
-pub struct StdTcpRx {
+pub struct StdTcpLinkRx {
     stream: async_net::TcpStream,
+    mtu: u16,
 }
 
-impl ZTcpStream for StdTcpStream {
-    type Tx<'a> = StdTcpTx;
-    type Rx<'a> = StdTcpRx;
-
+impl ZLinkInfo for StdTcpLink {
     fn mtu(&self) -> u16 {
         self.mtu
     }
 
+    fn is_streamed(&self) -> bool {
+        true
+    }
+}
+
+impl ZLinkInfo for StdTcpLinkTx {
+    fn mtu(&self) -> u16 {
+        self.mtu
+    }
+
+    fn is_streamed(&self) -> bool {
+        true
+    }
+}
+
+impl ZLinkInfo for StdTcpLinkRx {
+    fn mtu(&self) -> u16 {
+        self.mtu
+    }
+
+    fn is_streamed(&self) -> bool {
+        true
+    }
+}
+
+impl ZLinkTx for StdTcpLink {
+    async fn write_all(&mut self, buffer: &[u8]) -> core::result::Result<(), LinkError> {
+        self.stream
+            .write_all(buffer)
+            .await
+            .map_err(|_| LinkError::LinkTxFailed)
+    }
+}
+
+impl ZLinkTx for StdTcpLinkTx {
+    async fn write_all(&mut self, buffer: &[u8]) -> core::result::Result<(), LinkError> {
+        self.stream
+            .write_all(buffer)
+            .await
+            .map_err(|_| LinkError::LinkTxFailed)
+    }
+}
+
+impl ZLinkRx for StdTcpLink {
+    async fn read(&mut self, buffer: &mut [u8]) -> core::result::Result<usize, LinkError> {
+        self.stream
+            .read(buffer)
+            .await
+            .map_err(|_| LinkError::LinkTxFailed)
+    }
+
+    async fn read_exact(&mut self, buffer: &mut [u8]) -> core::result::Result<(), LinkError> {
+        self.stream
+            .read_exact(buffer)
+            .await
+            .map_err(|_| LinkError::LinkTxFailed)
+    }
+}
+
+impl ZLinkRx for StdTcpLinkRx {
+    async fn read(&mut self, buffer: &mut [u8]) -> core::result::Result<usize, LinkError> {
+        self.stream
+            .read(buffer)
+            .await
+            .map_err(|_| LinkError::LinkTxFailed)
+    }
+
+    async fn read_exact(&mut self, buffer: &mut [u8]) -> core::result::Result<(), LinkError> {
+        self.stream
+            .read_exact(buffer)
+            .await
+            .map_err(|_| LinkError::LinkTxFailed)
+    }
+}
+
+impl ZLink for StdTcpLink {
+    type Tx<'a> = StdTcpLinkTx;
+    type Rx<'a> = StdTcpLinkRx;
+
     fn split(&mut self) -> (Self::Tx<'_>, Self::Rx<'_>) {
-        let tx = StdTcpTx {
+        let tx = StdTcpLinkTx {
             stream: self.stream.clone(),
+            mtu: self.mtu,
         };
-        let rx = StdTcpRx {
+
+        let rx = StdTcpLinkRx {
             stream: self.stream.clone(),
+            mtu: self.mtu,
         };
+
         (tx, rx)
-    }
-}
-
-impl ZTcpTx for StdTcpStream {
-    async fn write(
-        &mut self,
-        buffer: &[u8],
-    ) -> core::result::Result<usize, zenoh_nostd::LinkError> {
-        self.stream.write(buffer).await.map_err(|e| {
-            zenoh_nostd::error!(
-                "write ({}:{}:{}) failed with buffer len {}: {:?}",
-                file!(),
-                line!(),
-                column!(),
-                buffer.len(),
-                e
-            );
-
-            zenoh_nostd::LinkError::LinkTxFailed
-        })
-    }
-
-    async fn write_all(
-        &mut self,
-        buffer: &[u8],
-    ) -> core::result::Result<(), zenoh_nostd::LinkError> {
-        self.stream.write_all(buffer).await.map_err(|e| {
-            zenoh_nostd::error!(
-                "write_all ({}:{}:{}) failed with buffer len {}: {:?}",
-                file!(),
-                line!(),
-                column!(),
-                buffer.len(),
-                e
-            );
-
-            zenoh_nostd::LinkError::LinkTxFailed
-        })
-    }
-}
-
-impl ZTcpTx for StdTcpTx {
-    async fn write(
-        &mut self,
-        buffer: &[u8],
-    ) -> core::result::Result<usize, zenoh_nostd::LinkError> {
-        self.stream.write(buffer).await.map_err(|e| {
-            zenoh_nostd::error!(
-                "write ({}:{}:{}) failed with buffer len {}: {:?}",
-                file!(),
-                line!(),
-                column!(),
-                buffer.len(),
-                e
-            );
-
-            zenoh_nostd::LinkError::LinkTxFailed
-        })
-    }
-
-    async fn write_all(
-        &mut self,
-        buffer: &[u8],
-    ) -> core::result::Result<(), zenoh_nostd::LinkError> {
-        self.stream.write_all(buffer).await.map_err(|e| {
-            zenoh_nostd::error!(
-                "write_all ({}:{}:{}) failed with buffer len {}: {:?}",
-                file!(),
-                line!(),
-                column!(),
-                buffer.len(),
-                e
-            );
-
-            zenoh_nostd::LinkError::LinkTxFailed
-        })
-    }
-}
-
-impl ZTcpRx for StdTcpStream {
-    async fn read(
-        &mut self,
-        buffer: &mut [u8],
-    ) -> core::result::Result<usize, zenoh_nostd::LinkError> {
-        self.stream.read(buffer).await.map_err(|e| {
-            zenoh_nostd::error!(
-                "read ({}:{}:{}) failed with buffer len {}: {:?}",
-                file!(),
-                line!(),
-                column!(),
-                buffer.len(),
-                e
-            );
-
-            zenoh_nostd::LinkError::LinkTxFailed
-        })
-    }
-
-    async fn read_exact(
-        &mut self,
-        buffer: &mut [u8],
-    ) -> core::result::Result<(), zenoh_nostd::LinkError> {
-        self.stream.read_exact(buffer).await.map_err(|e| {
-            zenoh_nostd::error!(
-                "read_exact ({}:{}:{}) failed with buffer len {}: {:?}",
-                file!(),
-                line!(),
-                column!(),
-                buffer.len(),
-                e
-            );
-
-            zenoh_nostd::LinkError::LinkTxFailed
-        })
-    }
-}
-
-impl ZTcpRx for StdTcpRx {
-    async fn read(
-        &mut self,
-        buffer: &mut [u8],
-    ) -> core::result::Result<usize, zenoh_nostd::LinkError> {
-        self.stream.read(buffer).await.map_err(|e| {
-            zenoh_nostd::error!(
-                "read ({}:{}:{}) failed with buffer len {}: {:?}",
-                file!(),
-                line!(),
-                column!(),
-                buffer.len(),
-                e
-            );
-
-            zenoh_nostd::LinkError::LinkTxFailed
-        })
-    }
-
-    async fn read_exact(
-        &mut self,
-        buffer: &mut [u8],
-    ) -> core::result::Result<(), zenoh_nostd::LinkError> {
-        self.stream.read_exact(buffer).await.map_err(|e| {
-            zenoh_nostd::error!(
-                "read_exact ({}:{}:{}) failed with buffer len {}: {:?}",
-                file!(),
-                line!(),
-                column!(),
-                buffer.len(),
-                e
-            );
-
-            zenoh_nostd::LinkError::LinkTxFailed
-        })
     }
 }

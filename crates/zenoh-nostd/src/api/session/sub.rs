@@ -39,7 +39,9 @@ where
 
         self.resources.sub_callbacks.lock().await.remove(self.id)?;
 
-        self.driver.send(msg).await?;
+        self.driver
+            .send(core::iter::once(NetworkBody::Declare(msg)))
+            .await?;
 
         todo!("Also stop the channel if any")
     }
@@ -146,9 +148,9 @@ where
                     if let Ok(resp) = OwnedSample::try_from(resp) {
                         sender.send(resp).await;
                     } else {
-                        crate::error!(
+                        zenoh_proto::error!(
                             "{}: Couldn't convert to a transferable sample",
-                            crate::zctx!()
+                            zenoh_proto::zctx!()
                         )
                     }
                 },
@@ -182,7 +184,9 @@ where
             ..Default::default()
         };
 
-        self.driver.send(msg).await?;
+        self.driver
+            .send(core::iter::once(NetworkBody::Declare(msg)))
+            .await?;
 
         Ok(Subscriber {
             id,

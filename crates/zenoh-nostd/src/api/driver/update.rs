@@ -13,27 +13,18 @@ impl<'res, Config> super::Driver<'res, Config>
 where
     Config: ZConfig,
 {
-    pub(crate) async fn update(
+    pub(crate) async fn update<'a>(
         &self,
-        reader: &[u8],
+        msgs: impl Iterator<Item = (NetworkMessage<'a>, &'a [u8])>,
         resources: &SessionResources<'res, Config>,
     ) -> crate::ZResult<()> {
-        let batch = BatchReader::new(reader);
-
-        for msg in batch {
-            match msg {
-                Message::KeepAlive(_) => {
-                    zenoh_proto::trace!("Received KeepAlive");
-                }
-                Message::Push {
-                    body:
-                        Push {
-                            wire_expr,
-                            payload: PushBody::Put(Put { payload, .. }),
-                            ..
-                        },
+        for msg in msgs {
+            match msg.0.body {
+                NetworkBody::Push(Push {
+                    wire_expr,
+                    payload: PushBody::Put(Put { payload, .. }),
                     ..
-                } => {
+                }) => {
                     let ke = wire_expr.suffix;
                     let ke = keyexpr::new(ke)?;
                     let sample = Sample::new(ke, payload);
@@ -43,16 +34,12 @@ where
                         cb.call(&sample).await;
                     }
                 }
-                Message::Response {
-                    body:
-                        Response {
-                            rid,
-                            wire_expr,
-                            payload,
-                            ..
-                        },
+                NetworkBody::Response(Response {
+                    rid,
+                    wire_expr,
+                    payload,
                     ..
-                } => {
+                }) => {
                     let ke = wire_expr.suffix;
                     let ke = keyexpr::new(ke)?;
                     let response = match payload {
@@ -70,28 +57,21 @@ where
                         cb.call(&response).await;
                     }
                 }
-                Message::ResponseFinal {
-                    body: ResponseFinal { rid, .. },
-                    ..
-                } => {
+                NetworkBody::ResponseFinal(ResponseFinal { rid, .. }) => {
                     let mut res = resources.get_callbacks.lock().await;
                     res.remove(rid)?;
 
                     // TODO: also close channels
                 }
-                Message::Request {
-                    body:
-                        Request {
-                            id,
-                            wire_expr,
-                            payload:
-                                RequestBody::Query(Query {
-                                    parameters, body, ..
-                                }),
-                            ..
-                        },
+                NetworkBody::Request(Request {
+                    id,
+                    wire_expr,
+                    payload:
+                        RequestBody::Query(Query {
+                            parameters, body, ..
+                        }),
                     ..
-                } => {
+                }) => {
                     let ke = wire_expr.suffix;
                     let ke = keyexpr::new(ke)?;
                     let query = crate::api::Query::new(

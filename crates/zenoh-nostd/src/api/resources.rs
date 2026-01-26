@@ -1,37 +1,38 @@
+use core::hint::unreachable_unchecked;
+
 use crate::{
     api::{Session, ZConfig, callbacks::*, driver::*},
-    io::transport::{Transport, TransportConfig},
+    io::{TransportLink, ZLinkManager},
 };
 
 use embassy_sync::{blocking_mutex::raw::NoopRawMutex, mutex::Mutex};
 use embassy_time::Instant;
 
-pub struct Resources<Config>
+#[derive(Default)]
+pub enum ResourcesInner<'a, Config, LinkManager>
 where
     Config: ZConfig,
+    LinkManager: ZLinkManager,
 {
-    platform: Option<Config::Platform>,
-    transport: Option<Transport<Config::Platform>>,
+    #[default]
+    Uninit,
+    Init {
+        #[allow(unused)]
+        config: Config,
+        transport: TransportLink<'a, LinkManager>,
+    },
 }
+
+pub struct Resources<Config>(ResourcesInner<Config>)
+where
+    Config: ZConfig;
 
 impl<Config> Default for Resources<Config>
 where
     Config: ZConfig,
 {
     fn default() -> Self {
-        Self::new()
-    }
-}
-
-impl<Config> Resources<Config>
-where
-    Config: ZConfig,
-{
-    pub fn new() -> Self {
-        Self {
-            platform: None,
-            transport: None,
-        }
+        Self(ResourcesInner::default())
     }
 }
 
@@ -42,37 +43,26 @@ where
     pub(crate) fn init(
         &mut self,
         config: Config,
-        transport: Transport<Config::Platform>,
-        tconfig: TransportConfig,
+        transport: TransportLink<Config>,
     ) -> Session<'_, Config> {
-        let Self {
-            platform: platform_ref_mut,
-            transport: transport_ref_mut,
-        } = self;
+        self.0 = ResourcesInner::Init { config, transport };
 
-        let (platform, tx_buf, rx_buf) = config.into_parts();
-
-        *platform_ref_mut = Some(platform);
-        *transport_ref_mut = Some(transport);
-
-        let (tx, rx) = {
-            let (tx, rx) = transport_ref_mut.as_mut().unwrap().split();
-            (
-                DriverTx {
-                    tx_buf,
-                    tx,
-                    sn: tconfig.negociated_config.mine_sn,
-                    next_keepalive: Instant::now(),
-                    config: tconfig.mine_config.clone(),
-                },
-                DriverRx {
-                    rx_buf,
-                    rx,
-                    last_read: Instant::now(),
-                    config: tconfig.other_config.clone(),
-                },
-            )
+        let transport_ref_mut = match &mut self.0 {
+            ResourcesInner::Init { transport, .. } => transport,
+            _ => unsafe { unreachable_unchecked() },
         };
+
+        let (tx, rx) = transport_ref_mut.split();
+        let (tx, rx) = (
+            DriverTx {
+                tx,
+                next_keepalive: Instant::now(),
+            },
+            DriverRx {
+                rx,
+                last_read: Instant::now(),
+            },
+        );
 
         Session {
             driver: Driver::new(tx, rx),

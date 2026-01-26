@@ -30,15 +30,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "9330f8b2ff13f34540b44e946ef35111825727b38d33286ef986142615121801"
 
 [[package]]
-name = "const_panic"
-version = "0.2.15"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e262cdaac42494e3ae34c43969f9cdeb7da178bdb4b66fa6a1ea2edb4c8ae652"
-dependencies = [
- "typewit",
-]
-
-[[package]]
 name = "cpufeatures"
 version = "0.2.17"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -122,39 +113,6 @@ checksum = "d4b8a88685455ed29a21542a33abd9cb6510b6b129abadabdcef0f4c55bc8f61"
 dependencies = [
  "litrs",
 ]
-
-[[package]]
-name = "dyn-utils"
-version = "0.1.0"
-source = "git+https://github.com/wyfo/dyn-utils#440b8985404ac626d9afe2a11f05ad0c507d9a1f"
-dependencies = [
- "const_panic",
- "dyn-utils-macros",
- "elain",
-]
-
-[[package]]
-name = "dyn-utils-macros"
-version = "0.1.0"
-source = "git+https://github.com/wyfo/dyn-utils#440b8985404ac626d9afe2a11f05ad0c507d9a1f"
-dependencies = [
- "heck",
- "proc-macro2",
- "quote",
- "syn",
-]
-
-[[package]]
-name = "elain"
-version = "0.3.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6ba39bdf557eef05f2c1c2e986cbab6b85329b922e7606e5b63ee4c5037ba77a"
-
-[[package]]
-name = "embassy-futures"
-version = "0.1.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "dc2d050bdc5c21e0862a89256ed8029ae6c290a93aecefc73084b3002cdebb01"
 
 [[package]]
 name = "embassy-net"
@@ -355,12 +313,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "heck"
-version = "0.5.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2304e00983f87ffb38b55b444b5e3b60a884b5d30c0fca7d82fe33449bbe55ea"
-
-[[package]]
 name = "keccak"
 version = "0.1.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -540,12 +492,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "562d481066bde0658276a35467c4af00bdc6ee726305698a55b86e61d7ad82bb"
 
 [[package]]
-name = "typewit"
-version = "1.14.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f8c1ae7cc0fdb8b842d65d127cb981574b0d2b249b74d1c7a2986863dc134f71"
-
-[[package]]
 name = "uhlc"
 version = "0.9.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -595,27 +541,32 @@ dependencies = [
  "embassy-net",
  "embedded-io-async 0.7.0",
  "getrandom",
- "zenoh-nostd",
+ "zenoh-io",
+ "zenoh-proto",
 ]
 
 [[package]]
-name = "zenoh-nostd"
+name = "zenoh-io"
 version = "0.1.0"
 dependencies = [
- "dyn-utils",
- "embassy-futures",
- "embassy-sync",
- "embassy-time",
- "heapless",
  "paste",
- "sha3",
  "zenoh-proto",
+ "zenoh-sansio",
 ]
 
 [[package]]
 name = "zenoh-proto"
 version = "0.1.0"
 dependencies = [
+ "sha3",
  "uhlc",
  "zenoh-derive",
+]
+
+[[package]]
+name = "zenoh-sansio"
+version = "0.1.0"
+dependencies = [
+ "sha3",
+ "zenoh-proto",
 ]

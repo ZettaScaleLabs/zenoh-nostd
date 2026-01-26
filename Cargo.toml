@@ -1,6 +1,13 @@
 [workspace]
-members = ["crates/zenoh-derive", "crates/zenoh-nostd", "crates/zenoh-proto"]
+members = [
+    "crates/zenoh-derive",
+    "crates/zenoh-proto",
+    "crates/zenoh-sansio",
+
+    "crates/zenoh-nostd"
+]
 exclude = ["platforms/zenoh-std", "platforms/zenoh-embassy", "platforms/zenoh-wasm"]
+resolver = "3"
 
 [workspace.package]
 authors = []
@@ -17,13 +24,16 @@ readme = "README.md"
 [workspace.dependencies]
 zenoh-derive = { version = "0.1.0", path = "crates/zenoh-derive" }
 zenoh-proto = { version = "0.1.0", path = "crates/zenoh-proto" }
+zenoh-sansio = { version = "0.1.0", path = "crates/zenoh-sansio" }
+
 zenoh-nostd = { version = "0.1.0", path = "crates/zenoh-nostd" }
 
 # General dependencies
 
 uhlc = { version = "0.9.0", default-features = false }
 sha3 = { version = "0.10.8", default-features = false }
-dyn-utils = { version = "0.1.0", git = "https://github.com/wyfo/dyn-utils", default-features = false, features = ["macros", "const_panic"]}
+chacha20 = { version = "0.9" }
+dyn-utils = { version = "0.1.0", git = "https://github.com/wyfo/dyn-utils", default-features = false, features = ["macros", "const_panic"] }
 
 # Embassy (for async/await support)
 embassy-futures = "0.1.2"
@@ -101,9 +111,11 @@ wasm = [
     "embassy-executor/executor-thread",
     "embassy-time/wasm",
 ]
+platforms = ["dep:zenoh-std", "dep:zenoh-embassy"]
 
 [dependencies]
 zenoh-nostd = { workspace = true }
+
 static_cell = { workspace = true }
 embassy-sync = { workspace = true  }
 embassy-executor = { workspace = true }
@@ -125,10 +137,6 @@ esp-println = { version = "0.16.1", features = ["defmt-espflash", "esp32s3"], op
 esp-rtos = { version = "0.2.0", features = ["esp32s3", "esp-radio", "embassy"], optional = true }
 esp-radio = { version = "0.17.0", features = ["unstable", "defmt", "esp-alloc", "esp32s3", "smoltcp", "wifi"], optional = true }
 wasm-bindgen = { version = "0.2", optional = true }
-
-[patch.crates-io.yawc]
-git = "https://github.com/infinitefield/yawc"
-rev = "b43b05d51e18345d228b72c4f12a93e2f51df9d8"
 
 [profile.dev]
 opt-level = "s"

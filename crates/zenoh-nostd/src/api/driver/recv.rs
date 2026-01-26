@@ -1,19 +1,22 @@
 use embassy_futures::select::{Either, select};
 use embassy_time::Timer;
+use zenoh_proto::msgs::NetworkMessage;
 
-use crate::{api::ZConfig, io::transport::ZTransportRx};
+use crate::{api::ZConfig, io::ZTransportLinkRx};
 
-impl<'transport, Config> super::DriverRx<'transport, Config>
+impl<'res, Config> super::DriverRx<'res, Config>
 where
     Config: ZConfig,
 {
-    pub async fn recv(&mut self) -> crate::ZResult<&[u8]> {
-        let read_lease = Timer::at(self.last_read + self.config.other_lease);
+    pub async fn recv(
+        &mut self,
+    ) -> crate::ZResult<impl Iterator<Item = (NetworkMessage<'_>, &'_ [u8])>> {
+        let read_lease = Timer::at(self.last_read + self.rx.transport.lease.try_into().unwrap());
 
-        match select(read_lease, self.rx.recv(self.rx_buf.as_mut())).await {
+        match select(read_lease, self.rx.recv()).await {
             Either::First(_) => {
                 crate::warn!("Connection closed by peer");
-                crate::zbail!(crate::TransportError::LeaseTimeout);
+                crate::zbail!(crate::TransportLinkError::LeaseTimeout);
             }
             Either::Second(msg) => match msg {
                 Ok(msg) => {

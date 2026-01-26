@@ -1,311 +1,193 @@
-use core::{net::SocketAddr, str::FromStr};
+use core::net::SocketAddr;
 
-use crate::{
-    api::EndPoint,
-    io::link::{
-        tcp::{LinkTcp, LinkTcpRx, LinkTcpTx},
-        udp::{LinkUdp, LinkUdpRx, LinkUdpTx},
-        ws::{LinkWs, LinkWsRx, LinkWsTx},
-    },
-    platform::{ZPlatform, tcp::ZTcpStream, udp::ZUdpSocket, ws::ZWebSocket},
-};
+mod impls;
 
-mod tcp;
-mod udp;
-mod ws;
+pub trait ZLinkManager: Sized {
+    type Tcp<'ext>: ZLink;
+    type Udp<'ext>: ZLink;
+    type Ws<'ext>: ZLink;
+    type Serial<'ext>: ZLink;
+
+    fn connect_tcp(
+        &self,
+        addr: &SocketAddr,
+    ) -> impl Future<Output = core::result::Result<Link<'_, Self>, zenoh_proto::LinkError>> {
+        async move { unimplemented!("{addr}") }
+    }
+
+    fn listen_tcp(
+        &self,
+        addr: &SocketAddr,
+    ) -> impl Future<Output = core::result::Result<Link<'_, Self>, zenoh_proto::LinkError>> {
+        async move { unimplemented!("{addr}") }
+    }
+
+    fn connect_udp(
+        &self,
+        addr: &SocketAddr,
+    ) -> impl Future<Output = core::result::Result<Link<'_, Self>, zenoh_proto::LinkError>> {
+        async move { unimplemented!("{addr}") }
+    }
+
+    fn listen_udp(
+        &self,
+        addr: &SocketAddr,
+    ) -> impl Future<Output = core::result::Result<Link<'_, Self>, zenoh_proto::LinkError>> {
+        async move { unimplemented!("{addr}") }
+    }
+}
 
 pub trait ZLinkInfo {
     fn mtu(&self) -> u16;
-
     fn is_streamed(&self) -> bool;
 }
 
 pub trait ZLinkTx: ZLinkInfo {
-    #[allow(unused)]
-    fn write(
-        &mut self,
-        buffer: &[u8],
-    ) -> impl core::future::Future<Output = core::result::Result<usize, crate::LinkError>>;
-
     fn write_all(
         &mut self,
         buffer: &[u8],
-    ) -> impl core::future::Future<Output = core::result::Result<(), crate::LinkError>>;
+    ) -> impl Future<Output = core::result::Result<(), zenoh_proto::LinkError>>;
 }
 
 pub trait ZLinkRx: ZLinkInfo {
     fn read(
         &mut self,
         buffer: &mut [u8],
-    ) -> impl core::future::Future<Output = core::result::Result<usize, crate::LinkError>>;
+    ) -> impl Future<Output = core::result::Result<usize, zenoh_proto::LinkError>>;
 
     fn read_exact(
         &mut self,
         buffer: &mut [u8],
-    ) -> impl core::future::Future<Output = core::result::Result<(), crate::LinkError>>;
+    ) -> impl Future<Output = core::result::Result<(), zenoh_proto::LinkError>>;
 }
 
 pub trait ZLink: ZLinkInfo + ZLinkTx + ZLinkRx {
-    type Tx<'a>: ZLinkTx
+    type Tx<'link>: ZLinkTx + ZLinkInfo
     where
-        Self: 'a;
+        Self: 'link;
 
-    type Rx<'a>: ZLinkRx
+    type Rx<'link>: ZLinkRx + ZLinkInfo
     where
-        Self: 'a;
+        Self: 'link;
 
     fn split(&mut self) -> (Self::Tx<'_>, Self::Rx<'_>);
 }
 
-pub enum LinkTx<'a, Platform>
-where
-    Platform: ZPlatform + 'a,
-{
-    Tcp(LinkTcpTx<<Platform::TcpStream as ZTcpStream>::Tx<'a>>),
-    Udp(LinkUdpTx<<Platform::UdpSocket as ZUdpSocket>::Tx<'a>>),
-    Ws(LinkWsTx<<Platform::WebSocket as ZWebSocket>::Tx<'a>>),
-}
-
-pub enum LinkRx<'a, Platform>
-where
-    Platform: ZPlatform + 'a,
-{
-    Tcp(LinkTcpRx<<Platform::TcpStream as ZTcpStream>::Rx<'a>>),
-    Udp(LinkUdpRx<<Platform::UdpSocket as ZUdpSocket>::Rx<'a>>),
-    Ws(LinkWsRx<<Platform::WebSocket as ZWebSocket>::Rx<'a>>),
-}
-
-pub enum Link<Platform>
-where
-    Platform: ZPlatform,
-{
-    Tcp(LinkTcp<Platform::TcpStream>),
-    Udp(LinkUdp<Platform::UdpSocket>),
-    Ws(LinkWs<Platform::WebSocket>),
-}
-
-impl<Platform> ZLinkInfo for Link<Platform>
-where
-    Platform: ZPlatform,
-{
-    fn mtu(&self) -> u16 {
-        match self {
-            Self::Tcp(tcp) => tcp.mtu(),
-            Self::Udp(udp) => udp.mtu(),
-            Self::Ws(ws) => ws.mtu(),
-        }
-    }
-
-    fn is_streamed(&self) -> bool {
-        match self {
-            Self::Tcp(tcp) => tcp.is_streamed(),
-            Self::Udp(udp) => udp.is_streamed(),
-            Self::Ws(ws) => ws.is_streamed(),
-        }
-    }
-}
-
-impl<'a, Platform> ZLinkInfo for LinkTx<'a, Platform>
-where
-    Platform: ZPlatform + 'a,
-{
-    fn mtu(&self) -> u16 {
-        match self {
-            Self::Tcp(tcp) => tcp.mtu(),
-            Self::Udp(udp) => udp.mtu(),
-            Self::Ws(ws) => ws.mtu(),
-        }
-    }
-
-    fn is_streamed(&self) -> bool {
-        match self {
-            Self::Tcp(tcp) => tcp.is_streamed(),
-            Self::Udp(udp) => udp.is_streamed(),
-            Self::Ws(ws) => ws.is_streamed(),
-        }
-    }
-}
-
-impl<'a, Platform> ZLinkInfo for LinkRx<'a, Platform>
-where
-    Platform: ZPlatform + 'a,
-{
-    fn mtu(&self) -> u16 {
-        match self {
-            Self::Tcp(tcp) => tcp.mtu(),
-            Self::Udp(udp) => udp.mtu(),
-            Self::Ws(ws) => ws.mtu(),
-        }
-    }
-
-    fn is_streamed(&self) -> bool {
-        match self {
-            Self::Tcp(tcp) => tcp.is_streamed(),
-            Self::Udp(udp) => udp.is_streamed(),
-            Self::Ws(ws) => ws.is_streamed(),
-        }
-    }
-}
-
-impl<Platform> ZLinkTx for Link<Platform>
-where
-    Platform: ZPlatform,
-{
-    async fn write(&mut self, buffer: &[u8]) -> core::result::Result<usize, crate::LinkError> {
-        match self {
-            Self::Tcp(tcp) => tcp.write(buffer).await,
-            Self::Udp(udp) => udp.write(buffer).await,
-            Self::Ws(ws) => ws.write(buffer).await,
-        }
-    }
-
-    async fn write_all(&mut self, buffer: &[u8]) -> core::result::Result<(), crate::LinkError> {
-        match self {
-            Self::Tcp(tcp) => tcp.write_all(buffer).await,
-            Self::Udp(udp) => udp.write_all(buffer).await,
-            Self::Ws(ws) => ws.write_all(buffer).await,
-        }
-    }
-}
-
-impl<'a, Platform> ZLinkTx for LinkTx<'a, Platform>
-where
-    Platform: ZPlatform + 'a,
-{
-    async fn write(&mut self, buffer: &[u8]) -> core::result::Result<usize, crate::LinkError> {
-        match self {
-            Self::Tcp(tcp) => tcp.write(buffer).await,
-            Self::Udp(udp) => udp.write(buffer).await,
-            Self::Ws(ws) => ws.write(buffer).await,
-        }
-    }
-
-    async fn write_all(&mut self, buffer: &[u8]) -> core::result::Result<(), crate::LinkError> {
-        match self {
-            Self::Tcp(tcp) => tcp.write_all(buffer).await,
-            Self::Udp(udp) => udp.write_all(buffer).await,
-            Self::Ws(ws) => ws.write_all(buffer).await,
-        }
-    }
-}
-
-impl<Platform> ZLinkRx for Link<Platform>
-where
-    Platform: ZPlatform,
-{
-    async fn read(&mut self, buffer: &mut [u8]) -> core::result::Result<usize, crate::LinkError> {
-        match self {
-            Self::Tcp(tcp) => tcp.read(buffer).await,
-            Self::Udp(udp) => udp.read(buffer).await,
-            Self::Ws(ws) => ws.read(buffer).await,
-        }
-    }
-
-    async fn read_exact(
-        &mut self,
-        buffer: &mut [u8],
-    ) -> core::result::Result<(), crate::LinkError> {
-        match self {
-            Self::Tcp(tcp) => tcp.read_exact(buffer).await,
-            Self::Udp(udp) => udp.read_exact(buffer).await,
-            Self::Ws(ws) => ws.read_exact(buffer).await,
-        }
-    }
-}
-
-impl<'a, Platform> ZLinkRx for LinkRx<'a, Platform>
-where
-    Platform: ZPlatform + 'a,
-{
-    async fn read(&mut self, buffer: &mut [u8]) -> core::result::Result<usize, crate::LinkError> {
-        match self {
-            Self::Tcp(tcp) => tcp.read(buffer).await,
-            Self::Udp(udp) => udp.read(buffer).await,
-            Self::Ws(ws) => ws.read(buffer).await,
-        }
-    }
-
-    async fn read_exact(
-        &mut self,
-        buffer: &mut [u8],
-    ) -> core::result::Result<(), crate::LinkError> {
-        match self {
-            Self::Tcp(tcp) => tcp.read_exact(buffer).await,
-            Self::Udp(udp) => udp.read_exact(buffer).await,
-            Self::Ws(ws) => ws.read_exact(buffer).await,
-        }
-    }
-}
-
-impl<Platform> ZLink for Link<Platform>
-where
-    Platform: ZPlatform,
-{
-    type Tx<'a>
-        = LinkTx<'a, Platform>
-    where
-        Self: 'a;
-
-    type Rx<'a>
-        = LinkRx<'a, Platform>
-    where
-        Self: 'a;
-
-    fn split(&mut self) -> (LinkTx<'_, Platform>, LinkRx<'_, Platform>) {
-        match self {
-            Self::Tcp(tcp) => {
-                let (tx, rx) = tcp.split();
-                (LinkTx::Tcp(tx), LinkRx::Tcp(rx))
+macro_rules! impl_link_traits {
+    ($struct:ident<$($lt:lifetime),*>: ZLinkInfo, $($variant:ident<$($lt2:lifetime),*>),+) => {
+        impl<$($lt,)* LinkManager: ZLinkManager> ZLinkInfo for $struct<$($lt,)* LinkManager>
+        where
+            $(LinkManager::$variant<$($lt2,)*>: ZLinkInfo,)+
+        {
+            fn mtu(&self) -> u16 {
+                delegate_variants!($struct(self), mtu(), $($variant),+)
             }
-            Self::Udp(udp) => {
-                let (tx, rx) = udp.split();
-                (LinkTx::Udp(tx), LinkRx::Udp(rx))
-            }
-            Self::Ws(ws) => {
-                let (tx, rx) = ws.split();
-                (LinkTx::Ws(tx), LinkRx::Ws(rx))
+
+            fn is_streamed(&self) -> bool {
+                delegate_variants!($struct(self), is_streamed(), $($variant),+)
             }
         }
-    }
-}
+    };
 
-impl<Platform> Link<Platform>
-where
-    Platform: ZPlatform,
-{
-    pub(crate) async fn new(
-        platform: &Platform,
-        endpoint: EndPoint<'_>,
-    ) -> core::result::Result<Self, crate::LinkError> {
-        let protocol = endpoint.protocol();
-        let address = endpoint.address();
-
-        match protocol.as_str() {
-            "tcp" => {
-                let dst_addr = SocketAddr::from_str(address.as_str())
-                    .map_err(|_| crate::EndpointError::CouldNotParseAddress)?;
-
-                let stream = platform.new_tcp_stream(&dst_addr).await?;
-
-                Ok(Self::Tcp(LinkTcp::new(stream)))
+    ($struct:ident<$($lt:lifetime),*>: ZLinkTx, $($variant:ident<$($lt2:lifetime),*>),+) => {
+        impl<$($lt,)* LinkManager: ZLinkManager> ZLinkTx for $struct<$($lt,)* LinkManager>
+        where
+            $(LinkManager::$variant<$($lt2,)*>: ZLinkTx,)+
+        {
+            async fn write_all(&mut self, buffer: &[u8]) -> Result<(), zenoh_proto::LinkError> {
+                delegate_variants!($struct(self), write_all(buffer).await, $($variant),+)
             }
-            "udp" => {
-                let dst_addr = SocketAddr::from_str(address.as_str())
-                    .map_err(|_| crate::EndpointError::CouldNotParseAddress)?;
-
-                let socket = platform.new_udp_socket(&dst_addr).await?;
-
-                Ok(Self::Udp(LinkUdp::new(socket)))
-            }
-            "ws" => {
-                let dst_addr = SocketAddr::from_str(address.as_str())
-                    .map_err(|_| crate::EndpointError::CouldNotParseAddress)?;
-
-                let stream = platform.new_websocket_stream(&dst_addr).await?;
-
-                Ok(Self::Ws(LinkWs::new(stream)))
-            }
-            _ => Err(crate::EndpointError::CouldNotParseProtocol.into()),
         }
-    }
+    };
+
+    ($struct:ident<$($lt:lifetime),*>: ZLinkRx, $($variant:ident<$($lt2:lifetime),*>),+) => {
+        impl<$($lt,)* LinkManager: ZLinkManager> ZLinkRx for $struct<$($lt,)* LinkManager>
+        where
+            $(LinkManager::$variant<$($lt2,)*>: ZLinkRx,)+
+        {
+            async fn read(&mut self, buffer: &mut [u8]) -> Result<usize, zenoh_proto::LinkError> {
+                delegate_variants!($struct(self), read(buffer).await, $($variant),+)
+            }
+
+            async fn read_exact(&mut self, buffer: &mut [u8]) -> Result<(), zenoh_proto::LinkError> {
+                delegate_variants!($struct(self), read_exact(buffer).await, $($variant),+)
+            }
+        }
+    };
+
+    ($struct:ident<$lt1:lifetime>: ZLink, $($variant:ident<$lt2:lifetime>),+) => {
+        impl<$lt1, LinkManager: ZLinkManager> ZLink for $struct<$lt1, LinkManager>
+        where
+            $(LinkManager::$variant<$lt2>: ZLink,)+
+        {
+            type Tx<'link> = LinkTx<$lt1, 'link, LinkManager> where Self: 'link;
+            type Rx<'link> = LinkRx<$lt1, 'link, LinkManager> where Self: 'link;
+
+            fn split(&mut self) -> (Self::Tx<'_>, Self::Rx<'_>) {
+                match self {
+                    $(
+                        $struct:: $variant (link) => {
+                            let (tx, rx) = link.split();
+                            (LinkTx:: $variant(tx), LinkRx:: $variant(rx))
+                        },
+                    )+
+                }
+            }
+        }
+    };
 }
+
+macro_rules! delegate_variants {
+    ($struct:ident($self:ident), $method:ident($arg:ident).await, $($variant:ident),+) => {
+        match $self {
+            $($struct:: $variant (link) => link.$method($arg).await,)+
+        }
+    };
+
+    ($struct:ident($self:ident), $method:ident(), $($variant:ident),+) => {
+        match $self {
+            $($struct:: $variant (link) => link.$method(),)+
+        }
+    };
+}
+
+macro_rules! define {
+    ($($variant:ident),* $(,)?) => {
+        pub enum Link<'ext, LinkManager: ZLinkManager> {
+            $(
+                $variant(LinkManager::$variant<'ext>),
+            )*
+        }
+
+        impl_link_traits! { Link<'ext>: ZLinkInfo, $($variant<'ext>),* }
+        impl_link_traits! { Link<'ext>: ZLinkTx, $($variant<'ext>),* }
+        impl_link_traits! { Link<'ext>: ZLinkRx, $($variant<'ext>),* }
+        impl_link_traits! { Link<'ext>: ZLink, $($variant<'ext>),* }
+
+        pub enum LinkTx<'ext, 'link, LinkManager: ZLinkManager>
+        where
+            Self: 'link,
+        {
+            $(
+                $variant(<LinkManager::$variant<'ext> as ZLink>::Tx<'link>),
+            )*
+        }
+
+        impl_link_traits! { LinkTx<'ext, 'link>: ZLinkInfo, $($variant<'ext>),* }
+        impl_link_traits! { LinkTx<'ext, 'link>: ZLinkTx, $($variant<'ext>),* }
+
+        pub enum LinkRx<'ext, 'link, LinkManager: ZLinkManager>
+        where
+            Self: 'link,
+        {
+            $(
+                $variant(<LinkManager::$variant<'ext> as ZLink>::Rx<'link>),
+            )*
+        }
+
+        impl_link_traits! { LinkRx<'ext, 'link>: ZLinkInfo, $($variant<'ext>),* }
+        impl_link_traits! { LinkRx<'ext, 'link>: ZLinkRx, $($variant<'ext>),* }
+    };
+}
+
+define!(Tcp, Udp, Ws, Serial);

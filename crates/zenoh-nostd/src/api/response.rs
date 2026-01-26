@@ -1,4 +1,4 @@
-use zenoh_proto::{keyexpr, zerror::CollectionError};
+use zenoh_proto::{CollectionError, keyexpr};
 
 use crate::{OwnedSample, api::Sample};
 

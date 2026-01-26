@@ -1,82 +1,67 @@
+use core::hint::unreachable_unchecked;
+
+use zenoh_proto::Endpoint;
+
 use crate::{
-    api::{EndPoint, Resources, ZConfig, driver::Driver, resources::SessionResources},
-    io::{
-        link::Link,
-        transport::{Transport, TransportMineConfig},
-    },
+    config::ZSessionConfig,
+    io::{Driver, TransportLink},
+    resources::SessionResourcesInner,
+    session::SessionResources,
 };
 
-use embassy_time::Duration;
-
-mod get;
-mod r#pub;
-mod put;
-mod querier;
-mod queryable;
-mod sub;
-
-pub struct Session<'res, Config>
+pub struct Session<'ext, 'res, Config>
 where
-    Config: ZConfig,
+    Config: ZSessionConfig,
 {
-    pub(crate) driver: Driver<'res, Config>,
-    pub(crate) resources: SessionResources<'res, Config>,
+    pub(crate) driver: Driver<'ext, 'res, Config::LinkManager, Config::Buff>,
 }
 
-impl<Config> Session<'_, Config>
+pub async fn session_connect<'ext, 'res, Config>(
+    resources: &'res mut SessionResources<'ext, Config>,
+    config: &'ext Config,
+    endpoint: Endpoint<'_>,
+) -> Session<'ext, 'res, Config>
 where
-    Config: ZConfig,
+    Config: ZSessionConfig,
 {
-    pub async fn run(&self) -> crate::ZResult<()> {
-        self.driver.run(&self.resources).await?;
+    let transport: TransportLink<'ext, Config::LinkManager, Config::Buff> = config
+        .transports()
+        .connect(endpoint, config.buff())
+        .await
+        .unwrap();
 
-        todo!("implement a `session.close` method that should undeclare all resources")
-    }
+    resources.inner = SessionResourcesInner::Init { transport };
+    let transport = match &mut resources.inner {
+        SessionResourcesInner::Init { transport } => transport,
+        _ => unsafe { unreachable_unchecked() },
+    };
+
+    let driver: Driver<'ext, 'res, Config::LinkManager, Config::Buff> = Driver::new(transport);
+
+    Session { driver }
 }
 
-/// Create a session bounded to the lifetimes of the `zenoh_nocore::Resources`.
-pub async fn open<'res, Config>(
-    resources: &'res mut Resources<Config>,
-    mut config: Config,
-    endpoint: EndPoint<'_>,
-) -> crate::ZResult<Session<'res, Config>>
+pub async fn session_listen<'ext, 'res, Config>(
+    resources: &'res mut SessionResources<'ext, Config>,
+    config: &'ext Config,
+    endpoint: Endpoint<'_>,
+) -> Session<'ext, 'res, Config>
 where
-    Config: ZConfig,
+    Config: ZSessionConfig,
 {
-    let link = Link::new(config.platform(), endpoint).await?;
+    let transport: TransportLink<'ext, Config::LinkManager, Config::Buff> = config
+        .transports()
+        .listen(endpoint, config.buff())
+        .await
+        .unwrap();
 
-    let (tx, rx) = config.txrx();
-    let (transport, tconfig) = Transport::open(
-        link,
-        TransportMineConfig {
-            mine_zid: Default::default(),
-            mine_lease: Duration::from_secs(20),
-            keep_alive: 4,
-            open_timeout: Duration::from_secs(5),
-        },
-        tx,
-        rx,
-    )
-    .await?;
+    resources.inner = SessionResourcesInner::Init { transport };
+    let transport = match &mut resources.inner {
+        SessionResourcesInner::Init { transport } => transport,
+        _ => unsafe { unreachable_unchecked() },
+    };
 
-    Ok(resources.init(config, transport, tconfig))
-}
+    let driver: Driver<'ext, 'res, Config::LinkManager, Config::Buff> = Driver::new(transport);
 
-/// Alternative version of `zenoh_nocore::open` that creates an `'static` `zenoh_nocore::Session`.
-#[macro_export]
-macro_rules! open {
-    (
-        $config:expr => $CONFIG:ty,
-        $endpoint:expr
-    ) => {{
-        static RESOURCES: static_cell::StaticCell<$crate::Resources<$CONFIG>> =
-            static_cell::StaticCell::new();
-
-        static SESSION: static_cell::StaticCell<$crate::Session<'static, $CONFIG>> =
-            static_cell::StaticCell::new();
-
-        SESSION
-            .init($crate::open(RESOURCES.init($crate::Resources::new()), $config, $endpoint).await?)
-            as &'static $crate::Session<'static, $CONFIG>
-    }};
+    Session { driver }
 }
