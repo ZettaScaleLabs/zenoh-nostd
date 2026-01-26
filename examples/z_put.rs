@@ -12,8 +12,8 @@ async fn entry(spawner: embassy_executor::Spawner) -> zenoh::ZResult<()> {
     zenoh::info!("zenoh-nostd z_put example");
 
     let config = init_example(&spawner).await;
-    let mut resources = zenoh::Resources::default();
-    let session = zenoh::connect(&mut resources, config, Endpoint::try_from(CONNECT)?).await?;
+    let mut resources = SessionResources::default();
+    let session = zenoh::connect(&mut resources, &config, Endpoint::try_from(CONNECT)?).await?;
 
     // In this example we don't care about maintaining the session alive but we do it anyway for demonstration purpose. Know
     // that it's not mandatory to do a `session.run()` if you just need to `put` a value on the network.
@@ -40,6 +40,8 @@ async fn entry(spawner: embassy_executor::Spawner) -> zenoh::ZResult<()> {
         };
     })
     .await;
+
+    embassy_time::Timer::after(embassy_time::Duration::from_millis(100)).await;
 
     Ok(())
 }

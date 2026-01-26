@@ -1,5 +1,3 @@
-use core::hint::unreachable_unchecked;
-
 use crate::api::callbacks::ZCallbacks;
 use embassy_sync::{
     blocking_mutex::raw::NoopRawMutex,
@@ -10,15 +8,14 @@ use zenoh_proto::{Endpoint, TransportLinkError};
 use crate::{
     config::ZSessionConfig,
     io::{Driver, TransportLink},
-    resources::SessionResourcesInner,
     session::SessionResources,
 };
 
 mod run;
 
 pub mod get;
-// pub mod r#pub;
-// pub mod put;
+pub mod r#pub;
+pub mod put;
 pub mod querier;
 pub mod sub;
 

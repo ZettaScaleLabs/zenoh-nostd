@@ -187,11 +187,12 @@ impl<Buff> TransportRx<Buff> {
                 if !ignore {
                     // Check for missed messages regarding resolution
                     let _ = resolution;
+
                     if header.sn < *sn - 1 {
                         zenoh_proto::error!(
                             "Inconsistent `SN` value {}, expected higher than {}",
                             header.sn,
-                            *sn
+                            *sn - 1
                         );
                         return None;
                     } else if header.sn != *sn - 1 {

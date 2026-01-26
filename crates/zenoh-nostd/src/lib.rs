@@ -18,7 +18,7 @@ pub mod session {
     pub use super::api::{
         response::*,
         sample::*,
-        session::{get::*, sub::*},
+        session::{get::*, r#pub::*, put::*, querier::*, sub::*},
     };
 
     pub mod zenoh {

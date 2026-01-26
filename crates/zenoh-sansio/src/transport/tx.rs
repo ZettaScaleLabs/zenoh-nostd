@@ -120,7 +120,7 @@ impl<Buff> TransportTx<Buff> {
                 let header = if reliability != Some(&r) || qos != Some(&q) {
                     let header = FrameHeader {
                         reliability: r,
-                        sn: self.sn + 1,
+                        sn: self.sn,
                         qos: q,
                     };
 

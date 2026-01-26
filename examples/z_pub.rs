@@ -6,7 +6,7 @@ use zenoh_examples::*;
 use zenoh_nostd::session::*;
 
 #[embassy_executor::task]
-async fn session_task(session: &'static zenoh::Session<'static, ExampleConfig>) {
+async fn session_task(session: &'static zenoh::Session<'static, 'static, ExampleConfig>) {
     if let Err(e) = session.run().await {
         zenoh::error!("Error in session task: {}", e);
     }
@@ -22,8 +22,6 @@ async fn entry(spawner: embassy_executor::Spawner) -> zenoh::ZResult<()> {
     let session = zenoh::connect!(ExampleConfig: config, Endpoint::try_from(CONNECT)?);
 
     spawner.spawn(session_task(session)).unwrap();
-
-    zenoh::info!("Declaring publisher");
 
     let publisher = session
         .declare_publisher(zenoh::keyexpr::new("demo/example")?)

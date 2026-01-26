@@ -1,30 +1,38 @@
 use zenoh_proto::{
+    SessionError,
     exts::Attachment,
     fields::{Encoding, Timestamp},
     keyexpr,
 };
 
-use crate::api::{ZConfig, driver::Driver, session::put::PutBuilder};
+use crate::{
+    api::session::{Session, put::PutBuilder},
+    config::ZSessionConfig,
+};
 
-pub struct Publisher<'a, 'res, Config>
+pub struct Publisher<'parameters, 'session, 'ext, 'res, Config>
 where
-    Config: ZConfig,
+    Config: ZSessionConfig,
 {
-    driver: &'a Driver<'res, Config>,
+    session: &'session Session<'ext, 'res, Config>,
 
-    ke: &'a keyexpr,
-    encoding: Encoding<'a>,
+    ke: &'parameters keyexpr,
+
+    encoding: Encoding<'parameters>,
     timestamp: Option<Timestamp>,
-    attachment: Option<Attachment<'a>>,
+    attachment: Option<Attachment<'parameters>>,
 }
 
-impl<'a, 'res, Config> Publisher<'a, 'res, Config>
+impl<'parameters, 'session, 'ext, 'res, Config> Publisher<'parameters, 'session, 'ext, 'res, Config>
 where
-    Config: ZConfig,
+    Config: ZSessionConfig,
 {
-    pub fn put(&self, payload: &'a [u8]) -> PutBuilder<'a, 'res, Config> {
+    pub fn put(
+        &self,
+        payload: &'parameters [u8],
+    ) -> PutBuilder<'parameters, 'session, 'ext, 'res, Config> {
         PutBuilder {
-            driver: self.driver,
+            session: self.session,
             ke: self.ke,
             payload,
             encoding: self.encoding.clone(),
@@ -34,7 +42,7 @@ where
     }
 
     #[allow(dead_code)]
-    async fn undeclare(self) -> crate::ZResult<()> {
+    async fn undeclare(self) -> core::result::Result<(), SessionError> {
         todo!("send undeclare interest")
     }
 
@@ -43,25 +51,29 @@ where
     }
 }
 
-pub struct PublisherBuilder<'a, 'res, Config>
+pub struct PublisherBuilder<'parameters, 'session, 'ext, 'res, Config>
 where
-    Config: ZConfig,
+    Config: ZSessionConfig,
 {
-    driver: &'a Driver<'res, Config>,
+    session: &'session Session<'ext, 'res, Config>,
 
-    ke: &'a keyexpr,
-    encoding: Encoding<'a>,
+    ke: &'parameters keyexpr,
+    encoding: Encoding<'parameters>,
     timestamp: Option<Timestamp>,
-    attachment: Option<Attachment<'a>>,
+    attachment: Option<Attachment<'parameters>>,
 }
 
-impl<'a, 'res, Config> PublisherBuilder<'a, 'res, Config>
+impl<'parameters, 'session, 'ext, 'res, Config>
+    PublisherBuilder<'parameters, 'session, 'ext, 'res, Config>
 where
-    Config: ZConfig,
+    Config: ZSessionConfig,
 {
-    pub(crate) fn new(driver: &'a Driver<'res, Config>, ke: &'a keyexpr) -> Self {
+    pub(crate) fn new(
+        session: &'session Session<'ext, 'res, Config>,
+        ke: &'parameters keyexpr,
+    ) -> Self {
         Self {
-            driver,
+            session,
             ke,
             encoding: Encoding::default(),
             timestamp: None,
@@ -69,12 +81,12 @@ where
         }
     }
 
-    pub fn keyexpr(mut self, ke: &'a keyexpr) -> Self {
+    pub fn keyexpr(mut self, ke: &'parameters keyexpr) -> Self {
         self.ke = ke;
         self
     }
 
-    pub fn encoding(mut self, encoding: Encoding<'a>) -> Self {
+    pub fn encoding(mut self, encoding: Encoding<'parameters>) -> Self {
         self.encoding = encoding;
         self
     }
@@ -84,16 +96,18 @@ where
         self
     }
 
-    pub fn attachment(mut self, attachment: &'a [u8]) -> Self {
+    pub fn attachment(mut self, attachment: &'parameters [u8]) -> Self {
         self.attachment = Some(Attachment { buffer: attachment });
         self
     }
 
-    pub async fn finish(self) -> crate::ZResult<Publisher<'a, 'res, Config>> {
+    pub async fn finish(
+        self,
+    ) -> core::result::Result<Publisher<'parameters, 'session, 'ext, 'res, Config>, SessionError>
+    {
         // TODO: send interest msg
-
         Ok(Publisher {
-            driver: self.driver,
+            session: self.session,
             ke: self.ke,
             encoding: self.encoding,
             timestamp: self.timestamp,
@@ -102,11 +116,14 @@ where
     }
 }
 
-impl<'res, Config> super::Session<'res, Config>
+impl<'ext, 'res, Config> Session<'ext, 'res, Config>
 where
-    Config: ZConfig,
+    Config: ZSessionConfig,
 {
-    pub fn declare_publisher<'a>(&'a self, ke: &'a keyexpr) -> PublisherBuilder<'a, 'res, Config> {
-        PublisherBuilder::new(&self.driver, ke)
+    pub fn declare_publisher<'parameters>(
+        &self,
+        ke: &'parameters keyexpr,
+    ) -> PublisherBuilder<'parameters, '_, 'ext, 'res, Config> {
+        PublisherBuilder::new(self, ke)
     }
 }

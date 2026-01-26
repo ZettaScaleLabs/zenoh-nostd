@@ -12,8 +12,14 @@ async fn entry(spawner: embassy_executor::Spawner) -> zenoh::ZResult<()> {
     zenoh::info!("zenoh-nostd z_pub_thr example");
 
     let config = init_example(&spawner).await;
-    let mut resources = zenoh::Resources::default();
-    let session = zenoh::listen(&mut resources, config, Endpoint::try_from(CONNECT)?).await?;
+    let mut resources = SessionResources::default();
+    let session = if LISTEN > 0 {
+        zenoh::listen_ignore_invalid_sn(&mut resources, &config, Endpoint::try_from(CONNECT)?)
+            .await?
+    } else {
+        zenoh::connect_ignore_invalid_sn(&mut resources, &config, Endpoint::try_from(CONNECT)?)
+            .await?
+    };
 
     let payload: [u8; PAYLOAD] = core::array::from_fn(|i| (i % 10) as u8);
     let publisher = session
@@ -40,7 +46,7 @@ async fn entry(spawner: embassy_executor::Spawner) -> zenoh::ZResult<()> {
             }
         }
 
-        Ok::<(), zenoh::Error>(())
+        Ok::<(), Error>(())
     })
     .await;
 
