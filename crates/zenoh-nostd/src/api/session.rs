@@ -1,4 +1,4 @@
-use crate::api::callbacks::ZCallbacks;
+// use crate::api::callbacks::ZCallbacks;
 use embassy_sync::{
     blocking_mutex::raw::NoopRawMutex,
     mutex::{Mutex, MutexGuard},
@@ -8,24 +8,27 @@ use zenoh_proto::{Endpoint, TransportLinkError};
 use crate::{
     config::ZSessionConfig,
     io::{driver::Driver, transport::TransportLink},
-    session::SessionResources,
+    platform::ZLinkManager,
+    resources::SessionResources,
+    // session::SessionResources,
 };
 
 mod run;
 
-pub mod get;
+// pub mod get;
 pub mod r#pub;
 pub mod put;
-pub mod querier;
-pub mod sub;
+// pub mod querier;
+// pub mod sub;
 
 pub(crate) struct SessionState<'res, Config>
 where
     Config: ZSessionConfig,
 {
     next: u32,
-    get_callbacks: Config::GetCallbacks<'res>,
-    sub_callbacks: Config::SubCallbacks<'res>,
+    _data: core::marker::PhantomData<&'res Config>,
+    // get_callbacks: Config::GetCallbacks<'res>,
+    // sub_callbacks: Config::SubCallbacks<'res>,
     // queryable_callbacks: Config::QueryableCallbacks<'res>,
 }
 
@@ -36,8 +39,9 @@ where
     pub fn new() -> Self {
         Self {
             next: 0,
-            get_callbacks: Config::GetCallbacks::empty(),
-            sub_callbacks: Config::SubCallbacks::empty(),
+            _data: core::marker::PhantomData,
+            // get_callbacks: Config::GetCallbacks::empty(),
+            // sub_callbacks: Config::SubCallbacks::empty(),
             // queryable_callbacks: Config::QueryableCallbacks::empty(),
         }
     }
@@ -49,30 +53,56 @@ where
     }
 }
 
-pub struct Session<'ext, 'res, Config>
+pub struct Session<'res, Config>
 where
     Config: ZSessionConfig,
 {
-    driver: Driver<'ext, 'res, Config::LinkManager, Config::Buff>,
+    driver: Driver<'res, Config>,
     state: Mutex<NoopRawMutex, SessionState<'res, Config>>,
 }
 
-impl<'ext, 'res, Config> Session<'ext, 'res, Config>
+type Link<'res, Config> = <<Config as ZSessionConfig>::LinkManager as ZLinkManager>::Link<'res>;
+
+impl<'res, Config> Session<'res, Config>
 where
     Config: ZSessionConfig,
 {
-    pub fn new(
-        transport: &'res mut TransportLink<'ext, Config::LinkManager, Config::Buff>,
-    ) -> Self {
+    pub fn new(transport: &'res mut TransportLink<Link<'res, Config>, Config::Buff>) -> Self {
         Self {
             driver: Driver::new(transport),
             state: Mutex::new(SessionState::new()),
         }
     }
 
-    pub(crate) async fn state(&self) -> MutexGuard<'_, NoopRawMutex, SessionState<'res, Config>> {
-        self.state.lock().await
-    }
+    // pub(crate) async fn state(&self) -> MutexGuard<'_, NoopRawMutex, SessionState<'res, Config>> {
+    //     self.state.lock().await
+    // }
+}
+
+pub async fn session_connect<'res, Config>(
+    resources: &'res mut SessionResources<'res, Config>,
+    config: &'res Config,
+    endpoint: Endpoint<'_>,
+) -> core::result::Result<Session<'res, Config>, TransportLinkError>
+where
+    Config: ZSessionConfig,
+{
+    Ok(Session::new(resources.init(
+        config.transports().connect(endpoint, config.buff()).await?,
+    )))
+}
+
+pub async fn session_listen<'res, Config>(
+    resources: &'res mut SessionResources<'res, Config>,
+    config: &'res Config,
+    endpoint: Endpoint<'_>,
+) -> core::result::Result<Session<'res, Config>, TransportLinkError>
+where
+    Config: ZSessionConfig,
+{
+    Ok(Session::new(resources.init(
+        config.transports().listen(endpoint, config.buff()).await?,
+    )))
 }
 
 #[macro_export]
@@ -88,9 +118,8 @@ macro_rules! __session_connect {
             $crate::session::SessionResources<'static, $CONFIG>,
         > = static_cell::StaticCell::new();
 
-        static SESSION: static_cell::StaticCell<
-            $crate::session::zenoh::Session<'static, 'static, $CONFIG>,
-        > = static_cell::StaticCell::new();
+        static SESSION: static_cell::StaticCell<$crate::session::zenoh::Session<'static, $CONFIG>> =
+            static_cell::StaticCell::new();
 
         SESSION.init($crate::session::zenoh::Session::new(
             RESOURCES
@@ -101,21 +130,8 @@ macro_rules! __session_connect {
                         .connect($endpoint, config.buff())
                         .await?,
                 ),
-        )) as &$crate::session::zenoh::Session<'static, 'static, $CONFIG>
+        )) as &$crate::session::zenoh::Session<'static, $CONFIG>
     }};
-}
-
-pub async fn session_connect<'ext, 'res, Config>(
-    resources: &'res mut SessionResources<'ext, Config>,
-    config: &'ext Config,
-    endpoint: Endpoint<'_>,
-) -> core::result::Result<Session<'ext, 'res, Config>, TransportLinkError>
-where
-    Config: ZSessionConfig,
-{
-    Ok(Session::new(resources.init(
-        config.transports().connect(endpoint, config.buff()).await?,
-    )))
 }
 
 #[macro_export]
@@ -131,53 +147,40 @@ macro_rules! __session_listen {
             $crate::session::SessionResources<'static, $CONFIG>,
         > = static_cell::StaticCell::new();
 
-        static SESSION: static_cell::StaticCell<
-            $crate::session::zenoh::Session<'static, 'static, $CONFIG>,
-        > = static_cell::StaticCell::new();
+        static SESSION: static_cell::StaticCell<$crate::session::zenoh::Session<'static, $CONFIG>> =
+            static_cell::StaticCell::new();
 
         SESSION.init($crate::session::zenoh::Session::new(
             RESOURCES
                 .init($crate::session::SessionResources::default())
                 .init(config.transports().listen($endpoint, config.buff()).await?),
-        )) as &$crate::session::zenoh::Session<'static, 'static, $CONFIG>
+        )) as &$crate::session::zenoh::Session<'static, $CONFIG>
     }};
 }
-pub async fn session_listen<'ext, 'res, Config>(
-    resources: &'res mut SessionResources<'ext, Config>,
-    config: &'ext Config,
-    endpoint: Endpoint<'_>,
-) -> core::result::Result<Session<'ext, 'res, Config>, TransportLinkError>
-where
-    Config: ZSessionConfig,
-{
-    Ok(Session::new(resources.init(
-        config.transports().listen(endpoint, config.buff()).await?,
-    )))
-}
+//
+// pub async fn session_connect_ignore_invalid_sn<'ext, 'res, Config>(
+//     resources: &'res mut SessionResources<'ext, Config>,
+//     config: &'ext Config,
+//     endpoint: Endpoint<'_>,
+// ) -> core::result::Result<Session<'ext, 'res, Config>, TransportLinkError>
+// where
+//     Config: ZSessionConfig,
+// {
+//     let mut transport = config.transports().connect(endpoint, config.buff()).await?;
+//     transport.transport_mut().rx.ignore_invalid_sn();
 
-pub async fn session_connect_ignore_invalid_sn<'ext, 'res, Config>(
-    resources: &'res mut SessionResources<'ext, Config>,
-    config: &'ext Config,
-    endpoint: Endpoint<'_>,
-) -> core::result::Result<Session<'ext, 'res, Config>, TransportLinkError>
-where
-    Config: ZSessionConfig,
-{
-    let mut transport = config.transports().connect(endpoint, config.buff()).await?;
-    transport.transport_mut().rx.ignore_invalid_sn();
+//     Ok(Session::new(resources.init(transport)))
+// }
 
-    Ok(Session::new(resources.init(transport)))
-}
-
-pub async fn session_listen_ignore_invalid_sn<'ext, 'res, Config>(
-    resources: &'res mut SessionResources<'ext, Config>,
-    config: &'ext Config,
-    endpoint: Endpoint<'_>,
-) -> core::result::Result<Session<'ext, 'res, Config>, TransportLinkError>
-where
-    Config: ZSessionConfig,
-{
-    let mut transport = config.transports().listen(endpoint, config.buff()).await?;
-    transport.transport_mut().rx.ignore_invalid_sn();
-    Ok(Session::new(resources.init(transport)))
-}
+// pub async fn session_listen_ignore_invalid_sn<'ext, 'res, Config>(
+//     resources: &'res mut SessionResources<'ext, Config>,
+//     config: &'ext Config,
+//     endpoint: Endpoint<'_>,
+// ) -> core::result::Result<Session<'ext, 'res, Config>, TransportLinkError>
+// where
+//     Config: ZSessionConfig,
+// {
+//     let mut transport = config.transports().listen(endpoint, config.buff()).await?;
+//     transport.transport_mut().rx.ignore_invalid_sn();
+//     Ok(Session::new(resources.init(transport)))
+// }

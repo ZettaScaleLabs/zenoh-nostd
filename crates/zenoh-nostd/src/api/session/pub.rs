@@ -10,27 +10,24 @@ use crate::{
     config::ZSessionConfig,
 };
 
-pub struct Publisher<'parameters, 'session, 'ext, 'res, Config>
+pub struct Publisher<'a, 'res, Config>
 where
     Config: ZSessionConfig,
 {
-    session: &'session Session<'ext, 'res, Config>,
+    session: &'a Session<'res, Config>,
 
-    ke: &'parameters keyexpr,
+    ke: &'a keyexpr,
 
-    encoding: Encoding<'parameters>,
+    encoding: Encoding<'a>,
     timestamp: Option<Timestamp>,
-    attachment: Option<Attachment<'parameters>>,
+    attachment: Option<Attachment<'a>>,
 }
 
-impl<'parameters, 'session, 'ext, 'res, Config> Publisher<'parameters, 'session, 'ext, 'res, Config>
+impl<'a, 'res, Config> Publisher<'a, 'res, Config>
 where
     Config: ZSessionConfig,
 {
-    pub fn put(
-        &self,
-        payload: &'parameters [u8],
-    ) -> PutBuilder<'parameters, 'session, 'ext, 'res, Config> {
+    pub fn put(&self, payload: &'a [u8]) -> PutBuilder<'a, 'res, Config> {
         PutBuilder {
             session: self.session,
             ke: self.ke,
@@ -51,27 +48,23 @@ where
     }
 }
 
-pub struct PublisherBuilder<'parameters, 'session, 'ext, 'res, Config>
+pub struct PublisherBuilder<'a, 'res, Config>
 where
     Config: ZSessionConfig,
 {
-    session: &'session Session<'ext, 'res, Config>,
+    session: &'a Session<'res, Config>,
 
-    ke: &'parameters keyexpr,
-    encoding: Encoding<'parameters>,
+    ke: &'a keyexpr,
+    encoding: Encoding<'a>,
     timestamp: Option<Timestamp>,
-    attachment: Option<Attachment<'parameters>>,
+    attachment: Option<Attachment<'a>>,
 }
 
-impl<'parameters, 'session, 'ext, 'res, Config>
-    PublisherBuilder<'parameters, 'session, 'ext, 'res, Config>
+impl<'a, 'res, Config> PublisherBuilder<'a, 'res, Config>
 where
     Config: ZSessionConfig,
 {
-    pub(crate) fn new(
-        session: &'session Session<'ext, 'res, Config>,
-        ke: &'parameters keyexpr,
-    ) -> Self {
+    pub(crate) fn new(session: &'a Session<'res, Config>, ke: &'a keyexpr) -> Self {
         Self {
             session,
             ke,
@@ -81,12 +74,12 @@ where
         }
     }
 
-    pub fn keyexpr(mut self, ke: &'parameters keyexpr) -> Self {
+    pub fn keyexpr(mut self, ke: &'a keyexpr) -> Self {
         self.ke = ke;
         self
     }
 
-    pub fn encoding(mut self, encoding: Encoding<'parameters>) -> Self {
+    pub fn encoding(mut self, encoding: Encoding<'a>) -> Self {
         self.encoding = encoding;
         self
     }
@@ -96,15 +89,12 @@ where
         self
     }
 
-    pub fn attachment(mut self, attachment: &'parameters [u8]) -> Self {
+    pub fn attachment(mut self, attachment: &'a [u8]) -> Self {
         self.attachment = Some(Attachment { buffer: attachment });
         self
     }
 
-    pub async fn finish(
-        self,
-    ) -> core::result::Result<Publisher<'parameters, 'session, 'ext, 'res, Config>, SessionError>
-    {
+    pub async fn finish(self) -> core::result::Result<Publisher<'a, 'res, Config>, SessionError> {
         // TODO: send interest msg
         Ok(Publisher {
             session: self.session,
@@ -116,14 +106,11 @@ where
     }
 }
 
-impl<'ext, 'res, Config> Session<'ext, 'res, Config>
+impl<'res, Config> Session<'res, Config>
 where
     Config: ZSessionConfig,
 {
-    pub fn declare_publisher<'parameters>(
-        &self,
-        ke: &'parameters keyexpr,
-    ) -> PublisherBuilder<'parameters, '_, 'ext, 'res, Config> {
+    pub fn declare_publisher<'a>(&'a self, ke: &'a keyexpr) -> PublisherBuilder<'a, 'res, Config> {
         PublisherBuilder::new(self, ke)
     }
 }

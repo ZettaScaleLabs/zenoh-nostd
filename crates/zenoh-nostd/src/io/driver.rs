@@ -7,26 +7,33 @@ use embassy_sync::{
 use embassy_time::{Duration, Instant, Timer};
 use zenoh_proto::{EitherError, TransportLinkError, msgs::NetworkMessage};
 
-use crate::io::{
-    link::ZLinkManager,
-    transport::{
+use crate::{
+    config::ZSessionConfig,
+    io::transport::{
         TransportLink, TransportLinkRx, TransportLinkTx, ZTransportLinkRx, ZTransportLinkTx,
     },
+    platform::{ZLink, ZLinkManager},
 };
 
-pub(crate) struct Driver<'ext, 'transport, LinkManager, Buff>
+type Link<'res, Config> = <<Config as ZSessionConfig>::LinkManager as ZLinkManager>::Link<'res>;
+type LinkTx<'res, Config> =
+    <<<Config as ZSessionConfig>::LinkManager as ZLinkManager>::Link<'res> as ZLink>::Tx<'res>;
+type LinkRx<'res, Config> =
+    <<<Config as ZSessionConfig>::LinkManager as ZLinkManager>::Link<'res> as ZLink>::Rx<'res>;
+
+pub(crate) struct Driver<'res, Config>
 where
-    LinkManager: ZLinkManager,
+    Config: ZSessionConfig + 'res,
 {
-    tx: Mutex<NoopRawMutex, TransportLinkTx<'ext, 'transport, LinkManager, Buff>>,
-    rx: RefCell<TransportLinkRx<'ext, 'transport, LinkManager, Buff>>,
+    tx: Mutex<NoopRawMutex, TransportLinkTx<'res, LinkTx<'res, Config>, Config::Buff>>,
+    rx: RefCell<TransportLinkRx<'res, LinkRx<'res, Config>, Config::Buff>>,
 }
 
-impl<'ext, 'transport, LinkManager, Buff> Driver<'ext, 'transport, LinkManager, Buff>
+impl<'res, Config> Driver<'res, Config>
 where
-    LinkManager: ZLinkManager,
+    Config: ZSessionConfig,
 {
-    pub fn new(transport: &'transport mut TransportLink<'ext, LinkManager, Buff>) -> Self {
+    pub fn new(transport: &'res mut TransportLink<Link<'res, Config>, Config::Buff>) -> Self {
         let (tx, rx) = transport.split();
 
         Self {
@@ -37,7 +44,8 @@ where
 
     pub async fn tx(
         &self,
-    ) -> MutexGuard<'_, NoopRawMutex, TransportLinkTx<'ext, 'transport, LinkManager, Buff>> {
+    ) -> MutexGuard<'_, NoopRawMutex, TransportLinkTx<'res, LinkTx<'res, Config>, Config::Buff>>
+    {
         self.tx.lock().await
     }
 
@@ -47,7 +55,6 @@ where
         mut update: Update,
     ) -> core::result::Result<(), EitherError<TransportLinkError, E>>
     where
-        Buff: AsMut<[u8]> + AsRef<[u8]>,
         Update: for<'any> AsyncFnMut(
             &mut State,
             NetworkMessage<'any>,
@@ -115,7 +122,7 @@ where
         &self,
         start: Instant,
         now: Duration,
-        rx: &mut TransportLinkRx<'ext, 'transport, LinkManager, Buff>,
+        rx: &mut TransportLinkRx<'res, LinkRx<'res, Config>, Config::Buff>,
     ) -> (Timer, Timer) {
         let mut tx_guard = self.tx.lock().await;
         let tx = tx_guard.deref_mut();

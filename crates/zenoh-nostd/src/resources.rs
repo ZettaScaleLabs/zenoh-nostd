@@ -1,15 +1,15 @@
 use core::hint::unreachable_unchecked;
 
-use crate::{config::ZSessionConfig, io::transport::TransportLink};
+use crate::{config::ZSessionConfig, io::transport::TransportLink, platform::ZLinkManager};
 
-pub struct SessionResources<'ext, Config>
+pub struct SessionResources<'res, Config>
 where
     Config: ZSessionConfig,
 {
-    pub(crate) inner: SessionResourcesInner<'ext, Config>,
+    pub(crate) inner: SessionResourcesInner<'res, Config>,
 }
 
-impl<Config> Default for SessionResources<'_, Config>
+impl<'res, Config> Default for SessionResources<'res, Config>
 where
     Config: ZSessionConfig,
 {
@@ -20,26 +20,28 @@ where
     }
 }
 
+type Link<'res, Config> = <<Config as ZSessionConfig>::LinkManager as ZLinkManager>::Link<'res>;
+
 #[derive(Default)]
-pub enum SessionResourcesInner<'ext, Config>
+pub enum SessionResourcesInner<'res, Config>
 where
-    Config: ZSessionConfig,
+    Config: ZSessionConfig + 'res,
 {
     #[default]
     Uninit,
     Init {
-        transport: TransportLink<'ext, Config::LinkManager, Config::Buff>,
+        transport: TransportLink<Link<'res, Config>, Config::Buff>,
     },
 }
 
-impl<'ext, Config> SessionResources<'ext, Config>
+impl<'res, Config> SessionResources<'res, Config>
 where
     Config: ZSessionConfig,
 {
     pub fn init(
         &mut self,
-        transport: TransportLink<'ext, Config::LinkManager, Config::Buff>,
-    ) -> &mut TransportLink<'ext, Config::LinkManager, Config::Buff> {
+        transport: TransportLink<Link<'res, Config>, Config::Buff>,
+    ) -> &mut TransportLink<Link<'res, Config>, Config::Buff> {
         self.inner = SessionResourcesInner::Init { transport };
 
         match &mut self.inner {

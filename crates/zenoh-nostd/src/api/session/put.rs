@@ -2,29 +2,28 @@ use zenoh_proto::{exts::*, fields::*, msgs::*, *};
 
 use crate::{api::session::Session, config::ZSessionConfig, io::transport::ZTransportLinkTx};
 
-pub struct PutBuilder<'parameters, 'session, 'ext, 'res, Config>
+pub struct PutBuilder<'a, 'res, Config>
 where
     Config: ZSessionConfig,
 {
-    pub(crate) session: &'session Session<'ext, 'res, Config>,
+    pub(crate) session: &'a Session<'res, Config>,
 
-    pub(crate) ke: &'parameters keyexpr,
-    pub(crate) payload: &'parameters [u8],
+    pub(crate) ke: &'a keyexpr,
+    pub(crate) payload: &'a [u8],
 
-    pub(crate) encoding: Encoding<'parameters>,
+    pub(crate) encoding: Encoding<'a>,
     pub(crate) timestamp: Option<Timestamp>,
-    pub(crate) attachment: Option<Attachment<'parameters>>,
+    pub(crate) attachment: Option<Attachment<'a>>,
 }
 
-impl<'parameters, 'session, 'ext, 'res, Config>
-    PutBuilder<'parameters, 'session, 'ext, 'res, Config>
+impl<'a, 'res, Config> PutBuilder<'a, 'res, Config>
 where
     Config: ZSessionConfig,
 {
     pub(crate) fn new(
-        session: &'session Session<'ext, 'res, Config>,
-        ke: &'parameters keyexpr,
-        payload: &'parameters [u8],
+        session: &'a Session<'res, Config>,
+        ke: &'a keyexpr,
+        payload: &'a [u8],
     ) -> Self {
         Self {
             session,
@@ -36,12 +35,12 @@ where
         }
     }
 
-    pub fn payload(mut self, payload: &'parameters [u8]) -> Self {
+    pub fn payload(mut self, payload: &'a [u8]) -> Self {
         self.payload = payload;
         self
     }
 
-    pub fn encoding(mut self, encoding: Encoding<'parameters>) -> Self {
+    pub fn encoding(mut self, encoding: Encoding<'a>) -> Self {
         self.encoding = encoding;
         self
     }
@@ -51,7 +50,7 @@ where
         self
     }
 
-    pub fn attachment(mut self, attachment: &'parameters [u8]) -> Self {
+    pub fn attachment(mut self, attachment: &'a [u8]) -> Self {
         self.attachment = Some(Attachment { buffer: attachment });
         self
     }
@@ -84,15 +83,11 @@ where
     }
 }
 
-impl<'ext, 'res, Config> Session<'ext, 'res, Config>
+impl<'res, Config> Session<'res, Config>
 where
     Config: ZSessionConfig,
 {
-    pub fn put<'parameters>(
-        &self,
-        ke: &'parameters keyexpr,
-        payload: &'parameters [u8],
-    ) -> PutBuilder<'parameters, '_, 'ext, 'res, Config> {
+    pub fn put<'a>(&'a self, ke: &'a keyexpr, payload: &'a [u8]) -> PutBuilder<'a, 'res, Config> {
         PutBuilder::new(self, ke, payload)
     }
 }
