@@ -8,8 +8,10 @@ use embassy_time::{Duration, Instant, Timer};
 use zenoh_proto::{EitherError, TransportLinkError, msgs::NetworkMessage};
 
 use crate::io::{
-    TransportLink, TransportLinkRx, TransportLinkTx, ZLinkManager, ZTransportLinkRx,
-    ZTransportLinkTx,
+    link::ZLinkManager,
+    transport::{
+        TransportLink, TransportLinkRx, TransportLinkTx, ZTransportLinkRx, ZTransportLinkTx,
+    },
 };
 
 pub(crate) struct Driver<'ext, 'transport, LinkManager, Buff>

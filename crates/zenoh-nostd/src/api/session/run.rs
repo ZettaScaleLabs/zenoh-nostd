@@ -1,8 +1,9 @@
-use zenoh_proto::{msgs::*, *};
+use zenoh_proto::{exts::Value, msgs::*, *};
 
 use crate::{
     api::{
         callbacks::{ZCallbacks, ZDynCallback},
+        query::QueryableQuery,
         session::Session,
     },
     config::ZSessionConfig,
@@ -55,6 +56,39 @@ where
                     NetworkBody::ResponseFinal(ResponseFinal { rid, .. }) => {
                         state.get_callbacks.remove(rid)?;
                         // TODO: also close channels
+                    }
+                    NetworkBody::Request(Request {
+                        id,
+                        wire_expr,
+                        payload:
+                            RequestBody::Query(Query {
+                                parameters, body, ..
+                            }),
+                        ..
+                    }) => {
+                        let ke = wire_expr.suffix;
+                        let ke = keyexpr::new(ke)?;
+                        let query = QueryableQuery::new(
+                            self,
+                            id,
+                            ke,
+                            if parameters.is_empty() {
+                                None
+                            } else {
+                                Some(parameters)
+                            },
+                            match body {
+                                Some(Value { payload, .. }) => Some(payload),
+                                None => None,
+                            },
+                        );
+
+                        // let mut queryable_cb = resources.queryable_callbacks.lock().await;
+                        // let count = queryable_cb.intersects(ke).count();
+                        // queryable_cb.set_counter(id, count)?;
+                        // for cb in queryable_cb.intersects(ke) {
+                        //     cb.call(&query).await;
+                        // }
                     }
                     _ => {}
                 }

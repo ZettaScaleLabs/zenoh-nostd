@@ -54,15 +54,15 @@ pub const PAYLOAD: usize = match usize::from_str_radix(
     Err(_) => 8,
 };
 
-pub const LISTEN: usize = match usize::from_str_radix(
+pub const LISTEN: bool = match usize::from_str_radix(
     match option_env!("LISTEN") {
         Some(v) => v,
         None => "0",
     },
     10,
 ) {
-    Ok(v) => v,
-    Err(_) => 0,
+    Ok(1) => true,
+    _ => false,
 };
 
 #[cfg(feature = "esp32s3")]

@@ -1,6 +1,6 @@
 use zenoh_proto::{exts::*, fields::*, msgs::*, *};
 
-use crate::{api::session::Session, config::ZSessionConfig, io::ZTransportLinkTx};
+use crate::{api::session::Session, config::ZSessionConfig, io::transport::ZTransportLinkTx};
 
 pub struct PutBuilder<'parameters, 'session, 'ext, 'res, Config>
 where

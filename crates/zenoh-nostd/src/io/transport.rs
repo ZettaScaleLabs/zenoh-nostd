@@ -7,7 +7,7 @@ use zenoh_proto::{
 };
 use zenoh_sansio::{Transport, ZTransportRx, ZTransportTx};
 
-use super::{Link, LinkRx, LinkTx, ZLink, ZLinkInfo, ZLinkManager, ZLinkRx, ZLinkTx};
+use super::link::{Link, LinkRx, LinkTx, ZLink, ZLinkInfo, ZLinkManager, ZLinkRx, ZLinkTx};
 
 mod rx;
 mod traits;

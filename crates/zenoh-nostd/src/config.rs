@@ -3,7 +3,7 @@ use crate::{
         arg::{GetResponseRef, SampleRef},
         callbacks::ZCallbacks,
     },
-    io::{TransportLinkManager, ZLinkManager},
+    io::{link::ZLinkManager, transport::TransportLinkManager},
 };
 
 pub trait ZSessionConfig {
@@ -12,6 +12,7 @@ pub trait ZSessionConfig {
 
     type GetCallbacks<'res>: ZCallbacks<'res, GetResponseRef>;
     type SubCallbacks<'res>: ZCallbacks<'res, SampleRef>;
+    // type QueryableCallbacks<'res>: ZCallbacks<'res, QueryableQueryRef<'res, Self>>;
 
     fn transports(&self) -> &TransportLinkManager<Self::LinkManager>;
     fn buff(&self) -> Self::Buff;

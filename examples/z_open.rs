@@ -19,7 +19,11 @@ async fn entry(spawner: embassy_executor::Spawner) -> zenoh::ZResult<()> {
     zenoh::info!("zenoh-nostd z_open example");
 
     let config = init_example(&spawner).await;
-    let session = zenoh::connect!(ExampleConfig: config, Endpoint::try_from(CONNECT)?);
+    let session = if LISTEN {
+        zenoh::listen!(ExampleConfig: config, Endpoint::try_from(CONNECT)?)
+    } else {
+        zenoh::connect!(ExampleConfig: config, Endpoint::try_from(CONNECT)?)
+    };
 
     // In this example we care about maintaining the session alive, we then have two choices:
     //  1) Spawn a new task to run the `session.run()` in background, but it requires the `session` to be `'static`.

@@ -7,7 +7,7 @@ use zenoh_proto::{Endpoint, TransportLinkError};
 
 use crate::{
     config::ZSessionConfig,
-    io::{Driver, TransportLink},
+    io::{driver::Driver, transport::TransportLink},
     session::SessionResources,
 };
 
@@ -26,6 +26,7 @@ where
     next: u32,
     get_callbacks: Config::GetCallbacks<'res>,
     sub_callbacks: Config::SubCallbacks<'res>,
+    // queryable_callbacks: Config::QueryableCallbacks<'res>,
 }
 
 impl<'res, Config> SessionState<'res, Config>
@@ -37,6 +38,7 @@ where
             next: 0,
             get_callbacks: Config::GetCallbacks::empty(),
             sub_callbacks: Config::SubCallbacks::empty(),
+            // queryable_callbacks: Config::QueryableCallbacks::empty(),
         }
     }
 

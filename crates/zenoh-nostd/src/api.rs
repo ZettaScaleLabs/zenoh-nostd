@@ -1,4 +1,5 @@
 pub mod arg;
+pub mod query;
 pub mod response;
 pub mod sample;
 

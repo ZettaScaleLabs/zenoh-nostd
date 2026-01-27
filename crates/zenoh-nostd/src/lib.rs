@@ -11,7 +11,7 @@ mod resources;
 
 pub mod session {
     pub use super::config::ZSessionConfig;
-    pub use super::io::TransportLinkManager;
+    pub use super::io::transport::TransportLinkManager;
     pub use super::resources::SessionResources;
     pub use zenoh_proto::{Endpoint, Error};
 
@@ -38,6 +38,6 @@ pub mod session {
 }
 
 pub mod platform {
-    pub use super::io::{Link, ZLink, ZLinkInfo, ZLinkManager, ZLinkRx, ZLinkTx};
+    pub use super::io::link::{Link, ZLink, ZLinkInfo, ZLinkManager, ZLinkRx, ZLinkTx};
     pub use zenoh_proto::{LinkError, debug, error, info, trace, warn, zbail};
 }

@@ -1,8 +1,6 @@
 use core::hint::unreachable_unchecked;
 
-use zenoh_proto::Endpoint;
-
-use crate::{config::ZSessionConfig, io::TransportLink};
+use crate::{config::ZSessionConfig, io::transport::TransportLink};
 
 pub struct SessionResources<'ext, Config>
 where

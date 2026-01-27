@@ -22,7 +22,11 @@ async fn entry(spawner: embassy_executor::Spawner) -> zenoh::ZResult<()> {
 
     let config = init_example(&spawner).await;
     let mut resources = SessionResources::default();
-    let session = zenoh::connect(&mut resources, &config, Endpoint::try_from(CONNECT)?).await?;
+    let session = if LISTEN {
+        zenoh::listen(&mut resources, &config, Endpoint::try_from(CONNECT)?).await?
+    } else {
+        zenoh::connect(&mut resources, &config, Endpoint::try_from(CONNECT)?).await?
+    };
 
     let subscriber = session
         .declare_subscriber(zenoh::keyexpr::new("demo/example/**")?)

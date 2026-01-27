@@ -9,7 +9,7 @@ use crate::{
         session::Session,
     },
     config::ZSessionConfig,
-    io::ZTransportLinkTx,
+    io::transport::ZTransportLinkTx,
     session::Sample,
 };
 
