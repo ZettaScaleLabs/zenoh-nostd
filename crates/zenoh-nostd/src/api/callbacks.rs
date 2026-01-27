@@ -21,7 +21,7 @@ pub type DynCallback<'a, Callback, Future, Arg> =
 
 pub trait ZCallbacks<'a, Arg>
 where
-    Arg: ZArg + 'a,
+    Arg: ZArg,
 {
     type Callback: Storage;
     type Future: Storage;

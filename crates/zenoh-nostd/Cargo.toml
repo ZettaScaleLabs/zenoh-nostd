@@ -21,6 +21,7 @@ web_console = ["std", "zenoh-proto/web_console"]
 defmt = ["zenoh-proto/defmt"]
 
 [dependencies]
+zenoh-derive.workspace = true
 zenoh-proto.workspace = true
 zenoh-sansio.workspace = true
 

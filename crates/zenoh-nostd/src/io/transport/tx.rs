@@ -1,23 +1,14 @@
 use zenoh_sansio::{TransportTx, ZTransportTx};
 
-use super::{LinkTx, ZLinkManager, ZLinkTx, ZTransportLinkTx};
+use super::{ZLinkTx, ZTransportLinkTx};
 
-pub struct TransportLinkTx<'ext, 'transport, LinkManager, Buff>
-where
-    LinkManager: ZLinkManager,
-{
-    link: LinkTx<'ext, 'transport, LinkManager>,
+pub struct TransportLinkTx<'transport, LinkTx, Buff> {
+    link: LinkTx,
     transport: &'transport mut TransportTx<Buff>,
 }
 
-impl<'ext, 'transport, LinkManager, Buff> TransportLinkTx<'ext, 'transport, LinkManager, Buff>
-where
-    LinkManager: ZLinkManager,
-{
-    pub fn new(
-        link: LinkTx<'ext, 'transport, LinkManager>,
-        transport: &'transport mut TransportTx<Buff>,
-    ) -> Self {
+impl<'transport, LinkTx, Buff> TransportLinkTx<'transport, LinkTx, Buff> {
+    pub fn new(link: LinkTx, transport: &'transport mut TransportTx<Buff>) -> Self {
         Self { link, transport }
     }
 
@@ -30,10 +21,9 @@ where
     }
 }
 
-impl<'ext, 'transport, LinkManager, Buff> ZTransportLinkTx
-    for TransportLinkTx<'ext, 'transport, LinkManager, Buff>
+impl<'transport, LinkTx, Buff> ZTransportLinkTx for TransportLinkTx<'transport, LinkTx, Buff>
 where
-    LinkManager: ZLinkManager,
+    LinkTx: ZLinkTx,
     Buff: AsMut<[u8]> + AsRef<[u8]>,
 {
     fn tx(&mut self) -> (&mut impl ZLinkTx, &mut impl ZTransportTx) {

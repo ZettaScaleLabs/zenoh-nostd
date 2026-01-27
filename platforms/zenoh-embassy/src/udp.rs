@@ -5,27 +5,27 @@ use zenoh_nostd::platform::*;
 
 use crate::BufferPoolDrop;
 
-pub struct EmbassyUdpLink<'a> {
-    socket: UdpSocket<'a>,
+pub struct EmbassyUdpLink<'net> {
+    socket: UdpSocket<'net>,
     addr: UdpMetadata,
     mtu: u16,
 
     idx1: usize,
-    pool1: &'a RefCell<dyn BufferPoolDrop>,
+    pool1: &'net RefCell<dyn BufferPoolDrop>,
 
     idx2: usize,
-    pool2: &'a RefCell<dyn BufferPoolDrop>,
+    pool2: &'net RefCell<dyn BufferPoolDrop>,
 }
 
-impl<'a> EmbassyUdpLink<'a> {
+impl<'net> EmbassyUdpLink<'net> {
     pub(crate) fn new(
-        socket: UdpSocket<'a>,
+        socket: UdpSocket<'net>,
         metadata: UdpMetadata,
         mtu: u16,
         idx1: usize,
-        pool1: &'a RefCell<dyn BufferPoolDrop>,
+        pool1: &'net RefCell<dyn BufferPoolDrop>,
         idx2: usize,
-        pool2: &'a RefCell<dyn BufferPoolDrop>,
+        pool2: &'net RefCell<dyn BufferPoolDrop>,
     ) -> Self {
         Self {
             socket,
@@ -46,18 +46,18 @@ impl Drop for EmbassyUdpLink<'_> {
     }
 }
 
-pub struct EmbassyUdpLinkTx<'a> {
-    socket: &'a UdpSocket<'a>,
+pub struct EmbassyUdpLinkTx<'link> {
+    socket: &'link UdpSocket<'link>,
     mtu: u16,
     addr: UdpMetadata,
 }
 
-pub struct EmbassyUdpLinkRx<'a> {
-    socket: &'a UdpSocket<'a>,
+pub struct EmbassyUdpLinkRx<'link> {
+    socket: &'link UdpSocket<'link>,
     mtu: u16,
 }
 
-impl<'a> ZLinkInfo for EmbassyUdpLink<'a> {
+impl<'net> ZLinkInfo for EmbassyUdpLink<'net> {
     fn mtu(&self) -> u16 {
         self.mtu
     }
@@ -67,7 +67,7 @@ impl<'a> ZLinkInfo for EmbassyUdpLink<'a> {
     }
 }
 
-impl<'a> ZLinkInfo for EmbassyUdpLinkTx<'a> {
+impl<'link> ZLinkInfo for EmbassyUdpLinkTx<'link> {
     fn mtu(&self) -> u16 {
         self.mtu
     }
@@ -77,7 +77,7 @@ impl<'a> ZLinkInfo for EmbassyUdpLinkTx<'a> {
     }
 }
 
-impl<'a> ZLinkInfo for EmbassyUdpLinkRx<'a> {
+impl<'link> ZLinkInfo for EmbassyUdpLinkRx<'link> {
     fn mtu(&self) -> u16 {
         self.mtu
     }
@@ -87,7 +87,7 @@ impl<'a> ZLinkInfo for EmbassyUdpLinkRx<'a> {
     }
 }
 
-impl<'a> ZLinkTx for EmbassyUdpLink<'a> {
+impl<'net> ZLinkTx for EmbassyUdpLink<'net> {
     async fn write_all(&mut self, buffer: &[u8]) -> core::result::Result<(), LinkError> {
         self.socket
             .send_to(buffer, self.addr)
@@ -96,7 +96,7 @@ impl<'a> ZLinkTx for EmbassyUdpLink<'a> {
     }
 }
 
-impl<'a> ZLinkTx for EmbassyUdpLinkTx<'a> {
+impl<'link> ZLinkTx for EmbassyUdpLinkTx<'link> {
     async fn write_all(&mut self, buffer: &[u8]) -> core::result::Result<(), LinkError> {
         self.socket
             .send_to(buffer, self.addr)
@@ -105,7 +105,7 @@ impl<'a> ZLinkTx for EmbassyUdpLinkTx<'a> {
     }
 }
 
-impl<'a> ZLinkRx for EmbassyUdpLink<'a> {
+impl<'net> ZLinkRx for EmbassyUdpLink<'net> {
     async fn read(&mut self, buffer: &mut [u8]) -> core::result::Result<usize, LinkError> {
         self.socket
             .recv_from(buffer)
@@ -123,7 +123,7 @@ impl<'a> ZLinkRx for EmbassyUdpLink<'a> {
     }
 }
 
-impl<'a> ZLinkRx for EmbassyUdpLinkRx<'a> {
+impl<'link> ZLinkRx for EmbassyUdpLinkRx<'link> {
     async fn read(&mut self, buffer: &mut [u8]) -> core::result::Result<usize, LinkError> {
         self.socket
             .recv_from(buffer)
@@ -141,16 +141,16 @@ impl<'a> ZLinkRx for EmbassyUdpLinkRx<'a> {
     }
 }
 
-impl<'a> ZLink for EmbassyUdpLink<'a> {
-    type Tx<'b>
-        = EmbassyUdpLinkTx<'b>
+impl<'net> ZLink for EmbassyUdpLink<'net> {
+    type Tx<'link>
+        = EmbassyUdpLinkTx<'link>
     where
-        Self: 'b;
+        'net: 'link;
 
-    type Rx<'b>
-        = EmbassyUdpLinkRx<'b>
+    type Rx<'link>
+        = EmbassyUdpLinkRx<'link>
     where
-        Self: 'b;
+        'net: 'link;
 
     fn split(&mut self) -> (Self::Tx<'_>, Self::Rx<'_>) {
         let tx = EmbassyUdpLinkTx {

@@ -107,7 +107,7 @@ crate::declare_zerror! {
         // Reserved: 84-99 for future TransportError variants
     }
     #[doc = "Errors related to zenoh links."]
-    enum LinkError {
+    enum LinkError: EndpointError {
         #[doc = "Could not get address info."]
         #[err = "could not get address info"]
         CouldNotGetAddrInfo = 100,
@@ -124,7 +124,7 @@ crate::declare_zerror! {
     }
 
     #[doc = "Errors related to zenoh transport links."]
-    enum TransportLinkError: TransportError + LinkError + EndpointError {
+    enum TransportLinkError: TransportError + LinkError {
         #[doc = "Couldn't connect in time."]
         #[err = "open timeout"]
         OpenTimeout = 120,

@@ -1,6 +1,6 @@
 #![no_std]
 
-use core::cell::RefCell;
+use core::{cell::RefCell, net::SocketAddr};
 use embassy_net::{
     IpAddress, IpEndpoint, Stack,
     tcp::TcpSocket,
@@ -49,14 +49,14 @@ impl<T, const MTU: usize, const SOCKS: usize> BufferPoolDrop for BufferPool<T, M
     }
 }
 
-pub struct EmbassyLinkManager<'a, const MTU: usize, const SOCKS: usize> {
-    stack: Stack<'a>,
+pub struct EmbassyLinkManager<'net, const MTU: usize, const SOCKS: usize> {
+    stack: Stack<'net>,
     buffers: RefCell<BufferPool<u8, MTU, SOCKS>>,
     metadatas: RefCell<BufferPool<PacketMetadata, MTU, SOCKS>>,
 }
 
-impl<'a, const MTU: usize, const SOCKS: usize> EmbassyLinkManager<'a, MTU, SOCKS> {
-    pub fn new(stack: Stack<'a>) -> Self {
+impl<'net, const MTU: usize, const SOCKS: usize> EmbassyLinkManager<'net, MTU, SOCKS> {
+    pub fn new(stack: Stack<'net>) -> Self {
         Self {
             stack,
             buffers: RefCell::new(BufferPool::new(0)),
@@ -89,135 +89,168 @@ impl<'a, const MTU: usize, const SOCKS: usize> EmbassyLinkManager<'a, MTU, SOCKS
     }
 }
 
-impl<'a, const MTU: usize, const SOCKS: usize> ZLinkManager for EmbassyLinkManager<'a, MTU, SOCKS> {
-    type Tcp<'p> = tcp::EmbassyTcpLink<'p>;
-    type Udp<'p> = udp::EmbassyUdpLink<'p>;
-    type Serial<'p> = ();
-    type Ws<'p> = ();
+#[derive(ZLinkInfo, ZLinkTx, ZLinkRx, ZLink)]
+#[zenoh(ZLink = (EmbassyLinkTx, EmbassyLinkRx))]
+pub enum EmbassyLink<'net> {
+    Tcp(tcp::EmbassyTcpLink<'net>),
+    Udp(udp::EmbassyUdpLink<'net>),
+}
 
-    async fn connect_tcp(
+#[derive(ZLinkInfo, ZLinkTx)]
+pub enum EmbassyLinkTx<'net> {
+    Tcp(tcp::EmbassyTcpLinkTx<'net>),
+    Udp(udp::EmbassyUdpLinkTx<'net>),
+}
+
+#[derive(ZLinkInfo, ZLinkRx)]
+pub enum EmbassyLinkRx<'net> {
+    Tcp(tcp::EmbassyTcpLinkRx<'net>),
+    Udp(udp::EmbassyUdpLinkRx<'net>),
+}
+
+impl<'net, const MTU: usize, const SOCKS: usize> ZLinkManager
+    for EmbassyLinkManager<'net, MTU, SOCKS>
+{
+    type Link<'a>
+        = EmbassyLink<'a>
+    where
+        Self: 'a;
+
+    async fn connect(
         &self,
-        addr: &core::net::SocketAddr,
-    ) -> core::result::Result<Link<'_, Self>, LinkError> {
-        let (idx, tx, rx) = self.allocate_buffers().ok_or(LinkError::CouldNotConnect)?;
-        let mut socket = TcpSocket::new(self.stack.clone(), rx, tx);
+        endpoint: Endpoint<'_>,
+    ) -> core::result::Result<Self::Link<'_>, LinkError> {
+        let protocol = endpoint.protocol();
+        let address = endpoint.address();
 
-        let address: IpAddress = match addr.ip() {
-            core::net::IpAddr::V4(v4) => IpAddress::Ipv4(v4),
-            core::net::IpAddr::V6(_) => {
-                zbail!(LinkError::CouldNotConnect)
+        match protocol.as_str() {
+            "tcp" => {
+                let dst_addr = SocketAddr::try_from(address)?;
+                let (idx, tx, rx) = self.allocate_buffers().ok_or(LinkError::CouldNotConnect)?;
+                let mut socket = TcpSocket::new(self.stack.clone(), rx, tx);
+
+                let address: IpAddress = match dst_addr.ip() {
+                    core::net::IpAddr::V4(v4) => IpAddress::Ipv4(v4),
+                    core::net::IpAddr::V6(_) => {
+                        zenoh::zbail!(LinkError::CouldNotConnect)
+                    }
+                };
+
+                let ip_endpoint = IpEndpoint::new(address, dst_addr.port());
+
+                socket
+                    .connect(ip_endpoint)
+                    .await
+                    .map_err(|_| LinkError::CouldNotConnect)?;
+
+                Ok(Self::Link::Tcp(tcp::EmbassyTcpLink::new(
+                    socket,
+                    MTU as u16,
+                    idx,
+                    &self.buffers,
+                )))
             }
-        };
+            "udp" => {
+                let dst_addr = SocketAddr::try_from(address)?;
+                let (idx1, tx, rx) = self.allocate_buffers().ok_or(LinkError::CouldNotConnect)?;
 
-        let ip_endpoint = IpEndpoint::new(address, addr.port());
+                let (idx2, tm, rm) = self
+                    .allocate_metadatas()
+                    .ok_or(LinkError::CouldNotConnect)?;
 
-        socket.connect(ip_endpoint).await.map_err(|e| {
-            error!("Could not connect to {:?}: {:?}", addr, e);
-            LinkError::CouldNotConnect
-        })?;
+                let mut socket = UdpSocket::new(self.stack, rm, rx, tm, tx);
+                socket.bind(0).map_err(|_| LinkError::CouldNotConnect)?;
 
-        Ok(Link::Tcp(Self::Tcp::new(
-            socket,
-            MTU as u16,
-            idx,
-            &self.buffers,
-        )))
+                let address: IpAddress = match dst_addr.ip() {
+                    core::net::IpAddr::V4(v4) => IpAddress::Ipv4(v4),
+                    core::net::IpAddr::V6(_) => {
+                        zenoh::zbail!(LinkError::CouldNotConnect)
+                    }
+                };
+
+                let ip_endpoint = IpEndpoint::new(address, dst_addr.port());
+
+                Ok(Self::Link::Udp(udp::EmbassyUdpLink::new(
+                    socket,
+                    ip_endpoint.into(),
+                    MTU as u16,
+                    idx1,
+                    &self.buffers,
+                    idx2,
+                    &self.metadatas,
+                )))
+            }
+            _ => zenoh::zbail!(LinkError::CouldNotParseProtocol),
+        }
     }
 
-    async fn listen_tcp(
+    async fn listen(
         &self,
-        addr: &core::net::SocketAddr,
-    ) -> core::result::Result<Link<'_, Self>, LinkError> {
-        let (idx, tx, rx) = self.allocate_buffers().ok_or(LinkError::CouldNotConnect)?;
-        let mut socket = TcpSocket::new(self.stack.clone(), rx, tx);
+        endpoint: Endpoint<'_>,
+    ) -> core::result::Result<Self::Link<'_>, LinkError> {
+        let protocol = endpoint.protocol();
+        let address = endpoint.address();
 
-        let address: IpAddress = match addr.ip() {
-            core::net::IpAddr::V4(v4) => IpAddress::Ipv4(v4),
-            core::net::IpAddr::V6(_) => {
-                zbail!(LinkError::CouldNotConnect)
+        match protocol.as_str() {
+            "tcp" => {
+                let src_addr = SocketAddr::try_from(address)?;
+                let (idx, tx, rx) = self.allocate_buffers().ok_or(LinkError::CouldNotConnect)?;
+                let mut socket = TcpSocket::new(self.stack.clone(), rx, tx);
+
+                let address: IpAddress = match src_addr.ip() {
+                    core::net::IpAddr::V4(v4) => IpAddress::Ipv4(v4),
+                    core::net::IpAddr::V6(_) => {
+                        zenoh::zbail!(LinkError::CouldNotConnect)
+                    }
+                };
+
+                let ip_endpoint = IpEndpoint::new(address, src_addr.port());
+
+                socket
+                    .accept(ip_endpoint)
+                    .await
+                    .map_err(|_| LinkError::CouldNotConnect)?;
+
+                Ok(Self::Link::Tcp(tcp::EmbassyTcpLink::new(
+                    socket,
+                    MTU as u16,
+                    idx,
+                    &self.buffers,
+                )))
             }
-        };
+            "udp" => {
+                let src_addr = SocketAddr::try_from(address)?;
+                let (idx1, tx, rx) = self.allocate_buffers().ok_or(LinkError::CouldNotConnect)?;
 
-        let ip_endpoint = IpEndpoint::new(address, addr.port());
+                let (idx2, tm, rm) = self
+                    .allocate_metadatas()
+                    .ok_or(LinkError::CouldNotConnect)?;
 
-        socket.accept(ip_endpoint).await.map_err(|e| {
-            error!("Could not connect to {:?}: {:?}", addr, e);
-            LinkError::CouldNotConnect
-        })?;
+                let mut socket = UdpSocket::new(self.stack, rm, rx, tm, tx);
 
-        Ok(Link::Tcp(Self::Tcp::new(
-            socket,
-            MTU as u16,
-            idx,
-            &self.buffers,
-        )))
-    }
+                let address: IpAddress = match src_addr.ip() {
+                    core::net::IpAddr::V4(v4) => IpAddress::Ipv4(v4),
+                    core::net::IpAddr::V6(_) => {
+                        zenoh::zbail!(LinkError::CouldNotConnect)
+                    }
+                };
 
-    async fn connect_udp(
-        &self,
-        addr: &core::net::SocketAddr,
-    ) -> core::result::Result<Link<'_, Self>, LinkError> {
-        let (idx1, tx, rx) = self.allocate_buffers().ok_or(LinkError::CouldNotConnect)?;
+                let ip_endpoint = IpEndpoint::new(address, src_addr.port());
+                socket
+                    .bind(ip_endpoint)
+                    .map_err(|_| LinkError::CouldNotConnect)?;
 
-        let (idx2, tm, rm) = self
-            .allocate_metadatas()
-            .ok_or(LinkError::CouldNotConnect)?;
-
-        let mut socket = UdpSocket::new(self.stack, rm, rx, tm, tx);
-        socket.bind(0).map_err(|_| LinkError::CouldNotConnect)?;
-
-        let address: IpAddress = match addr.ip() {
-            core::net::IpAddr::V4(v4) => IpAddress::Ipv4(v4),
-            core::net::IpAddr::V6(_) => {
-                zbail!(LinkError::CouldNotConnect)
+                Ok(Self::Link::Udp(udp::EmbassyUdpLink::new(
+                    socket,
+                    ip_endpoint.into(),
+                    MTU as u16,
+                    idx1,
+                    &self.buffers,
+                    idx2,
+                    &self.metadatas,
+                )))
             }
-        };
-
-        let ip_endpoint = IpEndpoint::new(address, addr.port());
-
-        Ok(Link::Udp(Self::Udp::new(
-            socket,
-            ip_endpoint.into(),
-            MTU as u16,
-            idx1,
-            &self.buffers,
-            idx2,
-            &self.metadatas,
-        )))
-    }
-
-    async fn listen_udp(
-        &self,
-        addr: &core::net::SocketAddr,
-    ) -> core::result::Result<Link<'_, Self>, LinkError> {
-        let (idx1, tx, rx) = self.allocate_buffers().ok_or(LinkError::CouldNotConnect)?;
-
-        let (idx2, tm, rm) = self
-            .allocate_metadatas()
-            .ok_or(LinkError::CouldNotConnect)?;
-
-        let mut socket = UdpSocket::new(self.stack, rm, rx, tm, tx);
-
-        let address: IpAddress = match addr.ip() {
-            core::net::IpAddr::V4(v4) => IpAddress::Ipv4(v4),
-            core::net::IpAddr::V6(_) => {
-                zbail!(LinkError::CouldNotConnect)
-            }
-        };
-
-        let ip_endpoint = IpEndpoint::new(address, addr.port());
-        socket
-            .bind(ip_endpoint)
-            .map_err(|_| LinkError::CouldNotConnect)?;
-
-        Ok(Link::Udp(Self::Udp::new(
-            socket,
-            ip_endpoint.into(),
-            MTU as u16,
-            idx1,
-            &self.buffers,
-            idx2,
-            &self.metadatas,
-        )))
+            _ => zenoh::zbail!(LinkError::CouldNotParseProtocol),
+        }
     }
 }

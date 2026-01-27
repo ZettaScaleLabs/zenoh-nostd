@@ -1,4 +1,4 @@
-use core::{net::SocketAddr, time::Duration};
+use core::time::Duration;
 
 use embassy_time::with_timeout;
 use zenoh_proto::{
@@ -7,7 +7,7 @@ use zenoh_proto::{
 };
 use zenoh_sansio::{Transport, ZTransportRx, ZTransportTx};
 
-use super::link::{Link, LinkRx, LinkTx, ZLink, ZLinkInfo, ZLinkManager, ZLinkRx, ZLinkTx};
+use super::link::{ZLink, ZLinkInfo, ZLinkManager, ZLinkRx, ZLinkTx};
 
 mod rx;
 mod traits;
@@ -17,28 +17,25 @@ pub use rx::*;
 pub use traits::*;
 pub use tx::*;
 
-pub struct TransportLink<'ext, LinkManager, Buff>
-where
-    LinkManager: ZLinkManager,
-{
-    link: Link<'ext, LinkManager>,
+pub struct TransportLink<Link, Buff> {
+    link: Link,
     transport: Transport<Buff>,
 }
 
-impl<'ext, LinkManager, Buff> TransportLink<'ext, LinkManager, Buff>
-where
-    LinkManager: ZLinkManager,
-{
-    pub fn new(link: Link<'ext, LinkManager>, transport: Transport<Buff>) -> Self {
+impl<Link, Buff> TransportLink<Link, Buff> {
+    pub fn new(link: Link, transport: Transport<Buff>) -> Self {
         Self { link, transport }
     }
 
     pub fn split(
         &mut self,
     ) -> (
-        TransportLinkTx<'ext, '_, LinkManager, Buff>,
-        TransportLinkRx<'ext, '_, LinkManager, Buff>,
-    ) {
+        TransportLinkTx<'_, Link::Tx<'_>, Buff>,
+        TransportLinkRx<'_, Link::Rx<'_>, Buff>,
+    )
+    where
+        Link: ZLink,
+    {
         let (link_tx, link_rx) = self.link.split();
         let (transport_tx, transport_rx) = self.transport.split();
 
@@ -57,9 +54,9 @@ where
     }
 }
 
-impl<'ext, LinkManager, Buff> ZTransportLinkTx for TransportLink<'ext, LinkManager, Buff>
+impl<Link, Buff> ZTransportLinkTx for TransportLink<Link, Buff>
 where
-    LinkManager: ZLinkManager,
+    Link: ZLinkTx,
     Buff: AsMut<[u8]> + AsRef<[u8]>,
 {
     fn tx(&mut self) -> (&mut impl ZLinkTx, &mut impl ZTransportTx) {
@@ -67,9 +64,9 @@ where
     }
 }
 
-impl<'ext, LinkManager, Buff> ZTransportLinkRx for TransportLink<'ext, LinkManager, Buff>
+impl<Link, Buff> ZTransportLinkRx for TransportLink<Link, Buff>
 where
-    LinkManager: ZLinkManager,
+    Link: ZLinkRx,
     Buff: AsMut<[u8]> + AsRef<[u8]>,
 {
     fn rx(&mut self) -> (&mut impl ZLinkRx, &mut impl ZTransportRx) {
@@ -88,13 +85,13 @@ pub struct TransportLinkManager<LinkManager> {
 
 impl<LinkManager> From<LinkManager> for TransportLinkManager<LinkManager> {
     fn from(value: LinkManager) -> Self {
-        Self {
-            link_manager: value,
-            open_timeout: Duration::from_secs(10),
-            zid: ZenohIdProto::default(),
-            lease: Duration::from_secs(10),
-            resolution: Resolution::default(),
-        }
+        Self::new(
+            value,
+            Duration::from_secs(10),
+            ZenohIdProto::default(),
+            Duration::from_secs(10),
+            Resolution::default(),
+        )
     }
 }
 
@@ -119,25 +116,12 @@ impl<LinkManager> TransportLinkManager<LinkManager> {
         &self,
         endpoint: Endpoint<'_>,
         buff: Buff,
-    ) -> core::result::Result<TransportLink<'_, LinkManager, Buff>, TransportLinkError>
+    ) -> core::result::Result<TransportLink<LinkManager::Link<'_>, Buff>, TransportLinkError>
     where
         LinkManager: ZLinkManager,
         Buff: AsMut<[u8]> + AsRef<[u8]> + Clone,
     {
-        let protocol = endpoint.protocol();
-        let address = endpoint.address();
-
-        let mut link = match protocol.as_str() {
-            "tcp" => {
-                let dst_addr = SocketAddr::try_from(address)?;
-                self.link_manager.connect_tcp(&dst_addr).await?
-            }
-            "udp" => {
-                let dst_addr = SocketAddr::try_from(address)?;
-                self.link_manager.connect_udp(&dst_addr).await?
-            }
-            _ => zenoh_proto::zbail!(zenoh_proto::EndpointError::CouldNotParseProtocol),
-        };
+        let mut link = self.link_manager.connect(endpoint).await?;
 
         let connect = async || {
             let streamed = link.is_streamed();
@@ -173,26 +157,12 @@ impl<LinkManager> TransportLinkManager<LinkManager> {
         &self,
         endpoint: Endpoint<'_>,
         buff: Buff,
-    ) -> core::result::Result<TransportLink<'_, LinkManager, Buff>, TransportLinkError>
+    ) -> core::result::Result<TransportLink<LinkManager::Link<'_>, Buff>, TransportLinkError>
     where
         LinkManager: ZLinkManager,
         Buff: AsMut<[u8]> + AsRef<[u8]> + Clone,
     {
-        let protocol = endpoint.protocol();
-        let address = endpoint.address();
-
-        let mut link = match protocol.as_str() {
-            "tcp" => {
-                let dst_addr = SocketAddr::try_from(address)?;
-                self.link_manager.listen_tcp(&dst_addr).await?
-            }
-            "udp" => {
-                let dst_addr = SocketAddr::try_from(address)?;
-                self.link_manager.listen_udp(&dst_addr).await?
-            }
-            _ => zenoh_proto::zbail!(zenoh_proto::EndpointError::CouldNotParseProtocol),
-        };
-
+        let mut link = self.link_manager.listen(endpoint).await?;
         let listen = async || {
             let streamed = link.is_streamed();
             Transport::builder(buff)

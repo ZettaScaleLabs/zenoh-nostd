@@ -6,20 +6,20 @@ use zenoh_nostd::platform::*;
 
 use crate::BufferPoolDrop;
 
-pub struct EmbassyTcpLink<'a> {
-    socket: TcpSocket<'a>,
+pub struct EmbassyTcpLink<'net> {
+    socket: TcpSocket<'net>,
     mtu: u16,
 
     idx: usize,
-    pool: &'a RefCell<dyn BufferPoolDrop>,
+    pool: &'net RefCell<dyn BufferPoolDrop>,
 }
 
-impl<'a> EmbassyTcpLink<'a> {
+impl<'net> EmbassyTcpLink<'net> {
     pub(crate) fn new(
-        socket: TcpSocket<'a>,
+        socket: TcpSocket<'net>,
         mtu: u16,
         idx: usize,
-        pool: &'a RefCell<dyn BufferPoolDrop>,
+        pool: &'net RefCell<dyn BufferPoolDrop>,
     ) -> Self {
         Self {
             socket,
@@ -36,17 +36,17 @@ impl Drop for EmbassyTcpLink<'_> {
     }
 }
 
-pub struct EmbassyTcpLinkTx<'a> {
-    socket: TcpWriter<'a>,
+pub struct EmbassyTcpLinkTx<'net> {
+    socket: TcpWriter<'net>,
     mtu: u16,
 }
 
-pub struct EmbassyTcpLinkRx<'a> {
-    socket: TcpReader<'a>,
+pub struct EmbassyTcpLinkRx<'net> {
+    socket: TcpReader<'net>,
     mtu: u16,
 }
 
-impl<'a> ZLinkInfo for EmbassyTcpLink<'a> {
+impl<'net> ZLinkInfo for EmbassyTcpLink<'net> {
     fn mtu(&self) -> u16 {
         self.mtu
     }
@@ -56,7 +56,7 @@ impl<'a> ZLinkInfo for EmbassyTcpLink<'a> {
     }
 }
 
-impl<'a> ZLinkInfo for EmbassyTcpLinkTx<'a> {
+impl<'net> ZLinkInfo for EmbassyTcpLinkTx<'net> {
     fn mtu(&self) -> u16 {
         self.mtu
     }
@@ -66,7 +66,7 @@ impl<'a> ZLinkInfo for EmbassyTcpLinkTx<'a> {
     }
 }
 
-impl<'a> ZLinkInfo for EmbassyTcpLinkRx<'a> {
+impl<'net> ZLinkInfo for EmbassyTcpLinkRx<'net> {
     fn mtu(&self) -> u16 {
         self.mtu
     }
@@ -76,7 +76,7 @@ impl<'a> ZLinkInfo for EmbassyTcpLinkRx<'a> {
     }
 }
 
-impl<'a> ZLinkTx for EmbassyTcpLink<'a> {
+impl<'net> ZLinkTx for EmbassyTcpLink<'net> {
     async fn write_all(&mut self, buffer: &[u8]) -> core::result::Result<(), LinkError> {
         self.socket
             .write_all(buffer)
@@ -85,7 +85,7 @@ impl<'a> ZLinkTx for EmbassyTcpLink<'a> {
     }
 }
 
-impl<'a> ZLinkTx for EmbassyTcpLinkTx<'a> {
+impl<'net> ZLinkTx for EmbassyTcpLinkTx<'net> {
     async fn write_all(&mut self, buffer: &[u8]) -> core::result::Result<(), LinkError> {
         self.socket
             .write_all(buffer)
@@ -94,7 +94,7 @@ impl<'a> ZLinkTx for EmbassyTcpLinkTx<'a> {
     }
 }
 
-impl<'a> ZLinkRx for EmbassyTcpLink<'a> {
+impl<'net> ZLinkRx for EmbassyTcpLink<'net> {
     async fn read(&mut self, buffer: &mut [u8]) -> core::result::Result<usize, LinkError> {
         self.socket
             .read(buffer)
@@ -110,7 +110,7 @@ impl<'a> ZLinkRx for EmbassyTcpLink<'a> {
     }
 }
 
-impl<'a> ZLinkRx for EmbassyTcpLinkRx<'a> {
+impl<'net> ZLinkRx for EmbassyTcpLinkRx<'net> {
     async fn read(&mut self, buffer: &mut [u8]) -> core::result::Result<usize, LinkError> {
         self.socket
             .read(buffer)
@@ -126,7 +126,7 @@ impl<'a> ZLinkRx for EmbassyTcpLinkRx<'a> {
     }
 }
 
-impl<'a> ZLink for EmbassyTcpLink<'a> {
+impl<'net> ZLink for EmbassyTcpLink<'net> {
     type Tx<'b>
         = EmbassyTcpLinkTx<'b>
     where
