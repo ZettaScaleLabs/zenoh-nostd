@@ -1,6 +1,6 @@
 #![no_std]
 
-use zenoh_nostd::session::*;
+use zenoh_nostd::{broker::ZBrokerConfig, session::*};
 
 #[cfg(feature = "std")]
 pub use zenoh_std::StdLinkManager as LinkManager;
@@ -73,6 +73,19 @@ pub struct ExampleConfig {
     transports: TransportLinkManager<LinkManager>,
 }
 
+impl ZBrokerConfig for ExampleConfig {
+    type LinkManager = LinkManager;
+    type Buff = [u8; BUFF_SIZE as usize];
+
+    fn buff(&self) -> Self::Buff {
+        [0u8; BUFF_SIZE as usize]
+    }
+
+    fn transports(&self) -> &TransportLinkManager<Self::LinkManager> {
+        &self.transports
+    }
+}
+
 impl ZSessionConfig for ExampleConfig {
     type LinkManager = LinkManager;
     type Buff = [u8; BUFF_SIZE as usize];
@@ -108,7 +121,17 @@ impl ZSessionConfig for ExampleConfig {
     }
 }
 
-pub async fn init_example(spawner: &embassy_executor::Spawner) -> ExampleConfig {
+pub async fn init_broker_example(spawner: &embassy_executor::Spawner) -> ExampleConfig {
+    #[cfg(feature = "std")]
+    {
+        let _ = spawner;
+        ExampleConfig {
+            transports: TransportLinkManager::from(LinkManager),
+        }
+    }
+}
+
+pub async fn init_session_example(spawner: &embassy_executor::Spawner) -> ExampleConfig {
     #[cfg(feature = "std")]
     {
         let _ = spawner;

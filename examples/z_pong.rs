@@ -29,7 +29,7 @@ async fn entry(spawner: embassy_executor::Spawner) -> zenoh::ZResult<()> {
     > = static_cell::StaticCell::new();
     let channel = CHANNEL.init(embassy_sync::channel::Channel::new());
 
-    let config = init_example(&spawner).await;
+    let config = init_session_example(&spawner).await;
     let session = if LISTEN {
         zenoh::listen!(ExampleConfig: config, Endpoint::try_from(ENDPOINT)?)
     } else {

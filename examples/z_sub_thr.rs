@@ -46,7 +46,7 @@ async fn entry(spawner: embassy_executor::Spawner) -> zenoh::ZResult<()> {
     let close =
         embassy_sync::signal::Signal::<embassy_sync::blocking_mutex::raw::NoopRawMutex, ()>::new();
 
-    let config = init_example(&spawner).await;
+    let config = init_session_example(&spawner).await;
     let mut resources = SessionResources::default();
     let session = if LISTEN {
         zenoh::listen_ignore_invalid_sn(&mut resources, &config, Endpoint::try_from(ENDPOINT)?)

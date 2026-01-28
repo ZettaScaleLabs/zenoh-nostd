@@ -39,7 +39,7 @@ async fn entry(spawner: embassy_executor::Spawner) -> zenoh::ZResult<()> {
 
     zenoh::info!("zenoh-nostd z_querier example");
 
-    let config = init_example(&spawner).await;
+    let config = init_session_example(&spawner).await;
     let session = if LISTEN {
         zenoh::listen!(ExampleConfig: config, Endpoint::try_from(ENDPOINT)?)
     } else {

@@ -57,7 +57,7 @@ pub struct Session<'res, Config>
 where
     Config: ZSessionConfig,
 {
-    driver: Driver<'res, Config>,
+    driver: Driver<'res, <Config::LinkManager as ZLinkManager>::Link<'res>, Config::Buff>,
     state: Mutex<NoopRawMutex, SessionState<'res, Config>>,
 }
 

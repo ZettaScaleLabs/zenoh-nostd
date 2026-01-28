@@ -3,46 +3,17 @@
 #![cfg_attr(feature = "wasm", no_main)]
 
 use zenoh_examples::*;
-use zenoh_nostd::session::*;
-
-#[embassy_executor::task]
-async fn session_task(session: &'static zenoh::Session<'static, ExampleConfig>) {
-    if let Err(e) = session.run().await {
-        zenoh::error!("Error in session task: {}", e);
-    }
-}
+use zenoh_nostd::broker::*;
 
 async fn entry(spawner: embassy_executor::Spawner) -> zenoh::ZResult<()> {
     #[cfg(feature = "log")]
     env_logger::init();
 
-    zenoh::info!("zenoh-nostd z_pub example");
+    zenoh::info!("zenoh-nostd z_broker example");
 
-    let config = init_session_example(&spawner).await;
-    let session = if LISTEN {
-        zenoh::listen!(ExampleConfig: config, Endpoint::try_from(ENDPOINT)?)
-    } else {
-        zenoh::connect!(ExampleConfig: config, Endpoint::try_from(ENDPOINT)?)
-    };
-
-    spawner.spawn(session_task(session)).unwrap();
-
-    let publisher = session
-        .declare_publisher(zenoh::keyexpr::new("demo/example")?)
-        .finish()
-        .await?;
-
-    let payload = b"Hello, from no-std!";
+    let config = init_broker_example(&spawner).await;
 
     loop {
-        if publisher.put(payload).finish().await.is_ok() {
-            zenoh::info!(
-                "[Publisher] Sent PUT ('{}': '{}')",
-                publisher.keyexpr().as_str(),
-                core::str::from_utf8(payload).unwrap()
-            );
-        }
-
         embassy_time::Timer::after(embassy_time::Duration::from_secs(1)).await;
     }
 }

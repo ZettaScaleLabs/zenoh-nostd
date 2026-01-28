@@ -38,6 +38,17 @@ pub mod session {
     }
 }
 
+pub mod broker {
+    pub use super::config::ZBrokerConfig;
+    pub use super::io::transport::TransportLinkManager;
+    pub use zenoh_proto::{Endpoint, Error};
+
+    pub mod zenoh {
+        pub use zenoh_proto::{debug, error, info, keyexpr, trace, warn, zbail};
+        pub type ZResult<T> = core::result::Result<T, super::Error>;
+    }
+}
+
 pub mod platform {
     pub use super::io::link::{ZLink, ZLinkInfo, ZLinkManager, ZLinkRx, ZLinkTx};
     pub use zenoh_derive::{ZLink, ZLinkInfo, ZLinkRx, ZLinkTx};

@@ -5,4 +5,5 @@ pub mod sample;
 
 pub mod callbacks;
 
+pub mod broker;
 pub mod session;

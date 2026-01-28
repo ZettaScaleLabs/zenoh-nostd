@@ -11,7 +11,7 @@ async fn entry(spawner: embassy_executor::Spawner) -> zenoh::ZResult<()> {
 
     zenoh::info!("zenoh-nostd z_pub_thr example");
 
-    let config = init_example(&spawner).await;
+    let config = init_session_example(&spawner).await;
     let mut resources = SessionResources::default();
     let session = if LISTEN {
         zenoh::listen_ignore_invalid_sn(&mut resources, &config, Endpoint::try_from(ENDPOINT)?)
