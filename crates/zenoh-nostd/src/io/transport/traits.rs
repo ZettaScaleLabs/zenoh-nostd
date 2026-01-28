@@ -61,7 +61,7 @@ pub trait ZTransportLinkTx {
 pub trait ZTransportLinkRx {
     fn rx(&mut self) -> (&mut impl ZLinkRx, &mut impl ZTransportRx);
 
-    fn recv<'a>(
+    fn recv(
         &mut self,
     ) -> impl core::future::Future<
         Output = core::result::Result<
