@@ -16,6 +16,7 @@ pub mod session {
     pub use zenoh_proto::{Endpoint, Error};
 
     pub use super::api::{
+        query::*,
         response::*,
         sample::*,
         session::{get::*, r#pub::*, put::*, querier::*, queryable::*, sub::*},

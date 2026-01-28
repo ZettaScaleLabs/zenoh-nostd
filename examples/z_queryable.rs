@@ -23,7 +23,7 @@ async fn entry(spawner: embassy_executor::Spawner) -> zenoh::ZResult<()> {
     static CHANNEL: static_cell::StaticCell<
         embassy_sync::channel::Channel<
             embassy_sync::blocking_mutex::raw::NoopRawMutex,
-            zenoh::OwnedQuery<ExampleConfig, 128, 128, 128>,
+            OwnedQueryableQuery<ExampleConfig, 128, 128, 128>,
             8,
         >,
     > = static_cell::StaticCell::new();

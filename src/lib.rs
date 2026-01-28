@@ -87,16 +87,16 @@ impl ZSessionConfig for ExampleConfig {
     type GetCallbacks<'res> = FixedCapacityGetCallbacks<
         'res,
         8,
-        zenoh::storage::RawOrBox<56>,
-        zenoh::storage::RawOrBox<600>,
+        zenoh::storage::RawOrBox<1>,
+        zenoh::storage::RawOrBox<32>,
     >;
 
     type QueryableCallbacks<'res> = FixedCapacityQueryableCallbacks<
         'res,
         Self,
         8,
-        zenoh::storage::RawOrBox<56>,
-        zenoh::storage::RawOrBox<600>,
+        zenoh::storage::RawOrBox<32>,
+        zenoh::storage::RawOrBox<952>,
     >;
 
     fn buff(&self) -> Self::Buff {

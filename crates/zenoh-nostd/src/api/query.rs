@@ -1,11 +1,6 @@
 use core::str::FromStr;
 
-use zenoh_proto::{
-    CollectionError, SessionError,
-    fields::{ConsolidationMode, Encoding, WireExpr},
-    keyexpr,
-    msgs::{Err, PushBody, Put, Reply, Response, ResponseBody, ResponseFinal},
-};
+use zenoh_proto::{CollectionError, SessionError, keyexpr};
 
 use crate::{api::session::Session, config::ZSessionConfig};
 
@@ -57,23 +52,7 @@ where
         ke: &keyexpr,
         payload: &[u8],
     ) -> core::result::Result<(), SessionError> {
-        todo!()
-        // let wke = WireExpr::from(ke);
-
-        // let response = Response {
-        //     rid: self.rid,
-        //     wire_expr: wke,
-        //     payload: ResponseBody::Reply(Reply {
-        //         consolidation: ConsolidationMode::None,
-        //         payload: PushBody::Put(Put {
-        //             payload,
-        //             ..Default::default()
-        //         }),
-        //     }),
-        //     ..Default::default()
-        // };
-
-        // self.session.driver.tx().await.send(response).await
+        self.session.reply(self.rid, ke, payload).await
     }
 
     pub async fn err(
@@ -81,36 +60,11 @@ where
         ke: &keyexpr,
         payload: &[u8],
     ) -> core::result::Result<(), SessionError> {
-        todo!()
-        // let wke = WireExpr::from(ke);
-
-        // let response = Response {
-        //     rid: self.rid,
-        //     wire_expr: wke,
-        //     payload: ResponseBody::Err(Err {
-        //         encoding: Encoding::default(),
-        //         payload,
-        //         ..Default::default()
-        //     }),
-        //     ..Default::default()
-        // };
-
-        // self.driver.send(response).await
+        self.session.err(self.rid, ke, payload).await
     }
 
     pub async fn finalize(&self) -> core::result::Result<(), SessionError> {
-        todo!()
-        // let mut queryable_cb = self.resources.queryable_callbacks.lock().await;
-        // if queryable_cb.decrease(self.rid) {
-        //     let response = ResponseFinal {
-        //         rid: self.rid,
-        //         ..Default::default()
-        //     };
-
-        //     self.driver.send(response).await?;
-        // }
-
-        // Ok(())
+        self.session.finalize(self.rid).await
     }
 }
 
@@ -151,23 +105,7 @@ where
         ke: &keyexpr,
         payload: &[u8],
     ) -> core::result::Result<(), SessionError> {
-        todo!()
-        // let wke = WireExpr::from(ke);
-
-        // let response = Response {
-        //     rid: self.rid,
-        //     wire_expr: wke,
-        //     payload: ResponseBody::Reply(Reply {
-        //         consolidation: ConsolidationMode::None,
-        //         payload: PushBody::Put(Put {
-        //             payload,
-        //             ..Default::default()
-        //         }),
-        //     }),
-        //     ..Default::default()
-        // };
-
-        // self.driver.send(response).await
+        self.session.reply(self.rid, ke, payload).await
     }
 
     pub async fn err(
@@ -175,36 +113,11 @@ where
         ke: &keyexpr,
         payload: &[u8],
     ) -> core::result::Result<(), SessionError> {
-        todo!()
-        // let wke = WireExpr::from(ke);
-
-        // let response = Response {
-        //     rid: self.rid,
-        //     wire_expr: wke,
-        //     payload: ResponseBody::Err(Err {
-        //         encoding: Encoding::default(),
-        //         payload,
-        //         ..Default::default()
-        //     }),
-        //     ..Default::default()
-        // };
-
-        // self.driver.send(response).await
+        self.session.err(self.rid, ke, payload).await
     }
 
     pub async fn finalize(&self) -> core::result::Result<(), SessionError> {
-        todo!()
-        // let mut queryable_cb = self.resources.queryable_callbacks.lock().await;
-        // if queryable_cb.decrease(self.rid) {
-        //     let response = ResponseFinal {
-        //         rid: self.rid,
-        //         ..Default::default()
-        //     };
-
-        //     self.driver.send(response).await?;
-        // }
-
-        // Ok(())
+        self.session.finalize(self.rid).await
     }
 }
 
