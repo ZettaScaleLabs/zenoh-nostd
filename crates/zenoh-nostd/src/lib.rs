@@ -15,20 +15,18 @@ pub mod session {
     pub use super::resources::SessionResources;
     pub use zenoh_proto::{Endpoint, Error};
 
-    // pub use super::api::{
-    //     response::*,
-    //     sample::*,
-    //     session::{get::*, r#pub::*, put::*, querier::*, sub::*},
-    // };
+    pub use super::api::{
+        response::*,
+        sample::*,
+        session::{get::*, r#pub::*, put::*, querier::*, queryable::*, sub::*},
+    };
 
     pub mod zenoh {
-        // pub use super::super::api::callbacks::storage;
+        pub use super::super::api::callbacks::storage;
         pub use super::super::api::session::{
-            Session,
-            session_connect as connect,
-            // session_connect_ignore_invalid_sn as connect_ignore_invalid_sn,
-            session_listen as listen,
-            // session_listen_ignore_invalid_sn as listen_ignore_invalid_sn,
+            Session, session_connect as connect,
+            session_connect_ignore_invalid_sn as connect_ignore_invalid_sn,
+            session_listen as listen, session_listen_ignore_invalid_sn as listen_ignore_invalid_sn,
         };
 
         pub use crate::{__session_connect as connect, __session_listen as listen};

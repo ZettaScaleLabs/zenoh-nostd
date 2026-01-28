@@ -3,22 +3,22 @@ use zenoh_proto::{SessionError, keyexpr};
 
 use crate::{api::session::Session, config::ZSessionConfig, session::GetBuilder};
 
-pub struct Querier<'parameters, 'session, 'ext, 'res, Config>
+pub struct Querier<'a, 'res, Config>
 where
     Config: ZSessionConfig,
 {
-    session: &'session Session<'ext, 'res, Config>,
+    session: &'a Session<'res, Config>,
     ke: &'static keyexpr,
-    parameters: Option<&'parameters str>,
-    payload: Option<&'parameters [u8]>,
+    parameters: Option<&'a str>,
+    payload: Option<&'a [u8]>,
     timeout: Option<Duration>,
 }
 
-impl<'parameters, 'session, 'ext, 'res, Config> Querier<'parameters, 'session, 'ext, 'res, Config>
+impl<'a, 'res, Config> Querier<'a, 'res, Config>
 where
     Config: ZSessionConfig,
 {
-    pub fn get(&self) -> GetBuilder<'parameters, 'session, 'ext, 'res, Config> {
+    pub fn get(&self) -> GetBuilder<'a, 'res, Config> {
         GetBuilder {
             session: self.session,
             ke: self.ke,
@@ -40,26 +40,22 @@ where
     }
 }
 
-pub struct QuerierBuilder<'parameters, 'session, 'ext, 'res, Config>
+pub struct QuerierBuilder<'a, 'res, Config>
 where
     Config: ZSessionConfig,
 {
-    session: &'session Session<'ext, 'res, Config>,
+    session: &'a Session<'res, Config>,
     ke: &'static keyexpr,
-    parameters: Option<&'parameters str>,
-    payload: Option<&'parameters [u8]>,
+    parameters: Option<&'a str>,
+    payload: Option<&'a [u8]>,
     timeout: Option<Duration>,
 }
 
-impl<'parameters, 'session, 'ext, 'res, Config>
-    QuerierBuilder<'parameters, 'session, 'ext, 'res, Config>
+impl<'a, 'res, Config> QuerierBuilder<'a, 'res, Config>
 where
     Config: ZSessionConfig,
 {
-    pub(crate) fn new(
-        session: &'session Session<'ext, 'res, Config>,
-        ke: &'static keyexpr,
-    ) -> Self {
+    pub(crate) fn new(session: &'a Session<'res, Config>, ke: &'static keyexpr) -> Self {
         Self {
             session,
             ke,
@@ -69,12 +65,12 @@ where
         }
     }
 
-    pub fn parameters(mut self, parameters: &'parameters str) -> Self {
+    pub fn parameters(mut self, parameters: &'a str) -> Self {
         self.parameters = Some(parameters);
         self
     }
 
-    pub fn payload(mut self, payload: &'parameters [u8]) -> Self {
+    pub fn payload(mut self, payload: &'a [u8]) -> Self {
         self.payload = Some(payload);
         self
     }
@@ -84,10 +80,7 @@ where
         self
     }
 
-    pub async fn finish(
-        self,
-    ) -> core::result::Result<Querier<'parameters, 'session, 'ext, 'res, Config>, SessionError>
-    {
+    pub async fn finish(self) -> core::result::Result<Querier<'a, 'res, Config>, SessionError> {
         // TODO: send interest msg
         Ok(Querier {
             session: self.session,
@@ -99,14 +92,11 @@ where
     }
 }
 
-impl<'ext, 'res, Config> Session<'ext, 'res, Config>
+impl<'res, Config> Session<'res, Config>
 where
     Config: ZSessionConfig,
 {
-    pub fn declare_querier<'parameters>(
-        &self,
-        ke: &'static keyexpr,
-    ) -> QuerierBuilder<'parameters, '_, 'ext, 'res, Config> {
+    pub fn declare_querier(&self, ke: &'static keyexpr) -> QuerierBuilder<'_, 'res, Config> {
         QuerierBuilder::new(self, ke)
     }
 }

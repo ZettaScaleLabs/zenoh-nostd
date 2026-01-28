@@ -9,28 +9,27 @@ use zenoh_proto::{
 
 use crate::{api::session::Session, config::ZSessionConfig};
 
-pub struct QueryableQuery<'parameters, 'session, 'ext, 'res, Config>
+pub struct QueryableQuery<'a, 'res, Config>
 where
     Config: ZSessionConfig,
 {
-    session: &'session Session<'ext, 'res, Config>,
+    session: &'a Session<'res, Config>,
     rid: u32,
-    ke: &'parameters keyexpr,
-    parameters: Option<&'parameters str>,
-    payload: Option<&'parameters [u8]>,
+    ke: &'a keyexpr,
+    parameters: Option<&'a str>,
+    payload: Option<&'a [u8]>,
 }
 
-impl<'parameters, 'session, 'ext, 'res, Config>
-    QueryableQuery<'parameters, 'session, 'ext, 'res, Config>
+impl<'a, 'res, Config> QueryableQuery<'a, 'res, Config>
 where
     Config: ZSessionConfig,
 {
     pub(crate) fn new(
-        session: &'session Session<'ext, 'res, Config>,
+        session: &'a Session<'res, Config>,
         rid: u32,
-        ke: &'parameters keyexpr,
-        parameters: Option<&'parameters str>,
-        payload: Option<&'parameters [u8]>,
+        ke: &'a keyexpr,
+        parameters: Option<&'a str>,
+        payload: Option<&'a [u8]>,
     ) -> Self {
         Self {
             session,
@@ -123,7 +122,7 @@ pub struct OwnedQueryableQuery<
 > where
     Config: ZSessionConfig + 'static,
 {
-    session: &'static Session<'static, 'static, Config>,
+    session: &'static Session<'static, Config>,
     rid: u32,
     ke: heapless::String<MAX_KEYEXPR>,
     parameters: Option<heapless::String<MAX_PARAMETERS>>,
@@ -209,24 +208,26 @@ where
     }
 }
 
-impl<
-    'parameters,
-    Config,
-    const MAX_KEYEXPR: usize,
-    const MAX_PARAMETERS: usize,
-    const MAX_PAYLOAD: usize,
-> TryFrom<&QueryableQuery<'parameters, 'static, 'static, 'static, Config>>
-    for OwnedQueryableQuery<Config, MAX_KEYEXPR, MAX_PARAMETERS, MAX_PAYLOAD>
+impl<'a, Config, const MAX_KEYEXPR: usize, const MAX_PARAMETERS: usize, const MAX_PAYLOAD: usize>
+    TryFrom<(
+        &QueryableQuery<'a, 'static, Config>,
+        &'static Session<'static, Config>,
+    )> for OwnedQueryableQuery<Config, MAX_KEYEXPR, MAX_PARAMETERS, MAX_PAYLOAD>
 where
     Config: ZSessionConfig,
 {
     type Error = CollectionError;
 
     fn try_from(
-        value: &QueryableQuery<'parameters, 'static, 'static, 'static, Config>,
+        value: (
+            &QueryableQuery<'a, 'static, Config>,
+            &'static Session<'static, Config>,
+        ),
     ) -> Result<Self, Self::Error> {
+        let (value, session) = value;
+
         Ok(Self {
-            session: value.session,
+            session: session,
             rid: value.rid,
             ke: heapless::String::from_str(value.keyexpr().as_str())
                 .map_err(|_| CollectionError::CollectionTooSmall)?,

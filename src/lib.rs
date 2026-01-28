@@ -1,11 +1,6 @@
 #![no_std]
 
-use zenoh_nostd::session::{
-    // FixedCapacityGetCallbacks, FixedCapacitySubCallbacks,
-    TransportLinkManager,
-    ZSessionConfig,
-    // zenoh,
-};
+use zenoh_nostd::session::*;
 
 #[cfg(feature = "std")]
 pub use zenoh_std::StdLinkManager as LinkManager;
@@ -82,19 +77,27 @@ impl ZSessionConfig for ExampleConfig {
     type LinkManager = LinkManager;
     type Buff = [u8; BUFF_SIZE as usize];
 
-    // type SubCallbacks<'res> = FixedCapacitySubCallbacks<
-    //     'res,
-    //     8,
-    //     zenoh::storage::RawOrBox<56>,
-    //     zenoh::storage::RawOrBox<600>,
-    // >;
+    type SubCallbacks<'res> = FixedCapacitySubCallbacks<
+        'res,
+        8,
+        zenoh::storage::RawOrBox<56>,
+        zenoh::storage::RawOrBox<600>,
+    >;
 
-    // type GetCallbacks<'res> = FixedCapacityGetCallbacks<
-    //     'res,
-    //     8,
-    //     zenoh::storage::RawOrBox<56>,
-    //     zenoh::storage::RawOrBox<600>,
-    // >;
+    type GetCallbacks<'res> = FixedCapacityGetCallbacks<
+        'res,
+        8,
+        zenoh::storage::RawOrBox<56>,
+        zenoh::storage::RawOrBox<600>,
+    >;
+
+    type QueryableCallbacks<'res> = FixedCapacityQueryableCallbacks<
+        'res,
+        Self,
+        8,
+        zenoh::storage::RawOrBox<56>,
+        zenoh::storage::RawOrBox<600>,
+    >;
 
     fn buff(&self) -> Self::Buff {
         [0u8; BUFF_SIZE as usize]

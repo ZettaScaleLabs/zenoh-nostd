@@ -6,11 +6,11 @@ use crate::{
     api::{
         arg::SampleRef,
         callbacks::{AsyncCallback, DynCallback, FixedCapacityCallbacks, SyncCallback, ZCallbacks},
+        sample::Sample,
         session::Session,
     },
     config::ZSessionConfig,
     io::transport::ZTransportLinkTx,
-    session::Sample,
 };
 
 pub type FixedCapacitySubCallbacks<
@@ -20,18 +20,18 @@ pub type FixedCapacitySubCallbacks<
     Future = RawOrBox<128>,
 > = FixedCapacityCallbacks<'a, SampleRef, CAPACITY, Callback, Future>;
 
-pub struct Subscriber<'session, 'ext, 'res, Config, OwnedSample = (), const CHANNEL: bool = false>
+pub struct Subscriber<'a, 'res, Config, OwnedSample = (), const CHANNEL: bool = false>
 where
     Config: ZSessionConfig,
 {
     id: u32,
     ke: &'static keyexpr,
-    session: &'session Session<'ext, 'res, Config>,
+    session: &'a Session<'res, Config>,
     receiver: Option<DynamicReceiver<'res, OwnedSample>>,
 }
 
-impl<'session, 'ext, 'res, Config, OwnedSample, const CHANNEL: bool>
-    Subscriber<'session, 'ext, 'res, Config, OwnedSample, CHANNEL>
+impl<'a, 'res, Config, OwnedSample, const CHANNEL: bool>
+    Subscriber<'a, 'res, Config, OwnedSample, CHANNEL>
 where
     Config: ZSessionConfig,
 {
@@ -66,8 +66,7 @@ where
     }
 }
 
-impl<'session, 'ext, 'res, Config, OwnedSample>
-    Subscriber<'session, 'ext, 'res, Config, OwnedSample, true>
+impl<'a, 'res, Config, OwnedSample> Subscriber<'a, 'res, Config, OwnedSample, true>
 where
     Config: ZSessionConfig,
 {
@@ -87,8 +86,7 @@ type FutureStorage<'res, Config> =
     <<Config as ZSessionConfig>::SubCallbacks<'res> as ZCallbacks<'res, SampleRef>>::Future;
 
 pub struct SubscriberBuilder<
-    'session,
-    'ext,
+    'a,
     'res,
     Config,
     OwnedSample = (),
@@ -97,7 +95,7 @@ pub struct SubscriberBuilder<
 > where
     Config: ZSessionConfig,
 {
-    session: &'session Session<'ext, 'res, Config>,
+    session: &'a Session<'res, Config>,
     ke: &'static keyexpr,
     callback: Option<
         DynCallback<'res, CallbackStorage<'res, Config>, FutureStorage<'res, Config>, SampleRef>,
@@ -105,14 +103,11 @@ pub struct SubscriberBuilder<
     receiver: Option<DynamicReceiver<'res, OwnedSample>>,
 }
 
-impl<'session, 'ext, 'res, Config> SubscriberBuilder<'session, 'ext, 'res, Config, (), false, false>
+impl<'a, 'res, Config> SubscriberBuilder<'a, 'res, Config, (), false, false>
 where
     Config: ZSessionConfig,
 {
-    pub(crate) fn new(
-        session: &'session Session<'ext, 'res, Config>,
-        ke: &'static keyexpr,
-    ) -> Self {
+    pub(crate) fn new(session: &'a Session<'res, Config>, ke: &'static keyexpr) -> Self {
         Self {
             session,
             ke,
@@ -124,7 +119,7 @@ where
     pub fn callback(
         self,
         callback: impl AsyncFnMut(&Sample<'_>) + 'res,
-    ) -> SubscriberBuilder<'session, 'ext, 'res, Config, (), true, false> {
+    ) -> SubscriberBuilder<'a, 'res, Config, (), true, false> {
         SubscriberBuilder {
             session: self.session,
             ke: self.ke,
@@ -136,7 +131,7 @@ where
     pub fn callback_sync(
         self,
         callback: impl FnMut(&Sample<'_>) + 'res,
-    ) -> SubscriberBuilder<'session, 'ext, 'res, Config, (), true, false> {
+    ) -> SubscriberBuilder<'a, 'res, Config, (), true, false> {
         SubscriberBuilder {
             session: self.session,
             ke: self.ke,
@@ -149,7 +144,7 @@ where
         self,
         sender: DynamicSender<'res, OwnedSample>,
         receiver: DynamicReceiver<'res, OwnedSample>,
-    ) -> SubscriberBuilder<'session, 'ext, 'res, Config, OwnedSample, true, true>
+    ) -> SubscriberBuilder<'a, 'res, Config, OwnedSample, true, true>
     where
         OwnedSample: for<'any> TryFrom<&'any Sample<'any>, Error = E>,
     {
@@ -173,17 +168,15 @@ where
     }
 }
 
-impl<'session, 'ext, 'res, Config, OwnedSample, const CHANNEL: bool>
-    SubscriberBuilder<'session, 'ext, 'res, Config, OwnedSample, true, CHANNEL>
+impl<'a, 'res, Config, OwnedSample, const CHANNEL: bool>
+    SubscriberBuilder<'a, 'res, Config, OwnedSample, true, CHANNEL>
 where
     Config: ZSessionConfig,
 {
     pub async fn finish(
         self,
-    ) -> core::result::Result<
-        Subscriber<'session, 'ext, 'res, Config, OwnedSample, CHANNEL>,
-        SessionError,
-    > {
+    ) -> core::result::Result<Subscriber<'a, 'res, Config, OwnedSample, CHANNEL>, SessionError>
+    {
         let mut state = self.session.state().await;
         let id = state.next();
 
@@ -219,14 +212,11 @@ where
     }
 }
 
-impl<'ext, 'res, Config> Session<'ext, 'res, Config>
+impl<'res, Config> Session<'res, Config>
 where
     Config: ZSessionConfig,
 {
-    pub fn declare_subscriber(
-        &self,
-        ke: &'static keyexpr,
-    ) -> SubscriberBuilder<'_, 'ext, 'res, Config> {
+    pub fn declare_subscriber(&self, ke: &'static keyexpr) -> SubscriberBuilder<'_, 'res, Config> {
         SubscriberBuilder::new(self, ke)
     }
 }

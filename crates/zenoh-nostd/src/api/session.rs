@@ -6,30 +6,31 @@ use embassy_sync::{
 use zenoh_proto::{Endpoint, TransportLinkError};
 
 use crate::{
+    api::callbacks::ZCallbacks,
+    // session::SessionResources,
     config::ZSessionConfig,
     io::{driver::Driver, transport::TransportLink},
     platform::ZLinkManager,
     resources::SessionResources,
-    // session::SessionResources,
 };
 
 mod run;
 
-// pub mod get;
+pub mod get;
 pub mod r#pub;
 pub mod put;
-// pub mod querier;
-// pub mod sub;
+pub mod querier;
+pub mod queryable;
+pub mod sub;
 
 pub(crate) struct SessionState<'res, Config>
 where
-    Config: ZSessionConfig,
+    Config: ZSessionConfig + 'res,
 {
     next: u32,
-    _data: core::marker::PhantomData<&'res Config>,
-    // get_callbacks: Config::GetCallbacks<'res>,
-    // sub_callbacks: Config::SubCallbacks<'res>,
-    // queryable_callbacks: Config::QueryableCallbacks<'res>,
+    sub_callbacks: Config::SubCallbacks<'res>,
+    get_callbacks: Config::GetCallbacks<'res>,
+    queryable_callbacks: Config::QueryableCallbacks<'res>,
 }
 
 impl<'res, Config> SessionState<'res, Config>
@@ -39,10 +40,9 @@ where
     pub fn new() -> Self {
         Self {
             next: 0,
-            _data: core::marker::PhantomData,
-            // get_callbacks: Config::GetCallbacks::empty(),
-            // sub_callbacks: Config::SubCallbacks::empty(),
-            // queryable_callbacks: Config::QueryableCallbacks::empty(),
+            sub_callbacks: Config::SubCallbacks::empty(),
+            get_callbacks: Config::GetCallbacks::empty(),
+            queryable_callbacks: Config::QueryableCallbacks::empty(),
         }
     }
 
@@ -74,9 +74,9 @@ where
         }
     }
 
-    // pub(crate) async fn state(&self) -> MutexGuard<'_, NoopRawMutex, SessionState<'res, Config>> {
-    //     self.state.lock().await
-    // }
+    pub(crate) async fn state(&self) -> MutexGuard<'_, NoopRawMutex, SessionState<'res, Config>> {
+        self.state.lock().await
+    }
 }
 
 pub async fn session_connect<'res, Config>(
@@ -157,30 +157,30 @@ macro_rules! __session_listen {
         )) as &$crate::session::zenoh::Session<'static, $CONFIG>
     }};
 }
-//
-// pub async fn session_connect_ignore_invalid_sn<'ext, 'res, Config>(
-//     resources: &'res mut SessionResources<'ext, Config>,
-//     config: &'ext Config,
-//     endpoint: Endpoint<'_>,
-// ) -> core::result::Result<Session<'ext, 'res, Config>, TransportLinkError>
-// where
-//     Config: ZSessionConfig,
-// {
-//     let mut transport = config.transports().connect(endpoint, config.buff()).await?;
-//     transport.transport_mut().rx.ignore_invalid_sn();
 
-//     Ok(Session::new(resources.init(transport)))
-// }
+pub async fn session_connect_ignore_invalid_sn<'res, Config>(
+    resources: &'res mut SessionResources<'res, Config>,
+    config: &'res Config,
+    endpoint: Endpoint<'_>,
+) -> core::result::Result<Session<'res, Config>, TransportLinkError>
+where
+    Config: ZSessionConfig,
+{
+    let mut transport = config.transports().connect(endpoint, config.buff()).await?;
+    transport.transport_mut().rx.ignore_invalid_sn();
 
-// pub async fn session_listen_ignore_invalid_sn<'ext, 'res, Config>(
-//     resources: &'res mut SessionResources<'ext, Config>,
-//     config: &'ext Config,
-//     endpoint: Endpoint<'_>,
-// ) -> core::result::Result<Session<'ext, 'res, Config>, TransportLinkError>
-// where
-//     Config: ZSessionConfig,
-// {
-//     let mut transport = config.transports().listen(endpoint, config.buff()).await?;
-//     transport.transport_mut().rx.ignore_invalid_sn();
-//     Ok(Session::new(resources.init(transport)))
-// }
+    Ok(Session::new(resources.init(transport)))
+}
+
+pub async fn session_listen_ignore_invalid_sn<'res, Config>(
+    resources: &'res mut SessionResources<'res, Config>,
+    config: &'res Config,
+    endpoint: Endpoint<'_>,
+) -> core::result::Result<Session<'res, Config>, TransportLinkError>
+where
+    Config: ZSessionConfig,
+{
+    let mut transport = config.transports().listen(endpoint, config.buff()).await?;
+    transport.transport_mut().rx.ignore_invalid_sn();
+    Ok(Session::new(resources.init(transport)))
+}

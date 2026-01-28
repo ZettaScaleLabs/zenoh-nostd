@@ -8,22 +8,22 @@ use embassy_time::{Duration, Instant, Timer};
 use zenoh_proto::{EitherError, TransportLinkError, msgs::NetworkMessage};
 
 use crate::{
-    config::ZSessionConfig,
+    config::ZConfig,
     io::transport::{
         TransportLink, TransportLinkRx, TransportLinkTx, ZTransportLinkRx, ZTransportLinkTx,
     },
     platform::{ZLink, ZLinkManager},
 };
 
-type Link<'res, Config> = <<Config as ZSessionConfig>::LinkManager as ZLinkManager>::Link<'res>;
+type Link<'res, Config> = <<Config as ZConfig>::LinkManager as ZLinkManager>::Link<'res>;
 type LinkTx<'res, Config> =
-    <<<Config as ZSessionConfig>::LinkManager as ZLinkManager>::Link<'res> as ZLink>::Tx<'res>;
+    <<<Config as ZConfig>::LinkManager as ZLinkManager>::Link<'res> as ZLink>::Tx<'res>;
 type LinkRx<'res, Config> =
-    <<<Config as ZSessionConfig>::LinkManager as ZLinkManager>::Link<'res> as ZLink>::Rx<'res>;
+    <<<Config as ZConfig>::LinkManager as ZLinkManager>::Link<'res> as ZLink>::Rx<'res>;
 
 pub(crate) struct Driver<'res, Config>
 where
-    Config: ZSessionConfig + 'res,
+    Config: ZConfig + 'res,
 {
     tx: Mutex<NoopRawMutex, TransportLinkTx<'res, LinkTx<'res, Config>, Config::Buff>>,
     rx: RefCell<TransportLinkRx<'res, LinkRx<'res, Config>, Config::Buff>>,
@@ -31,7 +31,7 @@ where
 
 impl<'res, Config> Driver<'res, Config>
 where
-    Config: ZSessionConfig,
+    Config: ZConfig,
 {
     pub fn new(transport: &'res mut TransportLink<Link<'res, Config>, Config::Buff>) -> Self {
         let (tx, rx) = transport.split();
