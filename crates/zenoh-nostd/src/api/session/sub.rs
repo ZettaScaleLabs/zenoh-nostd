@@ -62,7 +62,7 @@ where
     }
 
     pub fn keyexpr(&self) -> &keyexpr {
-        &self.ke
+        self.ke
     }
 }
 

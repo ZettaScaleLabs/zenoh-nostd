@@ -1,4 +1,4 @@
-use core::{cell::RefCell, ops::DerefMut};
+use core::ops::DerefMut;
 use embassy_futures::select::{Either3, select3};
 use embassy_sync::{
     blocking_mutex::raw::NoopRawMutex,
@@ -26,7 +26,7 @@ where
     Config: ZConfig + 'res,
 {
     tx: Mutex<NoopRawMutex, TransportLinkTx<'res, LinkTx<'res, Config>, Config::Buff>>,
-    rx: RefCell<TransportLinkRx<'res, LinkRx<'res, Config>, Config::Buff>>,
+    rx: Mutex<NoopRawMutex, TransportLinkRx<'res, LinkRx<'res, Config>, Config::Buff>>,
 }
 
 impl<'res, Config> Driver<'res, Config>
@@ -38,7 +38,7 @@ where
 
         Self {
             tx: Mutex::new(tx),
-            rx: RefCell::new(rx),
+            rx: Mutex::new(rx),
         }
     }
 
@@ -61,7 +61,7 @@ where
             &'any [u8],
         ) -> core::result::Result<(), E>,
     {
-        let mut rx = self.rx.borrow_mut();
+        let mut rx = self.rx.lock().await;
 
         let start = Instant::now();
 
@@ -76,18 +76,12 @@ where
                     let mut tx_guard = self.tx.lock().await;
                     let tx = tx_guard.deref_mut();
 
-                    if tx
-                        .transport()
-                        .should_close(start.elapsed().try_into().unwrap())
-                    {
+                    if tx.transport().should_close(start.elapsed().into()) {
                         // TODO: send Close msg
                         break Err(EitherError::A(TransportLinkError::TransportClosed));
                     }
 
-                    if tx
-                        .transport()
-                        .should_send_keepalive(start.elapsed().try_into().unwrap())
-                    {
+                    if tx.transport().should_send_keepalive(start.elapsed().into()) {
                         zenoh_proto::trace!("Sending Keepalive");
                         tx.keepalive().await?;
                     }
@@ -108,10 +102,7 @@ where
                 _ => {}
             }
 
-            if rx
-                .transport()
-                .should_close(start.elapsed().try_into().unwrap())
-            {
+            if rx.transport().should_close(start.elapsed().into()) {
                 // TODO: Try send Close msg
                 break Err(EitherError::A(TransportLinkError::TransportClosed));
             }

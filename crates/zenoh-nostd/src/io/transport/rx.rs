@@ -13,11 +13,11 @@ impl<'transport, LinkRx, Buff> TransportLinkRx<'transport, LinkRx, Buff> {
     }
 
     pub fn transport(&self) -> &TransportRx<Buff> {
-        &self.transport
+        self.transport
     }
 
     pub fn transport_mut(&mut self) -> &mut TransportRx<Buff> {
-        &mut self.transport
+        self.transport
     }
 }
 

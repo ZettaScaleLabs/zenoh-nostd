@@ -140,7 +140,7 @@ where
         let (value, session) = value;
 
         Ok(Self {
-            session: session,
+            session,
             rid: value.rid,
             ke: heapless::String::from_str(value.keyexpr().as_str())
                 .map_err(|_| CollectionError::CollectionTooSmall)?,

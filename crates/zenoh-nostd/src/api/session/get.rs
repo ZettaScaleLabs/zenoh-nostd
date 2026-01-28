@@ -42,7 +42,7 @@ impl<'res, OwnedResponse, const CHANNEL: bool> GetResponses<'res, OwnedResponse,
     }
 
     pub fn keyexpr(&self) -> &keyexpr {
-        &self.ke
+        self.ke
     }
 }
 

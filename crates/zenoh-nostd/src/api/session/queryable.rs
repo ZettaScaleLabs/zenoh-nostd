@@ -246,7 +246,7 @@ where
     Config: ZSessionConfig,
 {
     pub fn declare_queryable(&'static self, ke: &'static keyexpr) -> QueryableBuilder<Config> {
-        QueryableBuilder::new(&self, ke)
+        QueryableBuilder::new(self, ke)
     }
 }
 
@@ -268,7 +268,7 @@ where
                 reliability: Reliability::default(),
                 qos: QoS::default(),
                 body: NetworkBody::Response(Response {
-                    rid: rid,
+                    rid,
                     wire_expr: WireExpr::from(ke),
                     payload: ResponseBody::Reply(Reply {
                         consolidation: ConsolidationMode::None,
@@ -297,7 +297,7 @@ where
                 reliability: Reliability::default(),
                 qos: QoS::default(),
                 body: NetworkBody::Response(Response {
-                    rid: rid,
+                    rid,
                     wire_expr: WireExpr::from(ke),
                     payload: ResponseBody::Err(Err {
                         payload,
