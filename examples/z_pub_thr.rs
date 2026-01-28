@@ -14,10 +14,10 @@ async fn entry(spawner: embassy_executor::Spawner) -> zenoh::ZResult<()> {
     let config = init_example(&spawner).await;
     let mut resources = SessionResources::default();
     let session = if LISTEN {
-        zenoh::listen_ignore_invalid_sn(&mut resources, &config, Endpoint::try_from(CONNECT)?)
+        zenoh::listen_ignore_invalid_sn(&mut resources, &config, Endpoint::try_from(ENDPOINT)?)
             .await?
     } else {
-        zenoh::connect_ignore_invalid_sn(&mut resources, &config, Endpoint::try_from(CONNECT)?)
+        zenoh::connect_ignore_invalid_sn(&mut resources, &config, Endpoint::try_from(ENDPOINT)?)
             .await?
     };
 

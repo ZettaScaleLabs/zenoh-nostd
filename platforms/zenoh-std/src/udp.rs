@@ -27,7 +27,7 @@ impl ZLinkInfo for StdUdpLink {
     }
 
     fn is_streamed(&self) -> bool {
-        true
+        false
     }
 }
 
@@ -37,7 +37,7 @@ impl ZLinkInfo for StdUdpLinkTx {
     }
 
     fn is_streamed(&self) -> bool {
-        true
+        false
     }
 }
 
@@ -47,7 +47,7 @@ impl ZLinkInfo for StdUdpLinkRx {
     }
 
     fn is_streamed(&self) -> bool {
-        true
+        false
     }
 }
 

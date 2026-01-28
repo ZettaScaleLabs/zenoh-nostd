@@ -111,10 +111,7 @@ impl<Buff, T, Read, Write> Handshake<Buff, T, Read, Write> {
                 tx.init_syn(init);
 
                 if let Some(bytes) = tx.flush(*prefixed) {
-                    write(handle, bytes).map_err(|e| {
-                        zenoh_proto::error!("{e}");
-                        TransportError::CouldNotRead
-                    })?;
+                    write(handle, bytes).map_err(EitherError::B)?;
                 }
 
                 if let Self::PendingInit {
@@ -178,10 +175,7 @@ impl<Buff, T, Read, Write> Handshake<Buff, T, Read, Write> {
                 }
 
                 if let Some(bytes) = tx.flush(*prefixed) {
-                    write(handle, bytes).map_err(|e| {
-                        zenoh_proto::error!("{e}");
-                        TransportError::CouldNotRead
-                    })?;
+                    write(handle, bytes).map_err(EitherError::B)?;
                 }
 
                 Ok(None)
@@ -215,10 +209,7 @@ impl<Buff, T, Read, Write> Handshake<Buff, T, Read, Write> {
                 tx.init_syn(init);
 
                 if let Some(bytes) = tx.flush(*prefixed) {
-                    write(handle, bytes).await.map_err(|e| {
-                        zenoh_proto::error!("{e}");
-                        TransportError::CouldNotRead
-                    })?;
+                    write(handle, bytes).await.map_err(EitherError::B)?;
                 }
 
                 if let Self::PendingInit {
@@ -283,10 +274,7 @@ impl<Buff, T, Read, Write> Handshake<Buff, T, Read, Write> {
                 }
 
                 if let Some(bytes) = tx.flush(*prefixed) {
-                    write(handle, bytes).await.map_err(|e| {
-                        zenoh_proto::error!("{e}");
-                        TransportError::CouldNotRead
-                    })?;
+                    write(handle, bytes).await.map_err(EitherError::B)?;
                 }
 
                 Ok(None)

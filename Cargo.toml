@@ -73,7 +73,7 @@ version.workspace = true
 readme.workspace = true
 
 [features]
-default = ["std", "log", "platforms"]
+default = ["std", "log"]
 log = ["zenoh-nostd/log"]
 defmt = ["zenoh-nostd/defmt"]
 web_console = ["zenoh-nostd/web_console"]
@@ -157,3 +157,7 @@ strip = true
 incremental = false
 debug = false
 overflow-checks = false
+
+[patch.crates-io.yawc]
+git = "https://github.com/infinitefield/yawc"
+rev = "b43b05d51e18345d228b72c4f12a93e2f51df9d8"

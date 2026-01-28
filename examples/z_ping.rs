@@ -32,9 +32,9 @@ async fn entry(spawner: embassy_executor::Spawner) -> zenoh::ZResult<()> {
 
     let config = init_example(&spawner).await;
     let session = if LISTEN {
-        zenoh::listen!(ExampleConfig: config, Endpoint::try_from(CONNECT)?)
+        zenoh::listen!(ExampleConfig: config, Endpoint::try_from(ENDPOINT)?)
     } else {
-        zenoh::connect!(ExampleConfig: config, Endpoint::try_from(CONNECT)?)
+        zenoh::connect!(ExampleConfig: config, Endpoint::try_from(ENDPOINT)?)
     };
 
     spawner.spawn(session_task(session)).unwrap();

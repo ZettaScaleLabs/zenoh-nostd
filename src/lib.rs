@@ -6,10 +6,10 @@ use zenoh_nostd::session::*;
 pub use zenoh_std::StdLinkManager as LinkManager;
 
 #[cfg(feature = "esp32s3")]
-pub use zenoh_embassy::PlatformEmbassy as Platform;
+pub use zenoh_embassy::EmbassyLinkManager as LinkManager;
 
 #[cfg(feature = "wasm")]
-pub use zenoh_wasm::WasmLinkManager as Platform;
+pub use zenoh_wasm::WasmLinkManager as LinkManager;
 
 #[cfg(feature = "esp32s3")]
 mod esp32s3_app {
@@ -29,7 +29,7 @@ mod esp32s3_app {
 #[cfg(feature = "esp32s3")]
 use esp32s3_app::*;
 
-pub const CONNECT: &str = match option_env!("CONNECT") {
+pub const ENDPOINT: &str = match option_env!("ENDPOINT") {
     Some(v) => v,
     None => {
         if cfg!(feature = "wasm") {
@@ -51,16 +51,16 @@ pub const PAYLOAD: usize = match usize::from_str_radix(
     Err(_) => 8,
 };
 
-pub const LISTEN: bool = match usize::from_str_radix(
-    match option_env!("LISTEN") {
-        Some(v) => v,
-        None => "0",
-    },
-    10,
-) {
-    Ok(1) => true,
-    _ => false,
-};
+pub const LISTEN: bool = matches!(
+    usize::from_str_radix(
+        match option_env!("LISTEN") {
+            Some(v) => v,
+            None => "0",
+        },
+        10,
+    ),
+    Ok(1)
+);
 
 #[cfg(feature = "esp32s3")]
 const BUFF_SIZE: u16 = 512u16;
@@ -120,7 +120,7 @@ pub async fn init_example(spawner: &embassy_executor::Spawner) -> ExampleConfig 
     {
         let _ = spawner;
         ExampleConfig {
-            platform: Platform {},
+            transports: TransportLinkManager::from(LinkManager),
         }
     }
     #[cfg(feature = "esp32s3")]

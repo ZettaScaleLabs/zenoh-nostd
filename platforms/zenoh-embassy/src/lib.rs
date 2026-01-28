@@ -30,9 +30,8 @@ impl<T, const MTU: usize, const SOCKS: usize> BufferPool<T, MTU, SOCKS> {
     }
 
     fn allocate(&mut self) -> Option<usize> {
-        self.used.iter().position(|&used| !used).map(|idx| {
+        self.used.iter().position(|&used| !used).inspect(|&idx| {
             self.used[idx] = true;
-            idx
         })
     }
 }
@@ -64,6 +63,7 @@ impl<'net, const MTU: usize, const SOCKS: usize> EmbassyLinkManager<'net, MTU, S
         }
     }
 
+    #[allow(clippy::mut_from_ref)]
     fn allocate_buffers(&self) -> Option<(usize, &mut [u8], &mut [u8])> {
         let idx = self.buffers.borrow_mut().allocate()?;
 
@@ -76,6 +76,7 @@ impl<'net, const MTU: usize, const SOCKS: usize> EmbassyLinkManager<'net, MTU, S
         Some((idx, tx, rx))
     }
 
+    #[allow(clippy::mut_from_ref)]
     fn allocate_metadatas(&self) -> Option<(usize, &mut [PacketMetadata], &mut [PacketMetadata])> {
         let idx = self.metadatas.borrow_mut().allocate()?;
 
@@ -127,7 +128,7 @@ impl<'net, const MTU: usize, const SOCKS: usize> ZLinkManager
             "tcp" => {
                 let dst_addr = SocketAddr::try_from(address)?;
                 let (idx, tx, rx) = self.allocate_buffers().ok_or(LinkError::CouldNotConnect)?;
-                let mut socket = TcpSocket::new(self.stack.clone(), rx, tx);
+                let mut socket = TcpSocket::new(self.stack, rx, tx);
 
                 let address: IpAddress = match dst_addr.ip() {
                     core::net::IpAddr::V4(v4) => IpAddress::Ipv4(v4),
@@ -195,7 +196,7 @@ impl<'net, const MTU: usize, const SOCKS: usize> ZLinkManager
             "tcp" => {
                 let src_addr = SocketAddr::try_from(address)?;
                 let (idx, tx, rx) = self.allocate_buffers().ok_or(LinkError::CouldNotConnect)?;
-                let mut socket = TcpSocket::new(self.stack.clone(), rx, tx);
+                let mut socket = TcpSocket::new(self.stack, rx, tx);
 
                 let address: IpAddress = match src_addr.ip() {
                     core::net::IpAddr::V4(v4) => IpAddress::Ipv4(v4),

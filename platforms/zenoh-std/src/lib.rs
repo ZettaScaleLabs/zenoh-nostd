@@ -13,6 +13,7 @@ mod ws;
 
 pub struct StdLinkManager;
 
+#[allow(clippy::large_enum_variant)]
 #[derive(ZLinkInfo, ZLinkTx, ZLinkRx, ZLink)]
 #[zenoh(ZLink = (StdLinkTx<'link>, StdLinkRx<'link>))]
 pub enum StdLink {
@@ -207,15 +208,6 @@ impl ZLinkManager for StdLinkManager {
 
                 Ok(Self::Link::Tcp(tcp::StdTcpLink::new(socket, mtu)))
             }
-            "udp" => {
-                let dst_addr = SocketAddr::try_from(address)?;
-                let socket = UdpSocket::bind(dst_addr)
-                    .await
-                    .map_err(|_| LinkError::CouldNotConnect)?;
-
-                Ok(Self::Link::Udp(udp::StdUdpLink::new(socket, 8192)))
-            }
-
             "ws" => {
                 let src_addr = SocketAddr::try_from(address)?;
                 let uri = Uri::new(format!("ws://{}", src_addr));

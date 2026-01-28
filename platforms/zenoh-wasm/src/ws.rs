@@ -43,7 +43,7 @@ impl ZLinkInfo for WasmWsLink {
     }
 
     fn is_streamed(&self) -> bool {
-        true
+        false
     }
 }
 
@@ -53,7 +53,7 @@ impl ZLinkInfo for WasmWsLinkTx<'_> {
     }
 
     fn is_streamed(&self) -> bool {
-        true
+        false
     }
 }
 
@@ -63,7 +63,7 @@ impl ZLinkInfo for WasmWsLinkRx<'_> {
     }
 
     fn is_streamed(&self) -> bool {
-        true
+        false
     }
 }
 

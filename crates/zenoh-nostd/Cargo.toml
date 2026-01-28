@@ -16,9 +16,9 @@ default = []
 std = []
 alloc = []
 
-log = ["std", "zenoh-proto/log"]
-web_console = ["std", "zenoh-proto/web_console"]
-defmt = ["zenoh-proto/defmt"]
+log = ["std", "zenoh-proto/log", "zenoh-sansio/log"]
+web_console = ["std", "zenoh-proto/web_console", "zenoh-sansio/web_console"]
+defmt = ["zenoh-proto/defmt", "zenoh-sansio/defmt"]
 
 [dependencies]
 zenoh-derive.workspace = true
