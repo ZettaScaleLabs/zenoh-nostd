@@ -4,17 +4,13 @@ use {
         collection::Vector,
         rng::Xorshift64,
         web_socket::{
-            Frame, OpCode, WebSocket, WebSocketBuffer, WebSocketPartsOwned, WebSocketPayloadOrigin,
-            WebSocketReaderOwned, WebSocketWriterOwned,
+            Frame, OpCode, WebSocketPayloadOrigin, WebSocketReaderOwned, WebSocketWriterOwned,
         },
     },
-    zenoh_nostd::{
-        platform::ws::{ZWebSocket, ZWsRx, ZWsTx},
-        zbail,
-    },
+    zenoh_nostd::platform::*,
 };
 
-pub struct StdWsStream {
+pub struct StdWsLink {
     stream: WebSocketReaderOwned<(), Xorshift64, TcpStream, true>,
     sink: WebSocketWriterOwned<(), Xorshift64, TcpStream, true>,
     read_buffer: Vector<u8>,
@@ -22,137 +18,119 @@ pub struct StdWsStream {
     mtu: u16,
 }
 
-impl StdWsStream {
-    pub fn new(stream: WebSocket<(), Xorshift64, TcpStream, WebSocketBuffer, true>) -> Self {
-        let WebSocketPartsOwned { reader, writer, .. } = stream
-            .into_parts(|s| (s.clone(), s))
-            .expect("Failed to split WebSocket");
+impl StdWsLink {
+    pub fn new(
+        stream: WebSocketReaderOwned<(), Xorshift64, TcpStream, true>,
+        sink: WebSocketWriterOwned<(), Xorshift64, TcpStream, true>,
+        mtu: u16,
+    ) -> Self {
         Self {
-            stream: reader,
-            sink: writer,
-            read_buffer: Vector::<u8>::new(),
-            write_buffer: Vector::<u8>::new(),
-            mtu: u16::MAX,
+            stream,
+            sink,
+            read_buffer: Vector::new(),
+            write_buffer: Vector::new(),
+            mtu,
         }
     }
 }
 
-pub struct StdWsTx<'a> {
+pub struct StdWsLinkTx<'a> {
     sink: &'a mut WebSocketWriterOwned<(), Xorshift64, TcpStream, true>,
     write_buffer: &'a mut Vector<u8>,
+    mtu: u16,
 }
 
-pub struct StdWsRx<'a> {
+pub struct StdWsLinkRx<'a> {
     stream: &'a mut WebSocketReaderOwned<(), Xorshift64, TcpStream, true>,
     read_buffer: &'a mut Vector<u8>,
+    mtu: u16,
 }
 
-impl ZWebSocket for StdWsStream {
-    type Tx<'a> = StdWsTx<'a>;
-    type Rx<'a> = StdWsRx<'a>;
-
+impl ZLinkInfo for StdWsLink {
     fn mtu(&self) -> u16 {
         self.mtu
     }
 
-    fn split(&mut self) -> (Self::Tx<'_>, Self::Rx<'_>) {
-        let tx = StdWsTx {
-            sink: &mut self.sink,
-            write_buffer: &mut self.write_buffer,
-        };
-        let rx = StdWsRx {
-            stream: &mut self.stream,
-            read_buffer: &mut self.read_buffer,
-        };
-        (tx, rx)
+    fn is_streamed(&self) -> bool {
+        true
     }
 }
 
-impl ZWsTx for StdWsStream {
-    async fn write(
-        &mut self,
-        buffer: &[u8],
-    ) -> core::result::Result<usize, zenoh_nostd::LinkError> {
-        let mut tx = StdWsTx {
-            sink: &mut self.sink,
-            write_buffer: &mut self.write_buffer,
-        };
-        tx.write(buffer).await
+impl ZLinkInfo for StdWsLinkTx<'_> {
+    fn mtu(&self) -> u16 {
+        self.mtu
     }
 
-    async fn write_all(
-        &mut self,
-        buffer: &[u8],
-    ) -> core::result::Result<(), zenoh_nostd::LinkError> {
-        self.write(buffer).await.map(|_| ())
+    fn is_streamed(&self) -> bool {
+        true
     }
 }
 
-impl ZWsTx for StdWsTx<'_> {
-    async fn write(
-        &mut self,
-        buffer: &[u8],
-    ) -> core::result::Result<usize, zenoh_nostd::LinkError> {
+impl ZLinkInfo for StdWsLinkRx<'_> {
+    fn mtu(&self) -> u16 {
+        self.mtu
+    }
+
+    fn is_streamed(&self) -> bool {
+        true
+    }
+}
+
+impl ZLinkTx for StdWsLink {
+    async fn write_all(&mut self, buffer: &[u8]) -> core::result::Result<(), LinkError> {
         self.write_buffer.clear();
         self.write_buffer
             .extend_from_copyable_slice(buffer)
             .map_err(|e| {
-                zenoh_nostd::error!("Failed to extend write buffer: {}", e);
-                zenoh_nostd::LinkError::LinkTxFailed
+                zenoh::error!("Failed to extend write buffer: {}", e);
+                LinkError::LinkTxFailed
             })?;
+
         let payload = self.write_buffer.as_slice_mut();
+
         self.sink
             .write_frame(&mut Frame::new_fin(OpCode::Binary, payload))
             .await
             .map_err(|e| {
-                zenoh_nostd::error!("Could not write frame: {}", e);
-                zenoh_nostd::LinkError::LinkTxFailed
+                zenoh::error!("Could not write frame: {}", e);
+                LinkError::LinkTxFailed
             })
-            .map(|_| buffer.len())
-    }
-
-    async fn write_all(
-        &mut self,
-        buffer: &[u8],
-    ) -> core::result::Result<(), zenoh_nostd::LinkError> {
-        self.write(buffer).await.map(|_| ())
     }
 }
 
-impl ZWsRx for StdWsStream {
-    async fn read(
-        &mut self,
-        buffer: &mut [u8],
-    ) -> core::result::Result<usize, zenoh_nostd::LinkError> {
-        let mut rx = StdWsRx {
-            stream: &mut self.stream,
-            read_buffer: &mut self.read_buffer,
-        };
-        rx.read(buffer).await
-    }
+impl ZLinkTx for StdWsLinkTx<'_> {
+    async fn write_all(&mut self, buffer: &[u8]) -> core::result::Result<(), LinkError> {
+        self.write_buffer.clear();
+        self.write_buffer
+            .extend_from_copyable_slice(buffer)
+            .map_err(|e| {
+                zenoh::error!("Failed to extend write buffer: {}", e);
+                LinkError::LinkTxFailed
+            })?;
 
-    async fn read_exact(
-        &mut self,
-        buffer: &mut [u8],
-    ) -> core::result::Result<(), zenoh_nostd::LinkError> {
-        self.read(buffer).await.map(|_| ())
+        let payload = self.write_buffer.as_slice_mut();
+
+        self.sink
+            .write_frame(&mut Frame::new_fin(OpCode::Binary, payload))
+            .await
+            .map_err(|e| {
+                zenoh::error!("Could not write frame: {}", e);
+                LinkError::LinkTxFailed
+            })
     }
 }
 
-impl ZWsRx for StdWsRx<'_> {
-    async fn read(
-        &mut self,
-        buffer: &mut [u8],
-    ) -> core::result::Result<usize, zenoh_nostd::LinkError> {
+impl ZLinkRx for StdWsLink {
+    async fn read(&mut self, buffer: &mut [u8]) -> core::result::Result<usize, LinkError> {
         self.read_buffer.clear();
 
         let frame = self
             .stream
-            .read_frame(self.read_buffer, WebSocketPayloadOrigin::Consistent)
+            .read_frame(&mut self.read_buffer, WebSocketPayloadOrigin::Consistent)
             .await
             .map_err(|e| {
-                zenoh_nostd::error!("Could not read frame: {}", e);
-                zenoh_nostd::LinkError::LinkRxFailed
+                zenoh::error!("Could not read frame: {}", e);
+                LinkError::LinkRxFailed
             })?;
 
         match frame.op_code() {
@@ -162,19 +140,76 @@ impl ZWsRx for StdWsRx<'_> {
                 Ok(len)
             }
             code => {
-                zenoh_nostd::error!(
+                zenoh::error!(
                     "Could not read frame into buffer: unexpected OpCode {:?}",
                     code
                 );
-                zbail!(zenoh_nostd::LinkError::LinkRxFailed);
+                zenoh::zbail!(LinkError::LinkRxFailed);
             }
         }
     }
 
-    async fn read_exact(
-        &mut self,
-        buffer: &mut [u8],
-    ) -> core::result::Result<(), zenoh_nostd::LinkError> {
+    async fn read_exact(&mut self, buffer: &mut [u8]) -> core::result::Result<(), LinkError> {
         self.read(buffer).await.map(|_| ())
+    }
+}
+
+impl ZLinkRx for StdWsLinkRx<'_> {
+    async fn read(&mut self, buffer: &mut [u8]) -> core::result::Result<usize, LinkError> {
+        self.read_buffer.clear();
+
+        let frame = self
+            .stream
+            .read_frame(self.read_buffer, WebSocketPayloadOrigin::Consistent)
+            .await
+            .map_err(|e| {
+                zenoh::error!("Could not read frame: {}", e);
+                LinkError::LinkRxFailed
+            })?;
+
+        match frame.op_code() {
+            OpCode::Binary => {
+                let len = frame.payload().len().min(buffer.len());
+                buffer[..len].copy_from_slice(&frame.payload()[..len]);
+                Ok(len)
+            }
+            code => {
+                zenoh::error!(
+                    "Could not read frame into buffer: unexpected OpCode {:?}",
+                    code
+                );
+                zenoh::zbail!(LinkError::LinkRxFailed);
+            }
+        }
+    }
+
+    async fn read_exact(&mut self, buffer: &mut [u8]) -> core::result::Result<(), LinkError> {
+        self.read(buffer).await.map(|_| ())
+    }
+}
+
+impl ZLink for StdWsLink {
+    type Tx<'link>
+        = StdWsLinkTx<'link>
+    where
+        Self: 'link;
+
+    type Rx<'link>
+        = StdWsLinkRx<'link>
+    where
+        Self: 'link;
+
+    fn split(&mut self) -> (Self::Tx<'_>, Self::Rx<'_>) {
+        let tx = StdWsLinkTx {
+            sink: &mut self.sink,
+            write_buffer: &mut self.write_buffer,
+            mtu: self.mtu,
+        };
+        let rx = StdWsLinkRx {
+            stream: &mut self.stream,
+            read_buffer: &mut self.read_buffer,
+            mtu: self.mtu,
+        };
+        (tx, rx)
     }
 }

@@ -5,13 +5,14 @@ categories = ["network-programming"]
 description = "Zenoh: The Zero Overhead Pub/Sub/Query Protocol."
 edition = "2024"
 homepage = "http://zenoh.io"
-license = "ZSA-1.0"
+license = "EPL-2.0 OR Apache-2.0"
 repository = "https://github.com/ZettaScaleLabs/zenoh-nostd"
 rust-version = "1.91.0"
 version = "0.1.0"
 
 [dependencies]
 zenoh-nostd = { version = "0.1.0", path = "../../crates/zenoh-nostd" }
+
 futures-util = "0.3"
 getrandom = { version = "0.2", features = ["std", "js"] }
 yawc = "0.2.7"

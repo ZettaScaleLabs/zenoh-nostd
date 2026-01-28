@@ -9,7 +9,7 @@ pub use zenoh_std::StdLinkManager as LinkManager;
 pub use zenoh_embassy::PlatformEmbassy as Platform;
 
 #[cfg(feature = "wasm")]
-pub use zenoh_wasm::PlatformWasm as Platform;
+pub use zenoh_wasm::WasmLinkManager as Platform;
 
 #[cfg(feature = "esp32s3")]
 mod esp32s3_app {

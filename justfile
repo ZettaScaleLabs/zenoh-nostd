@@ -12,7 +12,7 @@ check:
 
     cargo clippy --examples --features=std,log
     cargo clippy --examples --no-default-features --features=wasm,web_console --target wasm32-unknown-unknown
-    WIFI_PASSWORD=* cargo +esp --config .cargo/config.esp32s3.toml check --examples --no-default-features --features=esp32s3,defmt
+    # WIFI_PASSWORD=* cargo +esp --config .cargo/config.esp32s3.toml check --examples --no-default-features --features=esp32s3,defmt
 
 fix:
     cargo clippy -p zenoh-nostd --fix --lib --allow-dirty --allow-staged

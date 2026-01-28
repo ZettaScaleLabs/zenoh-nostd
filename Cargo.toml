@@ -73,7 +73,7 @@ version.workspace = true
 readme.workspace = true
 
 [features]
-default = ["std", "log"]
+default = ["std", "log", "platforms"]
 log = ["zenoh-nostd/log"]
 defmt = ["zenoh-nostd/defmt"]
 web_console = ["zenoh-nostd/web_console"]
@@ -111,7 +111,7 @@ wasm = [
     "embassy-executor/executor-thread",
     "embassy-time/wasm",
 ]
-platforms = ["dep:zenoh-std", "dep:zenoh-embassy"]
+platforms = ["dep:zenoh-std", "dep:zenoh-embassy", "dep:zenoh-wasm"]
 
 [dependencies]
 zenoh-nostd = { workspace = true }

@@ -90,22 +90,22 @@ impl<'net, const MTU: usize, const SOCKS: usize> EmbassyLinkManager<'net, MTU, S
 }
 
 #[derive(ZLinkInfo, ZLinkTx, ZLinkRx, ZLink)]
-#[zenoh(ZLink = (EmbassyLinkTx, EmbassyLinkRx))]
+#[zenoh(ZLink = (EmbassyLinkTx<'link>, EmbassyLinkRx<'link>))]
 pub enum EmbassyLink<'net> {
     Tcp(tcp::EmbassyTcpLink<'net>),
     Udp(udp::EmbassyUdpLink<'net>),
 }
 
 #[derive(ZLinkInfo, ZLinkTx)]
-pub enum EmbassyLinkTx<'net> {
-    Tcp(tcp::EmbassyTcpLinkTx<'net>),
-    Udp(udp::EmbassyUdpLinkTx<'net>),
+pub enum EmbassyLinkTx<'link> {
+    Tcp(tcp::EmbassyTcpLinkTx<'link>),
+    Udp(udp::EmbassyUdpLinkTx<'link>),
 }
 
 #[derive(ZLinkInfo, ZLinkRx)]
-pub enum EmbassyLinkRx<'net> {
-    Tcp(tcp::EmbassyTcpLinkRx<'net>),
-    Udp(udp::EmbassyUdpLinkRx<'net>),
+pub enum EmbassyLinkRx<'link> {
+    Tcp(tcp::EmbassyTcpLinkRx<'link>),
+    Udp(udp::EmbassyUdpLinkRx<'link>),
 }
 
 impl<'net, const MTU: usize, const SOCKS: usize> ZLinkManager

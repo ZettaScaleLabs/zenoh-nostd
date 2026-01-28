@@ -120,7 +120,10 @@ crate::declare_zerror! {
         #[doc = "Link reception failed."]
         #[err = "link reception failed"]
         LinkRxFailed = 103,
-        // Reserved: 104-119 for future LinkError variants
+        #[doc = "Could not listen for connection."]
+        #[err = "could not listen"]
+        CouldNotListen = 104,
+        // Reserved: 105-119 for future LinkError variants
     }
 
     #[doc = "Errors related to zenoh transport links."]

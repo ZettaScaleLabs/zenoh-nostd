@@ -30,16 +30,10 @@ pub fn derive_zlink(input: &DeriveInput) -> syn::Result<TokenStream> {
         }
     });
 
-    let ty_generics_link = if input.generics.lifetimes().count() > 0 {
-        quote::quote! { <'link> }
-    } else {
-        quote::quote! {}
-    };
-
     Ok(quote::quote! {
         impl #impl_generics zenoh_nostd::platform::ZLink for #ident #ty_generics #where_clause {
-            type Tx<'link> = #tx_type #ty_generics_link where Self: 'link;
-            type Rx<'link> = #rx_type #ty_generics_link where Self: 'link;
+            type Tx<'link> = #tx_type where Self: 'link;
+            type Rx<'link> = #rx_type where Self: 'link;
 
             fn split(&mut self) -> (Self::Tx<'_>, Self::Rx<'_>) {
                 match self {
@@ -50,62 +44,33 @@ pub fn derive_zlink(input: &DeriveInput) -> syn::Result<TokenStream> {
     })
 }
 
-fn extract_zlink_types(input: &DeriveInput) -> syn::Result<(syn::Ident, syn::Ident)> {
+fn extract_zlink_types(input: &DeriveInput) -> syn::Result<(syn::Type, syn::Type)> {
     for attr in &input.attrs {
         if !attr.path().is_ident("zenoh") {
             continue;
         }
 
-        let nested = attr.parse_args_with(
-            syn::punctuated::Punctuated::<syn::Meta, syn::Token![,]>::parse_terminated,
-        )?;
-
-        for meta in nested {
-            if let syn::Meta::NameValue(nv) = meta {
-                if nv.path.is_ident("ZLink") {
-                    if let syn::Expr::Tuple(tuple) = nv.value {
-                        if tuple.elems.len() == 2 {
-                            let tx = match &tuple.elems[0] {
-                                syn::Expr::Path(p) => p
-                                    .path
-                                    .get_ident()
-                                    .ok_or_else(|| {
-                                        syn::Error::new_spanned(
-                                            &tuple.elems[0],
-                                            "Expected identifier",
-                                        )
-                                    })?
-                                    .clone(),
-                                _ => {
-                                    return Err(syn::Error::new_spanned(
-                                        &tuple.elems[0],
-                                        "Expected identifier",
-                                    ));
-                                }
-                            };
-                            let rx = match &tuple.elems[1] {
-                                syn::Expr::Path(p) => p
-                                    .path
-                                    .get_ident()
-                                    .ok_or_else(|| {
-                                        syn::Error::new_spanned(
-                                            &tuple.elems[1],
-                                            "Expected identifier",
-                                        )
-                                    })?
-                                    .clone(),
-                                _ => {
-                                    return Err(syn::Error::new_spanned(
-                                        &tuple.elems[1],
-                                        "Expected identifier",
-                                    ));
-                                }
-                            };
-                            return Ok((tx, rx));
-                        }
-                    }
+        let result: Result<(syn::Type, syn::Type), syn::Error> =
+            attr.parse_args_with(|input: syn::parse::ParseStream| {
+                let name: syn::Ident = input.parse()?;
+                if name != "ZLink" {
+                    return Err(syn::Error::new(name.span(), "Expected 'ZLink'"));
                 }
-            }
+
+                input.parse::<syn::Token![=]>()?;
+
+                let content;
+                syn::parenthesized!(content in input);
+
+                let tx: syn::Type = content.parse()?;
+                content.parse::<syn::Token![,]>()?;
+                let rx: syn::Type = content.parse()?;
+
+                Ok((tx, rx))
+            });
+
+        if let Ok(types) = result {
+            return Ok(types);
         }
     }
 
