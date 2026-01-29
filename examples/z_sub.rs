@@ -21,7 +21,7 @@ async fn entry(spawner: embassy_executor::Spawner) -> zenoh::ZResult<()> {
     >::new();
 
     let config = init_session_example(&spawner).await;
-    let mut resources = SessionResources::default();
+    let mut resources = Resources::default();
     let session = if LISTEN {
         zenoh::listen(&mut resources, &config, Endpoint::try_from(ENDPOINT)?).await?
     } else {

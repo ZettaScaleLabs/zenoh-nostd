@@ -7,11 +7,11 @@ use zenoh_proto::{Endpoint, TransportLinkError};
 
 use crate::{
     api::callbacks::ZCallbacks,
-    // session::SessionResources,
+    // session::Resources,
     config::ZSessionConfig,
     io::{driver::Driver, transport::TransportLink},
     platform::ZLinkManager,
-    resources::SessionResources,
+    resources::Resources,
 };
 
 mod run;
@@ -80,7 +80,7 @@ where
 }
 
 pub async fn session_connect<'res, Config>(
-    resources: &'res mut SessionResources<'res, Config>,
+    resources: &'res mut Resources<'res, Config>,
     config: &'res Config,
     endpoint: Endpoint<'_>,
 ) -> core::result::Result<Session<'res, Config>, TransportLinkError>
@@ -93,7 +93,7 @@ where
 }
 
 pub async fn session_listen<'res, Config>(
-    resources: &'res mut SessionResources<'res, Config>,
+    resources: &'res mut Resources<'res, Config>,
     config: &'res Config,
     endpoint: Endpoint<'_>,
 ) -> core::result::Result<Session<'res, Config>, TransportLinkError>
@@ -114,23 +114,20 @@ macro_rules! __session_connect {
         static CONFIG: static_cell::StaticCell<$CONFIG> = static_cell::StaticCell::new();
         let config = CONFIG.init($config);
 
-        static RESOURCES: static_cell::StaticCell<
-            $crate::session::SessionResources<'static, $CONFIG>,
-        > = static_cell::StaticCell::new();
-
-        static SESSION: static_cell::StaticCell<$crate::session::zenoh::Session<'static, $CONFIG>> =
+        static RESOURCES: static_cell::StaticCell<$crate::session::Resources<'static, $CONFIG>> =
             static_cell::StaticCell::new();
 
-        SESSION.init($crate::session::zenoh::Session::new(
-            RESOURCES
-                .init($crate::session::SessionResources::default())
-                .init(
-                    config
-                        .transports()
-                        .connect($endpoint, config.buff())
-                        .await?,
-                ),
-        )) as &$crate::session::zenoh::Session<'static, $CONFIG>
+        static SESSION: static_cell::StaticCell<$crate::session::Session<'static, $CONFIG>> =
+            static_cell::StaticCell::new();
+
+        SESSION.init($crate::session::Session::new(
+            RESOURCES.init($crate::session::Resources::default()).init(
+                config
+                    .transports()
+                    .connect($endpoint, config.buff())
+                    .await?,
+            ),
+        )) as &$crate::session::Session<'static, $CONFIG>
     }};
 }
 
@@ -143,23 +140,22 @@ macro_rules! __session_listen {
         static CONFIG: static_cell::StaticCell<$CONFIG> = static_cell::StaticCell::new();
         let config = CONFIG.init($config);
 
-        static RESOURCES: static_cell::StaticCell<
-            $crate::session::SessionResources<'static, $CONFIG>,
-        > = static_cell::StaticCell::new();
-
-        static SESSION: static_cell::StaticCell<$crate::session::zenoh::Session<'static, $CONFIG>> =
+        static RESOURCES: static_cell::StaticCell<$crate::session::Resources<'static, $CONFIG>> =
             static_cell::StaticCell::new();
 
-        SESSION.init($crate::session::zenoh::Session::new(
+        static SESSION: static_cell::StaticCell<$crate::session::Session<'static, $CONFIG>> =
+            static_cell::StaticCell::new();
+
+        SESSION.init($crate::session::Session::new(
             RESOURCES
-                .init($crate::session::SessionResources::default())
+                .init($crate::session::Resources::default())
                 .init(config.transports().listen($endpoint, config.buff()).await?),
-        )) as &$crate::session::zenoh::Session<'static, $CONFIG>
+        )) as &$crate::session::Session<'static, $CONFIG>
     }};
 }
 
 pub async fn session_connect_ignore_invalid_sn<'res, Config>(
-    resources: &'res mut SessionResources<'res, Config>,
+    resources: &'res mut Resources<'res, Config>,
     config: &'res Config,
     endpoint: Endpoint<'_>,
 ) -> core::result::Result<Session<'res, Config>, TransportLinkError>
@@ -173,7 +169,7 @@ where
 }
 
 pub async fn session_listen_ignore_invalid_sn<'res, Config>(
-    resources: &'res mut SessionResources<'res, Config>,
+    resources: &'res mut Resources<'res, Config>,
     config: &'res Config,
     endpoint: Endpoint<'_>,
 ) -> core::result::Result<Session<'res, Config>, TransportLinkError>

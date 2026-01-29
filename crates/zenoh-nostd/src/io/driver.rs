@@ -5,7 +5,7 @@ use embassy_sync::{
     mutex::{Mutex, MutexGuard},
 };
 use embassy_time::{Duration, Instant, Timer};
-use zenoh_proto::{EitherError, TransportLinkError, msgs::NetworkMessage};
+use zenoh_proto::{EitherError, TransportLinkError, fields::ZenohIdProto, msgs::NetworkMessage};
 
 use crate::{
     io::transport::{
@@ -14,10 +14,11 @@ use crate::{
     platform::ZLink,
 };
 
-pub(crate) struct Driver<'res, Link, Buff>
+pub struct Driver<'res, Link, Buff>
 where
     Link: ZLink + 'res,
 {
+    zid: ZenohIdProto,
     tx: Mutex<NoopRawMutex, TransportLinkTx<'res, Link::Tx<'res>, Buff>>,
     rx: Mutex<NoopRawMutex, TransportLinkRx<'res, Link::Rx<'res>, Buff>>,
 }
@@ -27,12 +28,19 @@ where
     Link: ZLink,
 {
     pub fn new(transport: &'res mut TransportLink<Link, Buff>) -> Self {
+        let zid = transport.transport().other_zid;
+
         let (tx, rx) = transport.split();
 
         Self {
+            zid,
             tx: Mutex::new(tx),
             rx: Mutex::new(rx),
         }
+    }
+
+    pub fn zid(&self) -> ZenohIdProto {
+        self.zid
     }
 
     pub async fn tx(
@@ -49,6 +57,7 @@ where
     where
         Buff: AsMut<[u8]> + AsRef<[u8]>,
         Update: for<'any> AsyncFnMut(
+            &Self,
             &mut State,
             NetworkMessage<'any>,
             &'any [u8],
@@ -85,7 +94,7 @@ where
                     let mut state = state.lock().await;
 
                     for msg in res? {
-                        update(&mut state, msg.0, msg.1)
+                        update(self, &mut state, msg.0, msg.1)
                             .await
                             .map_err(EitherError::B)?;
                     }

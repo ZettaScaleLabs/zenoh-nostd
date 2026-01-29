@@ -5,6 +5,28 @@
 use zenoh_examples::*;
 use zenoh_nostd::broker::*;
 
+type StaticBroker = ();
+
+#[embassy_executor::task]
+async fn north(broker: StaticBroker, endpoint: Endpoint<'static>) {
+    zenoh::connect!(broker, endpoint)
+}
+
+#[embassy_executor::task]
+async fn south_1(broker: StaticBroker, endpoint: Endpoint<'static>) {
+    zenoh::listen!(broker, endpoint)
+}
+
+#[embassy_executor::task]
+async fn south_2(broker: StaticBroker, endpoint: Endpoint<'static>) {
+    zenoh::listen!(broker, endpoint)
+}
+
+#[embassy_executor::task]
+async fn south3(broker: StaticBroker, endpoint: Endpoint<'static>) {
+    zenoh::listen!(broker, endpoint)
+}
+
 async fn entry(spawner: embassy_executor::Spawner) -> zenoh::ZResult<()> {
     #[cfg(feature = "log")]
     env_logger::init();
@@ -12,6 +34,15 @@ async fn entry(spawner: embassy_executor::Spawner) -> zenoh::ZResult<()> {
     zenoh::info!("zenoh-nostd z_broker example");
 
     let config = init_broker_example(&spawner).await;
+    let broker = zenoh::broker!(ExampleConfig: config);
+
+    spawner.must_spawn(north(broker, Endpoint::try_from("tcp/127.0.0.1:7447")?));
+    spawner.must_spawn(south_1(broker, Endpoint::try_from("tcp/127.0.0.1:7444")?));
+    spawner.must_spawn(south_2(broker, Endpoint::try_from("tcp/127.0.0.1:7444")?));
+    spawner.must_spawn(south3(
+        broker,
+        Endpoint::try_from("serial//dev/tty.MCU#bd=115200")?,
+    ));
 
     loop {
         embassy_time::Timer::after(embassy_time::Duration::from_secs(1)).await;

@@ -219,38 +219,6 @@ impl<'net, const MTU: usize, const SOCKS: usize> ZLinkManager
                     &self.buffers,
                 )))
             }
-            "udp" => {
-                let src_addr = SocketAddr::try_from(address)?;
-                let (idx1, tx, rx) = self.allocate_buffers().ok_or(LinkError::CouldNotConnect)?;
-
-                let (idx2, tm, rm) = self
-                    .allocate_metadatas()
-                    .ok_or(LinkError::CouldNotConnect)?;
-
-                let mut socket = UdpSocket::new(self.stack, rm, rx, tm, tx);
-
-                let address: IpAddress = match src_addr.ip() {
-                    core::net::IpAddr::V4(v4) => IpAddress::Ipv4(v4),
-                    core::net::IpAddr::V6(_) => {
-                        zenoh::zbail!(LinkError::CouldNotConnect)
-                    }
-                };
-
-                let ip_endpoint = IpEndpoint::new(address, src_addr.port());
-                socket
-                    .bind(ip_endpoint)
-                    .map_err(|_| LinkError::CouldNotConnect)?;
-
-                Ok(Self::Link::Udp(udp::EmbassyUdpLink::new(
-                    socket,
-                    ip_endpoint.into(),
-                    MTU as u16,
-                    idx1,
-                    &self.buffers,
-                    idx2,
-                    &self.metadatas,
-                )))
-            }
             _ => zenoh::zbail!(LinkError::CouldNotParseProtocol),
         }
     }

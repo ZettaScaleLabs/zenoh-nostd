@@ -7,7 +7,7 @@ use zenoh_examples::*;
 use zenoh_nostd::session::*;
 
 #[embassy_executor::task]
-async fn session_task(session: &'static zenoh::Session<'static, ExampleConfig>) {
+async fn session_task(session: &'static Session<'static, ExampleConfig>) {
     if let Err(e) = session.run().await {
         zenoh::error!("Error in session task: {}", e);
     }

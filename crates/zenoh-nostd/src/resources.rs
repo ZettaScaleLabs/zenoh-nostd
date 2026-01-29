@@ -2,20 +2,20 @@ use core::hint::unreachable_unchecked;
 
 use crate::{config::ZSessionConfig, io::transport::TransportLink, platform::ZLinkManager};
 
-pub struct SessionResources<'res, Config>
+pub struct Resources<'res, Config>
 where
     Config: ZSessionConfig,
 {
-    pub(crate) inner: SessionResourcesInner<'res, Config>,
+    pub(crate) inner: ResourcesInner<'res, Config>,
 }
 
-impl<'res, Config> Default for SessionResources<'res, Config>
+impl<'res, Config> Default for Resources<'res, Config>
 where
     Config: ZSessionConfig,
 {
     fn default() -> Self {
         Self {
-            inner: SessionResourcesInner::default(),
+            inner: ResourcesInner::default(),
         }
     }
 }
@@ -23,7 +23,7 @@ where
 type Link<'res, Config> = <<Config as ZSessionConfig>::LinkManager as ZLinkManager>::Link<'res>;
 
 #[derive(Default)]
-pub enum SessionResourcesInner<'res, Config>
+pub enum ResourcesInner<'res, Config>
 where
     Config: ZSessionConfig + 'res,
 {
@@ -34,7 +34,7 @@ where
     },
 }
 
-impl<'res, Config> SessionResources<'res, Config>
+impl<'res, Config> Resources<'res, Config>
 where
     Config: ZSessionConfig,
 {
@@ -42,10 +42,10 @@ where
         &mut self,
         transport: TransportLink<Link<'res, Config>, Config::Buff>,
     ) -> &mut TransportLink<Link<'res, Config>, Config::Buff> {
-        self.inner = SessionResourcesInner::Init { transport };
+        self.inner = ResourcesInner::Init { transport };
 
         match &mut self.inner {
-            SessionResourcesInner::Init { transport } => transport,
+            ResourcesInner::Init { transport } => transport,
             _ => unsafe { unreachable_unchecked() },
         }
     }

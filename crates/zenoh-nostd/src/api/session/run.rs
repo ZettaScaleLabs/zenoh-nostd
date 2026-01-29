@@ -16,7 +16,7 @@ where
 {
     pub async fn run(&self) -> core::result::Result<(), SessionError> {
         self.driver
-            .run(&self.state, async |state, msg, _| {
+            .run(&self.state, async |_, state, msg, _| {
                 match msg.body {
                     NetworkBody::Push(Push {
                         wire_expr,
