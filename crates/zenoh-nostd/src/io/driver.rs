@@ -57,7 +57,7 @@ where
     where
         Buff: AsMut<[u8]> + AsRef<[u8]>,
         Update: for<'any> AsyncFnMut(
-            &Self,
+            ZenohIdProto,
             &mut State,
             NetworkMessage<'any>,
             &'any [u8],
@@ -94,7 +94,7 @@ where
                     let mut state = state.lock().await;
 
                     for msg in res? {
-                        update(self, &mut state, msg.0, msg.1)
+                        update(self.zid, &mut state, msg.0, msg.1)
                             .await
                             .map_err(EitherError::B)?;
                     }

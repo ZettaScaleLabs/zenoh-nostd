@@ -73,10 +73,12 @@ version.workspace = true
 readme.workspace = true
 
 [features]
-default = ["std", "log"]
+default = ["std", "alloc", "log"]
 log = ["zenoh-nostd/log"]
 defmt = ["zenoh-nostd/defmt"]
 web_console = ["zenoh-nostd/web_console"]
+alloc = ["zenoh-nostd/alloc"]
+
 std = [
     "dep:zenoh-std",
 
@@ -137,6 +139,11 @@ esp-println = { version = "0.16.1", features = ["defmt-espflash", "esp32s3"], op
 esp-rtos = { version = "0.2.0", features = ["esp32s3", "esp-radio", "embassy"], optional = true }
 esp-radio = { version = "0.17.0", features = ["unstable", "defmt", "esp-alloc", "esp32s3", "smoltcp", "wifi"], optional = true }
 wasm-bindgen = { version = "0.2", optional = true }
+
+[[example]]
+path = "examples/z_broker.rs"
+name = "z_broker"
+required-features = ["alloc"]
 
 [profile.dev]
 opt-level = "s"

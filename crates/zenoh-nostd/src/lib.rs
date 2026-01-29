@@ -39,6 +39,7 @@ pub mod session {
     }
 }
 
+#[cfg(feature = "alloc")]
 pub mod broker {
     pub use super::config::ZBrokerConfig;
     pub use super::io::transport::TransportLinkManager;
@@ -50,9 +51,7 @@ pub mod broker {
         pub use zenoh_proto::{debug, error, info, keyexpr, trace, warn, zbail};
         pub type ZResult<T> = core::result::Result<T, super::Error>;
 
-        pub use crate::{
-            __broker as broker, __broker_connect as connect, __broker_listen as listen,
-        };
+        pub use crate::__broker as broker;
     }
 }
 

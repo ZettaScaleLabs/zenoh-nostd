@@ -160,7 +160,7 @@ crate::declare_zerror! {
         #[doc = "Collection too small."]
         #[err = "collection is too small"]
         CollectionTooSmall = 144,
-        //Reserved: 145-149 for future CollectionError variants
+        // Reserved: 145-149 for future CollectionError variants
     }
 
     #[doc = "Errors related to zenoh session."]
@@ -168,6 +168,12 @@ crate::declare_zerror! {
         #[doc = "Request timed out."]
         #[err = "request timed out"]
         RequestTimedout = 150,
+        // Reserved: 151-159 for future SessionError variants
+    }
+
+    #[doc = "Errors related to zenoh broker."]
+    enum BrokerError: TransportLinkError + CollectionError + KeyexprError {
+        // Reserved: 160-169 for future BrokerError variants
     }
 }
 

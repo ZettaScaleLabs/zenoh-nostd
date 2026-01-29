@@ -5,5 +5,6 @@ pub mod sample;
 
 pub mod callbacks;
 
+#[cfg(feature = "alloc")]
 pub mod broker;
 pub mod session;

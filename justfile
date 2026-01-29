@@ -44,32 +44,32 @@ bench filter="bench":
 # Special `std` examples
 
 flood *args:
-    cargo run -p zenoh-sansio --release --features=std,log --example z_flood -- {{ args }}
+    cargo run -p zenoh-sansio --release --no-default-features --features=std,log --example z_flood -- {{ args }}
 
 drain *args:
-    cargo run -p zenoh-sansio --release --features=std,log --example z_drain -- {{ args }}
+    cargo run -p zenoh-sansio --release --no-default-features --features=std,log --example z_drain -- {{ args }}
 
 ping:
-    RUST_LOG=trace cargo run --release --features=std,log --example z_ping
+    RUST_LOG=trace cargo run --release --no-default-features --features=std,log --example z_ping
 
 pong:
-    RUST_LOG=trace cargo run --release --features=std,log --example z_pong
+    RUST_LOG=trace cargo run --release --no-default-features --features=std,log --example z_pong
 
 pub_thr:
-    RUST_LOG=trace cargo run --release --features=std,log --example z_pub_thr
+    RUST_LOG=trace cargo run --release --no-default-features --features=std,log --example z_pub_thr
 
 sub_thr:
-    RUST_LOG=trace cargo run --release --features=std,log --example z_sub_thr
+    RUST_LOG=trace cargo run --release --no-default-features --features=std,log --example z_sub_thr
 
 # Examples
 
 esp32s3 example:
-    cargo +esp --config .cargo/config.esp32s3.toml run --release --example {{ example }} --no-default-features --features=esp32s3,defmt
+    cargo +esp --config .cargo/config.esp32s3.toml run --release --no-default-features --features=esp32s3,defmt --example {{ example }}
 
-std example:
-    RUST_LOG=trace cargo run --example {{ example }} --features="std,log"
+std example *args:
+    RUST_LOG=trace cargo run --no-default-features --features="std,log" --features={{ args }} --example {{ example }}
 
 wasm example *args:
-    RUSTFLAGS='--cfg getrandom_backend="wasm_js"' cargo build --example {{ example }} --no-default-features --features="wasm,web_console" --target wasm32-unknown-unknown -- {{ args }}
+    RUSTFLAGS='--cfg getrandom_backend="wasm_js"' cargo build --no-default-features --features="wasm,web_console" --target wasm32-unknown-unknown -- {{ args }} --example {{ example }}
     wasm-bindgen --target web --out-dir ./examples/web/ ./target/wasm32-unknown-unknown/debug/examples/{{ example }}.wasm --out-name z_example
     basic-http-server ./examples/web

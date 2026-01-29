@@ -5,26 +5,12 @@
 use zenoh_examples::*;
 use zenoh_nostd::broker::*;
 
-type StaticBroker = ();
-
-#[embassy_executor::task]
-async fn north(broker: StaticBroker, endpoint: Endpoint<'static>) {
-    zenoh::connect!(broker, endpoint)
-}
-
-#[embassy_executor::task]
-async fn south_1(broker: StaticBroker, endpoint: Endpoint<'static>) {
-    zenoh::listen!(broker, endpoint)
-}
-
-#[embassy_executor::task]
-async fn south_2(broker: StaticBroker, endpoint: Endpoint<'static>) {
-    zenoh::listen!(broker, endpoint)
-}
-
-#[embassy_executor::task]
-async fn south3(broker: StaticBroker, endpoint: Endpoint<'static>) {
-    zenoh::listen!(broker, endpoint)
+#[embassy_executor::task(pool_size = 2)]
+async fn south(broker: &'static Broker<ExampleConfig>, endpoint: Endpoint<'static>) {
+    // `broker.open` creates a listening `Endpoint`: a client can connect to the broker, one at a time
+    if let Err(e) = broker.open(endpoint.clone()).await {
+        zenoh::error!("Fatal error on south {}: {}", endpoint, e);
+    }
 }
 
 async fn entry(spawner: embassy_executor::Spawner) -> zenoh::ZResult<()> {
@@ -36,17 +22,16 @@ async fn entry(spawner: embassy_executor::Spawner) -> zenoh::ZResult<()> {
     let config = init_broker_example(&spawner).await;
     let broker = zenoh::broker!(ExampleConfig: config);
 
-    spawner.must_spawn(north(broker, Endpoint::try_from("tcp/127.0.0.1:7447")?));
-    spawner.must_spawn(south_1(broker, Endpoint::try_from("tcp/127.0.0.1:7444")?));
-    spawner.must_spawn(south_2(broker, Endpoint::try_from("tcp/127.0.0.1:7444")?));
-    spawner.must_spawn(south3(
-        broker,
-        Endpoint::try_from("serial//dev/tty.MCU#bd=115200")?,
-    ));
+    spawner.must_spawn(south(broker, Endpoint::try_from("tcp/127.0.0.1:7444")?));
+    spawner.must_spawn(south(broker, Endpoint::try_from("tcp/127.0.0.1:7445")?));
 
-    loop {
-        embassy_time::Timer::after(embassy_time::Duration::from_secs(1)).await;
-    }
+    // `broker.listen` and `broker.connect` defines the gateway of this broker,
+    // the `broker.connect` method will fail if there is nobody listening at that `Endpoint`,
+    // the `broker.listen` method will listen at this endpoint for a zenoh network to connect, one at a time
+
+    Ok(broker
+        .listen(Endpoint::try_from("tcp/127.0.0.1:7447")?)
+        .await?)
 }
 
 #[cfg_attr(feature = "std", embassy_executor::main)]

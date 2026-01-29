@@ -1,6 +1,9 @@
 #![no_std]
 
-use zenoh_nostd::{broker::ZBrokerConfig, session::*};
+#[cfg(feature = "alloc")]
+use zenoh_nostd::broker::ZBrokerConfig;
+
+use zenoh_nostd::session::*;
 
 #[cfg(feature = "std")]
 pub use zenoh_std::StdLinkManager as LinkManager;
@@ -73,6 +76,7 @@ pub struct ExampleConfig {
     transports: TransportLinkManager<LinkManager>,
 }
 
+#[cfg(feature = "alloc")]
 impl ZBrokerConfig for ExampleConfig {
     type LinkManager = LinkManager;
     type Buff = [u8; BUFF_SIZE as usize];
