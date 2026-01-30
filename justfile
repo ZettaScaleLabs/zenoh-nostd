@@ -61,6 +61,9 @@ pub_thr:
 sub_thr:
     RUST_LOG=trace cargo run --release --no-default-features --features=std,log --example z_sub_thr
 
+broker:
+    RUST_LOG=trace cargo run --release --no-default-features --features=std,log,alloc --example z_broker
+
 # Examples
 
 esp32s3 example:

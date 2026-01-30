@@ -64,16 +64,16 @@ zenoh-nostd = { git = "https://github.com/ZettaScaleLabs/zenoh-nostd" }
 Here’s a simple example of sending a payload with `zenoh-nostd`:
 
 ```rust
-async fn entry(spawner: embassy_executor::Spawner) -> zenoh_nostd::ZResult<()> {
-    let config = init_example(&spawner).await;
+async fn entry(spawner: embassy_executor::Spawner) -> zenoh::ZResult<()> {
+    let config = init_session_example(&spawner).await;
     let mut resources = Resources::default();
-    let session = zenoh::open(&mut resources, &config, Endpoint::try_from(CONNECT)?).await?;
+    let session = zenoh::connect(&mut resources, &config, Endpoint::try_from(ENDPOINT)?).await?;
 
-    let ke = keyexpr::new("demo/example")?;
+    let ke = zenoh::keyexpr::new("demo/example")?;
     let payload = b"Hello, from no-std!";
-
+    
     session.put(ke, payload).finish().await?;
-
+    
     Ok(())
 }
 ```
@@ -89,7 +89,6 @@ async fn entry(spawner: embassy_executor::Spawner) -> zenoh_nostd::ZResult<()> {
 ## ⚠️ Limitations
 
 * No serial support yet. ([#11](https://github.com/ZettaScaleLabs/zenoh-nostd/issues/11))
-* No `alloc` support yet. ([#20](https://github.com/ZettaScaleLabs/zenoh-nostd/issues/20))
 * No `sansio` support yet. ([#33](https://github.com/ZettaScaleLabs/zenoh-nostd/issues/33))
 * `Interest` protocol not implemented yet. ([#46](https://github.com/ZettaScaleLabs/zenoh-nostd/issues/46))
 
@@ -106,13 +105,14 @@ This project uses [`just`](https://github.com/casey/just) for task management. U
 Use the following command structure:
 
 ```bash
-just <platform> <example> [args]
+just <platform> <example> [optional features]
 ```
 
 * **Platforms**: `std`, `wasm`, `esp32s3`
-* **Examples**: `z_put`, `z_pub`, `z_sub`, `z_ping`, `z_pong`, `z_get`, `z_queryable`
+* **Examples**: `z_get`, `z_open`, `z_ping`, `z_pong`, `z_pub`, `z_pub_thr`, `z_put`, `z_querier`, `z_queryable`, `z_sub`, , `z_sub_thr`,
+* **Broker**: `z_broker` (with `alloc` feature)
 
-Set the `CONNECT=<endpoint>` environment variable to specify the endpoint (default is `tcp/127.0.0.1:7447`).
+Set the `ENDPOINT=<endpoint>` environment variable to specify the endpoint (default is `tcp/127.0.0.1:7447`). Set `LISTEN=1` to specify the connection method.
 
 For `esp32s3`, you must also provide:
 
@@ -124,11 +124,11 @@ See the ESP32 setup documentation for toolchain and target installation.
 Example of few commands:
 
 ```bash
-CONNECT=tcp/127.0.0.1:7447 just std z_pub
+ENDPOINT=tcp/127.0.0.1:7447 just std z_pub
 ```
 
 ```bash
-WIFI_PASSWORD=* CONNECT=tcp/192.168.21.1:7447 just esp32s3 z_sub
+WIFI_PASSWORD=* ENDPOINT=tcp/192.168.21.1:7447 just esp32s3 z_sub
 ```
 
 ### Example: Local TCP
@@ -148,6 +148,7 @@ just std z_pub
 # Terminal 2
 just std z_sub
 ```
+
 ### Example: WebSocket + WASM
 
 Run a Zenoh router with:
@@ -160,7 +161,7 @@ Then:
 
 ```bash
 # Terminal 1 (WASM)
-CONNECT=ws/127.0.0.1:7446 just wasm z_pub
+ENDPOINT=ws/127.0.0.1:7446 just wasm z_pub
 
 # Terminal 2 (STD)
 just std z_sub
@@ -187,6 +188,7 @@ zenoh-nostd/            # Git repository root
 │   ├── web/
 │   │   └── index.html  # File to test wasm example
 │   │
+│   ├── z_broker.rs     # Example with std/wasm/embassy io
 │   ├── z_get.rs        # Example with std/wasm/embassy io
 │   ├── z_open.rs       # Example with std/wasm/embassy io
 │   ├── z_ping.rs       # Example with std/wasm/embassy io
