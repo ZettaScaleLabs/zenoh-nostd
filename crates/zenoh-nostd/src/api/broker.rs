@@ -9,6 +9,7 @@ use zenoh_proto::BrokerError;
 use zenoh_proto::msgs::NetworkMessage;
 use zenoh_proto::{Endpoint, fields::ZenohIdProto};
 
+use crate::io::transport::ZTransportLinkTx;
 use crate::{config::ZBrokerConfig, io::driver::Driver, platform::ZLinkManager};
 
 type Link<Config> = <<Config as ZBrokerConfig>::LinkManager as ZLinkManager>::Link<'static>;
@@ -55,7 +56,32 @@ where
         msg: NetworkMessage<'_>,
         bytes: &[u8],
     ) -> core::result::Result<(), BrokerError> {
-        let _ = (north, id, state, msg, bytes);
+        if north {
+            for south in state.south.values() {
+                south
+                    .tx()
+                    .await
+                    .send_optimized_ref(core::iter::once((msg.as_ref(), bytes)))
+                    .await?;
+            }
+        } else {
+            if let Some((_, north)) = &state.north {
+                north
+                    .tx()
+                    .await
+                    .send_optimized_ref(core::iter::once((msg.as_ref(), bytes)))
+                    .await?;
+            }
+
+            for (_, south) in state.south.iter().filter(|(sid, _)| **sid != id) {
+                south
+                    .tx()
+                    .await
+                    .send_optimized_ref(core::iter::once((msg.as_ref(), bytes)))
+                    .await?;
+            }
+        }
+
         Ok(())
     }
 

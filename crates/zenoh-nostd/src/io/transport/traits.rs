@@ -25,12 +25,12 @@ pub trait ZTransportLinkTx {
         }
     }
 
-    fn send_ref<'a>(
+    fn send_optimized_ref<'a>(
         &mut self,
-        msgs: impl Iterator<Item = NetworkMessageRef<'a>>,
+        msgs: impl Iterator<Item = (NetworkMessageRef<'a>, &'a [u8])>,
     ) -> impl Future<Output = core::result::Result<(), zenoh_proto::TransportLinkError>> {
         let (link, transport) = self.tx();
-        transport.encode_ref(msgs);
+        transport.encode_optimized_ref(msgs);
 
         async move {
             if let Some(bytes) = transport.flush(link.is_streamed()) {

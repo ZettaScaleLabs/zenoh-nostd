@@ -168,3 +168,7 @@ overflow-checks = false
 [patch.crates-io.yawc]
 git = "https://github.com/infinitefield/yawc"
 rev = "b43b05d51e18345d228b72c4f12a93e2f51df9d8"
+
+[patch.crates-io.async-net]
+git = "https://github.com/Hennzau/async-net"
+rev = "f1ade444e88677b31b71ed1b7de0b2778d977aa8"

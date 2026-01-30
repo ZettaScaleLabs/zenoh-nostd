@@ -67,7 +67,7 @@ esp32s3 example:
     cargo +esp --config .cargo/config.esp32s3.toml run --release --no-default-features --features=esp32s3,defmt --example {{ example }}
 
 std example *args:
-    RUST_LOG=trace cargo run --no-default-features --features="std,log" --features={{ args }} --example {{ example }}
+    RUST_LOG=info cargo run --no-default-features --features="std,log" --features={{ args }} --example {{ example }}
 
 wasm example *args:
     RUSTFLAGS='--cfg getrandom_backend="wasm_js"' cargo build --no-default-features --features="wasm,web_console" --target wasm32-unknown-unknown -- {{ args }} --example {{ example }}

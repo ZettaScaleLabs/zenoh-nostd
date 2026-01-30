@@ -208,6 +208,24 @@ impl ZLinkManager for StdLinkManager {
 
                 Ok(Self::Link::Tcp(tcp::StdTcpLink::new(socket, mtu)))
             }
+            "udp" => {
+                let src_addr = SocketAddr::try_from(address)?;
+                let socket = UdpSocket::bind(src_addr)
+                    .await
+                    .map_err(|_| LinkError::CouldNotConnect)?;
+
+                let (_, dst_addr) = socket
+                    .peek_from(&mut [0u8, 0])
+                    .await
+                    .map_err(|_| LinkError::CouldNotConnect)?;
+
+                socket
+                    .connect(dst_addr)
+                    .await
+                    .map_err(|_| LinkError::CouldNotConnect)?;
+
+                Ok(Self::Link::Udp(udp::StdUdpLink::new(socket, 8192)))
+            }
             _ => zenoh::zbail!(LinkError::CouldNotParseProtocol),
         }
     }
