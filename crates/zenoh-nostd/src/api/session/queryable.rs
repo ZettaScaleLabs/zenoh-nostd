@@ -8,6 +8,9 @@ use zenoh_proto::{
     msgs::*,
 };
 
+#[cfg(feature = "alloc")]
+use crate::api::callbacks::AllocCallbacks;
+
 use crate::{
     api::{
         arg::QueryableQueryRef,
@@ -26,6 +29,10 @@ pub type FixedCapacityQueryableCallbacks<
     Callback = RawOrBox<16>,
     Future = RawOrBox<128>,
 > = FixedCapacityCallbacks<'a, QueryableQueryRef<'a, Config>, CAPACITY, Callback, Future>;
+
+#[cfg(feature = "alloc")]
+pub type AllocQueryableCallbacks<'a, Config, Callback = RawOrBox<16>, Future = RawOrBox<128>> =
+    AllocCallbacks<'a, QueryableQueryRef<'a, Config>, Callback, Future>;
 
 pub struct Queryable<Config, OwnedQuery = (), const CHANNEL: bool = false>
 where

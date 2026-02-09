@@ -18,13 +18,13 @@ impl<'a> GetResponse<'a> {
 }
 
 #[derive(Debug)]
-pub enum OwnedGetResponse<const MAX_KEYEXPR: usize, const MAX_PAYLOAD: usize> {
-    Ok(OwnedSample<MAX_KEYEXPR, MAX_PAYLOAD>),
-    Err(OwnedSample<MAX_KEYEXPR, MAX_PAYLOAD>),
+pub enum FixedCapacityGetResponse<const MAX_KEYEXPR: usize, const MAX_PAYLOAD: usize> {
+    Ok(FixedCapacitySample<MAX_KEYEXPR, MAX_PAYLOAD>),
+    Err(FixedCapacitySample<MAX_KEYEXPR, MAX_PAYLOAD>),
 }
 
 impl<const MAX_KEYEXPR: usize, const MAX_PAYLOAD: usize>
-    OwnedGetResponse<MAX_KEYEXPR, MAX_PAYLOAD>
+    FixedCapacityGetResponse<MAX_KEYEXPR, MAX_PAYLOAD>
 {
     pub fn as_ref(&self) -> GetResponse<'_> {
         match self {
@@ -35,8 +35,37 @@ impl<const MAX_KEYEXPR: usize, const MAX_PAYLOAD: usize>
 }
 
 impl<const MAX_KEYEXPR: usize, const MAX_PAYLOAD: usize> TryFrom<&GetResponse<'_>>
-    for OwnedGetResponse<MAX_KEYEXPR, MAX_PAYLOAD>
+    for FixedCapacityGetResponse<MAX_KEYEXPR, MAX_PAYLOAD>
 {
+    type Error = CollectionError;
+
+    fn try_from(value: &GetResponse<'_>) -> Result<Self, Self::Error> {
+        match value {
+            GetResponse::Ok(sample) => Ok(Self::Ok(sample.try_into()?)),
+            GetResponse::Err(sample) => Ok(Self::Err(sample.try_into()?)),
+        }
+    }
+}
+
+#[cfg(feature = "alloc")]
+#[derive(Debug)]
+pub enum AllocGetResponse {
+    Ok(AllocSample),
+    Err(AllocSample),
+}
+
+#[cfg(feature = "alloc")]
+impl AllocGetResponse {
+    pub fn as_ref(&self) -> GetResponse<'_> {
+        match self {
+            Self::Ok(sample) => GetResponse::Ok(sample.as_ref()),
+            Self::Err(sample) => GetResponse::Err(sample.as_ref()),
+        }
+    }
+}
+
+#[cfg(feature = "alloc")]
+impl TryFrom<&GetResponse<'_>> for AllocGetResponse {
     type Error = CollectionError;
 
     fn try_from(value: &GetResponse<'_>) -> Result<Self, Self::Error> {

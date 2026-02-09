@@ -13,6 +13,7 @@ where
     ke: &'a keyexpr,
     parameters: Option<&'a str>,
     payload: Option<&'a [u8]>,
+    finalized: bool,
 }
 
 impl<'a, 'res, Config> QueryableQuery<'a, 'res, Config>
@@ -32,6 +33,7 @@ where
             ke,
             parameters,
             payload,
+            finalized: false,
         }
     }
 
@@ -48,7 +50,7 @@ where
     }
 
     pub async fn reply(
-        &self,
+        &mut self,
         ke: &keyexpr,
         payload: &[u8],
     ) -> core::result::Result<(), SessionError> {
@@ -56,19 +58,24 @@ where
     }
 
     pub async fn err(
-        &self,
+        &mut self,
         ke: &keyexpr,
         payload: &[u8],
     ) -> core::result::Result<(), SessionError> {
         self.session.err(self.rid, ke, payload).await
     }
 
-    pub async fn finalize(&self) -> core::result::Result<(), SessionError> {
-        self.session.finalize(self.rid).await
+    pub async fn finalize(&mut self) -> core::result::Result<(), SessionError> {
+        if !self.finalized {
+            self.session.finalize(self.rid).await?;
+            self.finalized = true
+        }
+
+        Ok(())
     }
 }
 
-pub struct OwnedQueryableQuery<
+pub struct FixedCapacityQueryableQuery<
     Config,
     const MAX_KEYEXPR: usize,
     const MAX_PARAMETERS: usize,
@@ -84,7 +91,7 @@ pub struct OwnedQueryableQuery<
 }
 
 impl<Config, const MAX_KEYEXPR: usize, const MAX_PARAMETERS: usize, const MAX_PAYLOAD: usize>
-    OwnedQueryableQuery<Config, MAX_KEYEXPR, MAX_PARAMETERS, MAX_PAYLOAD>
+    FixedCapacityQueryableQuery<Config, MAX_KEYEXPR, MAX_PARAMETERS, MAX_PAYLOAD>
 where
     Config: ZSessionConfig,
 {
@@ -125,7 +132,7 @@ impl<'a, Config, const MAX_KEYEXPR: usize, const MAX_PARAMETERS: usize, const MA
     TryFrom<(
         &QueryableQuery<'a, 'static, Config>,
         &'static Session<'static, Config>,
-    )> for OwnedQueryableQuery<Config, MAX_KEYEXPR, MAX_PARAMETERS, MAX_PAYLOAD>
+    )> for FixedCapacityQueryableQuery<Config, MAX_KEYEXPR, MAX_PARAMETERS, MAX_PAYLOAD>
 where
     Config: ZSessionConfig,
 {
@@ -154,6 +161,85 @@ where
                 .map(heapless::Vec::from_slice)
                 .transpose()
                 .map_err(|_| CollectionError::CollectionTooSmall)?,
+        })
+    }
+}
+
+#[cfg(feature = "alloc")]
+pub struct AllocQueryableQuery<Config>
+where
+    Config: ZSessionConfig + 'static,
+{
+    session: &'static Session<'static, Config>,
+    rid: u32,
+    ke: alloc::string::String,
+    parameters: Option<alloc::string::String>,
+    payload: Option<alloc::vec::Vec<u8>>,
+}
+
+#[cfg(feature = "alloc")]
+impl<Config> AllocQueryableQuery<Config>
+where
+    Config: ZSessionConfig,
+{
+    pub fn keyexpr(&self) -> &keyexpr {
+        keyexpr::from_str_unchecked(self.ke.as_str())
+    }
+
+    pub fn parameters(&self) -> Option<&str> {
+        self.parameters.as_deref()
+    }
+
+    pub fn payload(&self) -> Option<&[u8]> {
+        self.payload.as_deref()
+    }
+
+    pub async fn reply(
+        &self,
+        ke: &keyexpr,
+        payload: &[u8],
+    ) -> core::result::Result<(), SessionError> {
+        self.session.reply(self.rid, ke, payload).await
+    }
+
+    pub async fn err(
+        &self,
+        ke: &keyexpr,
+        payload: &[u8],
+    ) -> core::result::Result<(), SessionError> {
+        self.session.err(self.rid, ke, payload).await
+    }
+
+    pub async fn finalize(&self) -> core::result::Result<(), SessionError> {
+        self.session.finalize(self.rid).await
+    }
+}
+
+#[cfg(feature = "alloc")]
+impl<'a, Config>
+    TryFrom<(
+        &QueryableQuery<'a, 'static, Config>,
+        &'static Session<'static, Config>,
+    )> for AllocQueryableQuery<Config>
+where
+    Config: ZSessionConfig,
+{
+    type Error = CollectionError;
+
+    fn try_from(
+        value: (
+            &QueryableQuery<'a, 'static, Config>,
+            &'static Session<'static, Config>,
+        ),
+    ) -> Result<Self, Self::Error> {
+        let (value, session) = value;
+
+        Ok(Self {
+            session,
+            rid: value.rid,
+            ke: alloc::string::String::from(value.keyexpr().as_str()),
+            parameters: value.parameters.map(alloc::string::String::from),
+            payload: value.payload.map(alloc::vec::Vec::from),
         })
     }
 }

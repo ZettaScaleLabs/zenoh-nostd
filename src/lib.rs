@@ -1,6 +1,9 @@
 #![no_std]
 
 #[cfg(feature = "alloc")]
+extern crate alloc;
+
+#[cfg(feature = "alloc")]
 use zenoh_nostd::broker::ZBrokerConfig;
 
 use zenoh_nostd::session::*;
@@ -79,10 +82,10 @@ pub struct ExampleConfig {
 #[cfg(feature = "alloc")]
 impl ZBrokerConfig for ExampleConfig {
     type LinkManager = LinkManager;
-    type Buff = [u8; BUFF_SIZE as usize];
+    type Buff = alloc::vec::Vec<u8>;
 
     fn buff(&self) -> Self::Buff {
-        [0u8; BUFF_SIZE as usize]
+        alloc::vec![0; BUFF_SIZE as usize]
     }
 
     fn transports(&self) -> &TransportLinkManager<Self::LinkManager> {
@@ -92,8 +95,14 @@ impl ZBrokerConfig for ExampleConfig {
 
 impl ZSessionConfig for ExampleConfig {
     type LinkManager = LinkManager;
+
+    #[cfg(not(feature = "alloc"))]
     type Buff = [u8; BUFF_SIZE as usize];
 
+    #[cfg(feature = "alloc")]
+    type Buff = alloc::vec::Vec<u8>;
+
+    #[cfg(not(feature = "alloc"))]
     type SubCallbacks<'res> = FixedCapacitySubCallbacks<
         'res,
         8,
@@ -101,6 +110,11 @@ impl ZSessionConfig for ExampleConfig {
         zenoh::storage::RawOrBox<600>,
     >;
 
+    #[cfg(feature = "alloc")]
+    type SubCallbacks<'res> =
+        AllocSubCallbacks<'res, zenoh::storage::RawOrBox<56>, zenoh::storage::RawOrBox<600>>;
+
+    #[cfg(not(feature = "alloc"))]
     type GetCallbacks<'res> = FixedCapacityGetCallbacks<
         'res,
         8,
@@ -108,6 +122,11 @@ impl ZSessionConfig for ExampleConfig {
         zenoh::storage::RawOrBox<32>,
     >;
 
+    #[cfg(feature = "alloc")]
+    type GetCallbacks<'res> =
+        AllocGetCallbacks<'res, zenoh::storage::RawOrBox<1>, zenoh::storage::RawOrBox<32>>;
+
+    #[cfg(not(feature = "alloc"))]
     type QueryableCallbacks<'res> = FixedCapacityQueryableCallbacks<
         'res,
         Self,
@@ -116,8 +135,23 @@ impl ZSessionConfig for ExampleConfig {
         zenoh::storage::RawOrBox<952>,
     >;
 
+    #[cfg(feature = "alloc")]
+    type QueryableCallbacks<'res> = AllocQueryableCallbacks<
+        'res,
+        Self,
+        zenoh::storage::RawOrBox<32>,
+        zenoh::storage::RawOrBox<952>,
+    >;
+
     fn buff(&self) -> Self::Buff {
-        [0u8; BUFF_SIZE as usize]
+        #[cfg(not(feature = "alloc"))]
+        {
+            [0u8; BUFF_SIZE as usize]
+        }
+        #[cfg(feature = "alloc")]
+        {
+            alloc::vec![0; BUFF_SIZE as usize]
+        }
     }
 
     fn transports(&self) -> &zenoh_nostd::session::TransportLinkManager<Self::LinkManager> {

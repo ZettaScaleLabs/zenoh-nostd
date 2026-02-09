@@ -5,14 +5,18 @@ check:
     cargo clippy -p zenoh-nostd --features=log
     cargo clippy -p zenoh-nostd --features=defmt
     cargo clippy -p zenoh-nostd --features=web_console
+    cargo clippy -p zenoh-nostd --features=alloc
 
     cd platforms/zenoh-std && just check
     cd platforms/zenoh-wasm && just check
     cd platforms/zenoh-embassy && just check
 
     cargo clippy --examples --features=std,log
+    cargo clippy --examples --features=std,log,alloc
     cargo clippy --target wasm32-unknown-unknown --examples --no-default-features --features=wasm,web_console
+    cargo clippy --target wasm32-unknown-unknown --examples --no-default-features --features=wasm,web_console,alloc
     WIFI_PASSWORD=* cargo +esp --config .cargo/config.esp32s3.toml check --examples --no-default-features --features=esp32s3,defmt
+    WIFI_PASSWORD=* cargo +esp --config .cargo/config.esp32s3.toml check --examples --no-default-features --features=esp32s3,defmt,alloc
 
 fix:
     cargo clippy -p zenoh-nostd --fix --lib --allow-dirty --allow-staged

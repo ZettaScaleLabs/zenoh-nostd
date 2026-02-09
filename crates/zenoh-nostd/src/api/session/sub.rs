@@ -2,6 +2,9 @@ use dyn_utils::{DynObject, storage::RawOrBox};
 use embassy_sync::channel::{DynamicReceiver, DynamicSender};
 use zenoh_proto::{exts::QoS, fields::*, msgs::*, *};
 
+#[cfg(feature = "alloc")]
+use crate::api::callbacks::AllocCallbacks;
+
 use crate::{
     api::{
         arg::SampleRef,
@@ -19,6 +22,10 @@ pub type FixedCapacitySubCallbacks<
     Callback = RawOrBox<16>,
     Future = RawOrBox<128>,
 > = FixedCapacityCallbacks<'a, SampleRef, CAPACITY, Callback, Future>;
+
+#[cfg(feature = "alloc")]
+pub type AllocSubCallbacks<'a, Callback = RawOrBox<16>, Future = RawOrBox<128>> =
+    AllocCallbacks<'a, SampleRef, Callback, Future>;
 
 pub struct Subscriber<'a, 'res, Config, OwnedSample = (), const CHANNEL: bool = false>
 where

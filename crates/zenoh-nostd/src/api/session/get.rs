@@ -12,6 +12,8 @@ use zenoh_proto::{
     msgs::{NetworkBody, NetworkMessage, Query, Request, RequestBody},
 };
 
+#[cfg(feature = "alloc")]
+use crate::api::callbacks::AllocCallbacks;
 use crate::{
     api::{
         arg::GetResponseRef,
@@ -29,6 +31,10 @@ pub type FixedCapacityGetCallbacks<
     Callback = RawOrBox<16>,
     Future = RawOrBox<128>,
 > = FixedCapacityCallbacks<'a, GetResponseRef, CAPACITY, Callback, Future>;
+
+#[cfg(feature = "alloc")]
+pub type AllocGetCallbacks<'a, Callback = RawOrBox<16>, Future = RawOrBox<128>> =
+    AllocCallbacks<'a, GetResponseRef, Callback, Future>;
 
 pub struct GetResponses<'res, OwnedResponse = (), const CHANNEL: bool = false> {
     ke: &'static keyexpr,
