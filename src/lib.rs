@@ -210,34 +210,8 @@ pub async fn init_session_example(spawner: &embassy_executor::Spawner) -> Exampl
         };
         zenoh_nostd::info!("Network initialized with IP: {}", ip);
 
-        /// This is a naive way, internally it always gives a ref to the same buffer
-        /// so it's UB to create multiple links
-        fn buffers() -> (&'static mut [u8], &'static mut [u8]) {
-            static TX: StaticCell<[u8; BUFF_SIZE as usize]> = StaticCell::new();
-            let tx = TX.init([0; BUFF_SIZE as usize]);
-
-            static RX: StaticCell<[u8; BUFF_SIZE as usize]> = StaticCell::new();
-            let rx = RX.init([0; BUFF_SIZE as usize]);
-
-            (tx, rx)
-        }
-
-        fn metadatas() -> (&'static mut [PacketMetadata], &'static mut [PacketMetadata]) {
-            static TX: StaticCell<[PacketMetadata; 16]> = StaticCell::new();
-            let tx = TX.init([PacketMetadata::EMPTY; 16]);
-
-            static RX: StaticCell<[PacketMetadata; 16]> = StaticCell::new();
-            let rx = RX.init([PacketMetadata::EMPTY; 16]);
-
-            (tx, rx)
-        }
-
         ExampleConfig {
-            platform: Platform {
-                stack,
-                buffers,
-                metadatas,
-            },
+            transports: TransportLinkManager::from(LinkManager::<512, 3>::new(stack)),
         }
     }
 }
