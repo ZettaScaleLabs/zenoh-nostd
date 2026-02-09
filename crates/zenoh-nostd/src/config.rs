@@ -20,6 +20,7 @@ pub trait ZSessionConfig: Sized {
     fn buff(&self) -> Self::Buff;
 }
 
+#[allow(dead_code)]
 pub trait ZBrokerConfig {
     type Buff: AsMut<[u8]> + AsRef<[u8]> + Clone;
     type LinkManager: ZLinkManager;

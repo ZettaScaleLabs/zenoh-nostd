@@ -39,6 +39,7 @@ where
         }
     }
 
+    #[allow(dead_code)]
     pub fn zid(&self) -> ZenohIdProto {
         self.zid
     }

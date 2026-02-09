@@ -133,6 +133,75 @@ pub async fn init_broker_example(spawner: &embassy_executor::Spawner) -> Example
             transports: TransportLinkManager::from(LinkManager),
         }
     }
+    #[cfg(feature = "wasm")]
+    {
+        let _ = spawner;
+        unimplemented!()
+    }
+    #[cfg(feature = "esp32s3")]
+    {
+        use static_cell::StaticCell;
+
+        let config = esp_hal::Config::default().with_cpu_clock(CpuClock::max());
+        let peripherals = esp_hal::init(config);
+
+        esp_alloc::heap_allocator!(size: 64 * 1024);
+
+        let timer0 = SystemTimer::new(peripherals.SYSTIMER);
+        esp_rtos::start(timer0.alarm0);
+
+        zenoh_nostd::info!("Embassy initialized!");
+
+        let rng = Rng::new();
+
+        static RADIO_CTRL: StaticCell<Controller<'static>> = StaticCell::new();
+        let radio_ctrl = esp_radio::init().expect("Failed to init radio");
+
+        let (wifi_controller, interfaces) = esp_radio::wifi::new(
+            RADIO_CTRL.init(radio_ctrl),
+            peripherals.WIFI,
+            Default::default(),
+        )
+        .expect("Failed to initialize WIFI controller");
+
+        let wifi_interface = interfaces.sta;
+        let net_seed = rng.random() as u64 | ((rng.random() as u64) << 32);
+        let dhcp_config = DhcpConfig::default();
+        let config = embassy_net::Config::dhcpv4(dhcp_config);
+
+        static RESOURCES: StaticCell<StackResources<3>> = StaticCell::new();
+        let (stack, runner) = embassy_net::new(
+            wifi_interface,
+            config,
+            RESOURCES.init(StackResources::new()),
+            net_seed,
+        );
+
+        spawner.spawn(connection(wifi_controller)).ok();
+        spawner.spawn(net_task(runner)).ok();
+
+        zenoh_nostd::info!("Waiting for link to be up");
+        loop {
+            if stack.is_link_up() {
+                break;
+            }
+            Timer::after(Duration::from_millis(500)).await;
+        }
+
+        zenoh_nostd::info!("Waiting to get IP address...");
+        let ip = loop {
+            if let Some(config) = stack.config_v4() {
+                zenoh_nostd::info!("Got IP: {}", config.address);
+                break config.address;
+            }
+            Timer::after(Duration::from_millis(500)).await;
+        };
+        zenoh_nostd::info!("Network initialized with IP: {}", ip);
+
+        ExampleConfig {
+            transports: TransportLinkManager::from(LinkManager::<512, 3>::new(stack)),
+        }
+    }
 }
 
 pub async fn init_session_example(spawner: &embassy_executor::Spawner) -> ExampleConfig {

@@ -31,12 +31,7 @@
 - **Safe Rust**: Entirely memory-safe.
 - **Testable**: Supports both embedded and native testing environments.
 - **Embassy Integration**: Seamlessly integrates with the Embassy async runtime for embedded systems.
-
----
-
-## 🚀 Use Cases
-
-Soon.
+- **Broker**: A `#![no_std]` broker to broke multiple zenoh `clients` with an optional gateway to a `zenoh` network.
 
 ---
 
@@ -89,7 +84,6 @@ async fn entry(spawner: embassy_executor::Spawner) -> zenoh::ZResult<()> {
 ## ⚠️ Limitations
 
 * No serial support yet. ([#11](https://github.com/ZettaScaleLabs/zenoh-nostd/issues/11))
-* No `sansio` support yet. ([#33](https://github.com/ZettaScaleLabs/zenoh-nostd/issues/33))
 * `Interest` protocol not implemented yet. ([#46](https://github.com/ZettaScaleLabs/zenoh-nostd/issues/46))
 
 ---
@@ -182,7 +176,8 @@ zenoh-nostd/            # Git repository root
 ├── crates/
 │   ├── zenoh-derive/   # Derive macros
 │   ├── zenoh-nostd/    # Zenoh with IO, embassy
-│   └── zenoh-proto/    # Zenoh Protocol
+│   ├── zenoh-proto/    # Zenoh Protocol
+│   └── zenoh-sansio/   # Zenoh Sans-IO objects (Transport only right now)
 │
 ├── examples/
 │   ├── web/
@@ -217,20 +212,4 @@ zenoh-nostd/            # Git repository root
 
 The base project has been implemented in ([#6](https://github.com/ZettaScaleLabs/zenoh-nostd/pull/6))
 The structure and API have been reworked in ([#34](https://github.com/ZettaScaleLabs/zenoh-nostd/pull/24))
-The API have been reworked ([#52](https://github.com/ZettaScaleLabs/zenoh-nostd/pull/52))
-
-> 📖 **Note**: Docs require `rustdoc` to be run with `--no-default-features`.
-
-Build locally with:
-
-```bash
-cargo doc --no-deps --no-default-features --open
-```
-
----
-
-## 📄 License
-
-Licensed under:
-
-* ZettaScale Source-Available [LICENSE](./LICENSE)
+The API has been reworked ([#52](https://github.com/ZettaScaleLabs/zenoh-nostd/pull/52))
