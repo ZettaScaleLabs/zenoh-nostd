@@ -47,7 +47,7 @@ async fn entry(spawner: embassy_executor::Spawner) -> zenoh::ZResult<()> {
         .finish()
         .await?;
 
-    while let Some(query) = queryable.recv().await {
+    while let Some(mut query) = queryable.recv().await {
         match query.payload() {
             None => {
                 zenoh::info!(

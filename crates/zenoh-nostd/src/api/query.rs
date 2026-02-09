@@ -50,7 +50,7 @@ where
     }
 
     pub async fn reply(
-        &mut self,
+        &self,
         ke: &keyexpr,
         payload: &[u8],
     ) -> core::result::Result<(), SessionError> {
@@ -58,7 +58,7 @@ where
     }
 
     pub async fn err(
-        &mut self,
+        &self,
         ke: &keyexpr,
         payload: &[u8],
     ) -> core::result::Result<(), SessionError> {
@@ -88,6 +88,7 @@ pub struct FixedCapacityQueryableQuery<
     ke: heapless::String<MAX_KEYEXPR>,
     parameters: Option<heapless::String<MAX_PARAMETERS>>,
     payload: Option<heapless::Vec<u8, MAX_PAYLOAD>>,
+    finalized: bool,
 }
 
 impl<Config, const MAX_KEYEXPR: usize, const MAX_PARAMETERS: usize, const MAX_PAYLOAD: usize>
@@ -123,8 +124,13 @@ where
         self.session.err(self.rid, ke, payload).await
     }
 
-    pub async fn finalize(&self) -> core::result::Result<(), SessionError> {
-        self.session.finalize(self.rid).await
+    pub async fn finalize(&mut self) -> core::result::Result<(), SessionError> {
+        if !self.finalized {
+            self.session.finalize(self.rid).await?;
+            self.finalized = true
+        }
+
+        Ok(())
     }
 }
 
@@ -161,6 +167,7 @@ where
                 .map(heapless::Vec::from_slice)
                 .transpose()
                 .map_err(|_| CollectionError::CollectionTooSmall)?,
+            finalized: value.finalized,
         })
     }
 }
@@ -175,6 +182,7 @@ where
     ke: alloc::string::String,
     parameters: Option<alloc::string::String>,
     payload: Option<alloc::vec::Vec<u8>>,
+    finalized: bool,
 }
 
 #[cfg(feature = "alloc")]
@@ -210,8 +218,13 @@ where
         self.session.err(self.rid, ke, payload).await
     }
 
-    pub async fn finalize(&self) -> core::result::Result<(), SessionError> {
-        self.session.finalize(self.rid).await
+    pub async fn finalize(&mut self) -> core::result::Result<(), SessionError> {
+        if !self.finalized {
+            self.session.finalize(self.rid).await?;
+            self.finalized = true
+        }
+
+        Ok(())
     }
 }
 
@@ -240,6 +253,7 @@ where
             ke: alloc::string::String::from(value.keyexpr().as_str()),
             parameters: value.parameters.map(alloc::string::String::from),
             payload: value.payload.map(alloc::vec::Vec::from),
+            finalized: value.finalized,
         })
     }
 }
