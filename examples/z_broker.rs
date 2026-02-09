@@ -30,7 +30,7 @@ async fn entry(spawner: embassy_executor::Spawner) -> zenoh::ZResult<()> {
     // the `broker.listen` method will listen at this endpoint for a zenoh network to connect, one at a time
 
     Ok(broker
-        .listen(Endpoint::try_from("tcp/127.0.0.1:7447")?)
+        .gateway_listen(Endpoint::try_from("tcp/127.0.0.1:7447")?)
         .await?)
 }
 

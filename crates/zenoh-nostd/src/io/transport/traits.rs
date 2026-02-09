@@ -25,6 +25,7 @@ pub trait ZTransportLinkTx {
         }
     }
 
+    #[allow(dead_code)]
     fn send_optimized_ref<'a>(
         &mut self,
         msgs: impl Iterator<Item = (NetworkMessageRef<'a>, &'a [u8])>,

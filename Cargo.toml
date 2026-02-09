@@ -113,7 +113,6 @@ wasm = [
     "embassy-executor/executor-thread",
     "embassy-time/wasm",
 ]
-platforms = ["dep:zenoh-std", "dep:zenoh-embassy", "dep:zenoh-wasm"]
 
 [dependencies]
 zenoh-nostd = { workspace = true }

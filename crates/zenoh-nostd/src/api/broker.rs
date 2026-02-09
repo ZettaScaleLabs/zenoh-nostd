@@ -9,11 +9,28 @@ use zenoh_proto::BrokerError;
 use zenoh_proto::msgs::NetworkMessage;
 use zenoh_proto::{Endpoint, fields::ZenohIdProto};
 
-use crate::io::transport::ZTransportLinkTx;
+use crate::io::transport::{TransportLink, ZTransportLinkTx};
 use crate::{config::ZBrokerConfig, io::driver::Driver, platform::ZLinkManager};
 
 type Link<Config> = <<Config as ZBrokerConfig>::LinkManager as ZLinkManager>::Link<'static>;
-type StaticDriver<Config> = Driver<'static, Link<Config>, <Config as ZBrokerConfig>::Buff>;
+
+struct StaticDriver<Config>
+where
+    Config: ZBrokerConfig + 'static,
+{
+    driver: core::mem::ManuallyDrop<Driver<'static, Link<Config>, Config::Buff>>,
+    ptr: *mut TransportLink<Link<Config>, Config::Buff>,
+}
+
+impl<Config> Drop for StaticDriver<Config>
+where
+    Config: ZBrokerConfig,
+{
+    fn drop(&mut self) {
+        unsafe { core::mem::ManuallyDrop::drop(&mut self.driver) };
+        unsafe { drop(Box::from_raw(self.ptr)) };
+    }
+}
 
 pub struct BrokerState<Config>
 where
@@ -59,6 +76,7 @@ where
         if north {
             for south in state.south.values() {
                 south
+                    .driver
                     .tx()
                     .await
                     .send_optimized_ref(core::iter::once((msg.as_ref(), bytes)))
@@ -67,6 +85,7 @@ where
         } else {
             if let Some((_, north)) = &state.north {
                 north
+                    .driver
                     .tx()
                     .await
                     .send_optimized_ref(core::iter::once((msg.as_ref(), bytes)))
@@ -75,6 +94,7 @@ where
 
             for (_, south) in state.south.iter().filter(|(sid, _)| **sid != id) {
                 south
+                    .driver
                     .tx()
                     .await
                     .send_optimized_ref(core::iter::once((msg.as_ref(), bytes)))
@@ -103,17 +123,26 @@ where
         Self::update(false, id, state, msg, bytes).await
     }
 
-    pub async fn connect(&self, endpoint: Endpoint<'_>) -> core::result::Result<(), BrokerError> {
-        let driver = Arc::new(Driver::new(Box::leak(Box::new(
+    pub async fn gateway_connect(
+        &self,
+        endpoint: Endpoint<'_>,
+    ) -> core::result::Result<(), BrokerError> {
+        let transport = Box::leak(Box::new(
             self.config
                 .transports()
                 .connect(endpoint.clone(), self.config.buff())
                 .await?,
-        ))));
+        ));
 
-        self.state().await.north = Some((driver.zid(), driver.clone()));
+        let driver = Arc::new(StaticDriver {
+            ptr: transport,
+            driver: core::mem::ManuallyDrop::new(Driver::new(transport)),
+        });
+
+        self.state().await.north = Some((driver.driver.zid(), driver.clone()));
 
         let res = driver
+            .driver
             .run(&self.state, Self::update_north)
             .await
             .map_err(|e| e.flatten_map::<BrokerError>());
@@ -123,18 +152,27 @@ where
         res
     }
 
-    pub async fn listen(&self, endpoint: Endpoint<'_>) -> core::result::Result<(), BrokerError> {
+    pub async fn gateway_listen(
+        &self,
+        endpoint: Endpoint<'_>,
+    ) -> core::result::Result<(), BrokerError> {
         loop {
-            let driver = Arc::new(Driver::new(Box::leak(Box::new(
+            let transport = Box::leak(Box::new(
                 self.config
                     .transports()
                     .listen(endpoint.clone(), self.config.buff())
                     .await?,
-            ))));
+            ));
 
-            self.state().await.north = Some((driver.zid(), driver.clone()));
+            let driver = Arc::new(StaticDriver {
+                ptr: transport,
+                driver: core::mem::ManuallyDrop::new(Driver::new(transport)),
+            });
+
+            self.state().await.north = Some((driver.driver.zid(), driver.clone()));
 
             if let Err(e) = driver
+                .driver
                 .run(&self.state, Self::update_north)
                 .await
                 .map_err(|e| e.flatten_map::<BrokerError>())
@@ -148,19 +186,25 @@ where
 
     pub async fn open(&self, endpoint: Endpoint<'_>) -> core::result::Result<(), BrokerError> {
         loop {
-            let driver = Arc::new(Driver::new(Box::leak(Box::new(
+            let transport = Box::leak(Box::new(
                 self.config
                     .transports()
                     .listen(endpoint.clone(), self.config.buff())
                     .await?,
-            ))));
+            ));
+
+            let driver = Arc::new(StaticDriver {
+                ptr: transport,
+                driver: core::mem::ManuallyDrop::new(Driver::new(transport)),
+            });
 
             self.state()
                 .await
                 .south
-                .insert(driver.zid(), driver.clone());
+                .insert(driver.driver.zid(), driver.clone());
 
             if let Err(e) = driver
+                .driver
                 .run(&self.state, Self::update_south)
                 .await
                 .map_err(|e| e.flatten_map::<BrokerError>())
@@ -168,7 +212,7 @@ where
                 zenoh_proto::error!("Error on south: {}", e);
             }
 
-            self.state().await.south.remove(&driver.zid());
+            self.state().await.south.remove(&driver.driver.zid());
         }
     }
 }
