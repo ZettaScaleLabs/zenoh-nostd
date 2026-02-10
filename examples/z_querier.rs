@@ -84,7 +84,7 @@ mod esp32s3_app {
 
     #[panic_handler]
     fn panic(info: &core::panic::PanicInfo) -> ! {
-        zenoh_nostd::error!("Panic: {}", info);
+        zenoh_nostd::session::zenoh::error!("Panic: {}", info);
 
         loop {}
     }

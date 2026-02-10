@@ -286,10 +286,9 @@ impl<'a, Arg: ZArg + 'a, Callback: Storage, Future: Storage> ZCallbacks<'a, Arg>
         id: u32,
         value: usize,
     ) -> core::result::Result<(), zenoh_proto::CollectionError> {
-        self.counters
-            .insert(id, value)
-            .map(|_| ())
-            .ok_or(zenoh_proto::CollectionError::CollectionIsFull)
+        self.counters.insert(id, value);
+
+        Ok(())
     }
 
     fn decrease(&mut self, id: u32) -> bool {

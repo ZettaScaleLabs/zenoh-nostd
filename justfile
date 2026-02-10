@@ -70,13 +70,13 @@ broker:
 
 # Examples
 
-esp32s3 example:
-    cargo +esp --config .cargo/config.esp32s3.toml run --release --no-default-features --features=esp32s3,defmt --example {{ example }}
+esp32s3 example *args:
+    cargo +esp --config .cargo/config.esp32s3.toml run --release --no-default-features --features="esp32s3,defmt" --features={{ args }} --example {{ example }}
 
 std example *args:
     RUST_LOG=info cargo run --no-default-features --features="std,log" --features={{ args }} --example {{ example }}
 
 wasm example *args:
-    RUSTFLAGS='--cfg getrandom_backend="wasm_js"' cargo build --no-default-features --features="wasm,web_console" --target wasm32-unknown-unknown -- {{ args }} --example {{ example }}
+    RUSTFLAGS='--cfg getrandom_backend="wasm_js"' cargo build --no-default-features --features="wasm,web_console" --features={{ args }} --target wasm32-unknown-unknown --example {{ example }}
     wasm-bindgen --target web --out-dir ./examples/web/ ./target/wasm32-unknown-unknown/debug/examples/{{ example }}.wasm --out-name z_example
     basic-http-server ./examples/web

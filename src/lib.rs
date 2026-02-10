@@ -12,16 +12,16 @@ use zenoh_nostd::session::*;
 pub use zenoh_std::StdLinkManager as LinkManager;
 
 #[cfg(feature = "esp32s3")]
-pub use zenoh_embassy::EmbassyLinkManager as LinkManager;
+pub type LinkManager = zenoh_embassy::EmbassyLinkManager<'static, 512, 3>;
 
 #[cfg(feature = "wasm")]
 pub use zenoh_wasm::WasmLinkManager as LinkManager;
 
 #[cfg(feature = "esp32s3")]
 mod esp32s3_app {
-    pub use embassy_net::{DhcpConfig, Runner, StackResources, udp::PacketMetadata};
+    pub use embassy_net::{DhcpConfig, Runner, StackResources};
     pub use embassy_time::{Duration, Timer};
-    pub use esp_hal::{clock::CpuClock, rng::Rng, timer::systimer::SystemTimer};
+    pub use esp_hal::{clock::CpuClock, rng::Rng, timer::timg::TimerGroup};
     pub use esp_println as _;
     pub use esp_radio::{
         Controller,
@@ -154,7 +154,7 @@ impl ZSessionConfig for ExampleConfig {
         }
     }
 
-    fn transports(&self) -> &zenoh_nostd::session::TransportLinkManager<Self::LinkManager> {
+    fn transports(&self) -> &TransportLinkManager<Self::LinkManager> {
         &self.transports
     }
 }
@@ -179,12 +179,12 @@ pub async fn init_broker_example(spawner: &embassy_executor::Spawner) -> Example
         let config = esp_hal::Config::default().with_cpu_clock(CpuClock::max());
         let peripherals = esp_hal::init(config);
 
-        esp_alloc::heap_allocator!(size: 64 * 1024);
+        esp_alloc::heap_allocator!(#[esp_hal::ram(reclaimed)] size: 73744);
 
-        let timer0 = SystemTimer::new(peripherals.SYSTIMER);
-        esp_rtos::start(timer0.alarm0);
+        let timg0 = TimerGroup::new(peripherals.TIMG0);
+        esp_rtos::start(timg0.timer0);
 
-        zenoh_nostd::info!("Embassy initialized!");
+        zenoh::info!("Embassy initialized!");
 
         let rng = Rng::new();
 
@@ -214,7 +214,7 @@ pub async fn init_broker_example(spawner: &embassy_executor::Spawner) -> Example
         spawner.spawn(connection(wifi_controller)).ok();
         spawner.spawn(net_task(runner)).ok();
 
-        zenoh_nostd::info!("Waiting for link to be up");
+        zenoh::info!("Waiting for link to be up");
         loop {
             if stack.is_link_up() {
                 break;
@@ -222,18 +222,18 @@ pub async fn init_broker_example(spawner: &embassy_executor::Spawner) -> Example
             Timer::after(Duration::from_millis(500)).await;
         }
 
-        zenoh_nostd::info!("Waiting to get IP address...");
+        zenoh::info!("Waiting to get IP address...");
         let ip = loop {
             if let Some(config) = stack.config_v4() {
-                zenoh_nostd::info!("Got IP: {}", config.address);
+                zenoh::info!("Got IP: {}", config.address);
                 break config.address;
             }
             Timer::after(Duration::from_millis(500)).await;
         };
-        zenoh_nostd::info!("Network initialized with IP: {}", ip);
+        zenoh::info!("Network initialized with IP: {}", ip);
 
         ExampleConfig {
-            transports: TransportLinkManager::from(LinkManager::<512, 3>::new(stack)),
+            transports: TransportLinkManager::from(LinkManager::new(stack)),
         }
     }
 }
@@ -260,17 +260,19 @@ pub async fn init_session_example(spawner: &embassy_executor::Spawner) -> Exampl
         let config = esp_hal::Config::default().with_cpu_clock(CpuClock::max());
         let peripherals = esp_hal::init(config);
 
-        esp_alloc::heap_allocator!(size: 64 * 1024);
+        esp_alloc::heap_allocator!(#[esp_hal::ram(reclaimed)] size: 73744);
 
-        let timer0 = SystemTimer::new(peripherals.SYSTIMER);
-        esp_rtos::start(timer0.alarm0);
+        let timg0 = TimerGroup::new(peripherals.TIMG0);
+        esp_rtos::start(timg0.timer0);
 
-        zenoh_nostd::info!("Embassy initialized!");
+        zenoh::info!("Embassy initialized!");
 
         let rng = Rng::new();
 
         static RADIO_CTRL: StaticCell<Controller<'static>> = StaticCell::new();
         let radio_ctrl = esp_radio::init().expect("Failed to init radio");
+
+        zenoh::info!("Radio initialized");
 
         let (wifi_controller, interfaces) = esp_radio::wifi::new(
             RADIO_CTRL.init(radio_ctrl),
@@ -278,6 +280,8 @@ pub async fn init_session_example(spawner: &embassy_executor::Spawner) -> Exampl
             Default::default(),
         )
         .expect("Failed to initialize WIFI controller");
+
+        zenoh::info!("Wifi controller created");
 
         let wifi_interface = interfaces.sta;
         let net_seed = rng.random() as u64 | ((rng.random() as u64) << 32);
@@ -292,10 +296,12 @@ pub async fn init_session_example(spawner: &embassy_executor::Spawner) -> Exampl
             net_seed,
         );
 
+        zenoh::info!("Network stack created");
+
         spawner.spawn(connection(wifi_controller)).ok();
         spawner.spawn(net_task(runner)).ok();
 
-        zenoh_nostd::info!("Waiting for link to be up");
+        zenoh::info!("Waiting for link to be up");
         loop {
             if stack.is_link_up() {
                 break;
@@ -303,18 +309,18 @@ pub async fn init_session_example(spawner: &embassy_executor::Spawner) -> Exampl
             Timer::after(Duration::from_millis(500)).await;
         }
 
-        zenoh_nostd::info!("Waiting to get IP address...");
+        zenoh::info!("Waiting to get IP address...");
         let ip = loop {
             if let Some(config) = stack.config_v4() {
-                zenoh_nostd::info!("Got IP: {}", config.address);
+                zenoh::info!("Got IP: {}", config.address);
                 break config.address;
             }
             Timer::after(Duration::from_millis(500)).await;
         };
-        zenoh_nostd::info!("Network initialized with IP: {}", ip);
+        zenoh::info!("Network initialized with IP: {}", ip);
 
         ExampleConfig {
-            transports: TransportLinkManager::from(LinkManager::<512, 3>::new(stack)),
+            transports: TransportLinkManager::from(LinkManager::new(stack)),
         }
     }
 }
@@ -322,8 +328,8 @@ pub async fn init_session_example(spawner: &embassy_executor::Spawner) -> Exampl
 #[cfg(feature = "esp32s3")]
 #[embassy_executor::task]
 async fn connection(mut controller: WifiController<'static>) {
-    zenoh_nostd::info!("start connection task");
-    zenoh_nostd::info!("Device capabilities: {:?}", controller.capabilities());
+    zenoh::info!("start connection task");
+    zenoh::info!("Device capabilities: {:?}", controller.capabilities());
     loop {
         match esp_radio::wifi::sta_state() {
             WifiStaState::Connected => {
@@ -339,16 +345,16 @@ async fn connection(mut controller: WifiController<'static>) {
                     .with_password(PASSWORD.into()),
             );
             controller.set_config(&client_config).unwrap();
-            zenoh_nostd::info!("Starting wifi");
+            zenoh::info!("Starting wifi");
             controller.start_async().await.unwrap();
-            zenoh_nostd::info!("Wifi started!");
+            zenoh::info!("Wifi started!");
         }
-        zenoh_nostd::info!("About to connect...");
+        zenoh::info!("About to connect...");
 
         match controller.connect_async().await {
-            Ok(_) => zenoh_nostd::info!("Wifi connected!"),
+            Ok(_) => zenoh::info!("Wifi connected!"),
             Err(e) => {
-                zenoh_nostd::info!("Failed to connect to wifi: {:?}", e);
+                zenoh::info!("Failed to connect to wifi: {:?}", e);
                 Timer::after(Duration::from_millis(5000)).await
             }
         }

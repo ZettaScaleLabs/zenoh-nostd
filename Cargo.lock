@@ -1080,6 +1080,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "02a56964ab5479ac20c9cf76fa3b0d3f2233b20b5d8554e81ef5d65f63c20567"
 dependencies = [
  "cfg-if",
+ "defmt 1.0.1",
  "document-features",
  "embedded-storage",
  "esp-config",
@@ -1283,11 +1284,13 @@ checksum = "162ec711c8d06e79c67b75d01595539e86b0aac209643af98ca87a12250428b3"
 dependencies = [
  "allocator-api2",
  "cfg-if",
+ "defmt 1.0.1",
  "document-features",
  "embassy-executor",
  "embassy-sync 0.7.2",
  "embassy-time-driver",
  "embassy-time-queue-utils",
+ "esp-alloc",
  "esp-config",
  "esp-hal",
  "esp-hal-procmacros",
@@ -3563,6 +3566,7 @@ dependencies = [
 name = "zenoh-examples"
 version = "0.1.0"
 dependencies = [
+ "defmt 1.0.1",
  "embassy-executor",
  "embassy-futures",
  "embassy-net",
