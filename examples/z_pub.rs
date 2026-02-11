@@ -3,10 +3,10 @@
 #![cfg_attr(feature = "wasm", no_main)]
 
 use zenoh_examples::*;
-use zenoh_nostd as zenoh;
+use zenoh_nostd::session::*;
 
 #[embassy_executor::task]
-async fn session_task(session: &'static zenoh::Session<'static, ExampleConfig>) {
+async fn session_task(session: &'static Session<'static, ExampleConfig>) {
     if let Err(e) = session.run().await {
         zenoh::error!("Error in session task: {}", e);
     }
@@ -18,15 +18,14 @@ async fn entry(spawner: embassy_executor::Spawner) -> zenoh::ZResult<()> {
 
     zenoh::info!("zenoh-nostd z_pub example");
 
-    let config = init_example(&spawner).await;
-    let session = zenoh::open!(config => ExampleConfig, zenoh::EndPoint::try_from(CONNECT)?);
+    let config = init_session_example(&spawner).await;
+    let session = if LISTEN {
+        zenoh::listen!(ExampleConfig: config, Endpoint::try_from(ENDPOINT)?)
+    } else {
+        zenoh::connect!(ExampleConfig: config, Endpoint::try_from(ENDPOINT)?)
+    };
 
-    spawner.spawn(session_task(session)).map_err(|e| {
-        zenoh::error!("Error spawning task: {}", e);
-        zenoh::SessionError::CouldNotSpawnEmbassyTask
-    })?;
-
-    zenoh::info!("Declaring publisher");
+    spawner.spawn(session_task(session)).unwrap();
 
     let publisher = session
         .declare_publisher(zenoh::keyexpr::new("demo/example")?)
@@ -67,7 +66,7 @@ mod esp32s3_app {
 
     #[panic_handler]
     fn panic(info: &core::panic::PanicInfo) -> ! {
-        zenoh_nostd::error!("Panic: {}", info);
+        zenoh_nostd::session::zenoh::error!("Panic: {}", info);
 
         loop {}
     }

@@ -3,7 +3,7 @@
 #![cfg_attr(feature = "wasm", no_main)]
 
 use zenoh_examples::*;
-use zenoh_nostd as zenoh;
+use zenoh_nostd::session::*;
 
 async fn entry(spawner: embassy_executor::Spawner) -> zenoh::ZResult<()> {
     #[cfg(feature = "log")]
@@ -11,9 +11,15 @@ async fn entry(spawner: embassy_executor::Spawner) -> zenoh::ZResult<()> {
 
     zenoh::info!("zenoh-nostd z_pub_thr example");
 
-    let config = init_example(&spawner).await;
-    let mut resources = zenoh::Resources::new();
-    let session = zenoh::open(&mut resources, config, zenoh::EndPoint::try_from(CONNECT)?).await?;
+    let config = init_session_example(&spawner).await;
+    let mut resources = Resources::default();
+    let session = if LISTEN {
+        zenoh::listen_ignore_invalid_sn(&mut resources, &config, Endpoint::try_from(ENDPOINT)?)
+            .await?
+    } else {
+        zenoh::connect_ignore_invalid_sn(&mut resources, &config, Endpoint::try_from(ENDPOINT)?)
+            .await?
+    };
 
     let payload: [u8; PAYLOAD] = core::array::from_fn(|i| (i % 10) as u8);
     let publisher = session
@@ -40,7 +46,7 @@ async fn entry(spawner: embassy_executor::Spawner) -> zenoh::ZResult<()> {
             }
         }
 
-        Ok::<(), zenoh::Error>(())
+        Ok::<(), Error>(())
     })
     .await;
 
@@ -66,7 +72,7 @@ mod esp32s3_app {
 
     #[panic_handler]
     fn panic(info: &core::panic::PanicInfo) -> ! {
-        zenoh_nostd::error!("Panic: {}", info);
+        zenoh_nostd::session::zenoh::error!("Panic: {}", info);
 
         loop {}
     }

@@ -14,7 +14,6 @@ version.workspace = true
 default = []
 
 std = []
-alloc = []
 
 log = ["std", "dep:log"]
 defmt = ["dep:defmt"]
@@ -23,6 +22,8 @@ web_console = ["std", "dep:web-sys"]
 [dependencies]
 zenoh-derive.workspace = true
 uhlc.workspace = true
+sha3.workspace = true
+
 log = { workspace = true, optional = true }
 defmt = { workspace = true, optional = true }
 web-sys = { workspace = true, optional = true }
@@ -31,13 +32,3 @@ web-sys = { workspace = true, optional = true }
 rand.workspace = true
 paste.workspace = true
 criterion.workspace = true
-
-[[example]]
-name = "z_flood"
-path = "examples/z_flood.rs"
-required-features = ["std"]
-
-[[example]]
-name = "z_drain"
-path = "examples/z_drain.rs"
-required-features = ["std"]

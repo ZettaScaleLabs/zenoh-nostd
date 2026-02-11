@@ -1,12 +1,12 @@
 use zenoh_proto::{exts::*, fields::*, msgs::*, *};
 
-use crate::api::{ZConfig, driver::Driver};
+use crate::{api::session::Session, config::ZSessionConfig, io::transport::ZTransportLinkTx};
 
 pub struct PutBuilder<'a, 'res, Config>
 where
-    Config: ZConfig,
+    Config: ZSessionConfig,
 {
-    pub(crate) driver: &'a Driver<'res, Config>,
+    pub(crate) session: &'a Session<'res, Config>,
 
     pub(crate) ke: &'a keyexpr,
     pub(crate) payload: &'a [u8],
@@ -18,15 +18,15 @@ where
 
 impl<'a, 'res, Config> PutBuilder<'a, 'res, Config>
 where
-    Config: ZConfig,
+    Config: ZSessionConfig,
 {
     pub(crate) fn new(
-        driver: &'a Driver<'res, Config>,
+        session: &'a Session<'res, Config>,
         ke: &'a keyexpr,
         payload: &'a [u8],
     ) -> Self {
         Self {
-            driver,
+            session,
             ke,
             payload,
             encoding: Encoding::default(),
@@ -55,7 +55,7 @@ where
         self
     }
 
-    pub async fn finish(self) -> crate::ZResult<()> {
+    pub async fn finish(self) -> core::result::Result<(), SessionError> {
         let msg = Push {
             wire_expr: WireExpr::from(self.ke),
             payload: PushBody::Put(Put {
@@ -69,15 +69,25 @@ where
             ..Default::default()
         };
 
-        self.driver.send(msg).await
+        Ok(self
+            .session
+            .driver
+            .tx()
+            .await
+            .send(core::iter::once(NetworkMessage {
+                reliability: Reliability::default(),
+                qos: QoS::default(),
+                body: NetworkBody::Push(msg),
+            }))
+            .await?)
     }
 }
 
-impl<'res, Config> super::Session<'res, Config>
+impl<'res, Config> Session<'res, Config>
 where
-    Config: ZConfig,
+    Config: ZSessionConfig,
 {
     pub fn put<'a>(&'a self, ke: &'a keyexpr, payload: &'a [u8]) -> PutBuilder<'a, 'res, Config> {
-        PutBuilder::new(&self.driver, ke, payload)
+        PutBuilder::new(self, ke, payload)
     }
 }

@@ -1,126 +1,152 @@
+use core::cell::RefCell;
+
 use embassy_net::tcp::{TcpReader, TcpSocket, TcpWriter};
 use embedded_io_async::{Read, Write};
-use zenoh_nostd::platform::tcp::{ZTcpRx, ZTcpStream, ZTcpTx};
+use zenoh_nostd::platform::*;
 
-pub struct EmbassyTcpStream {
-    socket: TcpSocket<'static>,
+use crate::BufferPoolDrop;
+
+pub struct EmbassyTcpLink<'net> {
+    socket: TcpSocket<'net>,
     mtu: u16,
+
+    idx: usize,
+    pool: &'net RefCell<dyn BufferPoolDrop>,
 }
 
-impl EmbassyTcpStream {
-    pub fn new(socket: TcpSocket<'static>, mtu: u16) -> Self {
-        Self { socket, mtu }
+impl<'net> EmbassyTcpLink<'net> {
+    pub(crate) fn new(
+        socket: TcpSocket<'net>,
+        mtu: u16,
+        idx: usize,
+        pool: &'net RefCell<dyn BufferPoolDrop>,
+    ) -> Self {
+        Self {
+            socket,
+            mtu,
+            idx,
+            pool,
+        }
     }
 }
 
-pub struct EmbassyTcpTx<'a> {
-    socket: TcpWriter<'a>,
+impl Drop for EmbassyTcpLink<'_> {
+    fn drop(&mut self) {
+        self.pool.borrow_mut().release(self.idx);
+    }
 }
 
-pub struct EmbassyTcpRx<'a> {
-    socket: TcpReader<'a>,
+pub struct EmbassyTcpLinkTx<'net> {
+    socket: TcpWriter<'net>,
+    mtu: u16,
 }
 
-impl ZTcpStream for EmbassyTcpStream {
-    type Tx<'a> = EmbassyTcpTx<'a>;
-    type Rx<'a> = EmbassyTcpRx<'a>;
+pub struct EmbassyTcpLinkRx<'net> {
+    socket: TcpReader<'net>,
+    mtu: u16,
+}
 
+impl<'net> ZLinkInfo for EmbassyTcpLink<'net> {
     fn mtu(&self) -> u16 {
         self.mtu
     }
 
+    fn is_streamed(&self) -> bool {
+        true
+    }
+}
+
+impl<'net> ZLinkInfo for EmbassyTcpLinkTx<'net> {
+    fn mtu(&self) -> u16 {
+        self.mtu
+    }
+
+    fn is_streamed(&self) -> bool {
+        true
+    }
+}
+
+impl<'net> ZLinkInfo for EmbassyTcpLinkRx<'net> {
+    fn mtu(&self) -> u16 {
+        self.mtu
+    }
+
+    fn is_streamed(&self) -> bool {
+        true
+    }
+}
+
+impl<'net> ZLinkTx for EmbassyTcpLink<'net> {
+    async fn write_all(&mut self, buffer: &[u8]) -> core::result::Result<(), LinkError> {
+        self.socket
+            .write_all(buffer)
+            .await
+            .map_err(|_| LinkError::LinkTxFailed)
+    }
+}
+
+impl<'net> ZLinkTx for EmbassyTcpLinkTx<'net> {
+    async fn write_all(&mut self, buffer: &[u8]) -> core::result::Result<(), LinkError> {
+        self.socket
+            .write_all(buffer)
+            .await
+            .map_err(|_| LinkError::LinkTxFailed)
+    }
+}
+
+impl<'net> ZLinkRx for EmbassyTcpLink<'net> {
+    async fn read(&mut self, buffer: &mut [u8]) -> core::result::Result<usize, LinkError> {
+        self.socket
+            .read(buffer)
+            .await
+            .map_err(|_| LinkError::LinkRxFailed)
+    }
+
+    async fn read_exact(&mut self, buffer: &mut [u8]) -> core::result::Result<(), LinkError> {
+        self.socket
+            .read_exact(buffer)
+            .await
+            .map_err(|_| LinkError::LinkRxFailed)
+    }
+}
+
+impl<'net> ZLinkRx for EmbassyTcpLinkRx<'net> {
+    async fn read(&mut self, buffer: &mut [u8]) -> core::result::Result<usize, LinkError> {
+        self.socket
+            .read(buffer)
+            .await
+            .map_err(|_| LinkError::LinkRxFailed)
+    }
+
+    async fn read_exact(&mut self, buffer: &mut [u8]) -> core::result::Result<(), LinkError> {
+        self.socket
+            .read_exact(buffer)
+            .await
+            .map_err(|_| LinkError::LinkRxFailed)
+    }
+}
+
+impl<'net> ZLink for EmbassyTcpLink<'net> {
+    type Tx<'b>
+        = EmbassyTcpLinkTx<'b>
+    where
+        Self: 'b;
+
+    type Rx<'b>
+        = EmbassyTcpLinkRx<'b>
+    where
+        Self: 'b;
+
     fn split(&mut self) -> (Self::Tx<'_>, Self::Rx<'_>) {
         let (rx, tx) = self.socket.split();
-        let tx = EmbassyTcpTx { socket: tx };
-        let rx = EmbassyTcpRx { socket: rx };
+        let tx = EmbassyTcpLinkTx {
+            socket: tx,
+            mtu: self.mtu,
+        };
+        let rx = EmbassyTcpLinkRx {
+            socket: rx,
+            mtu: self.mtu,
+        };
         (tx, rx)
-    }
-}
-
-impl ZTcpTx for EmbassyTcpStream {
-    async fn write(
-        &mut self,
-        buffer: &[u8],
-    ) -> core::result::Result<usize, zenoh_nostd::LinkError> {
-        self.socket.write(buffer).await.map_err(|e| {
-            zenoh_nostd::error!("EmbassyTcpStream write error: {:?}", e);
-            zenoh_nostd::LinkError::LinkTxFailed
-        })
-    }
-
-    async fn write_all(
-        &mut self,
-        buffer: &[u8],
-    ) -> core::result::Result<(), zenoh_nostd::LinkError> {
-        self.socket.write_all(buffer).await.map_err(|e| {
-            zenoh_nostd::error!("EmbassyTcpStream write_all error: {:?}", e);
-            zenoh_nostd::LinkError::LinkTxFailed
-        })
-    }
-}
-
-impl ZTcpTx for EmbassyTcpTx<'_> {
-    async fn write(
-        &mut self,
-        buffer: &[u8],
-    ) -> core::result::Result<usize, zenoh_nostd::LinkError> {
-        self.socket.write(buffer).await.map_err(|e| {
-            zenoh_nostd::error!("EmbassyTcpTx write error: {:?}", e);
-            zenoh_nostd::LinkError::LinkTxFailed
-        })
-    }
-
-    async fn write_all(
-        &mut self,
-        buffer: &[u8],
-    ) -> core::result::Result<(), zenoh_nostd::LinkError> {
-        self.socket.write_all(buffer).await.map_err(|e| {
-            zenoh_nostd::error!("EmbassyTcpTx write_all error: {:?}", e);
-            zenoh_nostd::LinkError::LinkTxFailed
-        })
-    }
-}
-
-impl ZTcpRx for EmbassyTcpStream {
-    async fn read(
-        &mut self,
-        buffer: &mut [u8],
-    ) -> core::result::Result<usize, zenoh_nostd::LinkError> {
-        self.socket.read(buffer).await.map_err(|e| {
-            zenoh_nostd::error!("EmbassyTcpStream read error: {:?}", e);
-            zenoh_nostd::LinkError::LinkRxFailed
-        })
-    }
-
-    async fn read_exact(
-        &mut self,
-        buffer: &mut [u8],
-    ) -> core::result::Result<(), zenoh_nostd::LinkError> {
-        self.socket.read_exact(buffer).await.map_err(|e| {
-            zenoh_nostd::error!("EmbassyTcpStream read_exact error: {:?}", e);
-            zenoh_nostd::LinkError::LinkRxFailed
-        })
-    }
-}
-
-impl ZTcpRx for EmbassyTcpRx<'_> {
-    async fn read(
-        &mut self,
-        buffer: &mut [u8],
-    ) -> core::result::Result<usize, zenoh_nostd::LinkError> {
-        self.socket.read(buffer).await.map_err(|e| {
-            zenoh_nostd::error!("EmbassyTcpRx read error: {:?}", e);
-            zenoh_nostd::LinkError::LinkRxFailed
-        })
-    }
-
-    async fn read_exact(
-        &mut self,
-        buffer: &mut [u8],
-    ) -> core::result::Result<(), zenoh_nostd::LinkError> {
-        self.socket.read_exact(buffer).await.map_err(|e| {
-            zenoh_nostd::error!("EmbassyTcpRx read_exact error: {:?}", e);
-            zenoh_nostd::LinkError::LinkRxFailed
-        })
     }
 }

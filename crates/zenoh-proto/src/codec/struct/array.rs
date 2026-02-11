@@ -23,7 +23,7 @@ impl<'a, const N: usize> ZBodyDecode<'a> for [u8; N] {
         _: (),
     ) -> core::result::Result<Self, crate::CodecError> {
         let mut dst = [0u8; N];
-        r.read(dst.as_mut_slice())?;
+        r.read_exact(dst.as_mut_slice())?;
         Ok(dst)
     }
 }

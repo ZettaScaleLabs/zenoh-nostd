@@ -5,14 +5,18 @@ check:
     cargo clippy -p zenoh-nostd --features=log
     cargo clippy -p zenoh-nostd --features=defmt
     cargo clippy -p zenoh-nostd --features=web_console
+    cargo clippy -p zenoh-nostd --features=alloc
 
     cd platforms/zenoh-std && just check
     cd platforms/zenoh-wasm && just check
     cd platforms/zenoh-embassy && just check
 
     cargo clippy --examples --features=std,log
-    cargo clippy --examples --no-default-features --features=wasm,web_console --target wasm32-unknown-unknown
+    cargo clippy --examples --features=std,log,alloc
+    cargo clippy --target wasm32-unknown-unknown --examples --no-default-features --features=wasm,web_console
+    cargo clippy --target wasm32-unknown-unknown --examples --no-default-features --features=wasm,web_console,alloc
     WIFI_PASSWORD=* cargo +esp --config .cargo/config.esp32s3.toml check --examples --no-default-features --features=esp32s3,defmt
+    WIFI_PASSWORD=* cargo +esp --config .cargo/config.esp32s3.toml check --examples --no-default-features --features=esp32s3,defmt,alloc
 
 fix:
     cargo clippy -p zenoh-nostd --fix --lib --allow-dirty --allow-staged
@@ -36,40 +40,43 @@ loc-proto:
 # Tests and benches
 
 test filter="":
-    cargo test {{ filter }} -p zenoh-proto --features=alloc
+    cargo test {{ filter }} -p zenoh-proto -p zenoh-sansio
 
 bench filter="bench":
-    cargo test -p zenoh-proto {{ filter }} --features=alloc --profile=release -- --nocapture --ignored --test-threads=1
+    cargo test -p zenoh-proto {{ filter }} --profile=release -- --nocapture --ignored --test-threads=1
 
 # Special `std` examples
 
-flood:
-    cargo run -p zenoh-proto --release --features=std,log --example z_flood
+flood *args:
+    cargo run -p zenoh-sansio --release --no-default-features --features=std,log --example z_flood -- {{ args }}
 
-drain:
-    cargo run -p zenoh-proto --release --features=std,log --example z_drain
+drain *args:
+    cargo run -p zenoh-sansio --release --no-default-features --features=std,log --example z_drain -- {{ args }}
 
 ping:
-    RUST_LOG=trace cargo run --release --features=std,log --example z_ping
+    RUST_LOG=trace cargo run --release --no-default-features --features=std,log --example z_ping
 
 pong:
-    RUST_LOG=trace cargo run --release --features=std,log --example z_pong
+    RUST_LOG=trace cargo run --release --no-default-features --features=std,log --example z_pong
 
 pub_thr:
-    RUST_LOG=trace cargo run --release --features=std,log --example z_pub_thr
+    RUST_LOG=trace cargo run --release --no-default-features --features=std,log --example z_pub_thr
 
 sub_thr:
-    RUST_LOG=trace cargo run --release --features=std,log --example z_sub_thr
+    RUST_LOG=trace cargo run --release --no-default-features --features=std,log --example z_sub_thr
+
+broker:
+    RUST_LOG=trace cargo run --release --no-default-features --features=std,log,alloc --example z_broker
 
 # Examples
 
-esp32s3 example:
-    cargo +esp --config .cargo/config.esp32s3.toml run --release --example {{ example }} --no-default-features --features=esp32s3,defmt
+esp32s3 example *args:
+    cargo +esp --config .cargo/config.esp32s3.toml run --release --no-default-features --features="esp32s3,defmt" --features={{ args }} --example {{ example }}
 
-std example:
-    RUST_LOG=trace cargo run --example {{ example }} --features="std,log"
+std example *args:
+    RUST_LOG=info cargo run --no-default-features --features="std,log" --features={{ args }} --example {{ example }}
 
 wasm example *args:
-    RUSTFLAGS='--cfg getrandom_backend="wasm_js"' cargo build --example {{ example }} --no-default-features --features="wasm,web_console" --target wasm32-unknown-unknown -- {{ args }}
+    RUSTFLAGS='--cfg getrandom_backend="wasm_js"' cargo build --no-default-features --features="wasm,web_console" --features={{ args }} --target wasm32-unknown-unknown --example {{ example }}
     wasm-bindgen --target web --out-dir ./examples/web/ ./target/wasm32-unknown-unknown/debug/examples/{{ example }}.wasm --out-name z_example
     basic-http-server ./examples/web

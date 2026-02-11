@@ -1,14 +1,11 @@
 use core::marker::PhantomData;
 
-use dyn_utils::{
-    DynObject,
-    storage::{RawOrBox, Storage},
-};
+use dyn_utils::{DynObject, storage::Storage};
 use embassy_time::Instant;
 use heapless::FnvIndexMap;
 use zenoh_proto::keyexpr;
 
-use crate::api::arg::{QueryRef, ResponseRef, SampleRef, ZArg};
+use crate::api::arg::ZArg;
 
 #[dyn_utils::dyn_trait(trait = ZDynCallback)]
 #[dyn_trait(dyn_utils::dyn_object)]
@@ -24,7 +21,7 @@ pub type DynCallback<'a, Callback, Future, Arg> =
 
 pub trait ZCallbacks<'a, Arg>
 where
-    Arg: ZArg + 'a,
+    Arg: ZArg,
 {
     type Callback: Storage;
     type Future: Storage;
@@ -37,18 +34,18 @@ where
         ke: &'static keyexpr,
         timedout: Option<Instant>,
         callback: DynCallback<'a, Self::Callback, Self::Future, Arg>,
-    ) -> core::result::Result<(), crate::CollectionError>;
+    ) -> core::result::Result<(), zenoh_proto::CollectionError>;
 
     fn drop_timedout(&mut self);
     fn get(&mut self, id: u32) -> Option<&mut DynCallback<'a, Self::Callback, Self::Future, Arg>>;
 
-    fn remove(&mut self, id: u32) -> core::result::Result<(), crate::CollectionError>;
+    fn remove(&mut self, id: u32) -> core::result::Result<(), zenoh_proto::CollectionError>;
 
     fn set_counter(
         &mut self,
         id: u32,
         value: usize,
-    ) -> core::result::Result<(), crate::CollectionError>;
+    ) -> core::result::Result<(), zenoh_proto::CollectionError>;
 
     fn decrease(&mut self, id: u32) -> bool;
 
@@ -95,31 +92,31 @@ impl<'a, Arg: ZArg + 'a, const CAPACITY: usize, Callback: Storage, Future: Stora
         ke: &'static keyexpr,
         timedout: Option<Instant>,
         callback: DynCallback<'a, Callback, Future, Arg>,
-    ) -> core::result::Result<(), crate::CollectionError> {
+    ) -> core::result::Result<(), zenoh_proto::CollectionError> {
         if self.keyexprs.contains_key(&id) {
-            return Err(crate::CollectionError::KeyAlreadyExists);
+            return Err(zenoh_proto::CollectionError::KeyAlreadyExists);
         }
 
         if self.callbacks.contains_key(&(id, ke)) {
-            return Err(crate::CollectionError::KeyAlreadyExists);
+            return Err(zenoh_proto::CollectionError::KeyAlreadyExists);
         }
 
         if self.timedouts.contains_key(&id) {
-            return Err(crate::CollectionError::KeyAlreadyExists);
+            return Err(zenoh_proto::CollectionError::KeyAlreadyExists);
         }
 
         self.keyexprs
             .insert(id, ke)
-            .map_err(|_| crate::CollectionError::CollectionIsFull)?;
+            .map_err(|_| zenoh_proto::CollectionError::CollectionIsFull)?;
 
         self.callbacks
             .insert((id, ke), callback)
-            .map_err(|_| crate::CollectionError::CollectionIsFull)?;
+            .map_err(|_| zenoh_proto::CollectionError::CollectionIsFull)?;
 
         if let Some(timedout) = timedout {
             self.timedouts
                 .insert(id, timedout)
-                .map_err(|_| crate::CollectionError::CollectionIsFull)?;
+                .map_err(|_| zenoh_proto::CollectionError::CollectionIsFull)?;
         }
 
         Ok(())
@@ -140,7 +137,7 @@ impl<'a, Arg: ZArg + 'a, const CAPACITY: usize, Callback: Storage, Future: Stora
         });
     }
 
-    fn remove(&mut self, id: u32) -> core::result::Result<(), crate::CollectionError> {
+    fn remove(&mut self, id: u32) -> core::result::Result<(), zenoh_proto::CollectionError> {
         if let Some(ke) = self.keyexprs.remove(&id) {
             self.callbacks.remove(&(id, ke));
         }
@@ -159,10 +156,10 @@ impl<'a, Arg: ZArg + 'a, const CAPACITY: usize, Callback: Storage, Future: Stora
         &mut self,
         id: u32,
         value: usize,
-    ) -> core::result::Result<(), crate::CollectionError> {
+    ) -> core::result::Result<(), zenoh_proto::CollectionError> {
         self.counters
             .insert(id, value)
-            .map_err(|_| crate::CollectionError::CollectionIsFull)
+            .map_err(|_| zenoh_proto::CollectionError::CollectionIsFull)
             .map(|_| ())
     }
 
@@ -197,31 +194,139 @@ impl<'a, Arg: ZArg + 'a, const CAPACITY: usize, Callback: Storage, Future: Stora
     }
 }
 
-pub mod storage {
-    pub use dyn_utils::storage::{Raw, RawOrBox};
+#[cfg(feature = "alloc")]
+pub struct AllocCallbacks<'a, Arg: ZArg, Callback: Storage, Future: Storage> {
+    keyexprs: alloc::collections::BTreeMap<u32, &'static keyexpr>,
+    callbacks: alloc::collections::BTreeMap<
+        (u32, &'static keyexpr),
+        DynCallback<'a, Callback, Future, Arg>,
+    >,
+    timedouts: alloc::collections::BTreeMap<u32, Instant>,
+    counters: alloc::collections::BTreeMap<u32, usize>,
 }
 
-pub type FixedCapacityGetCallbacks<
-    'a,
-    const CAPACITY: usize,
-    Callback = RawOrBox<16>,
-    Future = RawOrBox<128>,
-> = FixedCapacityCallbacks<'a, ResponseRef, CAPACITY, Callback, Future>;
+#[cfg(feature = "alloc")]
+impl<'a, Arg: ZArg + 'a, Callback: Storage, Future: Storage> ZCallbacks<'a, Arg>
+    for AllocCallbacks<'a, Arg, Callback, Future>
+{
+    type Callback = Callback;
+    type Future = Future;
 
-pub type FixedCapacitySubCallbacks<
-    'a,
-    const CAPACITY: usize,
-    Callback = RawOrBox<16>,
-    Future = RawOrBox<128>,
-> = FixedCapacityCallbacks<'a, SampleRef, CAPACITY, Callback, Future>;
+    fn empty() -> Self {
+        Self {
+            keyexprs: alloc::collections::BTreeMap::new(),
+            callbacks: alloc::collections::BTreeMap::new(),
+            timedouts: alloc::collections::BTreeMap::new(),
+            counters: alloc::collections::BTreeMap::new(),
+        }
+    }
 
-pub type FixedCapacityQueryableCallbacks<
-    'a,
-    Config,
-    const CAPACITY: usize,
-    Callback = RawOrBox<16>,
-    Future = RawOrBox<128>,
-> = FixedCapacityCallbacks<'a, QueryRef<'a, Config>, CAPACITY, Callback, Future>;
+    fn insert(
+        &mut self,
+        id: u32,
+        ke: &'static keyexpr,
+        timedout: Option<Instant>,
+        callback: DynCallback<'a, Callback, Future, Arg>,
+    ) -> core::result::Result<(), zenoh_proto::CollectionError> {
+        if self.keyexprs.contains_key(&id) {
+            return Err(zenoh_proto::CollectionError::KeyAlreadyExists);
+        }
+
+        if self.callbacks.contains_key(&(id, ke)) {
+            return Err(zenoh_proto::CollectionError::KeyAlreadyExists);
+        }
+
+        if self.timedouts.contains_key(&id) {
+            return Err(zenoh_proto::CollectionError::KeyAlreadyExists);
+        }
+
+        self.keyexprs.insert(id, ke);
+
+        self.callbacks.insert((id, ke), callback);
+
+        if let Some(timedout) = timedout {
+            self.timedouts.insert(id, timedout);
+        }
+
+        Ok(())
+    }
+
+    fn drop_timedout(&mut self) {
+        self.timedouts.retain(|id, timedout| {
+            if Instant::now() >= *timedout {
+                if let Some(ke) = self.keyexprs.remove(id) {
+                    self.callbacks.remove(&(*id, ke));
+                }
+                self.counters.remove(id);
+
+                false
+            } else {
+                true
+            }
+        });
+    }
+
+    fn remove(&mut self, id: u32) -> core::result::Result<(), zenoh_proto::CollectionError> {
+        if let Some(ke) = self.keyexprs.remove(&id) {
+            self.callbacks.remove(&(id, ke));
+        }
+        self.timedouts.remove(&id);
+        self.counters.remove(&id);
+
+        Ok(())
+    }
+
+    fn get(&mut self, id: u32) -> Option<&mut DynCallback<'a, Callback, Future, Arg>> {
+        let ke = self.keyexprs.get(&id)?;
+        self.callbacks.get_mut(&(id, ke))
+    }
+
+    fn set_counter(
+        &mut self,
+        id: u32,
+        value: usize,
+    ) -> core::result::Result<(), zenoh_proto::CollectionError> {
+        self.counters.insert(id, value);
+
+        Ok(())
+    }
+
+    fn decrease(&mut self, id: u32) -> bool {
+        if let Some(value) = self.counters.get_mut(&id) {
+            if *value > 0 {
+                *value -= 1;
+            }
+
+            *value == 0
+        } else {
+            false
+        }
+    }
+
+    fn intersects<'r>(
+        &'r mut self,
+        ke: &keyexpr,
+    ) -> impl Iterator<Item = &'r mut DynCallback<'a, Callback, Future, Arg>>
+    where
+        DynCallback<'a, Callback, Future, Arg>: 'r,
+    {
+        self.callbacks
+            .iter_mut()
+            .filter_map(move |((_, registered_ke), callback)| {
+                if registered_ke.intersects(ke) {
+                    Some(callback)
+                } else {
+                    None
+                }
+            })
+    }
+}
+
+pub mod storage {
+    #[cfg(feature = "alloc")]
+    pub use dyn_utils::storage::Box;
+    pub use dyn_utils::storage::{Raw, RawOrBox};
+}
 
 pub struct SyncCallback<Arg, F>(F, PhantomData<Arg>);
 
@@ -261,50 +366,4 @@ where
     fn call(&mut self, arg: <Self::Arg as ZArg>::Of<'_>) -> impl Future<Output = ()> {
         (self.0)(arg)
     }
-}
-
-#[test]
-fn test() {
-    use super::Response;
-    use dyn_utils::storage::RawOrBox;
-
-    struct ResponseRef;
-    impl ZArg for ResponseRef {
-        type Of<'a> = &'a Response<'a>;
-    }
-
-    trait ZTestConfig {
-        type GetCallbacks<'a>: ZCallbacks<'a, ResponseRef>;
-    }
-
-    struct ExampleConfig {}
-
-    impl ZTestConfig for ExampleConfig {
-        type GetCallbacks<'a> =
-            FixedCapacityCallbacks<'a, ResponseRef, 8, RawOrBox<128>, RawOrBox<128>>;
-    }
-
-    struct Test {}
-    let mut test = Test {};
-
-    impl Test {
-        fn borrow_mut(&mut self) {}
-    }
-
-    let mut callbacks: FixedCapacityCallbacks<ResponseRef, 8, RawOrBox<128>, RawOrBox<128>> =
-        <ExampleConfig as ZTestConfig>::GetCallbacks::empty();
-
-    callbacks
-        .insert(
-            9,
-            keyexpr::from_str_unchecked("azd/azd"),
-            None,
-            DynObject::new(AsyncCallback(
-                async |_: &Response<'_>| {
-                    test.borrow_mut();
-                },
-                PhantomData,
-            )),
-        )
-        .unwrap();
 }

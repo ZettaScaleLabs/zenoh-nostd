@@ -1,28 +1,10 @@
-mod arg;
-mod endpoint;
-mod query;
-mod response;
-mod sample;
+pub mod arg;
+pub mod query;
+pub mod response;
+pub mod sample;
 
-mod callbacks;
+pub mod callbacks;
 
-mod config;
-
-mod driver;
-mod resources;
-
-mod session;
-
-pub type ZResult<T> = core::result::Result<T, crate::Error>;
-
-pub use callbacks::{
-    FixedCapacityGetCallbacks, FixedCapacityQueryableCallbacks, FixedCapacitySubCallbacks, storage,
-};
-pub use config::*;
-pub use endpoint::*;
-pub use query::*;
-pub use resources::Resources;
-pub use response::*;
-pub use sample::*;
-pub use session::*;
-pub use zenoh_proto::{fields::Encoding, keyexpr};
+#[cfg(feature = "alloc")]
+pub mod broker;
+pub mod session;

@@ -1,33 +1,55 @@
-use dyn_utils::DynObject;
+use dyn_utils::{DynObject, storage::RawOrBox};
 use embassy_sync::channel::{DynamicReceiver, DynamicSender};
-use zenoh_proto::{fields::*, msgs::*, *};
-
-use crate::api::{
-    ZConfig,
-    arg::QueryRef,
-    callbacks::{AsyncCallback, DynCallback, SyncCallback, ZCallbacks},
-    driver::Driver,
-    resources::SessionResources,
+use zenoh_proto::{
+    SessionError,
+    exts::QoS,
+    fields::{ConsolidationMode, Reliability, WireExpr},
+    keyexpr,
+    msgs::*,
 };
+
+#[cfg(feature = "alloc")]
+use crate::api::callbacks::AllocCallbacks;
+
+use crate::{
+    api::{
+        arg::QueryableQueryRef,
+        callbacks::{AsyncCallback, DynCallback, FixedCapacityCallbacks, SyncCallback, ZCallbacks},
+        query::QueryableQuery,
+        session::Session,
+    },
+    config::ZSessionConfig,
+    io::transport::ZTransportLinkTx,
+};
+
+pub type FixedCapacityQueryableCallbacks<
+    'a,
+    Config,
+    const CAPACITY: usize,
+    Callback = RawOrBox<16>,
+    Future = RawOrBox<128>,
+> = FixedCapacityCallbacks<'a, QueryableQueryRef<'a, Config>, CAPACITY, Callback, Future>;
+
+#[cfg(feature = "alloc")]
+pub type AllocQueryableCallbacks<'a, Config, Callback = RawOrBox<16>, Future = RawOrBox<128>> =
+    AllocCallbacks<'a, QueryableQueryRef<'a, Config>, Callback, Future>;
 
 pub struct Queryable<Config, OwnedQuery = (), const CHANNEL: bool = false>
 where
-    Config: ZConfig,
+    Config: ZSessionConfig + 'static,
     OwnedQuery: 'static,
 {
-    driver: &'static Driver<'static, Config>,
-    resources: &'static SessionResources<'static, Config>,
-
+    session: &'static Session<'static, Config>,
     id: u32,
     receiver: Option<DynamicReceiver<'static, OwnedQuery>>,
 }
 
 impl<Config, OwnedQuery, const CHANNEL: bool> Queryable<Config, OwnedQuery, CHANNEL>
 where
-    Config: ZConfig,
+    Config: ZSessionConfig,
 {
     #[allow(dead_code)]
-    async fn undeclare(self) -> crate::ZResult<()> {
+    async fn undeclare(self) -> core::result::Result<(), SessionError> {
         let msg = Declare {
             body: DeclareBody::UndeclareQueryable(UndeclareQueryable {
                 id: self.id,
@@ -36,13 +58,22 @@ where
             ..Default::default()
         };
 
-        self.resources
-            .queryable_callbacks
-            .lock()
+        self.session
+            .state()
             .await
+            .queryable_callbacks
             .remove(self.id)?;
 
-        self.driver.send(msg).await?;
+        self.session
+            .driver
+            .tx()
+            .await
+            .send(core::iter::once(NetworkMessage {
+                reliability: Reliability::default(),
+                qos: QoS::default(),
+                body: NetworkBody::Declare(msg),
+            }))
+            .await?;
 
         todo!("Also stop the channel if any")
     }
@@ -50,7 +81,7 @@ where
 
 impl<Config, OwnedQuery> Queryable<Config, OwnedQuery, true>
 where
-    Config: ZConfig,
+    Config: ZSessionConfig,
 {
     pub fn try_recv(&self) -> Option<OwnedQuery> {
         self.receiver.as_ref().unwrap().try_receive().ok()
@@ -61,15 +92,17 @@ where
     }
 }
 
-type CallbackStorage<Config> = <<Config as ZConfig>::QueryableCallbacks<'static> as ZCallbacks<
-    'static,
-    QueryRef<'static, Config>,
->>::Callback;
+type CallbackStorage<Config> =
+    <<Config as ZSessionConfig>::QueryableCallbacks<'static> as ZCallbacks<
+        'static,
+        QueryableQueryRef<'static, Config>,
+    >>::Callback;
 
-type FutureStorage<Config> = <<Config as ZConfig>::QueryableCallbacks<'static> as ZCallbacks<
-    'static,
-    QueryRef<'static, Config>,
->>::Future;
+type FutureStorage<Config> =
+    <<Config as ZSessionConfig>::QueryableCallbacks<'static> as ZCallbacks<
+        'static,
+        QueryableQueryRef<'static, Config>,
+    >>::Future;
 
 pub struct QueryableBuilder<
     Config,
@@ -77,12 +110,10 @@ pub struct QueryableBuilder<
     const READY: bool = false,
     const CHANNEL: bool = false,
 > where
-    Config: ZConfig,
+    Config: ZSessionConfig + 'static,
     OwnedQuery: 'static,
 {
-    driver: &'static Driver<'static, Config>,
-    resources: &'static SessionResources<'static, Config>,
-
+    session: &'static Session<'static, Config>,
     ke: &'static keyexpr,
 
     callback: Option<
@@ -90,7 +121,7 @@ pub struct QueryableBuilder<
             'static,
             CallbackStorage<Config>,
             FutureStorage<Config>,
-            QueryRef<'static, Config>,
+            QueryableQueryRef<'static, Config>,
         >,
     >,
     receiver: Option<DynamicReceiver<'static, OwnedQuery>>,
@@ -98,16 +129,11 @@ pub struct QueryableBuilder<
 
 impl<Config> QueryableBuilder<Config, (), false, false>
 where
-    Config: ZConfig,
+    Config: ZSessionConfig,
 {
-    pub(crate) fn new(
-        driver: &'static Driver<'static, Config>,
-        resources: &'static SessionResources<'static, Config>,
-        ke: &'static keyexpr,
-    ) -> Self {
+    pub(crate) fn new(session: &'static Session<'static, Config>, ke: &'static keyexpr) -> Self {
         Self {
-            driver,
-            resources,
+            session,
             ke,
             callback: None,
             receiver: None,
@@ -116,11 +142,10 @@ where
 
     pub fn callback(
         self,
-        callback: impl AsyncFnMut(&crate::Query<'_, 'static, Config>) + 'static,
+        callback: impl AsyncFnMut(&QueryableQuery<'_, 'static, Config>) + 'static,
     ) -> QueryableBuilder<Config, (), true, false> {
         QueryableBuilder {
-            driver: self.driver,
-            resources: self.resources,
+            session: self.session,
             ke: self.ke,
             callback: Some(DynObject::new(AsyncCallback::new(callback))),
             receiver: None,
@@ -129,11 +154,10 @@ where
 
     pub fn callback_sync(
         self,
-        callback: impl FnMut(&crate::Query<'_, 'static, Config>) + 'static,
+        callback: impl FnMut(&QueryableQuery<'_, 'static, Config>) + 'static,
     ) -> QueryableBuilder<Config, (), true, false> {
         QueryableBuilder {
-            driver: self.driver,
-            resources: self.resources,
+            session: self.session,
             ke: self.ke,
             callback: Some(DynObject::new(SyncCallback::new(callback))),
             receiver: None,
@@ -143,7 +167,7 @@ where
 
 impl<Config> QueryableBuilder<Config, (), false, false>
 where
-    Config: ZConfig,
+    Config: ZSessionConfig,
 {
     pub fn channel<OwnedQuery, E>(
         self,
@@ -153,25 +177,23 @@ where
     where
         OwnedQuery: for<'any> TryFrom<
                 (
-                    &'any crate::Query<'any, 'static, Config>,
-                    &'static Driver<'static, Config>,
-                    &'static SessionResources<'static, Config>,
+                    &'any QueryableQuery<'any, 'static, Config>,
+                    &'static Session<'static, Config>,
                 ),
                 Error = E,
             >,
     {
         QueryableBuilder {
-            driver: self.driver,
-            resources: self.resources,
+            session: self.session,
             ke: self.ke,
             callback: Some(DynObject::new(AsyncCallback::new(
-                async move |resp: &'_ crate::Query<'_, 'static, Config>| {
-                    if let Ok(resp) = OwnedQuery::try_from((resp, self.driver, self.resources)) {
+                async move |resp: &'_ QueryableQuery<'_, 'static, Config>| {
+                    if let Ok(resp) = OwnedQuery::try_from((resp, self.session)) {
                         sender.send(resp).await;
                     } else {
-                        crate::error!(
+                        zenoh_proto::error!(
                             "{}: Couldn't convert to a transferable query",
-                            crate::zctx!()
+                            zenoh_proto::zctx!()
                         )
                     }
                 },
@@ -183,15 +205,19 @@ where
 
 impl<Config, OwnedQuery, const CHANNEL: bool> QueryableBuilder<Config, OwnedQuery, true, CHANNEL>
 where
-    Config: ZConfig,
+    Config: ZSessionConfig,
 {
-    pub async fn finish(self) -> crate::ZResult<Queryable<Config, OwnedQuery, CHANNEL>> {
-        let id = self.resources.next().await;
+    pub async fn finish(
+        self,
+    ) -> core::result::Result<Queryable<Config, OwnedQuery, CHANNEL>, SessionError> {
+        let mut state = self.session.state().await;
+        let id = state.next();
 
         if let Some(callback) = self.callback {
-            let mut queryables = self.resources.queryable_callbacks.lock().await;
-            queryables.drop_timedout();
-            queryables.insert(id, self.ke, None, callback)?;
+            state.queryable_callbacks.drop_timedout();
+            state
+                .queryable_callbacks
+                .insert(id, self.ke, None, callback)?;
         }
 
         let msg = Declare {
@@ -203,22 +229,109 @@ where
             ..Default::default()
         };
 
-        self.driver.send(msg).await?;
+        self.session
+            .driver
+            .tx()
+            .await
+            .send(core::iter::once(NetworkMessage {
+                reliability: Reliability::default(),
+                qos: QoS::default(),
+                body: NetworkBody::Declare(msg),
+            }))
+            .await?;
 
         Ok(Queryable {
             id,
-            driver: self.driver,
-            resources: self.resources,
+            session: self.session,
             receiver: self.receiver,
         })
     }
 }
 
-impl<Config> super::Session<'static, Config>
+impl<Config> Session<'static, Config>
 where
-    Config: ZConfig,
+    Config: ZSessionConfig,
 {
     pub fn declare_queryable(&'static self, ke: &'static keyexpr) -> QueryableBuilder<Config> {
-        QueryableBuilder::new(&self.driver, &self.resources, ke)
+        QueryableBuilder::new(self, ke)
+    }
+}
+
+impl<'res, Config> Session<'res, Config>
+where
+    Config: ZSessionConfig,
+{
+    pub(crate) async fn reply(
+        &self,
+        rid: u32,
+        ke: &keyexpr,
+        payload: &[u8],
+    ) -> core::result::Result<(), SessionError> {
+        Ok(self
+            .driver
+            .tx()
+            .await
+            .send(core::iter::once(NetworkMessage {
+                reliability: Reliability::default(),
+                qos: QoS::default(),
+                body: NetworkBody::Response(Response {
+                    rid,
+                    wire_expr: WireExpr::from(ke),
+                    payload: ResponseBody::Reply(Reply {
+                        consolidation: ConsolidationMode::None,
+                        payload: PushBody::Put(Put {
+                            payload,
+                            ..Default::default()
+                        }),
+                    }),
+                    ..Default::default()
+                }),
+            }))
+            .await?)
+    }
+
+    pub(crate) async fn err(
+        &self,
+        rid: u32,
+        ke: &keyexpr,
+        payload: &[u8],
+    ) -> core::result::Result<(), SessionError> {
+        Ok(self
+            .driver
+            .tx()
+            .await
+            .send(core::iter::once(NetworkMessage {
+                reliability: Reliability::default(),
+                qos: QoS::default(),
+                body: NetworkBody::Response(Response {
+                    rid,
+                    wire_expr: WireExpr::from(ke),
+                    payload: ResponseBody::Err(Err {
+                        payload,
+                        ..Default::default()
+                    }),
+                    ..Default::default()
+                }),
+            }))
+            .await?)
+    }
+
+    pub(crate) async fn finalize(&self, rid: u32) -> core::result::Result<(), SessionError> {
+        if self.state().await.queryable_callbacks.decrease(rid) {
+            self.driver
+                .tx()
+                .await
+                .send(core::iter::once(NetworkMessage {
+                    reliability: Reliability::default(),
+                    qos: QoS::default(),
+                    body: NetworkBody::ResponseFinal(ResponseFinal {
+                        rid,
+                        ..Default::default()
+                    }),
+                }))
+                .await?;
+        }
+
+        Ok(())
     }
 }

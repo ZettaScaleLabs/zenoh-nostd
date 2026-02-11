@@ -1,4 +1,4 @@
-use core::{convert::TryFrom, fmt};
+use core::{convert::TryFrom, fmt, net::SocketAddr, str::FromStr};
 
 const PROTO_SEPARATOR: char = '/';
 const METADATA_SEPARATOR: char = '?';
@@ -16,9 +16,18 @@ fn address(s: &str) -> &str {
     &s[pdix + 1..midx.min(cidx)]
 }
 
+#[repr(u8)]
+#[derive(Copy, Clone, PartialEq, Eq, Hash)]
+pub enum ProtocolId {
+    Tcp,
+    Udp,
+    WebSocket,
+    Serial,
+}
+
 #[repr(transparent)]
 #[derive(Copy, Clone, PartialEq, Eq, Hash)]
-pub(crate) struct Protocol<'a>(&'a str);
+pub struct Protocol<'a>(&'a str);
 
 impl<'a> Protocol<'a> {
     pub fn as_str(&self) -> &'_ str {
@@ -44,9 +53,23 @@ impl fmt::Debug for Protocol<'_> {
     }
 }
 
+impl TryFrom<Protocol<'_>> for ProtocolId {
+    type Error = crate::EndpointError;
+
+    fn try_from(value: Protocol<'_>) -> Result<Self, Self::Error> {
+        Ok(match value.as_str() {
+            "tcp" => Self::Tcp,
+            "udp" => Self::Udp,
+            "ws" => Self::WebSocket,
+            "serial" => Self::Serial,
+            _ => crate::zbail!(crate::EndpointError::CouldNotParseProtocol),
+        })
+    }
+}
+
 #[repr(transparent)]
 #[derive(Copy, Clone, PartialEq, Eq, Hash)]
-pub(crate) struct Address<'a>(&'a str);
+pub struct Address<'a>(&'a str);
 
 impl<'a> Address<'a> {
     pub fn as_str(&self) -> &'_ str {
@@ -78,34 +101,42 @@ impl<'a> From<&'a str> for Address<'a> {
     }
 }
 
+impl TryFrom<Address<'_>> for SocketAddr {
+    type Error = crate::EndpointError;
+
+    fn try_from(value: Address<'_>) -> Result<Self, Self::Error> {
+        SocketAddr::from_str(value.as_str()).map_err(|_| crate::EndpointError::CouldNotParseAddress)
+    }
+}
+
 #[derive(Clone, PartialEq, Eq, Hash)]
-pub struct EndPoint<'a> {
+pub struct Endpoint<'a> {
     pub(super) inner: &'a str,
 }
 
-impl EndPoint<'_> {
-    pub(crate) fn protocol(&self) -> Protocol<'_> {
+impl Endpoint<'_> {
+    pub fn protocol(&self) -> Protocol<'_> {
         Protocol(protocol(self.inner))
     }
 
-    pub(crate) fn address(&self) -> Address<'_> {
+    pub fn address(&self) -> Address<'_> {
         Address(address(self.inner))
     }
 }
 
-impl fmt::Display for EndPoint<'_> {
+impl fmt::Display for Endpoint<'_> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.write_str(self.inner)
     }
 }
 
-impl fmt::Debug for EndPoint<'_> {
+impl fmt::Debug for Endpoint<'_> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{self}")
     }
 }
 
-impl<'a> TryFrom<&'a str> for EndPoint<'a> {
+impl<'a> TryFrom<&'a str> for Endpoint<'a> {
     type Error = crate::EndpointError;
 
     fn try_from(s: &'a str) -> Result<Self, Self::Error> {
@@ -115,7 +146,7 @@ impl<'a> TryFrom<&'a str> for EndPoint<'a> {
             .ok_or(crate::EndpointError::NoProtocolSeparator)?;
 
         match (s.find(METADATA_SEPARATOR), s.find(CONFIG_SEPARATOR)) {
-            (None, None) => Ok(EndPoint { inner: s }),
+            (None, None) => Ok(Endpoint { inner: s }),
 
             (Some(midx), None) if midx > pidx && !s[midx + 1..].is_empty() => {
                 crate::zbail!(crate::EndpointError::MetadataNotSupported)

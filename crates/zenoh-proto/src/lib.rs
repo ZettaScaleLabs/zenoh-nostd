@@ -1,31 +1,24 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 
-#[cfg(feature = "alloc")]
-extern crate alloc;
-
-pub const VERSION: u8 = 9;
-
-pub mod logging;
-
-pub mod zerror;
-pub(crate) use zerror::*;
+pub(crate) use zenoh_derive::*;
 
 mod bytes;
-pub use bytes::*;
-
 mod codec;
-pub(crate) use codec::*;
-
+mod endpoint;
 mod ke;
-pub use ke::*;
+mod zerror;
 
+pub mod logging;
 pub mod msgs;
+
+pub use bytes::*;
+pub use codec::*;
+pub use endpoint::*;
+pub use ke::*;
 pub use msgs::{exts, fields};
-
-mod batch;
-pub use batch::*;
-
-pub(crate) use zenoh_derive::*;
+pub use zerror::*;
 
 #[cfg(test)]
 mod tests;
+
+pub const VERSION: u8 = 9;

@@ -1,15 +1,13 @@
-use embassy_time::Duration;
-use zenoh_proto::keyexpr;
+use core::time::Duration;
+use zenoh_proto::{SessionError, keyexpr};
 
-use crate::api::{ZConfig, driver::Driver, resources::SessionResources, session::get::GetBuilder};
+use crate::{api::session::Session, config::ZSessionConfig, session::GetBuilder};
 
 pub struct Querier<'a, 'res, Config>
 where
-    Config: ZConfig,
+    Config: ZSessionConfig,
 {
-    driver: &'a Driver<'res, Config>,
-    resources: &'a SessionResources<'res, Config>,
-
+    session: &'a Session<'res, Config>,
     ke: &'static keyexpr,
     parameters: Option<&'a str>,
     payload: Option<&'a [u8]>,
@@ -18,12 +16,11 @@ where
 
 impl<'a, 'res, Config> Querier<'a, 'res, Config>
 where
-    Config: ZConfig,
+    Config: ZSessionConfig,
 {
     pub fn get(&self) -> GetBuilder<'a, 'res, Config> {
         GetBuilder {
-            driver: self.driver,
-            resources: self.resources,
+            session: self.session,
             ke: self.ke,
             parameters: self.parameters,
             payload: self.payload,
@@ -34,7 +31,7 @@ where
     }
 
     #[allow(dead_code)]
-    async fn undeclare(self) -> crate::ZResult<()> {
+    async fn undeclare(self) -> core::result::Result<(), SessionError> {
         todo!("send undeclare interest")
     }
 
@@ -45,11 +42,9 @@ where
 
 pub struct QuerierBuilder<'a, 'res, Config>
 where
-    Config: ZConfig,
+    Config: ZSessionConfig,
 {
-    driver: &'a Driver<'res, Config>,
-    resources: &'a SessionResources<'res, Config>,
-
+    session: &'a Session<'res, Config>,
     ke: &'static keyexpr,
     parameters: Option<&'a str>,
     payload: Option<&'a [u8]>,
@@ -58,16 +53,11 @@ where
 
 impl<'a, 'res, Config> QuerierBuilder<'a, 'res, Config>
 where
-    Config: ZConfig,
+    Config: ZSessionConfig,
 {
-    pub(crate) fn new(
-        driver: &'a Driver<'res, Config>,
-        resources: &'a SessionResources<'res, Config>,
-        ke: &'static keyexpr,
-    ) -> Self {
+    pub(crate) fn new(session: &'a Session<'res, Config>, ke: &'static keyexpr) -> Self {
         Self {
-            driver,
-            resources,
+            session,
             ke,
             parameters: None,
             payload: None,
@@ -90,11 +80,10 @@ where
         self
     }
 
-    pub async fn finish(self) -> crate::ZResult<Querier<'a, 'res, Config>> {
+    pub async fn finish(self) -> core::result::Result<Querier<'a, 'res, Config>, SessionError> {
         // TODO: send interest msg
         Ok(Querier {
-            driver: self.driver,
-            resources: self.resources,
+            session: self.session,
             ke: self.ke,
             parameters: self.parameters,
             payload: self.payload,
@@ -103,11 +92,11 @@ where
     }
 }
 
-impl<'res, Config> super::Session<'res, Config>
+impl<'res, Config> Session<'res, Config>
 where
-    Config: ZConfig,
+    Config: ZSessionConfig,
 {
     pub fn declare_querier(&self, ke: &'static keyexpr) -> QuerierBuilder<'_, 'res, Config> {
-        QuerierBuilder::new(&self.driver, &self.resources, ke)
+        QuerierBuilder::new(self, ke)
     }
 }

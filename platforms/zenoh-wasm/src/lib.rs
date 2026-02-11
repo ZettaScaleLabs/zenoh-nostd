@@ -1,30 +1,57 @@
+use std::net::SocketAddr;
+
 use yawc::WebSocket;
-use zenoh_nostd::platform::ZPlatform;
+use zenoh_nostd::platform::*;
 
 pub mod ws;
 
-pub struct PlatformWasm;
+pub struct WasmLinkManager;
 
-impl ZPlatform for PlatformWasm {
-    type TcpStream = zenoh_nostd::platform::tcp::DummyTcpStream;
-    type UdpSocket = zenoh_nostd::platform::udp::DummyUdpSocket;
-    type WebSocket = ws::WasmWebSocket;
+#[derive(ZLinkInfo, ZLinkTx, ZLinkRx, ZLink)]
+#[zenoh(ZLink = (WasmLinkTx<'link>, WasmLinkRx<'link>))]
+pub enum WasmLink {
+    Ws(ws::WasmWsLink),
+}
 
-    async fn new_websocket_stream(
+#[derive(ZLinkInfo, ZLinkTx)]
+pub enum WasmLinkTx<'link> {
+    Ws(ws::WasmWsLinkTx<'link>),
+}
+
+#[derive(ZLinkInfo, ZLinkRx)]
+pub enum WasmLinkRx<'link> {
+    Ws(ws::WasmWsLinkRx<'link>),
+}
+
+impl ZLinkManager for WasmLinkManager {
+    type Link<'a>
+        = WasmLink
+    where
+        Self: 'a;
+
+    async fn connect(
         &self,
-        addr: &std::net::SocketAddr,
-    ) -> core::result::Result<Self::WebSocket, zenoh_nostd::ConnectionError> {
-        let url = format!("ws://{}", addr);
-        let socket = WebSocket::connect(url.parse().map_err(|_| {
-            zenoh_nostd::error!("Could not parse URL: {url}");
-            zenoh_nostd::ConnectionError::CouldNotConnect
-        })?)
-        .await
-        .map_err(|_| {
-            zenoh_nostd::error!("Could not connect to WebSocket");
-            zenoh_nostd::ConnectionError::CouldNotConnect
-        })?;
+        endpoint: Endpoint<'_>,
+    ) -> core::result::Result<Self::Link<'_>, LinkError> {
+        let protocol = endpoint.protocol();
+        let address = endpoint.address();
 
-        Ok(Self::WebSocket::new(socket))
+        match protocol.as_str() {
+            "ws" => {
+                let dst_addr = SocketAddr::try_from(address)?;
+                let url = format!("ws://{}", dst_addr);
+                let socket =
+                    WebSocket::connect(url.parse().map_err(|_| LinkError::CouldNotConnect)?)
+                        .await
+                        .map_err(|_| LinkError::CouldNotConnect)?;
+
+                Ok(Self::Link::Ws(ws::WasmWsLink::new(socket)))
+            }
+            _ => zenoh::zbail!(LinkError::CouldNotParseProtocol),
+        }
+    }
+
+    async fn listen(&self, _: Endpoint<'_>) -> core::result::Result<Self::Link<'_>, LinkError> {
+        zenoh::zbail!(LinkError::CouldNotListen)
     }
 }

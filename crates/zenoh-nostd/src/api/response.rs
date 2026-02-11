@@ -1,14 +1,13 @@
-use zenoh_proto::{keyexpr, zerror::CollectionError};
-
-use crate::{OwnedSample, api::Sample};
+use super::sample::*;
+use zenoh_proto::{CollectionError, keyexpr};
 
 #[derive(Debug)]
-pub enum Response<'a> {
+pub enum GetResponse<'a> {
     Ok(Sample<'a>),
     Err(Sample<'a>),
 }
 
-impl<'a> Response<'a> {
+impl<'a> GetResponse<'a> {
     pub fn ok(ke: &'a keyexpr, payload: &'a [u8]) -> Self {
         Self::Ok(Sample::new(ke, payload))
     }
@@ -19,29 +18,60 @@ impl<'a> Response<'a> {
 }
 
 #[derive(Debug)]
-pub enum OwnedResponse<const MAX_KEYEXPR: usize, const MAX_PAYLOAD: usize> {
-    Ok(OwnedSample<MAX_KEYEXPR, MAX_PAYLOAD>),
-    Err(OwnedSample<MAX_KEYEXPR, MAX_PAYLOAD>),
+pub enum FixedCapacityGetResponse<const MAX_KEYEXPR: usize, const MAX_PAYLOAD: usize> {
+    Ok(FixedCapacitySample<MAX_KEYEXPR, MAX_PAYLOAD>),
+    Err(FixedCapacitySample<MAX_KEYEXPR, MAX_PAYLOAD>),
 }
 
-impl<const MAX_KEYEXPR: usize, const MAX_PAYLOAD: usize> OwnedResponse<MAX_KEYEXPR, MAX_PAYLOAD> {
-    pub fn as_ref(&self) -> Response<'_> {
+impl<const MAX_KEYEXPR: usize, const MAX_PAYLOAD: usize>
+    FixedCapacityGetResponse<MAX_KEYEXPR, MAX_PAYLOAD>
+{
+    pub fn as_ref(&self) -> GetResponse<'_> {
         match self {
-            Self::Ok(sample) => Response::Ok(sample.as_ref()),
-            Self::Err(sample) => Response::Err(sample.as_ref()),
+            Self::Ok(sample) => GetResponse::Ok(sample.as_ref()),
+            Self::Err(sample) => GetResponse::Err(sample.as_ref()),
         }
     }
 }
 
-impl<const MAX_KEYEXPR: usize, const MAX_PAYLOAD: usize> TryFrom<&Response<'_>>
-    for OwnedResponse<MAX_KEYEXPR, MAX_PAYLOAD>
+impl<const MAX_KEYEXPR: usize, const MAX_PAYLOAD: usize> TryFrom<&GetResponse<'_>>
+    for FixedCapacityGetResponse<MAX_KEYEXPR, MAX_PAYLOAD>
 {
     type Error = CollectionError;
 
-    fn try_from(value: &Response<'_>) -> Result<Self, Self::Error> {
+    fn try_from(value: &GetResponse<'_>) -> Result<Self, Self::Error> {
         match value {
-            Response::Ok(sample) => Ok(Self::Ok(sample.try_into()?)),
-            Response::Err(sample) => Ok(Self::Err(sample.try_into()?)),
+            GetResponse::Ok(sample) => Ok(Self::Ok(sample.try_into()?)),
+            GetResponse::Err(sample) => Ok(Self::Err(sample.try_into()?)),
+        }
+    }
+}
+
+#[cfg(feature = "alloc")]
+#[derive(Debug)]
+pub enum AllocGetResponse {
+    Ok(AllocSample),
+    Err(AllocSample),
+}
+
+#[cfg(feature = "alloc")]
+impl AllocGetResponse {
+    pub fn as_ref(&self) -> GetResponse<'_> {
+        match self {
+            Self::Ok(sample) => GetResponse::Ok(sample.as_ref()),
+            Self::Err(sample) => GetResponse::Err(sample.as_ref()),
+        }
+    }
+}
+
+#[cfg(feature = "alloc")]
+impl TryFrom<&GetResponse<'_>> for AllocGetResponse {
+    type Error = CollectionError;
+
+    fn try_from(value: &GetResponse<'_>) -> Result<Self, Self::Error> {
+        match value {
+            GetResponse::Ok(sample) => Ok(Self::Ok(sample.try_into()?)),
+            GetResponse::Err(sample) => Ok(Self::Err(sample.try_into()?)),
         }
     }
 }

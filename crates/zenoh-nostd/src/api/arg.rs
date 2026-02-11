@@ -1,9 +1,8 @@
 use core::marker::PhantomData;
 
-use crate::{
-    Query, ZConfig,
-    api::{Response, Sample},
-};
+use crate::{api::query::QueryableQuery, config::ZSessionConfig};
+
+use super::{response::*, sample::*};
 
 pub trait ZArg {
     type Of<'a>
@@ -11,25 +10,24 @@ pub trait ZArg {
         Self: 'a;
 }
 
-pub struct ResponseRef;
+pub struct GetResponseRef;
 pub struct SampleRef;
-pub struct QueryRef<'res, Config>(PhantomData<&'res Config>);
+pub struct QueryableQueryRef<'res, Config>(PhantomData<&'res Config>);
 
-impl ZArg for ResponseRef {
-    type Of<'a> = &'a Response<'a>;
+impl ZArg for GetResponseRef {
+    type Of<'a> = &'a GetResponse<'a>;
 }
 
 impl ZArg for SampleRef {
     type Of<'a> = &'a Sample<'a>;
 }
 
-impl<'res, Config> ZArg for QueryRef<'res, Config>
+impl<'res, Config> ZArg for QueryableQueryRef<'res, Config>
 where
-    Config: ZConfig,
+    Config: ZSessionConfig,
 {
     type Of<'a>
-        = &'a Query<'a, 'res, Config>
+        = &'a QueryableQuery<'a, 'res, Config>
     where
-        Config: 'a,
-        'res: 'a;
+        Self: 'a;
 }
