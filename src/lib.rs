@@ -111,8 +111,7 @@ impl ZSessionConfig for ExampleConfig {
     >;
 
     #[cfg(feature = "alloc")]
-    type SubCallbacks<'res> =
-        AllocSubCallbacks<'res, zenoh::storage::RawOrBox<56>, zenoh::storage::RawOrBox<600>>;
+    type SubCallbacks<'res> = AllocSubCallbacks<'res, zenoh::storage::Box, zenoh::storage::Box>;
 
     #[cfg(not(feature = "alloc"))]
     type GetCallbacks<'res> = FixedCapacityGetCallbacks<
@@ -123,8 +122,7 @@ impl ZSessionConfig for ExampleConfig {
     >;
 
     #[cfg(feature = "alloc")]
-    type GetCallbacks<'res> =
-        AllocGetCallbacks<'res, zenoh::storage::RawOrBox<1>, zenoh::storage::RawOrBox<32>>;
+    type GetCallbacks<'res> = AllocGetCallbacks<'res, zenoh::storage::Box, zenoh::storage::Box>;
 
     #[cfg(not(feature = "alloc"))]
     type QueryableCallbacks<'res> = FixedCapacityQueryableCallbacks<
@@ -136,12 +134,8 @@ impl ZSessionConfig for ExampleConfig {
     >;
 
     #[cfg(feature = "alloc")]
-    type QueryableCallbacks<'res> = AllocQueryableCallbacks<
-        'res,
-        Self,
-        zenoh::storage::RawOrBox<32>,
-        zenoh::storage::RawOrBox<952>,
-    >;
+    type QueryableCallbacks<'res> =
+        AllocQueryableCallbacks<'res, Self, zenoh::storage::Box, zenoh::storage::Box>;
 
     fn buff(&self) -> Self::Buff {
         #[cfg(not(feature = "alloc"))]
