@@ -7,8 +7,8 @@ use zenoh_nostd::broker::*;
 
 #[embassy_executor::task(pool_size = 2)]
 async fn south(broker: &'static Broker<ExampleConfig>, endpoint: Endpoint<'static>) {
-    // `broker.open` creates a listening `Endpoint`: a client can connect to the broker, one at a time
-    if let Err(e) = broker.open(endpoint.clone()).await {
+    // `broker.accept` creates a listening `Endpoint`: a client can connect to the broker, one at a time
+    if let Err(e) = broker.accept(endpoint.clone()).await {
         zenoh::error!("Fatal error on south {}: {}", endpoint, e);
     }
 }
@@ -25,12 +25,10 @@ async fn entry(spawner: embassy_executor::Spawner) -> zenoh::ZResult<()> {
     spawner.must_spawn(south(broker, Endpoint::try_from("tcp/127.0.0.1:7444")?));
     spawner.must_spawn(south(broker, Endpoint::try_from("tcp/127.0.0.1:7445")?));
 
-    // `broker.listen` and `broker.connect` defines the gateway of this broker,
-    // the `broker.gateway_connect` method will fail if there is nobody listening at that `Endpoint`,
-    // the `broker.gateway_listen` method will listen at this endpoint for a zenoh network to connect, one at a time
+    // `broker.open` defines the gateway of this broker, it will fail if there is nobody listening at that `Endpoint`
 
     Ok(broker
-        .gateway_listen(Endpoint::try_from("tcp/127.0.0.1:7447")?)
+        .open(Endpoint::try_from("tcp/127.0.0.1:7447")?)
         .await?)
 }
 

@@ -123,44 +123,12 @@ where
         Self::update(false, id, state, msg, bytes).await
     }
 
-    pub async fn gateway_connect(
-        &self,
-        endpoint: Endpoint<'_>,
-    ) -> core::result::Result<(), BrokerError> {
-        let transport = Box::leak(Box::new(
-            self.config
-                .transports()
-                .connect(endpoint.clone(), self.config.buff())
-                .await?,
-        ));
-
-        let driver = Arc::new(StaticDriver {
-            ptr: transport,
-            driver: core::mem::ManuallyDrop::new(Driver::new(transport)),
-        });
-
-        self.state().await.north = Some((driver.driver.zid(), driver.clone()));
-
-        let res = driver
-            .driver
-            .run(&self.state, Self::update_north)
-            .await
-            .map_err(|e| e.flatten_map::<BrokerError>());
-
-        self.state().await.north.take();
-
-        res
-    }
-
-    pub async fn gateway_listen(
-        &self,
-        endpoint: Endpoint<'_>,
-    ) -> core::result::Result<(), BrokerError> {
+    pub async fn open(&self, endpoint: Endpoint<'_>) -> core::result::Result<(), BrokerError> {
         loop {
             let transport = Box::leak(Box::new(
                 self.config
                     .transports()
-                    .listen(endpoint.clone(), self.config.buff())
+                    .connect(endpoint.clone(), self.config.buff())
                     .await?,
             ));
 
@@ -184,7 +152,7 @@ where
         }
     }
 
-    pub async fn open(&self, endpoint: Endpoint<'_>) -> core::result::Result<(), BrokerError> {
+    pub async fn accept(&self, endpoint: Endpoint<'_>) -> core::result::Result<(), BrokerError> {
         loop {
             let transport = Box::leak(Box::new(
                 self.config
