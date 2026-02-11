@@ -323,6 +323,8 @@ impl<'a, Arg: ZArg + 'a, Callback: Storage, Future: Storage> ZCallbacks<'a, Arg>
 }
 
 pub mod storage {
+    #[cfg(feature = "alloc")]
+    pub use dyn_utils::storage::Box;
     pub use dyn_utils::storage::{Raw, RawOrBox};
 }
 
