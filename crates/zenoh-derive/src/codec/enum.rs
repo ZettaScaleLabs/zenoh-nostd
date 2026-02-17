@@ -1,6 +1,16 @@
 use proc_macro2::TokenStream;
 use syn::DeriveInput;
 
+/// Derives codec traits for an enum with structured variants.
+///
+/// Each variant is encoded with its discriminant (as a `u8`) followed by
+/// the variant's data (if any).
+///
+/// # Errors
+///
+/// Returns a [`syn::Error`] if:
+/// - The input is not an enum
+/// - Variants have unsupported data formats
 pub fn derive_zenum(input: &DeriveInput) -> syn::Result<TokenStream> {
     let ident = &input.ident;
     let (impl_generics, ty_generics, where_clause) = input.generics.split_for_impl();

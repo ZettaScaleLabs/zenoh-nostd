@@ -1,3 +1,16 @@
+//! # Array Encoding Implementation
+//!
+//! This module provides codec implementations for fixed-size arrays of bytes.
+//!
+//! ## Encoding Strategy
+//!
+//! Fixed-size byte arrays are encoded differently from slices:
+//!
+//! - **No length prefix**: The size is known at compile time
+//! - **Raw bytes**: Direct copy of the array data
+//!
+//! This is more efficient than encoding slices when the size is fixed and known.
+
 use crate::*;
 
 impl<const N: usize> ZBodyLen for [u8; N] {
