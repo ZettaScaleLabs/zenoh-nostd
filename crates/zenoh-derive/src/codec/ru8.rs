@@ -1,6 +1,20 @@
 use proc_macro2::TokenStream;
 use syn::DeriveInput;
 
+/// Derives codec traits for a `repr(u8)` enum.
+///
+/// This macro is used for simple enums that are represented as a single byte.
+/// The enum must have `#[repr(u8)]` and each variant must have an explicit
+/// discriminant value.
+///
+/// The encoding is simply the discriminant value as a single byte.
+///
+/// # Errors
+///
+/// Returns a [`syn::Error`] if:
+/// - The input is not an enum
+/// - The enum doesn't have `#[repr(u8)]`
+/// - Variants have associated data (not supported)
 pub fn derive_zru8(input: &DeriveInput) -> syn::Result<TokenStream> {
     let ident = &input.ident;
     let variants = match &input.data {

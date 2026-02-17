@@ -21,4 +21,5 @@ pub use zerror::*;
 #[cfg(test)]
 mod tests;
 
+/// Current version of the Zenoh protocol implementation.
 pub const VERSION: u8 = 9;

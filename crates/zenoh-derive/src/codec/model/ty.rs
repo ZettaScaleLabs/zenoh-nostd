@@ -1,3 +1,29 @@
+//! # Type Analysis and Validation
+//!
+//! This module analyzes Rust types and validates that zenoh attributes are
+//! compatible with each type. It transforms `syn::Type` into our internal
+//! `ZenohType` representation.
+//!
+//! ## Type Classification
+//!
+//! Types are classified into categories, each with different codec requirements:
+//!
+//! - **Primitive integers**: `u8`, `u16`, `u32`, `u64`, `usize`
+//! - **Byte containers**: `[u8; N]`, `&[u8]`
+//! - **Strings**: `&str`
+//! - **Structured types**: Any other type (assumed to implement codec traits)
+//! - **Optional types**: `Option<T>` (wraps any of the above)
+//!
+//! ## Attribute Validation
+//!
+//! Each type has restrictions on which attributes can be used:
+//!
+//! - `u8`, `u16`, `u32`, `u64`, `usize`: Limited attributes (no size, no flatten)
+//! - `&[u8]`, `&str`: Require size attribute
+//! - `[u8; N]`: Fixed size (no size attribute needed)
+//! - `Option<T>`: Requires presence or ext attribute
+//! - Structured types: Most flexible, but with logical constraints
+
 use syn::{Type, TypeArray, TypeReference};
 
 use crate::codec::model::attribute::{
@@ -5,6 +31,12 @@ use crate::codec::model::attribute::{
     ZenohAttribute,
 };
 
+/// Internal representation of a field's type after analysis.
+///
+/// This enum classifies types into categories that determine:
+/// - How they are encoded/decoded
+/// - Which attributes are valid
+/// - Whether they need size prefixes
 pub enum ZenohType {
     U8,
     U16,
@@ -23,7 +55,25 @@ pub enum ZenohType {
 }
 
 impl ZenohType {
+    /// Validates that the given attributes are compatible with this type.
+    ///
+    /// This performs comprehensive validation to catch invalid attribute combinations
+    /// at compile time (during macro expansion).
+    ///
+    /// # Arguments
+    ///
+    /// * `attr` - The zenoh attributes to validate
+    ///
+    /// # Returns
+    ///
+    /// `Ok(())` if attributes are valid for this type, `Err` otherwise
+    ///
+    /// # Validation Rules
+    ///
+    /// Each type has specific rules about which attributes can be used.
+    /// See the implementation for detailed rules per type.
     pub fn check_attribute(&self, attr: &ZenohAttribute) -> syn::Result<()> {
+        // Extract which attributes are present (for readability below)
         let (s, f, sh, me, m, p, h, e, d) = (
             !matches!(attr.size, SizeAttribute::None),
             attr.flatten,
@@ -37,6 +87,10 @@ impl ZenohType {
         );
 
         match self {
+            // u8: Single byte encoding
+            // - Can have: presence, default
+            // - Cannot have: flatten, shift, size, maybe_empty, mandatory, ext
+            // - Requires: if default, must have presence
             ZenohType::U8 => {
                 if f || sh || s || me || m || e {
                     return Err(syn::Error::new(
@@ -52,6 +106,10 @@ impl ZenohType {
                 }
                 Ok(())
             }
+            // Integer types (u16, u32, u64, usize) and fixed-size arrays [u8; N]
+            // - Can have: presence, default
+            // - Cannot have: flatten, shift, size, maybe_empty, mandatory, header, ext
+            // - Requires: if default, must have presence
             ZenohType::U16
             | ZenohType::U32
             | ZenohType::U64
@@ -71,6 +129,10 @@ impl ZenohType {
                 }
                 Ok(())
             }
+            // Byte slices (&[u8]) and strings (&str)
+            // - Can have: size (REQUIRED), presence, maybe_empty
+            // - Cannot have: flatten, shift, mandatory, header, ext, default
+            // - Requires: MUST have size attribute
             ZenohType::ByteSlice | ZenohType::Str => {
                 if f || sh || m || h || e {
                     return Err(syn::Error::new(
@@ -92,37 +154,48 @@ impl ZenohType {
                 }
                 Ok(())
             }
+            // Structured types (any type implementing codec traits)
+            // Complex validation rules due to flexibility:
+            // - Can be regular fields, flattened fields, or extensions
+            // - Various attribute combinations allowed depending on usage
             ZenohType::ZStruct => {
+                // If has presence, must have default (or be an extension)
                 if p && !d || (d && !p && !e) {
                     return Err(syn::Error::new(
                         attr.span,
                         "ZStruct types with default attribute requires a presence attribute",
                     ));
                 }
+                // If has default without ext, must have presence
                 if d && !e && !p {
                     return Err(syn::Error::new(
                         attr.span,
                         "structs with default attribute requires an ext attribute",
                     ));
                 }
+                // Extensions must have default values
                 if e && !d {
                     return Err(syn::Error::new(
                         attr.span,
                         "ZStruct type with ext attribute requires a default attribute",
                     ));
                 }
+                // Extensions cannot have size attribute (size is part of ext encoding)
+                // Extensions encode their own size
                 if e && s {
                     return Err(syn::Error::new(
                         attr.span,
                         "ZStruct type that are extensions cannot have a size attribute",
                     ));
                 }
+                // Cannot both read from header and flatten
                 if h && f {
                     return Err(syn::Error::new(
                         attr.span,
                         "ZStruct type with header attribute cannot be flattened",
                     ));
                 }
+                // Shift only makes sense for flattened fields
                 if sh && !f {
                     return Err(syn::Error::new(
                         attr.span,
@@ -131,6 +204,11 @@ impl ZenohType {
                 }
                 Ok(())
             }
+            // Option<T>: Wraps another type in optional encoding
+            // - Cannot have: default (Option itself is the optionality), header
+            // - Must have: EITHER presence OR ext (one way to know if present)
+            // - Cannot have: both presence AND ext (only one optionality mechanism)
+            // - Validates inner type with adjusted attributes
             ZenohType::Option(inner_ty) => {
                 if d || h {
                     return Err(syn::Error::new(
@@ -139,6 +217,7 @@ impl ZenohType {
                     ));
                 }
 
+                // Must have either presence or ext to know if value is present
                 if !e && !p {
                     return Err(syn::Error::new(
                         attr.span,
@@ -146,6 +225,7 @@ impl ZenohType {
                     ));
                 }
 
+                // Cannot have both presence and ext (conflicting optionality)
                 if e && p {
                     return Err(syn::Error::new(
                         attr.span,
@@ -160,6 +240,8 @@ impl ZenohType {
                     ));
                 }
 
+                // Recursively validate the inner type with appropriate attributes
+                // Remove presence/ext/default since they apply to the Option itself
                 let attr = ZenohAttribute {
                     size: attr.size.clone(),
                     flatten: attr.flatten,
@@ -178,6 +260,29 @@ impl ZenohType {
         }
     }
 
+    /// Analyzes a `syn::Type` and classifies it into a `ZenohType`.
+    ///
+    /// This function recursively analyzes Rust types to determine:
+    /// - What codec strategy to use
+    /// - What attributes are valid
+    ///
+    /// # Arguments
+    ///
+    /// * `ty` - The syn type to analyze
+    ///
+    /// # Returns
+    ///
+    /// A `ZenohType` classification of the input type
+    ///
+    /// # Errors
+    ///
+    /// Returns `syn::Error` if the type is unsupported
+    ///
+    /// # Supported Types
+    ///
+    /// - Path types: `u8`, `u16`, `u32`, `u64`, `usize`, `Option<T>`, custom types
+    /// - Reference types: `&str`, `&[u8]`
+    /// - Array types: `[u8; N]`
     pub fn from_type(ty: &Type) -> syn::Result<Self> {
         match ty {
             Type::Path(type_path) => {
