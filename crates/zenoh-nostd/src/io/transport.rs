@@ -7,6 +7,8 @@ use zenoh_proto::{
 };
 use zenoh_sansio::{Transport, ZTransportRx, ZTransportTx};
 
+use crate::io::link::EmbeddedIOLink;
+
 use super::link::{ZLink, ZLinkInfo, ZLinkManager, ZLinkRx, ZLinkTx};
 
 mod rx;
@@ -110,6 +112,84 @@ impl<LinkManager> TransportLinkManager<LinkManager> {
             lease,
             resolution,
         }
+    }
+
+    pub async fn bridge_connect<Tx: embedded_io_async::Write, Rx: embedded_io_async::Read, Buff>(
+        &self,
+        mut link: EmbeddedIOLink<Tx, Rx>,
+        buff: Buff,
+    ) -> core::result::Result<TransportLink<EmbeddedIOLink<Tx, Rx>, Buff>, TransportLinkError>
+    where
+        LinkManager: ZLinkManager,
+        Buff: AsMut<[u8]> + AsRef<[u8]> + Clone,
+    {
+        let connect = async || {
+            let streamed = link.is_streamed();
+            Transport::builder(buff)
+                .with_zid(self.zid)
+                .with_lease(self.lease)
+                .with_resolution(self.resolution)
+                .connect_async(
+                    &mut link,
+                    async |link, bytes| {
+                        if link.is_streamed() {
+                            link.read_exact(bytes).await.map(|_| bytes.len())
+                        } else {
+                            link.read(bytes).await
+                        }
+                    },
+                    async |link, bytes| link.write_all(bytes).await,
+                )
+                .with_prefixed(streamed)
+                .finish_async()
+                .await
+        };
+
+        let transport = with_timeout(self.open_timeout.try_into().unwrap(), connect())
+            .await
+            .map_err(|_| TransportLinkError::OpenTimeout)?
+            .map_err(|e| e.flatten_map::<TransportLinkError>())?;
+
+        Ok(TransportLink::new(link, transport))
+    }
+
+    pub async fn bridge_listen<Tx: embedded_io_async::Write, Rx: embedded_io_async::Read, Buff>(
+        &self,
+        mut link: EmbeddedIOLink<Tx, Rx>,
+        buff: Buff,
+    ) -> core::result::Result<TransportLink<EmbeddedIOLink<Tx, Rx>, Buff>, TransportLinkError>
+    where
+        LinkManager: ZLinkManager,
+        Buff: AsMut<[u8]> + AsRef<[u8]> + Clone,
+    {
+        let connect = async || {
+            let streamed = link.is_streamed();
+            Transport::builder(buff)
+                .with_zid(self.zid)
+                .with_lease(self.lease)
+                .with_resolution(self.resolution)
+                .listen_async(
+                    &mut link,
+                    async |link, bytes| {
+                        if link.is_streamed() {
+                            link.read_exact(bytes).await.map(|_| bytes.len())
+                        } else {
+                            link.read(bytes).await
+                        }
+                    },
+                    async |link, bytes| link.write_all(bytes).await,
+                )
+                .with_prefixed(streamed)
+                .finish_async()
+                .await
+        };
+
+        let transport = with_timeout(self.open_timeout.try_into().unwrap(), connect())
+            .await
+            .map_err(|_| TransportLinkError::OpenTimeout)?
+            .map_err(|e| e.flatten_map::<TransportLinkError>())?;
+
+        Ok(TransportLink::new(link, transport))
     }
 
     pub async fn connect<Buff>(

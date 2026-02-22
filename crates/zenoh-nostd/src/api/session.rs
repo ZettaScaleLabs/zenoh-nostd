@@ -1,4 +1,3 @@
-// use crate::api::callbacks::ZCallbacks;
 use embassy_sync::{
     blocking_mutex::raw::NoopRawMutex,
     mutex::{Mutex, MutexGuard},
@@ -7,7 +6,6 @@ use zenoh_proto::{Endpoint, TransportLinkError};
 
 use crate::{
     api::callbacks::ZCallbacks,
-    // session::Resources,
     config::ZSessionConfig,
     io::{driver::Driver, transport::TransportLink},
     platform::ZLinkManager,
@@ -61,13 +59,16 @@ where
     state: Mutex<NoopRawMutex, SessionState<'res, Config>>,
 }
 
-type Link<'res, Config> = <<Config as ZSessionConfig>::LinkManager as ZLinkManager>::Link<'res>;
-
 impl<'res, Config> Session<'res, Config>
 where
     Config: ZSessionConfig,
 {
-    pub fn new(transport: &'res mut TransportLink<Link<'res, Config>, Config::Buff>) -> Self {
+    pub fn new(
+        transport: &'res mut TransportLink<
+            <Config::LinkManager as ZLinkManager>::Link<'res>,
+            Config::Buff,
+        >,
+    ) -> Self {
         Self {
             driver: Driver::new(transport),
             state: Mutex::new(SessionState::new()),
