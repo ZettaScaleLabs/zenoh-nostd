@@ -31,3 +31,5 @@ heapless.workspace = true
 embassy-futures.workspace = true
 embassy-time.workspace = true
 embassy-sync.workspace = true
+
+embedded-io-async.workspace = true

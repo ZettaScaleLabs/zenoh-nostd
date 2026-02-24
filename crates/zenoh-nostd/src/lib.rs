@@ -56,7 +56,10 @@ pub mod broker {
 }
 
 pub mod platform {
-    pub use super::io::link::{ZLink, ZLinkInfo, ZLinkManager, ZLinkRx, ZLinkTx};
+    pub use super::io::link::{
+        EmbeddedIOLink, EmbeddedIOLinkRx, EmbeddedIOLinkTx, ZLink, ZLinkInfo, ZLinkManager,
+        ZLinkRx, ZLinkTx,
+    };
     pub use zenoh_derive::{ZLink, ZLinkInfo, ZLinkRx, ZLinkTx};
     pub use zenoh_proto::{Endpoint, LinkError};
 

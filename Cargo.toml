@@ -41,6 +41,8 @@ embassy-time = "0.5.0"
 embassy-sync = "0.7.2"
 embassy-executor = "0.9.1"
 
+embedded-io-async = "0.7"
+
 # Heapless / static
 heapless = { version = "0.8", default-features = false }
 static_cell = "2.1.1"
