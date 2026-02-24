@@ -1,3 +1,6 @@
+//! # ZStruct Derive Implementation
+//!
+//! This module orchestrates the code generation for `#[derive(ZStruct)]`.
 use proc_macro2::TokenStream;
 use syn::DeriveInput;
 
@@ -14,6 +17,31 @@ pub mod ext_count;
 pub mod header;
 pub mod len;
 
+/// Main entry point for `#[derive(ZStruct)]` macro.
+///
+/// This function orchestrates the entire code generation process:
+/// 1. Parses the input struct into a [`ZenohStruct`] representation
+/// 2. Generates implementations for all codec traits
+/// 3. Returns the generated token stream
+///
+/// # Arguments
+///
+/// * `input` - The parsed `DeriveInput` from the macro invocation
+///
+/// # Returns
+///
+/// A `TokenStream` containing all generated trait implementations
+///
+/// # Generated Traits
+///
+/// - `ZHeader` (if struct has a header)
+/// - `ZExtCount` (if struct has extensions)
+/// - `ZBodyLen` - calculates body size
+/// - `ZLen` - calculates total size (header + body)
+/// - `ZBodyEncode` - encodes body data
+/// - `ZEncode` - encodes complete message (header + body)
+/// - `ZBodyDecode` - decodes body data
+/// - `ZDecode` - decodes complete message (header + body)
 pub fn derive_zstruct(input: &DeriveInput) -> syn::Result<TokenStream> {
     let r#struct = ZenohStruct::from_derive_input(input)?;
     let ident = &r#struct.ident;
@@ -107,6 +135,36 @@ pub fn derive_zstruct(input: &DeriveInput) -> syn::Result<TokenStream> {
     })
 }
 
+/// Wraps encoding or length calculation code with optional/default checks.
+///
+/// This helper function generates conditional code that handles:
+/// - Optional fields (`Option<T>`) with presence flags
+/// - Fields with default values
+/// - Extension fields
+///
+/// # Arguments
+///
+/// * `attr` - The field's attributes (presence, default, ext)
+/// * `tk` - The encoding/length token stream to wrap
+/// * `access` - How to access the field (e.g., `self.field`)
+/// * `default` - Default value expression (if any)
+/// * `append` - If true, append `else { 0usize }` for length calculations
+///
+/// # Logic
+///
+/// The function generates different code based on attribute combinations:
+///
+/// - **No attributes**: Returns `tk` as-is
+/// - **presence + default** OR **ext + default**:
+///   ```rust
+///   if field != &default { tk } else { 0 }  // if append
+///   if field != &default { tk }              // if !append
+///   ```
+/// - **presence only** OR **ext only**:
+///   ```rust
+///   if let Some(field) = field { tk } else { 0 }  // if append
+///   if let Some(field) = field { tk }              // if !append
+///   ```
 #[allow(clippy::nonminimal_bool)]
 pub fn enc_len_modifier(
     attr: &ZenohAttribute,
@@ -152,6 +210,35 @@ pub fn enc_len_modifier(
     }
 }
 
+/// Wraps decoding code with optional/default value handling.
+///
+/// This helper function generates conditional decoding code that handles:
+/// - Optional fields (`Option<T>`) with presence flags
+/// - Fields with default values
+///
+/// # Arguments
+///
+/// * `attr` - The field's attributes (presence, default)
+/// * `tk` - The decoding token stream to wrap
+/// * `access` - Variable name to bind the decoded value to
+/// * `default` - Default value expression (if any)
+///
+/// # Logic
+///
+/// The function generates different code based on attribute combinations:
+///
+/// - **No attributes**: Decode unconditionally
+///   ```rust
+///   let field = { decode_expr };
+///   ```
+/// - **presence + default**: Use default if not present
+///   ```rust
+///   let field = if present { decode_expr } else { default };
+///   ```
+/// - **presence only**: Wrap in Option
+///   ```rust
+///   let field = if present { Some(decode_expr) } else { None };
+///   ```
 pub fn dec_modifier(
     attr: &ZenohAttribute,
     tk: &TokenStream,
